@@ -1311,34 +1311,36 @@ let sign_of_args a =
 
 let rec kill_dummy = function
   | MLfix(i,fi,c) ->
-      (try
-         let k,c = kill_dummy_fix i c [] in
-         ast_subst (MLfix (i,fi,c)) (kill_dummy_args k 1 (MLrel 1))
-       with Impossible -> MLfix (i,fi,Array.map kill_dummy c))
+    begin match kill_dummy_fix i c [] with
+    | k, c -> ast_subst (MLfix (i,fi,c)) (kill_dummy_args k 1 (MLrel 1))
+    | exception Impossible -> MLfix (i,fi,Array.map kill_dummy c)
+    end
   | MLapp (MLfix (i,fi,c),a) ->
       let a = List.map kill_dummy a in
       (* Heuristics: if some arguments are implicit args, we try to
          eliminate the corresponding arguments of the fixpoint *)
-      (try
-         let k,c = kill_dummy_fix i c (sign_of_args a) in
+      begin match kill_dummy_fix i c (sign_of_args a) with
+      | (k, c) ->
          let fake = MLapp (MLrel 1, List.map (ast_lift 1) a) in
          let fake' = kill_dummy_args k 1 fake in
          ast_subst (MLfix (i,fi,c)) fake'
-       with Impossible -> MLapp(MLfix(i,fi,Array.map kill_dummy c),a))
+      | exception Impossible -> MLapp(MLfix(i,fi,Array.map kill_dummy c),a)
+      end
   | MLletin(id, MLfix (i,fi,c),e) ->
-      (try
-         let k,c = kill_dummy_fix i c [] in
+      begin match kill_dummy_fix i c [] with
+      | (k, c) ->
          let e = kill_dummy (kill_dummy_args k 1 e) in
          MLletin(id, MLfix(i,fi,c),e)
-      with Impossible ->
-        MLletin(id, MLfix(i,fi,Array.map kill_dummy c),kill_dummy e))
+      | exception Impossible -> MLletin(id, MLfix(i,fi,Array.map kill_dummy c),kill_dummy e)
+      end
   | MLletin(id,c,e) ->
-      (try
-         let k,c = kill_dummy_lams [] (kill_dummy_hd c) in
+      begin match kill_dummy_lams [] (kill_dummy_hd c) with
+      | (k, c) ->
          let e = kill_dummy (kill_dummy_args k 1 e) in
          let c = kill_dummy c in
          if is_atomic c then ast_subst c e else MLletin (id, c, e)
-       with Impossible -> MLletin(id,kill_dummy c,kill_dummy e))
+      | exception Impossible -> MLletin(id,kill_dummy c,kill_dummy e)
+      end
   | a -> ast_map kill_dummy a
 
 (* Similar function, but acting only on head lambdas and let-ins *)
@@ -1346,12 +1348,13 @@ let rec kill_dummy = function
 and kill_dummy_hd = function
   | MLlam(id,e) -> MLlam(id, kill_dummy_hd e)
   | MLletin(id,c,e) ->
-      (try
-         let k,c = kill_dummy_lams [] (kill_dummy_hd c) in
+      begin match kill_dummy_lams [] (kill_dummy_hd c) with
+      | (k, c) ->
          let e = kill_dummy_hd (kill_dummy_args k 1 e) in
          let c = kill_dummy c in
          if is_atomic c then ast_subst c e else MLletin (id, c, e)
-       with Impossible -> MLletin(id,kill_dummy c,kill_dummy_hd e))
+      | exception Impossible -> MLletin(id,kill_dummy c,kill_dummy_hd e)
+      end
   | a -> a
 
 and kill_dummy_fix i c s =
