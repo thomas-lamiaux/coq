@@ -1334,12 +1334,12 @@ let rec kill_dummy = function
       | exception Impossible -> MLletin(id, MLfix(i,fi,Array.map kill_dummy c),kill_dummy e)
       end
   | MLletin(id,c,e) ->
-      begin match kill_dummy_lams [] (kill_dummy_hd c) with
+      let c = kill_dummy c in
+      begin match kill_dummy_lams [] c with
       | (k, c) ->
          let e = kill_dummy (kill_dummy_args k 1 e) in
-         let c = kill_dummy c in
          if is_atomic c then ast_subst c e else MLletin (id, c, e)
-      | exception Impossible -> MLletin(id,kill_dummy c,kill_dummy e)
+      | exception Impossible -> MLletin(id, c, kill_dummy e)
       end
   | a -> ast_map kill_dummy a
 
