@@ -39,10 +39,7 @@ type t = {
 }
 
 let make ~hypnaming env sigma lvar =
-  let get_extra env sigma =
-    let avoid = Environ.ids_of_named_context_val (Environ.named_context_val env) in
-    Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context ~hypnaming sigma d acc)
-      (rel_context env) ~init:(empty_csubst, avoid, named_context_val env) in
+  let get_extra env sigma = ext_named_context_of_env ~hypnaming env sigma in
   {
     static_env = env;
     renamed_env = env;
@@ -98,16 +95,16 @@ let push_rec_types ~hypnaming sigma (lna,typarray) env =
   Array.map get_annot ctx, env
 
 let new_evar env sigma ?src ?rrpat ?(naming = Namegen.IntroAnonymous) ?relevance typ =
-  let (subst, _, sign) as ext = Lazy.force env.extra in
+  let ext = Lazy.force env.extra in
   let instance = Evarutil.default_ext_instance ext in
-  let typ' = csubst_subst sigma subst typ in
+  let typ' = csubst_subst sigma (ext_csubst ext) typ in
   let name = Evarutil.next_evar_name sigma naming in
   let relevance = match relevance with
     | Some r -> r
     | None -> Retyping.relevance_of_type env.static_env sigma typ
   in
   let typeclass_candidate = Typeclasses.is_maybe_class_type env.static_env sigma typ' in
-  let (sigma, evk) = new_pure_evar ~typeclass_candidate sign sigma typ' ?src ?rrpat ~relevance ?name in
+  let (sigma, evk) = new_pure_evar ~typeclass_candidate (ext_named_context_val ext) sigma typ' ?src ?rrpat ~relevance ?name in
   (sigma, mkEvar (evk, instance))
 
 let new_type_evar env sigma ~src =
@@ -185,7 +182,7 @@ let lookup_renamed globenv id =
   match EConstr.lookup_named id env with
   | d -> EConstr.mkVar id
   | exception Not_found ->
-    let (_, _, sign) as ext = Lazy.force globenv.extra in
+    let ext = Lazy.force globenv.extra in
     Evarutil.ext_rev_subst ext id
 
 type 'a obj_interp_fun =

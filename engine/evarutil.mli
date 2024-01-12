@@ -234,8 +234,12 @@ type csubst
 val empty_csubst : csubst
 val csubst_subst : Evd.evar_map -> csubst -> constr -> constr
 
-type ext_named_context =
-  csubst * Id.Set.t * named_context_val
+type ext_named_context
+
+val ext_named_context_of_env : hypnaming:naming_mode -> env -> evar_map -> ext_named_context
+
+val ext_named_context_val : ext_named_context -> named_context_val
+val ext_csubst : ext_named_context -> csubst
 
 val default_ext_instance : ext_named_context -> constr SList.t
 
