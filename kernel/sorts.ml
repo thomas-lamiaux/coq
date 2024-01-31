@@ -10,25 +10,57 @@
 
 open Univ
 
+module QGlobal = struct
+  open Names
+
+  type t = {
+    library : DirPath.t;
+    id : Id.t
+  }
+
+  let make library id = { library ; id }
+
+  let repr x = (x.library, x.id)
+
+  let equal u1 u2 =
+    Id.equal u1.id u2.id &&
+    DirPath.equal u1.library u2.library
+
+  let hash u = Hashset.Combine.combine (Id.hash u.id) (DirPath.hash u.library)
+
+  let compare u1 u2 =
+    let c = Id.compare u1.id u2.id in
+    if c <> 0 then c
+    else
+      DirPath.compare u1.library u2.library
+
+  let to_string { library = d ; id } =
+    DirPath.to_string d ^ "." ^ Id.to_string id
+end
+
 module QVar =
 struct
   type repr =
     | Var of int
     | Unif of string * int
-
+    | Global of QGlobal.t
   type t = repr
 
   let make_var n = Var n
 
   let make_unif s n = Unif (s,n)
 
+  let make_global id = Global id
+
   let var_index = function
     | Var q -> Some q
     | Unif _ -> None
+    | Global _ -> None
 
   let hash = function
     | Var q -> Hashset.Combine.combinesmall 1 q
     | Unif (s,q) -> Hashset.Combine.(combinesmall 2 (combine (CString.hash s) q))
+    | Global id -> Hashset.Combine.combinesmall 3 (QGlobal.hash id)
 
   module Hstruct = struct
     type nonrec t = t
@@ -40,12 +72,14 @@ struct
       | Unif (s,i) as q ->
         let hs, s' = CString.hcons s in
         combinesmall 2 (combine hs i), if s == s' then q else Unif (s',i)
+      | Global id as q -> combinesmall 3 (QGlobal.hash id), q
 
     let eq a b =
       match a, b with
       | Var a, Var b -> Int.equal a b
       | Unif (sa, ia), Unif (sb, ib) -> sa == sb && Int.equal ia ib
-      | (Var _ | Unif _), _ -> false
+      | Global ida, Global idb -> QGlobal.equal ida idb
+      | (Var _ | Unif _| Global _), _ -> false
   end
 
   module Hasher = Hashcons.Make(Hstruct)
@@ -58,20 +92,25 @@ struct
       let c = Int.compare i1 i2 in
       if c <> 0 then c
       else CString.compare s1 s2
-    | Var _, Unif _ -> -1
-    | Unif _, Var _ -> 1
+    | Global ida, Global idb -> QGlobal.compare ida idb
+    | Var _, _ -> -1
+    | _, Var _ -> 1
+    | Unif _, _ -> -1
+    | _, Unif _ -> 1
 
   let equal a b = match a, b with
     | Var a, Var b ->  Int.equal a b
     | Unif (s1,i1), Unif (s2,i2) ->
       Int.equal i1 i2 && CString.equal s1 s2
-    | Var _, Unif _ | Unif _, Var _ -> false
+    | Global ida, Global idb -> QGlobal.equal ida idb
+    | (Var _| Unif _ | Global _), _ -> false
 
   let to_string = function
     | Var q -> Printf.sprintf "β%d" q
     | Unif (s,q) ->
       let s = if CString.is_empty s then "" else s^"." in
       Printf.sprintf "%sα%d" s q
+    | Global id -> Printf.sprintf "γ%s" (QGlobal.to_string id)
 
   let raw_pr q = Pp.str (to_string q)
 
@@ -88,6 +127,12 @@ module Quality = struct
   type t = QVar of QVar.t | QConstant of constant
 
   let var i = QVar (QVar.make_var i)
+  let global sg = QVar (QVar.make_global sg)
+
+  let is_var x =
+    match x with
+    | QVar _ -> true
+    | QConstant _ -> false
 
   let var_index = function
     | QVar q -> QVar.var_index q
