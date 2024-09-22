@@ -780,7 +780,7 @@ let should_treat_as_uniform () =
   else ComInductive.NonUniformParameters
 
 (* [XXX] EGJA: several arguments not used here *)
-let vernac_record ~template udecl ~cumulative k ~poly ?typing_flags ~primitive_proj finite records =
+let vernac_record ~template udecl ~cumulative k ~poly ?typing_flags ~primitive_proj finite ?mode records =
   let map ((is_coercion, name), binders, sort, nameopt, cfs, ido) =
     let idbuild = match nameopt with
     | None -> Nameops.add_prefix "Build_" name.v
@@ -842,6 +842,13 @@ let primitive_proj =
 let { Goptions.get = do_auto_prop_lowering } =
   Goptions.declare_bool_option_and_ref ~key:["Automatic";"Proposition";"Inductives"] ~value:true ()
 
+let mode_attr =
+  let open Attributes in
+  let open Notations in
+  payload_attribute ?cat:None ~name:"mode" >>= function
+  | None -> return None
+  | Some mode -> return (Some (Hints.parse_modes mode))
+
 module Preprocessed_Mind_decl = struct
   type flags = ComInductive.flags
   type record = {
@@ -885,16 +892,21 @@ let preprocess_inductive_decl ~atts kind indl =
     if List.for_all is_record indl then primitive_proj
     else Notations.return false
   in
-  let (((template, (poly, cumulative)), private_ind), typing_flags), primitive_proj =
+  let hint_mode_attr : Hints.hint_mode list option Attributes.attribute =
+    match kind with
+    | Class _ -> mode_attr
+    | _ -> Notations.return None
+  in
+  let ((((template, (poly, cumulative)), private_ind), typing_flags), primitive_proj), mode =
     Attributes.(
       parse Notations.(
           template
           ++ polymorphic_cumulative ~is_defclass:(Option.has_some is_defclass)
-          ++ private_ind ++ typing_flags ++ prim_proj_attr)
+          ++ private_ind ++ typing_flags ++ prim_proj_attr ++ hint_mode_attr)
         atts)
   in
   let auto_prop_lowering = do_auto_prop_lowering () in
-  let flags = { ComInductive.template; cumulative; poly; finite; auto_prop_lowering; } in
+  let flags = { ComInductive.template; cumulative; poly; finite; auto_prop_lowering; mode } in
   if Option.has_some is_defclass then
     (* Definitional class case *)
     let (id, bl, c, l) = Option.get is_defclass in
@@ -906,14 +918,14 @@ let preprocess_inductive_decl ~atts kind indl =
       user_err Pp.(str "Definitional classes do not support the \">\" syntax.");
     let ((attr, rf_coercion, rf_instance), (lid, ce)) = l in
     let rf_locality = match rf_coercion, rf_instance with
-      | AddCoercion, _ | _, (BackInstance | BackInstanceWarning) -> parse option_locality attr
+      | AddCoercion, _ | _, BackInstance -> parse option_locality attr
       | _ -> let () = unsupported_attributes attr in Goptions.OptDefault in
     let f = AssumExpr ((make ?loc:lid.loc @@ Name lid.v), [], ce),
             { rf_coercion ; rf_reversible = None ; rf_instance ; rf_priority = None ;
               rf_locality ; rf_notation = [] ; rf_canonical = true } in
     let recordl = [id, bl, c, None, [f], None] in
     let kind = Class true in
-    let records = vernac_record ~template udecl ~cumulative kind ~poly ?typing_flags ~primitive_proj finite recordl in
+    let records = vernac_record ~template udecl ~cumulative kind ~poly ?typing_flags ~primitive_proj finite ?mode recordl in
     indl, Preprocessed_Mind_decl.(Record { flags; udecl; primitive_proj; kind; records })
   else if List.for_all is_record indl then
     (* Mutual record case *)
@@ -934,7 +946,7 @@ let preprocess_inductive_decl ~atts kind indl =
           | AddCoercion -> reversible
           | NoCoercion -> Notations.return None in
         let loc = match f.rfu_coercion, f.rfu_instance with
-          | AddCoercion, _ | _, (BackInstance | BackInstanceWarning) -> option_locality
+          | AddCoercion, _ | _, BackInstance -> option_locality
           | _ -> Notations.return Goptions.OptDefault in
         Notations.(rev ++ loc ++ canonical_field) in
       let (rf_reversible, rf_locality), rf_canonical = parse attr f.rfu_attrs in
@@ -957,7 +969,7 @@ let preprocess_inductive_decl ~atts kind indl =
     in
     let kind = match kind with Class _ -> Class false | _ -> kind in
     let recordl = List.map unpack indl in
-    let records = vernac_record ~template udecl ~cumulative kind ~poly ?typing_flags ~primitive_proj finite recordl in
+    let records = vernac_record ~template udecl ~cumulative kind ~poly ?typing_flags ~primitive_proj finite ?mode recordl in
     indl, Preprocessed_Mind_decl.(Record { flags; udecl; primitive_proj; kind; records })
   else if List.for_all is_constructor indl then
     (* Mutual inductive case *)
@@ -1529,7 +1541,7 @@ let vernac_reserve bl =
     let sigma = Evd.from_env env in
     let t,ctx = Constrintern.interp_type env sigma c in
     let t = Flags.without_option Detyping.print_universes (fun () ->
-        Detyping.detype Detyping.Now Id.Set.empty env (Evd.from_ctx ctx) t)
+        Detyping.detype Detyping.Now env (Evd.from_ctx ctx) t)
         ()
     in
     let t,_ = Notation_ops.notation_constr_of_glob_constr (default_env ()) t in

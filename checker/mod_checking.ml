@@ -2,7 +2,6 @@ open Pp
 open Util
 open Names
 open Conversion
-open Typeops
 open Declarations
 open Environ
 
@@ -49,7 +48,7 @@ let check_constant_declaration env opac kn cb opacify =
       true, env
   in
   let ty = cb.const_type in
-  let jty = infer_type env ty in
+  let jty = Typeops.infer_type env ty in
   if not (Sorts.relevance_equal cb.const_relevance (Sorts.relevance_of_sort jty.utj_type))
   then raise Pp.(BadConstant (kn, str "incorrect const_relevance"));
   let body, env = match cb.const_body with
@@ -68,7 +67,7 @@ let check_constant_declaration env opac kn cb opacify =
   let () =
     match body with
     | Some bd ->
-      let j = infer env bd in
+      let j = Typeops.infer env bd in
       begin match conv_leq env j.uj_type ty with
       | Result.Ok () -> ()
       | Result.Error () -> Type_errors.error_actual_type env j ty
@@ -80,7 +79,11 @@ let check_constant_declaration env opac kn cb opacify =
   | Some _ | None -> opac
 
 let check_constant_declaration env opac kn cb opacify =
-  let opac = check_constant_declaration env opac kn cb opacify in
+  let opac = NewProfile.profile "check_constant" ~args:(fun () ->
+      [("name", `String (Constant.to_string kn))])
+      (fun () -> check_constant_declaration env opac kn cb opacify)
+      ()
+  in
   Environ.add_constant kn cb env, opac
 
 let check_quality_mask env qmask lincheck =
@@ -111,7 +114,7 @@ and get_holes_profiles_elim env nargs ndecls lincheck = function
       let lincheck = get_holes_profiles_parg env (nargs + mip.mind_nrealargs + 1) (ndecls + mip.mind_nrealdecls + 1) lincheck ret in
       Array.fold_left3 (fun lincheck nargs_b ndecls_b -> get_holes_profiles_parg env (nargs + nargs_b) (ndecls + ndecls_b) lincheck) lincheck mip.mind_consnrealargs mip.mind_consnrealdecls brs
   | PEProj proj ->
-      let () = lookup_projection proj env |> ignore in
+      let () = lookup_projection (Projection.make proj false) env |> ignore in
       lincheck
 
 and get_holes_profiles_parg env nargs ndecls lincheck = function
@@ -298,4 +301,8 @@ and check_signature env opac sign mp_mse res opacify = match sign with
       in
       opac
 
-let check_module env opac mp mb = check_module env opac mp mb Cset.empty
+let check_module env opac mp mb =
+  NewProfile.profile "check_module"
+    ~args:(fun () -> [("name", `String (ModPath.to_string mp))])
+    (fun () -> check_module env opac mp mb Cset.empty)
+    ()

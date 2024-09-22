@@ -906,8 +906,6 @@ let existential_value d ev = match existential_opt_value d ev with
   | None -> raise NotInstantiatedEvar
   | Some v -> v
 
-let existential_value0 = existential_value
-
 let existential_opt_value0 = existential_opt_value
 
 let existential_expand_value0 sigma (evk, args) = match existential_opt_value sigma (evk, args) with
@@ -949,8 +947,6 @@ let existential_type_opt d (n, args) =
 let existential_type d n = match existential_type_opt d n with
   | Some t -> t
   | None -> anomaly (str "Evar " ++ str (string_of_existential (fst n)) ++ str " was not declared.")
-
-let existential_type0 = existential_type
 
 let add_constraints d c =
   { d with universes = UState.add_constraints d.universes c }
@@ -2040,6 +2036,7 @@ let evars_of_filtered_evar_info (type a) evd (evi : a evar_info) =
        (evars_of_named_context evd (evar_filtered_context evi)))
 
 let drop_new_defined ~original sigma =
+  NewProfile.profile "drop_new_defined" (fun () ->
   let to_keep, to_drop = Evar.Map.partition (fun ev _ ->
       Evar.Map.mem ev original.defn_evars || Evar.Map.mem ev original.undf_evars)
       sigma.defn_evars
@@ -2060,4 +2057,5 @@ let drop_new_defined ~original sigma =
   in
   let to_keep = normalize_against original.defn_evars to_keep in
   let undf_evars = normalize_against original.undf_evars sigma.undf_evars in
-  { sigma with defn_evars = to_keep; undf_evars }
+  { sigma with defn_evars = to_keep; undf_evars })
+    ()

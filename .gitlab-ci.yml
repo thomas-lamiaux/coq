@@ -110,7 +110,7 @@ before_script:
     - make $DUNE_TARGET
     - tar cfj _build.tar.bz2 _build
   variables:
-    DUNE_TARGET: world
+    DUNE_TARGET: "world coqide"
   artifacts:
     name: "$CI_JOB_NAME"
     when: always
@@ -662,7 +662,7 @@ library:ci-fcsl_pcm:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
-  - library:ci-mathcomp_1
+  - library:ci-mathcomp
   stage: build-2
 
 library:ci-fiat_crypto:
@@ -749,9 +749,6 @@ library:ci-mathcomp:
   - build:edge+flambda
   - plugin:ci-elpi_hb  # for Hierarchy Builder
   stage: build-2
-
-library:ci-mathcomp_1:
-  extends: .ci-template-flambda
 
 library:ci-mathcomp_test:
   extends: .ci-template-flambda
@@ -981,7 +978,7 @@ plugin:ci-quickchick:
   - build:edge+flambda
   - library:ci-ext_lib
   - library:ci-simple_io
-  - library:ci-mathcomp_1
+  - library:ci-mathcomp
   stage: build-3+
 
 plugin:ci-quickchick_test:

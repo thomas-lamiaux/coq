@@ -309,13 +309,12 @@ Command summary
    declared rigid during resolution so that the typeclass abstraction is
    maintained.
 
-   The `>` in
-   :token:`record_definition` currently does nothing. In a future version, it will
-   create coercions as it does when used in :cmd:`Record` commands.
-
    Like any command declaring a record, this command supports the
    :attr:`universes(polymorphic)`, :attr:`universes(template)`,
    :attr:`universes(cumulative)` and :attr:`private(matching)` attributes.
+
+   It also supports the :attr:`mode` attribute for setting a hint mode
+   declaration for the class.
 
    .. note::
       Don't confuse typeclasses with "coercion classes", described in
@@ -323,6 +322,12 @@ Command summary
 
    When record syntax is used, this command also supports the
    :attr:`projections(primitive)` :term:`attribute`.
+
+   .. attr:: mode = @string
+      :name: mode
+
+      Sets the mode of resolution for queries on the class.
+      The syntax to use in the quoted string is explained in :cmd:`Hint Mode`.
 
    .. cmd:: Existing Class @qualid
 
@@ -333,18 +338,9 @@ Command summary
 
          This command has no effect when used on a typeclass.
 
-.. _warn-future-coercion-class-field:
-
-   .. warn:: A coercion will be introduced instead of an instance in future versions when using ':>' in 'Class' declarations. Replace ':>' with '::' (or use '#[global] Existing Instance field.' for compatibility with Coq < 8.17).
-
-      In future versions, :g:`:>` in the :n:`@record_definition` or
-      :n:`@constructor` will declare a :ref:`coercion<coercions>`, as
-      it does for other :cmd:`Record` commands. To eliminate the warning, use
-      :g:`::` instead.
-
    .. warn:: Ignored instance declaration for “@ident”: “@term” is not a class
 
-      Using the ``::`` (or deprecated ``:>``) syntax in the :n:`@record_definition`
+      Using the ``::`` syntax in the :n:`@record_definition`
       or :n:`@constructor` with a right-hand-side that
       is not itself a Class has no effect (apart from emitting this warning).
 
@@ -563,6 +559,25 @@ type, like:
 
 Settings
 ~~~~~~~~
+
+.. _TypeclassesDefaultMode:
+
+.. opt:: Typeclasses Default Mode {| "+" | "-" | "!" }.
+
+   Sets the default mode declaration associated with a :cmd:`Class` or :cmd:`Existing Class`
+   declaration. It is set by default to "-", i.e. doing no mode filtering
+   by default. Each class declaration uses this default mode for *all* its parameters,
+   unless a :attr:`mode` attribute is used to set the mode explicitly.
+
+   .. _class-declaration-default-mode:
+
+   .. warn:: Using inferred default mode: “mode” for “@ident”
+
+      Indicates that the :attr:`mode` for a :cmd:`Class` declaration has been
+      assigned automatically using the default mode.
+      This warning is named ``class-declaration-default-mode``.
+      It is disabled by default.
+      Enable it to find (and fix) any typeclasses that don't have explicit mode declarations.
 
 .. flag:: Typeclasses Dependency Order
 

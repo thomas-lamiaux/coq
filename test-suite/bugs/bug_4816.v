@@ -19,10 +19,9 @@ Section Foo.
   End Bar.
 End Foo.
 
-Require Coq.Classes.RelationClasses.
+Require Stdlib.Classes.RelationClasses.
 
-Class PreOrder (A : Type) (r : A -> A -> Type) : Type :=
-{ refl : forall x, r x x }.
+Axiom PreOrder : forall (A : Type) (r : A -> A -> Type), Type.
 
 #[universes(polymorphic)]
 Section qux.

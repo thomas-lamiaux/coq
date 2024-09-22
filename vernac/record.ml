@@ -40,6 +40,12 @@ let { Goptions.get = typeclasses_unique } =
     ~value:false
     ()
 
+let { Goptions.get = typeclasses_default_mode } =
+  Goptions.declare_interpreted_string_option_and_ref Hints.parse_mode Hints.string_of_mode
+    ~key:["Typeclasses";"Default";"Mode"]
+    ~value:Hints.ModeOutput
+    ()
+
 let interp_fields_evars env sigma ~ninds ~nparams impls_env nots l =
   let _, sigma, impls, newfs, _ =
     List.fold_left2
@@ -385,10 +391,8 @@ let instantiate_possibly_recursive_type ind u ntypes paramdecls fields =
 
 (** Declare projection [ref] over [from] a coercion
    or a typeclass instance according to [flags]. *)
-(* remove the last argument (it will become alway true) after deprecation phase
-   (started in 8.17, c.f. https://github.com/coq/coq/pull/16230) *)
-let declare_proj_coercion_instance ~flags ref from ~with_coercion =
-  if with_coercion && flags.Data.pf_coercion then begin
+let declare_proj_coercion_instance ~flags ref from =
+  if flags.Data.pf_coercion then begin
     let cl = ComCoercion.class_of_global from in
     let local = flags.Data.pf_locality = Goptions.OptLocal in
     ComCoercion.try_add_new_coercion_with_source ref ~local ~reversible:flags.Data.pf_reversible ~source:cl
@@ -460,7 +464,7 @@ let build_named_proj ~primitive ~flags ~poly ~univs ~uinstance ~kind env paramde
   in
   let refi = GlobRef.ConstRef kn in
   Impargs.maybe_declare_manual_implicits false refi impls;
-  declare_proj_coercion_instance ~flags refi (GlobRef.IndRef indsp) ~with_coercion:true;
+  declare_proj_coercion_instance ~flags refi (GlobRef.IndRef indsp);
   let i = if is_local_assum decl then i+1 else i in
   (Some kn, i, Projection term::subst)
 
@@ -677,38 +681,18 @@ let implicits_of_context ctx =
          | LocalAssum _ as d -> Some (RelDecl.get_name d))
          ctx)))
 
-(* deprecated in 8.16, to be removed at the end of the deprecation phase
-   (c.f., https://github.com/coq/coq/pull/15802 ) *)
-let warn_future_coercion_class_constructor =
-  CWarnings.create ~name:"future-coercion-class-constructor" ~category:Deprecation.Version.v8_16
-    ~default:CWarnings.AsError
-    Pp.(fun () -> str "'Class >' currently does nothing. Use 'Class' instead.")
-
-(* deprecated in 8.17, to be removed at the end of the deprecation phase
-   (c.f., https://github.com/coq/coq/pull/16230 ) *)
-let warn_future_coercion_class_field =
-  CWarnings.create ~name:"future-coercion-class-field" ~category:Deprecation.Version.v8_17
-    ~default:CWarnings.AsError
-    Pp.(fun definitional ->
-    strbrk "A coercion will be introduced instead of an instance in future versions when using ':>' in 'Class' declarations. "
-    ++ strbrk "Replace ':>' with '::' (or use '#[global] Existing Instance field.' for compatibility with Coq < 8.18). Beware that the default locality for '::' is #[export], as opposed to #[global] for ':>' currently."
-    ++ strbrk (if definitional then " Add an explicit #[global] attribute if you need to keep the current behavior. For example: \"Class foo := #[global] baz :: bar.\""
-               else " Add an explicit #[global] attribute to the field if you need to keep the current behavior. For example: \"Class foo := { #[global] field :: bar }.\""))
-
 let check_proj_flags kind rf =
   let open Vernacexpr in
   let pf_coercion, pf_reversible =
     match rf.rf_coercion with
-    (* replace "kind_class kind = NotClass" with true after deprecation phase *)
-    | AddCoercion -> kind_class kind = NotClass, Option.default true rf.rf_reversible
+    | AddCoercion -> true, Option.default true rf.rf_reversible
     | NoCoercion ->
        if rf.rf_reversible <> None then
          Attributes.(unsupported_attributes
            [CAst.make ("reversible (without :>)",VernacFlagEmpty)]);
        false, false in
   let pf_instance =
-    match rf.rf_instance with NoInstance -> false | BackInstance -> true
-    | BackInstanceWarning -> kind_class kind <> NotClass in
+    match rf.rf_instance with NoInstance -> false | BackInstance -> true in
   let pf_priority = rf.rf_priority in
   let pf_locality =
     begin match rf.rf_coercion, rf.rf_instance with
@@ -722,19 +706,10 @@ let check_proj_flags kind rf =
            [CAst.make ("export (without ::)",VernacFlagEmpty)])
     | _ -> ()
     end; rf.rf_locality in
-  (* remove following let after deprecation phase (started in 8.17,
-     c.f., https://github.com/coq/coq/pull/16230 ) *)
-  let pf_locality =
-    match rf.rf_instance, rf.rf_locality with
-    | BackInstanceWarning, Goptions.OptDefault -> Goptions.OptGlobal
-    | _ -> pf_locality in
   let pf_canonical = rf.rf_canonical in
   Data.{ pf_coercion; pf_reversible; pf_instance; pf_priority; pf_locality; pf_canonical }
 
-(* remove the definitional argument at the end of the deprecation phase
-   (started in 8.17)
-   (c.f., https://github.com/coq/coq/pull/16230 ) *)
-let pre_process_structure ?(definitional=false) ~auto_prop_lowering udecl kind ~poly (records : Ast.t list) =
+let pre_process_structure ~auto_prop_lowering udecl kind ~poly (records : Ast.t list) =
   let indlocs = check_unique_names records in
   let () = check_priorities kind records in
   let ps, data = extract_record_data records in
@@ -761,11 +736,6 @@ let pre_process_structure ?(definitional=false) ~auto_prop_lowering udecl kind ~
         Namegen.next_ident_away canonical_inhabitant_id (bound_names_rdata rdata)
     in
     let is_coercion = match is_coercion with AddCoercion -> true | NoCoercion -> false in
-    if kind_class kind <> NotClass then begin
-      if is_coercion then warn_future_coercion_class_constructor ();
-      if List.exists (function (_, Vernacexpr.{ rf_instance = BackInstanceWarning; _ }) -> true | _ -> false) cfs then
-        warn_future_coercion_class_field definitional
-    end;
     { Data.id = name.CAst.v; idbuild; rdata; is_coercion; proj_flags; inhabitant_id }
   in
   let data = List.map2 map data records in
@@ -914,13 +884,37 @@ let declare_class_constant ~univs paramimpls params data =
   Classes.set_typeclass_transparency ~locality:Hints.SuperGlobal
     [Evaluable.EvalConstRef cst] false;
   let () =
-    declare_proj_coercion_instance ~flags:proj_flags (GlobRef.ConstRef proj_cst) cref ~with_coercion:false in
+    declare_proj_coercion_instance ~flags:proj_flags (GlobRef.ConstRef proj_cst) cref in
   let m = {
     meth_name = Name proj_name;
     meth_info = None;
     meth_const = Some proj_cst;
   } in
   [cref], [m]
+
+
+let set_class_mode ref mode ctx =
+  let modes =
+    match mode with
+    | Some (Some m) -> Some m
+    | _ ->
+      let ctxl = Context.Rel.nhyps ctx in
+      let def = typeclasses_default_mode () in
+      let mode = match def with
+      | Hints.ModeOutput -> None
+      | Hints.ModeInput ->
+        Some (List.init ctxl (fun _ -> Hints.ModeInput))
+      | Hints.ModeNoHeadEvar ->
+        Some (List.init ctxl (fun _ -> Hints.ModeNoHeadEvar))
+      in
+      let wm = List.init ctxl (fun _ -> def) in
+      Classes.warn_default_mode (ref, wm);
+      mode
+  in
+  match modes with
+  | None -> ()
+  | Some modes -> Classes.set_typeclass_mode ~locality:Hints.SuperGlobal ref modes
+
 
 (** [declare_class] will prepare and declare a [Class]. This is done in
    2 steps:
@@ -946,7 +940,7 @@ let declare_class_constant ~univs paramimpls params data =
    in the form of [Classes.typeclass]
 
   *)
-let declare_class ~univs params inds def data =
+let declare_class ~univs params inds def ?mode data =
   let { Data.rdata } = get_class_params data in
   let fields = rdata.DataR.fields in
   let map ind =
@@ -984,7 +978,8 @@ let declare_class ~univs params inds def data =
         cl_props = fields;
         cl_projs = projs }
     in
-    Classes.add_class k
+    Classes.add_class k;
+    set_class_mode impl mode params
   in
   List.iter map data
 
@@ -1012,8 +1007,8 @@ let add_constant_class cst =
 let add_inductive_class ind =
   let env = Global.env () in
   let mind, oneind = Inductive.lookup_mind_specif env ind in
+  let ctx = oneind.mind_arity_ctxt in
   let k =
-    let ctx = oneind.mind_arity_ctxt in
     let univs = Declareops.inductive_polymorphic_context mind in
     let inst = UVars.make_abstract_instance univs in
     let ty = Inductive.type_of_inductive ((mind, oneind), inst) in
@@ -1055,23 +1050,18 @@ let definition_structure ~flags udecl kind ~primitive_proj (records : Ast.t list
       finite;
     } = flags in
   let impargs, params, univs, variances, projections_kind, data, indlocs =
-    let definitional = kind_class kind = DefClass in
-    pre_process_structure ~auto_prop_lowering ~definitional udecl kind ~poly records
+    pre_process_structure ~auto_prop_lowering udecl kind ~poly records
   in
   let inds, def = match kind_class kind with
     | DefClass -> declare_class_constant ~univs impargs params data
     | RecordClass | NotClass ->
-      (* remove the following block after deprecation phase
-         (started in 8.16, c.f., https://github.com/coq/coq/pull/15802 ) *)
-      let data = if kind_class kind = NotClass then data else
-          List.map (fun d -> { d with Data.is_coercion = false }) data in
       let structure =
         interp_structure_core
           ~cumulative finite ~univs ~variances ~primitive_proj
           impargs params template ~projections_kind ~indlocs data in
       declare_structure structure
   in
-  if kind_class kind <> NotClass then declare_class ~univs params inds def data;
+  if kind_class kind <> NotClass then declare_class ~univs params inds def ~mode:flags.mode data;
   inds
 
 module Internal = struct

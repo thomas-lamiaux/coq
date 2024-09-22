@@ -173,10 +173,10 @@ let retype ?(polyprop=true) sigma =
          subst1 b (type_of (push_rel (LocalDef (name,b,c1)) env) c2)
     | Fix ((_,i),(_,tys,_)) -> tys.(i)
     | CoFix (i,(_,tys,_)) -> tys.(i)
-    | App(f,args) when Termops.is_template_polymorphic_ind env sigma f ->
-        let t = type_of_global_reference_knowing_parameters env f args in
-        strip_outer_cast sigma (subst_type env sigma t (Array.to_list args))
     | App(f,args) ->
+      if Termops.is_template_polymorphic_ref env sigma f then
+        substituted_type_of_global_reference_knowing_parameters env f args
+      else
         strip_outer_cast sigma
           (subst_type env sigma (type_of env f) (Array.to_list args))
     | Proj (p,_,c) ->
@@ -211,6 +211,23 @@ let retype ?(polyprop=true) sigma =
     | Lambda _ | Fix _ | Construct _ -> retype_error NotAType
     | _ -> decomp_sort env sigma (type_of env t)
 
+  and substituted_type_of_global_reference_knowing_parameters env c args =
+    match EConstr.kind sigma c with
+    | Ind (ind, u) ->
+      let ty = type_of_global_reference_knowing_parameters env c args in
+      strip_outer_cast sigma (subst_type env sigma ty (Array.to_list args))
+    | Construct ((ind, i as ctor), u) ->
+      let mib, mip = Inductive.lookup_mind_specif env ind in
+      let ty =
+        if mib.mind_nparams <= Array.length args then
+        (* Fully applied parameters, we do not have to substitute *)
+          EConstr.of_constr (rename_type mip.mind_user_lc.(i - 1) (ConstructRef ctor))
+      else
+        type_of_global_reference_knowing_parameters env c args
+      in
+      strip_outer_cast sigma (subst_type env sigma ty (Array.to_list args))
+    | _ -> assert false
+
   and type_of_global_reference_knowing_parameters env c args =
     match EConstr.kind sigma c with
     | Ind (ind, u) ->
@@ -218,14 +235,14 @@ let retype ?(polyprop=true) sigma =
       let mip = lookup_mind_specif env ind in
       let paramtyps = make_param_univs env sigma (ind,u) args in
       let (ty, _) = Inductive.type_of_inductive_knowing_parameters ~polyprop (mip, u) paramtyps in
-      EConstr.of_constr ty
+      EConstr.of_constr (rename_type ty (IndRef ind))
     | Construct (cstr, u) ->
       let u = EInstance.kind sigma u in
       let (ind, _) = cstr in
       let mip = lookup_mind_specif env ind in
       let paramtyps = make_param_univs env sigma (ind, u) args in
       let (ty, _) = Inductive.type_of_constructor_knowing_parameters (cstr, u) mip paramtyps in
-      EConstr.of_constr ty
+      EConstr.of_constr (rename_type ty (ConstructRef cstr))
     | _ -> assert false
 
   and make_param_univs env sigma indu args =

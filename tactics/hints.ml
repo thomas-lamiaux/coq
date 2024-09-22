@@ -1007,8 +1007,8 @@ let make_extern pri pat tacast =
 let make_mode ref m =
   let open Term in
   let ty, _ = Typeops.type_of_global_in_context (Global.env ()) ref in
-  let ctx, t = decompose_prod ty in
-  let n = List.length ctx in
+  let ctx, t = decompose_prod_decls ty in
+  let n = Context.Rel.nhyps ctx in
   let m' = Array.of_list m in
     if not (n == Array.length m') then
       user_err
@@ -1691,10 +1691,23 @@ let pr_applicable_hint pf =
   | g::_ ->
     pr_hint_term env sigma (Evd.evar_concl (Evd.find_undefined sigma g))
 
-let pp_hint_mode = function
-  | ModeInput -> str"+"
-  | ModeNoHeadEvar -> str"!"
-  | ModeOutput -> str"-"
+let parse_mode s =
+  match s with
+  | "+" -> ModeInput
+  | "-" -> ModeOutput
+  | "!" -> ModeNoHeadEvar
+  | _ -> CErrors.user_err Pp.(str"Unrecognized hint mode " ++ str s)
+
+let parse_modes s =
+  let modes = String.split_on_char ' ' s in
+  List.map parse_mode modes
+
+let string_of_mode = function
+  | ModeInput -> "+"
+  | ModeOutput -> "-"
+  | ModeNoHeadEvar -> "!"
+
+let pp_hint_mode m = str (string_of_mode m)
 
 (* displays the whole hint database db *)
 let pr_hint_db_env env sigma db =
@@ -1704,16 +1717,20 @@ let pr_hint_db_env env sigma db =
     else str" (modes " ++ prlist_with_sep pr_comma pr_mode l ++ str")"
   in
   let content =
-    let fold head modes hintlist accu =
+    let pr_one (head, modes, hintlist) =
       let goal_descr = match head with
       | None -> str "For any goal"
       | Some head -> str "For " ++ pr_global head ++ pr_modes modes
       in
       let hints = pr_hint_list env sigma (List.map (fun x -> (0, x)) hintlist) in
-      let hint_descr = hov 0 (goal_descr ++ str " -> " ++ hints) in
-      accu ++ hint_descr
+      hov 0 (goal_descr ++ str " -> " ++ hints)
     in
-    Hint_db.fold fold db (mt ())
+    let hints =
+      let order (h1, _, _) (h2, _, _) =
+        Option.compare GlobRef.UserOrd.compare h1 h2 in
+      let hints = Hint_db.fold (fun h m hl l -> (h, m, hl) :: l) db [] in
+      List.stable_sort order hints in
+    Pp.prlist pr_one hints
   in
   let { TransparentState.tr_var = ids; tr_cst = csts; tr_prj = ps } =
     Hint_db.transparent_state db

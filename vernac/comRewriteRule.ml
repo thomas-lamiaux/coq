@@ -160,15 +160,15 @@ let safe_sort_pattern_of_sort ~loc evd (qsubst, usubst) (st, sq, su as state) s 
 
 
 let warn_irrelevant_pattern =
-  CWarnings.create ~name:"irrelevant-pattern"
-    (fun () -> Pp.(str "This subpattern is irrelevant and can never be matched against."))
+  CWarnings.create ~name:"irrelevant-pattern" ~category:CWarnings.CoreCategories.rewrite_rules
+    Pp.(fun () -> str "This subpattern is irrelevant and can never be matched against.")
 
 let warn_eta_in_pattern =
-  CWarnings.create ~name:"eta-in-pattern" Fun.id
+  CWarnings.create ~name:"eta-in-pattern" ~category:CWarnings.CoreCategories.rewrite_rules Fun.id
 
 let warn_redex_in_rewrite_rules =
-  CWarnings.create ~name:"redex-in-rewrite-rules"
-  (fun redex -> Pp.(str "This pattern contains a" ++ redex ++ str " which may prevent this rule from being triggered."))
+  CWarnings.create ~name:"redex-in-rewrite-rules" ~category:CWarnings.CoreCategories.rewrite_rules
+  Pp.(fun redex -> str "This pattern contains a" ++ redex ++ str " which may prevent this rule from being triggered.")
 
 let rec check_may_eta ~loc env evd t =
   match EConstr.kind evd (Reductionops.whd_all env evd t) with
@@ -214,7 +214,8 @@ let rec safe_pattern_of_constr_aux ~loc env evd usubst depth state t = Constr.ki
           let inst = UVars.Instance.(abstract_instance (length u)) in
           mkApp (mkIndU (ci.ci_ind, inst), args)
         in
-        let realdecls = Context.Rel.Declaration.LocalAssum (Context.make_annot Anonymous mip.mind_relevance, self) :: realdecls in
+        let na = Context.make_annot Anonymous mip.mind_relevance in
+        let realdecls = Context.Rel.Declaration.LocalAssum (na, self) :: realdecls in
         let realdecls =
           Inductive.instantiate_context u paramsubst nas realdecls
         in
@@ -232,7 +233,7 @@ let rec safe_pattern_of_constr_aux ~loc env evd usubst depth state t = Constr.ki
       state, (head, elims @ [PECase (ci.ci_ind, mask, pret, pbrs)])
   | Proj (p, _, c) ->
       let state, (head, elims) = safe_pattern_of_constr_aux ~loc env evd usubst depth state c in
-      state, (head, elims @ [PEProj p])
+      state, (head, elims @ [PEProj (Projection.repr p)])
   | _ ->
       let state, head = safe_head_pattern_of_constr ~loc env evd usubst depth state t in
       state, (head, [])
@@ -339,7 +340,7 @@ let test_projection_apps env evd ~loc ind args =
     | ERigid (_, []) -> false
     | ERigid (_, elims) ->
       match List.last elims with
-      | PEProj p -> Ind.CanOrd.equal (Projection.inductive p) ind && Projection.arg p = i
+      | PEProj p -> Ind.CanOrd.equal (Projection.Repr.inductive p) ind && Projection.Repr.arg p = i
       | _ -> false
   ) 0 args then
     warn_redex_in_rewrite_rules ?loc Pp.(str " subpattern compatible with an eta-long form for " ++ Id.print (snd specif).mind_typename ++ str"," )
@@ -360,16 +361,11 @@ and test_pattern_redex_aux env evd ~loc = function
   | ERigid p -> test_pattern_redex env evd ~loc p
 
 
-let warn_rewrite_rules_break_SR = "rewrite-rules-break-SR"
-
-let rewrite_rules_break_SR_warning =
-  CWarnings.create_warning ~name:warn_rewrite_rules_break_SR ~default:CWarnings.Enabled ()
-
-let rewrite_rules_break_SR_msg = CWarnings.create_msg rewrite_rules_break_SR_warning ()
-let warn_rewrite_rules_break_SR ~loc reason =
-  CWarnings.warn rewrite_rules_break_SR_msg ?loc reason
-let () = CWarnings.register_printer rewrite_rules_break_SR_msg
-  (fun reason -> Pp.(str "This rewrite rule breaks subject reduction (" ++ reason ++ str ")."))
+let warn_rewrite_rules_break_SR =
+  CWarnings.create ~name:"rewrite-rules-break-SR" ~category:CWarnings.CoreCategories.rewrite_rules
+    Pp.(fun reason ->
+        str "This rewrite rule breaks subject reduction" ++ spc() ++
+        surround reason ++ str ".")
 
 let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) =
   let env = Global.env () in
@@ -467,14 +463,14 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let evd', rhs =
     try Pretyping.understand_tcc ~flags env evd ~expected_type:(OfType typ) rhs
     with Type_errors.TypeError _ | Pretype_errors.PretypeError _ ->
-      warn_rewrite_rules_break_SR ~loc:rhs_loc (Pp.str "the replacement term doesn't have the type of the pattern");
+      warn_rewrite_rules_break_SR ?loc:rhs_loc (Pp.str "the replacement term doesn't have the type of the pattern");
       Pretyping.understand_tcc ~flags env evd rhs
   in
 
   let evd' = Evd.minimize_universes evd' in
   let _qvars', uvars' = EConstr.universes_of_constr evd' rhs in
   let evd' = Evd.restrict_universe_context evd' (Univ.Level.Set.union uvars uvars') in
-  let fail pp = warn_rewrite_rules_break_SR ~loc:rhs_loc Pp.(str "universe inconsistency, missing constraints: " ++ pp) in
+  let fail pp = warn_rewrite_rules_break_SR ?loc:rhs_loc Pp.(str "universe inconsistency, missing constraints: " ++ pp) in
   let () = UState.check_uctx_impl ~fail (Evd.ustate evd) (Evd.ustate evd') in
   let evd = evd' in
 
