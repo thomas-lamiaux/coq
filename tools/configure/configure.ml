@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -22,7 +22,7 @@ open CmdArgs.Prefs
 
 let (/) = Filename.concat
 
-let coq_version = "8.21+alpha"
+let coq_version = "9.0+alpha"
 let vo_magic = 82099
 let is_a_released_version = false
 

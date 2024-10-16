@@ -35,7 +35,7 @@ the previous implementation in several ways:
   the new implementation, if one provides the proper morphisms. Again,
   most of the work is handled in the tactics.
 + First-class morphisms and signatures. Signatures and morphisms are
-  ordinary Coq terms, hence they can be manipulated inside Coq, put
+  ordinary Rocq terms, hence they can be manipulated inside Rocq, put
   inside structures and lemmas about them can be proved inside the
   system. Higher-order morphisms are also allowed.
 + Performance. The implementation is based on a depth-first search for
@@ -103,7 +103,7 @@ argument.
 Morphisms can also be contravariant in one or more of their arguments.
 A morphism is contravariant on an argument associated with the relation
 instance :math:`R` if it is covariant on the same argument when the inverse
-relation :math:`R^{−1}` (``inverse R`` in Coq) is considered. The special arrow ``-->``
+relation :math:`R^{−1}` (``inverse R`` in Rocq) is considered. The special arrow ``-->``
 is used in signatures for contravariant morphisms.
 
 Functions having arguments related by symmetric relations instances
@@ -144,7 +144,7 @@ always the intended equality for a given structure.
 
 In the next section we will describe the commands to register terms as
 parametric relations and morphisms. Several tactics that deal with
-equality in Coq can also work with the registered relations. The exact
+equality in Rocq can also work with the registered relations. The exact
 list of tactics will be given :ref:`in this section <tactics-enabled-on-user-provided-relations>`.
 For instance, the tactic reflexivity can be used to solve a goal ``R n n`` whenever ``R``
 is an instance of a registered reflexive relation. However, the
@@ -508,7 +508,7 @@ is equivalent to an instance declaration:
      [Equivalence_Transitive := trans].
 
 The declaration itself amounts to the definition of an object of the record type
-``Coq.Classes.RelationClasses.Equivalence`` and a hint added to the
+``Stdlib.Classes.RelationClasses.Equivalence`` and a hint added to the
 of a typeclass named ``Proper``` defined in ``Classes.Morphisms``. See the
 documentation on :ref:`typeclasses` and the theories files in Classes for
 further explanations.

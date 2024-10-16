@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -29,6 +29,8 @@ val do_mutually_recursive
      (* Local or Global visibility *)
   -> ?clearbody:bool
      (* Hide body if in sections *)
+  -> kind:Decls.logical_kind
+     (* Logical kind: Theorem, Definition, Fixpoint, etc.*)
   -> poly:bool
      (* Use universe polymorphism *)
   -> ?typing_flags:Declarations.typing_flags

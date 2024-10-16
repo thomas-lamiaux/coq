@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -135,7 +135,7 @@ module Make(T : Task) () = struct
           | "-async-proofs-worker-priority" | "-worker-id") :: _ :: tl ->
           set_slave_opt tl
         (* Options to discard: 2 arguments *)
-        | ( "-rifrom" | "-refrom" | "-rfrom"
+        | ( "-compat-from" | "-rifrom" | "-refrom" | "-rfrom"
           | "-require-import-from" | "-require-export-from") :: _ :: _ :: tl ->
            set_slave_opt tl
         (* We need to pass some options with one argument *)

@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -662,7 +662,7 @@ val check_qconstraints : evar_map -> Sorts.QConstraints.t -> bool
 val check_quconstraints : evar_map -> Sorts.QUConstraints.t -> bool
 
 val ustate : evar_map -> UState.t
-val evar_universe_context : evar_map -> UState.t [@@deprecated "(8.21) Use [Evd.ustate]"]
+val evar_universe_context : evar_map -> UState.t [@@deprecated "(9.0) Use [Evd.ustate]"]
 
 val universe_context_set : evar_map -> Univ.ContextSet.t
 val sort_context_set : evar_map -> UnivGen.sort_context_set
@@ -813,4 +813,15 @@ module MiniEConstr : sig
     (t, t, ERelevance.t) Context.Named.pt
   val of_rel_context : (Constr.t, Constr.types, Sorts.relevance) Context.Rel.pt ->
     (t, t, ERelevance.t) Context.Rel.pt
+end
+
+(** Only used as EConstr internals *)
+module Expand : sig
+  open MiniEConstr
+  type handle
+  val empty_handle : handle
+  val liftn_handle : int -> handle -> handle
+  val kind : evar_map -> handle -> econstr -> handle * (econstr, econstr, ESorts.t, EInstance.t, ERelevance.t) Constr.kind_of_term
+  val expand : evar_map -> handle -> econstr -> econstr
+  val expand_instance : skip:bool -> undefined evar_info -> handle -> econstr SList.t -> econstr SList.t
 end

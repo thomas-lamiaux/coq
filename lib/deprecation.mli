@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -35,5 +35,5 @@ module Version : sig
   val v8_18 : CWarnings.category
   val v8_19 : CWarnings.category
   val v8_20 : CWarnings.category
-  val v8_21 : CWarnings.category
+  val v9_0 : CWarnings.category
 end

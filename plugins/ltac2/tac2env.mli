@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -59,7 +59,7 @@ type constructor_data = {
       constructor is a member of an open type. *)
 }
 
-val define_constructor : ltac_constructor -> constructor_data -> unit
+val define_constructor : ?warn:UserWarn.t -> ltac_constructor -> constructor_data -> unit
 val interp_constructor : ltac_constructor -> constructor_data
 
 val find_all_constructors_in_type : type_constant -> constructor_data KNmap.t
@@ -122,6 +122,9 @@ val locate_extended_all_constructor : qualid -> ltac_constructor list
 val shortest_qualid_of_constructor : ltac_constructor -> qualid
 val path_of_constructor : ltac_constructor -> full_path
 
+(** Emit warning if any for the constructor. *)
+val constructor_user_warn : ?loc:Loc.t -> ltac_constructor -> unit
+
 val push_type : visibility -> full_path -> type_constant -> unit
 val locate_type : qualid -> type_constant
 val locate_extended_all_type : qualid -> type_constant list
@@ -154,7 +157,7 @@ type environment = {
 }
 
 type ('a, 'b) ml_object = {
-  ml_intern : 'r. (raw_tacexpr, glb_tacexpr, 'r) intern_fun -> ('a, 'b or_glb_tacexpr, 'r) intern_fun;
+  ml_intern : 'r. ('a, 'b or_glb_tacexpr, 'r) intern_fun;
   ml_subst : Mod_subst.substitution -> 'b -> 'b;
   ml_interp : environment -> 'b -> valexpr Proofview.tactic;
   ml_print : Environ.env -> Evd.evar_map -> 'b -> Pp.t;
@@ -166,7 +169,10 @@ val interp_ml_object : ('a, 'b) Tac2dyn.Arg.tag -> ('a, 'b) ml_object
 
 (** {5 Absolute paths} *)
 
-val coq_prefix : ModPath.t
+val rocq_prefix : ModPath.t
+(** Path where primitive datatypes are defined in Ltac2 plugin. *)
+
+val coq_prefix : ModPath.t [@@ocaml.deprecated "(9.0) Use rocq_prefix"]
 (** Path where primitive datatypes are defined in Ltac2 plugin. *)
 
 val std_prefix : ModPath.t

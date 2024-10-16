@@ -1,6 +1,6 @@
 (* -*- coding: utf-8 -*- *)
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -134,7 +134,7 @@ Section Defs.
     Program Definition flip_Transitive `(Transitive R) : Transitive (flip R) :=
       fun x y z H H' => transitivity (R:=R) H' H.
 
-    Program Definition flip_Antisymmetric `(Antisymmetric eqA R) :
+    Program Lemma flip_Antisymmetric `(Antisymmetric eqA R) :
       Antisymmetric eqA (flip R).
     Proof. firstorder. Qed.
 
@@ -156,11 +156,11 @@ Section Defs.
 
   Section complement.
 
-    Definition complement_Irreflexive `(Reflexive R)
+    Lemma complement_Irreflexive `(Reflexive R)
       : Irreflexive (complement R).
     Proof. firstorder. Qed.
 
-    Definition complement_Symmetric `(Symmetric R) : Symmetric (complement R).
+    Lemma complement_Symmetric `(Symmetric R) : Symmetric (complement R).
     Proof. firstorder. Qed.
   End complement.
 

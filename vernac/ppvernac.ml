@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -1413,6 +1413,7 @@ let pr_control_flag (p : control_flag) =
   let w = match p with
     | ControlTime -> keyword "Time"
     | ControlInstructions -> keyword "Instructions"
+    | ControlProfile f -> keyword "Profile" ++ pr_opt qstring f
     | ControlRedirect s -> keyword "Redirect" ++ spc() ++ qs s
     | ControlTimeout n -> keyword "Timeout " ++ int n
     | ControlFail -> keyword "Fail"

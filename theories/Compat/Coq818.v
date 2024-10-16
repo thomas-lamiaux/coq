@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -11,6 +11,8 @@
 (** Compatibility file for making Coq act similar to Coq v8.18 *)
 
 Require Export Stdlib.Compat.Coq819.
+
+#[export] Set Warnings "-deprecated-since-8.19".
 
 (* Restore broken behavior of [zify] reported in COQBUG(https://github.com/coq/coq/issues/17936) *)
 From Stdlib Require Import Arith BinInt BinNat Znat Nnat PreOmega.

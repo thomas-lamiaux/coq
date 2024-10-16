@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -421,13 +421,12 @@ let dump_universes_gen prl g s =
     close ();
     Exninfo.iraise reraise
 
-(* [XXX] EGJA: loc unused here *)
-let universe_subgraph ?loc kept univ =
+let universe_subgraph kept univ =
   let open Univ in
   let parse q =
     try Level.make (Nametab.locate_universe q)
     with Not_found ->
-      CErrors.user_err Pp.(str "Undeclared universe " ++ pr_qualid q ++ str".")
+      CErrors.user_err ?loc:q.loc Pp.(str "Undeclared universe " ++ pr_qualid q ++ str".")
   in
   let kept = List.fold_left (fun kept q -> Level.Set.add (parse q) kept) Level.Set.empty kept in
   let csts = UGraph.constraints_for ~kept univ in
@@ -490,11 +489,11 @@ let sort_universes g =
   in
   Level.Map.fold fold g ans
 
-let print_universes ?loc ~sort ~subgraph dst =
+let print_universes ~sort ~subgraph dst =
   let univ = Global.universes () in
   let univ = match subgraph with
     | None -> univ
-    | Some g -> universe_subgraph ?loc g univ
+    | Some g -> universe_subgraph g univ
   in
   let univ = UGraph.repr univ in
   let univ = if sort then sort_universes univ else univ in
@@ -697,7 +696,8 @@ let vernac_start_proof ~atts kind l =
         { fname; binders; rtype; body_def = None; univs; notations = []}) l in
     let pm, proof =
       ComFixpoint.do_mutually_recursive ~program_mode ~use_inference_hook:program_mode
-        ~scope ?clearbody ~poly ?typing_flags ?user_warns ?using (CUnknownRecOrder, fix) in
+        ~scope ?clearbody ~kind:(Decls.IsProof kind) ~poly ?typing_flags
+        ?user_warns ?using (CUnknownRecOrder, fix) in
     assert (Option.is_empty pm);
     Option.get proof
 
@@ -1062,7 +1062,7 @@ let vernac_fixpoint ~atts ~pm (rec_order,fixl) =
       let opens = List.exists (fun { body_def } -> Option.is_empty body_def) fixl in
       if opens then CErrors.user_err Pp.(str"Program Fixpoint requires a body.") in
   with_obligations program_mode
-    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~scope ?clearbody ~poly ?typing_flags ?user_warns ?using (CFixRecOrder rec_order, fixl))
+    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~scope ?clearbody ~kind:(IsDefinition Fixpoint) ~poly ?typing_flags ?user_warns ?using (CFixRecOrder rec_order, fixl))
     pm
 
 let vernac_cofixpoint_common ~atts l =
@@ -1083,7 +1083,7 @@ let vernac_cofixpoint ~pm ~atts cofixl =
       if opens then
         CErrors.user_err Pp.(str"Program CoFixpoint requires a body.") in
   with_obligations program_mode
-    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~scope ?clearbody ~poly ?typing_flags ?user_warns ?using (CCoFixRecOrder, cofixl))
+    (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~scope ?clearbody ~kind:(IsDefinition CoFixpoint) ~poly ?typing_flags ?user_warns ?using (CCoFixRecOrder, cofixl))
     pm
 
 let vernac_scheme l =

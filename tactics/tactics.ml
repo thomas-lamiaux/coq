@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -857,9 +857,29 @@ type change_arg = Ltac_pretype.patvar_map -> env -> evar_map -> evar_map * ECons
 
 let make_change_arg c pats env sigma = (sigma, replace_vars sigma (Id.Map.bindings pats) c)
 
+let is_partial_template_head env sigma c =
+  let (hd, args) = decompose_app sigma c in
+  match destRef sigma hd with
+  | (ConstructRef (ind, _) | IndRef ind), _ ->
+    let (mib, _) = Inductive.lookup_mind_specif env ind in
+    begin match mib.mind_template with
+    | None -> false
+    | Some _ -> Array.length args < mib.mind_nparams
+    end
+  | (VarRef _ | ConstRef _), _ -> false
+  | exception DestKO -> false
+
 let check_types env sigma mayneedglobalcheck deep newc origc =
   let t1 = Retyping.get_type_of env sigma newc in
   if deep then begin
+    let () =
+      (* When changing a partially applied template term in a context, one must
+         be careful to resynthetize the constraints as the implicit levels from
+         the arguments are not written in the term. *)
+      if is_partial_template_head env sigma newc ||
+        is_partial_template_head env sigma origc then
+        mayneedglobalcheck := true
+    in
     let t2 = Retyping.get_type_of env sigma origc in
     let sigma, t2 = Evarsolve.refresh_universes
                       ~onlyalg:true (Some false) env sigma t2 in
@@ -2706,11 +2726,10 @@ let letin_tac_gen with_eq (id,depdecls,lastlhyp,ccl,c) ty =
           let eqdata = build_coq_eq_data () in
           let args = if lr then [mkVar id;c] else [c;mkVar id]in
           let (sigma, eq) = Evd.fresh_global env sigma eqdata.eq in
-          let (sigma, refl) = Evd.fresh_global env sigma eqdata.refl in
+          let refl = mkRef (eqdata.refl, snd @@ destRef sigma eq) in
           let sigma, eq = Typing.checked_applist env sigma eq [t] in
-          let sigma, refl = Typing.checked_applist env sigma refl [t] in
           let eq = applist (eq, args) in
-          let refl = applist (refl, [mkVar id]) in
+          let refl = applist (refl, [t; mkVar id]) in
           let r = Retyping.relevance_of_term env sigma refl in
           let term = mkNamedLetIn sigma (make_annot id rel) c t
               (mkLetIn (make_annot (Name heq) r, refl, eq, ccl)) in

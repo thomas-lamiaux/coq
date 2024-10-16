@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -377,13 +377,13 @@ Module MakeRaw (X:DecidableType) <: WRawSets X.
   - rewrite H; auto.
   Qed.
 
-  Definition choose_spec1 :
+  Lemma choose_spec1 :
     forall (s : t) (x : elt), choose s = Some x -> In x s.
   Proof.
   destruct s; simpl; intros; inversion H; auto.
   Qed.
 
-  Definition choose_spec2 : forall s : t, choose s = None -> Empty s.
+  Lemma choose_spec2 : forall s : t, choose s = None -> Empty s.
   Proof.
   destruct s; simpl; intros.
   - intros x H0; inversion H0.

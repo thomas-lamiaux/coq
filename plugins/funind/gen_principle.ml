@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -404,7 +404,7 @@ let register_struct is_rec (rec_order, fixpoint_exprl) =
     in
     (None, evd, List.rev rev_pconstants)
   | _ ->
-    let pm, p = ComFixpoint.do_mutually_recursive ~program_mode:false ~poly:false (CFixRecOrder rec_order, fixpoint_exprl) in
+    let pm, p = ComFixpoint.do_mutually_recursive ~program_mode:false ~poly:false ~kind:(IsDefinition Fixpoint) (CFixRecOrder rec_order, fixpoint_exprl) in
     assert (Option.is_empty pm && Option.is_empty p);
     let evd, rev_pconstants =
       List.fold_left

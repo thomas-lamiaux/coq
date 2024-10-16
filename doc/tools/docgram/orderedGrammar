@@ -1002,6 +1002,7 @@ command: [
 | "Hint" "Extern" natural OPT one_pattern "=>" ltac_expr OPT ( ":" LIST1 ident )
 | "Time" sentence
 | "Instructions" sentence
+| "Profile" OPT string sentence
 | "Redirect" string sentence
 | "Timeout" natural sentence
 | "Fail" sentence
@@ -2028,8 +2029,8 @@ tac2typ_knd: [
 ]
 
 tac2alg_constructor: [
-| ident      (* ltac2 plugin *)
-| ident "(" LIST0 ltac2_type SEP "," ")"      (* ltac2 plugin *)
+| LIST0 [ "#[" LIST1 attribute SEP "," "]" ] ident      (* ltac2 plugin *)
+| LIST0 [ "#[" LIST1 attribute SEP "," "]" ] ident "(" LIST0 ltac2_type SEP "," ")"      (* ltac2 plugin *)
 ]
 
 tac2rec_field: [

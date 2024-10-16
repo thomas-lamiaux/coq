@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -322,4 +322,4 @@ val print_env : env -> Evd.evar_map -> Pp.t
 end
 
 val pr_evar_universe_context : UState.t -> Pp.t
-[@@deprecated "(8.21) Use [Evd.pr_ustate] instead"]
+[@@deprecated "(9.0) Use [Evd.pr_ustate] instead"]

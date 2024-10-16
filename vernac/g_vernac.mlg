@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -103,6 +103,8 @@ GRAMMAR EXTEND Gram
         { add_control_flag ~loc ~flag:ControlTime c }
       | IDENT "Instructions"; c = vernac_control ->
         { add_control_flag ~loc ~flag:ControlInstructions c }
+      | IDENT "Profile"; f = OPT STRING; c = vernac_control ->
+        { add_control_flag ~loc ~flag:(ControlProfile f) c }
       | IDENT "Redirect"; s = ne_string; c = vernac_control ->
         { add_control_flag ~loc ~flag:(ControlRedirect s) c }
       | IDENT "Timeout"; n = natural; c = vernac_control ->

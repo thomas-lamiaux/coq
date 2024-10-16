@@ -328,6 +328,7 @@ closed_binder: [
 | "(" name ":" lconstr ")"
 | "(" name ":=" lconstr ")"
 | "(" name ":" lconstr ":=" lconstr ")"
+| "(" name ":" lconstr "|" lconstr ")"
 | "{" name "}"
 | "{" name LIST1 name ":" lconstr "}"
 | "{" name ":" lconstr "}"
@@ -816,6 +817,7 @@ red_expr: [
 vernac_control: [
 | "Time" vernac_control
 | "Instructions" vernac_control
+| "Profile" OPT STRING vernac_control
 | "Redirect" ne_string vernac_control
 | "Timeout" natural vernac_control
 | "Fail" vernac_control
@@ -2362,12 +2364,8 @@ ltac_tacdef_body: [
 ]
 
 withtac: [
-| "with" Tactic.tactic
 |
-]
-
-Constr.closed_binder: [
-| "(" Prim.name ":" Constr.lconstr "|" Constr.lconstr ")"
+| "with" tactic
 ]
 
 glob_constr_with_bindings: [
@@ -2883,8 +2881,8 @@ tac2alg_constructors: [
 ]
 
 tac2alg_constructor: [
-| Prim.ident      (* ltac2 plugin *)
-| Prim.ident "(" LIST0 ltac2_type5 SEP "," ")"      (* ltac2 plugin *)
+| quoted_attributes Prim.ident      (* ltac2 plugin *)
+| quoted_attributes Prim.ident "(" LIST0 ltac2_type5 SEP "," ")"      (* ltac2 plugin *)
 ]
 
 tac2rec_fields: [

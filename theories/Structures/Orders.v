@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -356,7 +356,7 @@ Module TTLB_to_OTF (Import O : TotalTransitiveLeBool') <: OrderedTypeFull.
    apply leb_trans with y'; auto.
  Qed.
 
- Definition le_lteq : forall x y, le x y <-> lt x y \/ eq x y.
+ Lemma le_lteq : forall x y, le x y <-> lt x y \/ eq x y.
  Proof.
  intros x y.
  unfold lt, eq, le.

@@ -39,8 +39,8 @@ variables:
   # The $hash is the first 10 characters of the md5 of the Dockerfile. e.g.
   # echo $(md5sum dev/ci/docker/old_ubuntu_lts/Dockerfile | head -c 10)
   # echo $(md5sum dev/ci/docker/edge_ubuntu/Dockerfile | head -c 10)
-  BASE_CACHEKEY: "old_ubuntu_lts-V2024-01-08-011994e15c"
-  EDGE_CACHEKEY: "edge_ubuntu-V2024-06-26-c5d508ba41"
+  BASE_CACHEKEY: "old_ubuntu_lts-V2024-10-11-f72b1aa7c6"
+  EDGE_CACHEKEY: "edge_ubuntu-V2024-10-11-e53fa90d32"
   BASE_IMAGE: "$CI_REGISTRY_IMAGE:$BASE_CACHEKEY"
   EDGE_IMAGE: "$CI_REGISTRY_IMAGE:$EDGE_CACHEKEY"
 
@@ -598,6 +598,15 @@ library:ci-bedrock2:
   - library:ci-coqutil
   - library:ci-kami
   - library:ci-riscv_coq
+  stage: build-3+
+
+library:ci-bedrock2_examples:
+  extends: .ci-template-flambda
+  variables:
+    NJOBS: "1"
+  needs:
+  - build:edge+flambda
+  - library:ci-bedrock2
   stage: build-3+
   timeout: 2h
 

@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -519,6 +519,7 @@ type vernac_expr = synterp_vernac_expr vernac_expr_gen
 type control_flag =
   | ControlTime
   | ControlInstructions
+  | ControlProfile of string option
   | ControlRedirect of string
   | ControlTimeout of int
   | ControlFail

@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -10,4 +10,4 @@
 
 (** Compatibility file for making Coq act similar to Coq v8.20 *)
 
-Require Export Stdlib.Compat.Coq821.
+#[export] Set Warnings "-deprecated-since-8.21".

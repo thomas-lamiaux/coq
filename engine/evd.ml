@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -774,6 +774,7 @@ let get_typeclass_evars evd = evd.evar_flags.typeclass_evars
 
 let set_typeclass_evars evd tcs =
   let flags = evd.evar_flags in
+  let tcs = Evar.Set.filter (fun evk -> Evar.Map.mem evk evd.undf_evars) tcs in
   { evd with evar_flags = { flags with typeclass_evars = tcs } }
 
 let is_typeclass_evar evd evk =
@@ -1666,10 +1667,11 @@ module Expand :
 sig
   type handle
   val empty_handle : handle
-(*   val liftn_handle : int -> handle -> handle *)
+  val liftn_handle : int -> handle -> handle
   val kind : evar_map -> handle -> constr ->
     handle * (constr, constr, Sorts.t, UVars.Instance.t, Sorts.relevance) kind_of_term
   val expand : evar_map -> handle -> constr -> constr
+  val expand_instance : skip: bool -> undefined evar_info -> handle -> econstr SList.t -> econstr SList.t
 end =
 struct
 
@@ -1802,6 +1804,29 @@ let expand0 sigma h c =
 let expand sigma h c =
   if Esubst.is_lift_id h.h_lift && Id.Map.is_empty h.h_clos.evc_map then c
   else expand0 sigma h c
+
+let expand_instance ~skip (evi : undefined evar_info) h (args : Constr.t SList.t) =
+  if skip && Id.Map.is_empty h.h_clos.evc_map then args
+  else
+    let rec expand ctx args = match ctx, SList.view args with
+    | [], None -> SList.empty
+    | decl :: ctx, Some (None, args) ->
+      let args = expand ctx args in
+      let id = NamedDecl.get_id decl in
+      if Id.Map.mem id h.h_clos.evc_map then
+        (* Keep the non-default representation as kind will expand it *)
+        SList.cons (mkVar id) args
+      else if skip then SList.default args
+      else SList.cons (mkVar id) args
+    | decl :: ctx, Some (Some c, args) ->
+      let args = expand ctx args in
+      let id = NamedDecl.get_id decl in
+      (* Same as above *)
+      if skip && isVarId id c && not (Id.Map.mem id h.h_clos.evc_map) then SList.default args
+      else SList.cons c args
+    | [], Some _ | _ :: _, None -> instance_mismatch ()
+    in
+    expand (evar_filtered_context evi) args
 
 end
 

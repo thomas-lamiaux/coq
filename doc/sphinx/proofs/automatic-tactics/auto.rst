@@ -304,8 +304,8 @@ Hints used by :tacn:`auto`, :tacn:`eauto` and other tactics are stored in hint
 databases.  Each database maps head symbols to a list of hints.  Use the
 :cmd:`Print Hint` command to view a database.
 
-Each hint has a cost that is a nonnegative
-integer and an optional pattern. Hints with lower costs are tried first.
+Each hint has a cost and an optional pattern. Hints with lower
+cost are tried first.  (Cost is not used to limit the scope of searches.)
 :tacn:`auto` tries a hint when the conclusion of the current goal matches its
 pattern or when the hint has no pattern.
 
@@ -335,14 +335,14 @@ and `Constants`, while implicitly created databases have the `Opaque` setting.
 
    By default, hint databases are undiscriminated.
 
-Hint databases defined in the Coq standard library
-``````````````````````````````````````````````````
+Hint databases defined in the Rocq standard library
+```````````````````````````````````````````````````
 
-Several hint databases are defined in the Coq standard library. The
+Several hint databases are defined in the Rocq standard library. The
 database contains all hints declared
 to belong to it in the currently loaded modules.
 In particular, requiring new modules may extend the database.
-At Coq startup, only the core database is nonempty and ready to be used immediately.
+At Rocq startup, only the core database is nonempty and ready to be used immediately.
 
 :core: This special database is automatically used by ``auto``, except when
        pseudo-database ``nocore`` is given to ``auto``. The core database
@@ -387,6 +387,13 @@ Creating Hints
    :n:`{? : {+ @ident } }` specifies the hint database(s) to add to.
    *(Deprecated since version 8.10:* If no :token:`ident`\s
    are given, the hint is added to the `core` database.)
+
+   Hints in hint databases are ordered, which is the order in which they're
+   tried, as shown by the :cmd:`Print HintDb` command.
+   Hints with lower costs are tried first.  Hints with the same cost are tried
+   in reverse of their order of definition, i.e., last to first.  When multiple hint
+   databases are specified in search tactics, all hints in the first database are
+   tried before any in the second database (and so forth).
 
    Outside of sections, these commands support the :attr:`local`, :attr:`export`
    and :attr:`global` attributes. :attr:`export` is the default.
@@ -715,7 +722,10 @@ Creating Hints
 
 .. cmd:: Print HintDb @ident
 
-   This command displays all hints from database :n:`@ident`.
+   This command displays all hints from database :n:`@ident`.  Hints
+   in each group ("For ... ->") are shown in the order in which they will be tried
+   (first to last).  Note that hints with the same cost are tried in
+   reverse of the order they're defined in, i.e., last to first.
 
 Hint locality
 `````````````

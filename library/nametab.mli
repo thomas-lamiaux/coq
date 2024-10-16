@@ -1,5 +1,5 @@
 (************************************************************************)
-(*         *   The Coq Proof Assistant / The Coq Development Team       *)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
 (*  v      *         Copyright INRIA, CNRS and contributors             *)
 (* <O___,, * (see version control and CREDITS file for authors & dates) *)
 (*   \VV/  **************************************************************)
@@ -266,4 +266,5 @@ module Modules : sig
   val summary_tag : t Summary.Dyn.tag
 end
 
+(** [warn_deprecated_dirpath_Coq ?loc dp id] internal. Note that [dp] is expected in reversed order *)
 val warn_deprecated_dirpath_Coq : ?loc:Loc.t -> module_ident list * Id.t -> unit
