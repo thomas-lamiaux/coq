@@ -1823,7 +1823,7 @@ The reduction for fixpoints is:
 .. math::
    (\Fix~f_i \{F\}~a_1 …a_{k_i}) ~\triangleright_ι~ \subst{t_i}{f_k}{\Fix~f_k \{F\}}_{k=1… n} ~a_1 … a_{k_i}
 
-when the structural argument :math:`a_{i}` starts with a constructor. 
+when the structural argument :math:`a_{k_i}` starts with a constructor. 
 This last restriction is needed in order to keep strong normalization 
 and corresponds to the reduction for primitive recursive operators. 
 The following reductions are now possible:
