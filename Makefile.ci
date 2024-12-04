@@ -86,14 +86,11 @@ CI_TARGETS= \
     ci-rewriter \
     ci-riscv_coq \
     ci-rupicola \
-    ci-serapi \
-    ci-serapi_test \
     ci-sf \
     ci-simple_io \
     ci-smtcoq \
     ci-smtcoq_trakt \
     ci-stalmarck \
-    ci-stdlib2 \
     ci-tactician \
     ci-tlc \
     ci-trakt \
@@ -126,7 +123,7 @@ ci-coquelicot: ci-mathcomp
 ci-deriving: ci-mathcomp
 ci-math_classes: ci-bignums
 
-ci-corn: ci-math_classes
+ci-corn: ci-math_classes ci-elpi
 
 ci-mtac2: ci-unicoq
 
@@ -178,8 +175,6 @@ ci-vst: ci-compcert
 ci-compcert: ci-menhir ci-flocq
 
 ci-relation_algebra: ci-aac_tactics ci-mathcomp
-
-ci-serapi: ci-coq_lsp
 
 ci-smtcoq_trakt: ci-trakt
 

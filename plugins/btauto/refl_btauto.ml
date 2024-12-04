@@ -10,7 +10,7 @@
 
 open Constr
 
-let bt_lib_constr n = lazy (UnivGen.constr_of_monomorphic_global (Global.env ()) @@ Coqlib.lib_ref n)
+let bt_lib_constr n = lazy (UnivGen.constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref n)
 
 let decomp_term sigma (c : Constr.t) =
   Constr.kind (EConstr.Unsafe.to_constr (Termops.strip_outer_cast sigma (EConstr.of_constr c)))
@@ -37,7 +37,7 @@ module RocqPositive = struct
   let _xO = bt_lib_constr "num.pos.xO"
   let _xI = bt_lib_constr "num.pos.xI"
 
-  (* A coq nat from an int *)
+  (* A Rocq nat from an int *)
   let rec of_int n =
     if n <= 1 then Lazy.force _xH
     else
@@ -75,7 +75,7 @@ end
 
 module Bool = struct
 
-  let ind    = lazy (Globnames.destIndRef (Coqlib.lib_ref "core.bool.type"))
+  let ind    = lazy (Globnames.destIndRef (Rocqlib.lib_ref "core.bool.type"))
   let typ    = bt_lib_constr "core.bool.type"
   let trueb  = bt_lib_constr "core.bool.true"
   let falseb = bt_lib_constr "core.bool.false"

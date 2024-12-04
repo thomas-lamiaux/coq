@@ -21,9 +21,9 @@ open Genredexpr
 open Names
 open Attributes
 
-open Pcoq
-open Pcoq.Prim
-open Pcoq.Constr
+open Procq
+open Procq.Prim
+open Procq.Constr
 open Pvernac.Vernac_
 open Pltac
 
@@ -189,10 +189,6 @@ GRAMMAR EXTEND Gram
           { ConstrContext (id,c) }
       | IDENT "type"; IDENT "of"; c = Constr.constr ->
           { ConstrTypeOf c } ] ]
-  ;
-  constr_may_eval: (* For extensions *)
-    [ [ c = constr_eval -> { c }
-      | c = Constr.constr -> { ConstrTerm c } ] ]
   ;
   tactic_atom:
     [ [ n = integer -> { TacGeneric (None, genarg_of_int n) }

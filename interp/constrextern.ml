@@ -845,7 +845,7 @@ let extended_glob_local_binder_of_decl ?loc u = DAst.make ?loc (extended_glob_lo
 
 (* this helper function is copied from notation.ml as it's not exported *)
 let qualid_of_ref n =
-  n |> Coqlib.lib_ref |> Nametab.shortest_qualid_of_global Id.Set.empty
+  n |> Rocqlib.lib_ref |> Nametab.shortest_qualid_of_global Id.Set.empty
 
 let q_infinity () = qualid_of_ref "num.float.infinity"
 let q_neg_infinity () = qualid_of_ref "num.float.neg_infinity"
@@ -944,11 +944,11 @@ let rec extern inctx scopes vars r =
   | None ->
 
   let r' = match DAst.get r with
-    | GInt i when Coqlib.has_ref "num.int63.wrap_int" ->
-       let wrap = Coqlib.lib_ref "num.int63.wrap_int" in
+    | GInt i when Rocqlib.has_ref "num.int63.wrap_int" ->
+       let wrap = Rocqlib.lib_ref "num.int63.wrap_int" in
        DAst.make (GApp (DAst.make (GRef (wrap, None)), [r]))
-    | GFloat f when Coqlib.has_ref "num.float.wrap_float" ->
-       let wrap = Coqlib.lib_ref "num.float.wrap_float" in
+    | GFloat f when Rocqlib.has_ref "num.float.wrap_float" ->
+       let wrap = Rocqlib.lib_ref "num.float.wrap_float" in
        DAst.make (GApp (DAst.make (GRef (wrap, None)), [r]))
     | _ -> r in
 
@@ -1227,6 +1227,7 @@ and extern_local_binder scopes vars = function
       (match extern_local_binder scopes (on_fst (Name.fold_right Id.Set.add na) vars) l with
        | (assums,ids,CLocalAssum(nal,r',k,ty')::l)
          when (constr_expr_eq ty ty' || implicit_type && constr_expr_eq ty' hole) &&
+              binder_kind_eq k (Default bk) &&
               match na with Name id -> not (occur_var_constr_expr id ty')
                           | _ -> true ->
          (na::assums,na::ids,
@@ -1388,7 +1389,7 @@ let extern_glob_type ?impargs vars c =
 (* Main translation function from constr -> constr_expr *)
 
 let extern_constr ?(inctx=false) ?scope env sigma t =
-  let r = Detyping.detype Detyping.Later env sigma t in
+  let r = Detyping.detype Detyping.Now env sigma t in
   let vars = extern_env env sigma in
   let scope = Option.cata (fun x -> [x]) [] scope in
   extern inctx ((constr_some_level,None),(scope,[])) vars r
@@ -1410,7 +1411,7 @@ let extern_type ?(goal_concl_style=false) env sigma ?impargs t =
   (* those goal/section/rel variables that occurs in the subterm under *)
   (* consideration; see namegen.ml for further details *)
   let avoid = make_avoid goal_concl_style env in
-  let r = Detyping.detype Detyping.Later ~isgoal:goal_concl_style ~avoid env sigma t in
+  let r = Detyping.detype Detyping.Now ~isgoal:goal_concl_style ~avoid env sigma t in
   extern_glob_type ?impargs (extern_env env sigma) r
 
 let extern_sort sigma s = extern_glob_sort (Evd.universe_binders sigma) (detype_sort sigma s)
@@ -1587,7 +1588,7 @@ let extern_constr_pattern env sigma pat =
     (glob_of_pat (genset, Id.Set.empty) env sigma pat)
 
 let extern_rel_context where env sigma sign =
-  let a = detype_rel_context Detyping.Later where ([],env) sigma sign in
+  let a = detype_rel_context Detyping.Now where ([],env) sigma sign in
   let vars = extern_env env sigma in
   let a = List.map (extended_glob_local_binder_of_decl) a in
   pi3 (extern_local_binder ((constr_some_level,None),([],[])) vars a)

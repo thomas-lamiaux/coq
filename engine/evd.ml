@@ -336,83 +336,6 @@ let make_evar_instance_array info args =
 
 type 'a in_ustate = 'a * UState.t
 
-(*******************************************************************)
-(* Metamaps *)
-
-(*******************************************************************)
-(*            Constraints for existential variables                *)
-(*******************************************************************)
-
-type 'a freelisted = {
-  rebus : 'a;
-  freemetas : Int.Set.t }
-
-(* Collects all metavars appearing in a constr *)
-let metavars_of c =
-  let rec collrec acc c =
-    match kind c with
-      | Meta mv -> Int.Set.add mv acc
-      | _         -> Constr.fold collrec acc c
-  in
-  collrec Int.Set.empty c
-
-let mk_freelisted c =
-  { rebus = c; freemetas = metavars_of c }
-
-let map_fl f cfl = { cfl with rebus=f cfl.rebus }
-
-(* Status of an instance found by unification wrt to the meta it solves:
-  - a supertype of the meta (e.g. the solution to ?X <= T is a supertype of ?X)
-  - a subtype of the meta (e.g. the solution to T <= ?X is a supertype of ?X)
-  - a term that can be eta-expanded n times while still being a solution
-    (e.g. the solution [P] to [?X u v = P u v] can be eta-expanded twice)
-*)
-
-type instance_constraint = IsSuperType | IsSubType | Conv
-
-let eq_instance_constraint c1 c2 = c1 == c2
-
-(* Status of the unification of the type of an instance against the type of
-     the meta it instantiates:
-   - CoerceToType means that the unification of types has not been done
-     and that a coercion can still be inserted: the meta should not be
-     substituted freely (this happens for instance given via the
-     "with" binding clause).
-   - TypeProcessed means that the information obtainable from the
-     unification of types has been extracted.
-   - TypeNotProcessed means that the unification of types has not been
-     done but it is known that no coercion may be inserted: the meta
-     can be substituted freely.
-*)
-
-type instance_typing_status =
-    CoerceToType | TypeNotProcessed | TypeProcessed
-
-(* Status of an instance together with the status of its type unification *)
-
-type instance_status = instance_constraint * instance_typing_status
-
-(* Clausal environments *)
-
-type clbinding =
-  | Cltyp of Name.t * constr freelisted
-  | Clval of Name.t * (constr freelisted * instance_status) * constr freelisted
-
-let map_clb f = function
-  | Cltyp (na,cfl) -> Cltyp (na,map_fl f cfl)
-  | Clval (na,(cfl1,pb),cfl2) -> Clval (na,(map_fl f cfl1,pb),map_fl f cfl2)
-
-(* name of defined is erased (but it is pretty-printed) *)
-let clb_name = function
-    Cltyp(na,_) -> (na,false)
-  | Clval (na,_,_) -> (na,true)
-
-(***********************)
-
-module Metaset = Int.Set
-
-module Metamap = Int.Map
-
 (*************************)
 (* Unification state *)
 
@@ -646,8 +569,6 @@ type evar_map = {
   (** Conversion problems *)
   conv_pbs   : evar_constraint list;
   last_mods  : Evar.Set.t;
-  (** Metas *)
-  metas      : clbinding Metamap.t;
   evar_flags : evar_flags;
   (** Interactive proofs *)
   effects    : side_effects;
@@ -964,19 +885,17 @@ let add_universe_constraints d c =
 let is_empty d =
   EvMap.is_empty d.defn_evars &&
   EvMap.is_empty d.undf_evars &&
-  List.is_empty d.conv_pbs &&
-  Metamap.is_empty d.metas
+  List.is_empty d.conv_pbs
 
 let cmap f evd =
   { evd with
-      metas = Metamap.map (map_clb f) evd.metas;
       defn_evars = EvMap.map (map_evar_info f) evd.defn_evars;
       undf_evars = EvMap.map (map_evar_info f) evd.undf_evars
   }
 
 (* spiwack: deprecated *)
 let create_evar_defs sigma = { sigma with
-  conv_pbs=[]; last_mods=Evar.Set.empty; metas=Metamap.empty }
+  conv_pbs=[]; last_mods=Evar.Set.empty }
 
 let empty_evar_flags =
   { obligation_evars = Evar.Set.empty;
@@ -998,7 +917,6 @@ let empty = {
   last_mods  = Evar.Set.empty;
   evar_flags = empty_evar_flags;
   candidate_evars = Evar.Set.empty;
-  metas      = Metamap.empty;
   effects    = empty_side_effects;
   evar_names = EvNames.empty; (* id<->key for undefined evars *)
   future_goals = FutureGoals.empty_stack;
@@ -1489,116 +1407,6 @@ let update_source evd evk src =
   let modify _ info = { info with evar_source = src } in
   { evd with undf_evars = EvMap.modify evk modify evd.undf_evars }
 
-(**********************************************************)
-(* Accessing metas *)
-
-(** We use this function to overcome OCaml compiler limitations and to prevent
-    the use of costly in-place modifications. *)
-let set_metas evd metas = {
-  defn_evars = evd.defn_evars;
-  undf_evars = evd.undf_evars;
-  universes  = evd.universes;
-  conv_pbs = evd.conv_pbs;
-  last_mods = evd.last_mods;
-  evar_flags = evd.evar_flags;
-  candidate_evars = evd.candidate_evars;
-  metas;
-  effects = evd.effects;
-  evar_names = evd.evar_names;
-  future_goals = evd.future_goals;
-  given_up = evd.given_up;
-  shelf = evd.shelf;
-  extras = evd.extras;
-}
-
-let meta_list evd = evd.metas
-
-let map_metas_fvalue f evd =
-  let map = function
-  | Clval(id,(c,s),typ) -> Clval(id,(mk_freelisted (f c.rebus),s),typ)
-  | x -> x
-  in
-  set_metas evd (Metamap.Smart.map map evd.metas)
-
-let map_metas f evd =
-  let map cl = map_clb f cl in
-  set_metas evd (Metamap.Smart.map map evd.metas)
-
-let meta_opt_fvalue evd mv =
-  match Metamap.find mv evd.metas with
-    | Clval(_,b,_) -> Some b
-    | Cltyp _ -> None
-
-let meta_value evd mv = match meta_opt_fvalue evd mv with
-| Some (body, _) -> body.rebus
-| None -> raise Not_found
-
-let meta_ftype evd mv =
-  match Metamap.find mv evd.metas with
-    | Cltyp (_,b) -> b
-    | Clval(_,_,b) -> b
-
-let meta_declare mv v ?(name=Anonymous) evd =
-  let metas = Metamap.add mv (Cltyp(name,mk_freelisted v)) evd.metas in
-  set_metas evd metas
-
-(* If the meta is defined then forget its name *)
-let meta_name evd mv =
-  try fst (clb_name (Metamap.find mv evd.metas)) with Not_found -> Anonymous
-
-let evar_source_of_meta mv evd =
-  match meta_name evd mv with
-  | Anonymous -> Loc.tag Evar_kinds.GoalEvar
-  | Name id   -> Loc.tag @@ Evar_kinds.VarInstance id
-
-let use_meta_source evd mv v =
-  match Constr.kind v with
-  | Evar (evk,_) ->
-    let f = function
-    | None -> None
-    | Some evi as x ->
-      match evi.evar_source with
-      | None, Evar_kinds.GoalEvar -> Some { evi with evar_source = evar_source_of_meta mv evd }
-      | _ -> x in
-    { evd with undf_evars = EvMap.update evk f evd.undf_evars }
-  | _ -> evd
-
-let meta_assign mv (v, pb) evd =
-  let modify _ = function
-  | Cltyp (na, ty) -> Clval (na, (mk_freelisted v, pb), ty)
-  | _ -> anomaly ~label:"meta_assign" (Pp.str "already defined.")
-  in
-  let metas = Metamap.modify mv modify evd.metas in
-  let evd = use_meta_source evd mv v in
-  set_metas evd metas
-
-let meta_reassign mv (v, pb) evd =
-  let modify _ = function
-  | Clval(na, _, ty) -> Clval (na, (mk_freelisted v, pb), ty)
-  | _ -> anomaly ~label:"meta_reassign" (Pp.str "not yet defined.")
-  in
-  let metas = Metamap.modify mv modify evd.metas in
-  set_metas evd metas
-
-let clear_metas evd = {evd with metas = Metamap.empty}
-
-let meta_merge metas sigma =
-  let metas = Metamap.fold Metamap.add metas sigma.metas in
-  { sigma with metas }
-
-type metabinding = metavariable * constr * instance_status
-
-let retract_coercible_metas evd =
-  let mc = ref [] in
-  let map n v = match v with
-  | Clval (na, (b, (Conv, CoerceToType as s)), typ) ->
-    let () = mc := (n, b.rebus, s) :: !mc in
-    Cltyp (na, typ)
-  | v -> v
-  in
-  let metas = Metamap.Smart.mapi map evd.metas in
-  !mc, set_metas evd metas
-
 let dependent_evar_ident ev evd =
   let EvarInfo evi = find evd ev in
   match evi.evar_source with
@@ -2068,7 +1876,6 @@ let drop_new_defined ~original sigma =
   in
   let dummy = { empty with defn_evars = to_drop } in
   let nfc c = snd @@ MiniEConstr.to_constr_gen ~expand:true ~ignore_missing:false dummy c in (* FIXME: do we really need to expand? *)
-  assert (Metamap.is_empty sigma.metas);
   assert (List.is_empty sigma.conv_pbs);
   let normalize_changed _ev orig evi =
     match orig, evi with

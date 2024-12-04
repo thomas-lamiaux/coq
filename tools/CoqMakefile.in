@@ -224,14 +224,12 @@ TIMER=$(if $(TIMED), $(STDTIME), $(TIMECMD))
 
 OPT?=
 
-# The DYNOBJ and DYNLIB variables are used by "coqdep -dyndep var" in .v.d
+# The DYNLIB variable is used by "coqdep -dyndep var" in .v.d
 ifeq '$(OPT)' '-byte'
 USEBYTE:=true
-DYNOBJ:=.cma
 DYNLIB:=.cma
 else
 USEBYTE:=
-DYNOBJ:=.cmxs
 DYNLIB:=.cmxs
 endif
 
@@ -397,8 +395,7 @@ FILESTOINSTALL = \
 	$(VOFILES) \
 	$(VFILES) \
 	$(GLOBFILES) \
-	$(NATIVEFILES) \
-	$(CMXSFILES)		# to be removed when we remove legacy loading
+	$(NATIVEFILES)
 FINDLIBFILESTOINSTALL = \
 	$(CMIFILESTOINSTALL)
 ifeq '$(HASNATDYNLINK)' 'true'
@@ -893,7 +890,7 @@ VDFILE_FLAGS:=$(if @PROJECT_FILE@,-f @PROJECT_FILE@,) $(CMDLINE_COQLIBS) $(CMDLI
 
 $(VDFILE): @PROJECT_FILE@ $(VFILES)
 	$(SHOW)'COQDEP VFILES'
-	$(HIDE)$(COQDEP) $(if $(strip $(METAFILE)),-m "$(METAFILE)") -vos -dyndep var $(VDFILE_FLAGS) $(redir_if_ok)
+	$(HIDE)$(COQDEP) -vos -dyndep var $(VDFILE_FLAGS) $(redir_if_ok)
 
 # Misc ########################################################################
 

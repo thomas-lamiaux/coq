@@ -53,22 +53,16 @@ let parse_META meta_file package =
      it without bumping our version requirements. TODO pass the message on once we bump. *)
   | _ -> Error.cannot_parse_meta_file package ""
 
-let rec find_parsable_META meta_files package =
-  match meta_files with
-  | [] ->
-    (try
-       let meta_file = Findlib.package_meta_file package in
-       Option.map (fun meta -> meta_file, meta) (parse_META meta_file package)
-     with Fl_package_base.No_such_package _ -> None)
-  | meta_file :: ms ->
-    if String.equal (Filename.extension meta_file) ("." ^ package)
-    then Option.map (fun meta -> meta_file, meta) (parse_META meta_file package)
-    else find_parsable_META ms package
+let find_parsable_META package =
+  (try
+     let meta_file = Findlib.package_meta_file package in
+     Option.map (fun meta -> meta_file, meta) (parse_META meta_file package)
+   with Fl_package_base.No_such_package _ -> None)
 
 let rec find_plugin_field_opt fld = function
   | [] ->
     None
-  | { Fl_metascanner.def_var; def_value; _ } :: rest ->
+  | { Fl_metascanner.def_var; def_value; Fl_metascanner.def_preds ;_ } :: rest ->
     if String.equal def_var fld
     then Some def_value
     else find_plugin_field_opt fld rest
@@ -88,9 +82,9 @@ let rec find_plugin meta_file plugin_name path p { Fl_metascanner.pkg_defs ; pkg
     let path = path @ [find_plugin_field "directory" "." c.Fl_metascanner.pkg_defs] in
     find_plugin meta_file plugin_name path ps c
 
-let findlib_resolve ~meta_files ~file ~package ~plugin_name =
+let findlib_resolve ~file ~package ~plugin_name =
   let (meta_file, meta) =
-    match find_parsable_META meta_files package with
+    match find_parsable_META package with
     | None   -> Error.no_meta file package
     | Some v -> v
   in
@@ -107,7 +101,14 @@ let findlib_resolve ~meta_files ~file ~package ~plugin_name =
     in
     List.fold_right add path file
   in
-  let meta_file = normalize_path (to_relative_path meta_file) in
+  let meta_file =
+    (* relativize the path if inside the current dune workspace
+       if we relativize paths outside the dune workspace it fails so make sure to avoid it *)
+    match Sys.getenv_opt "DUNE_SOURCEROOT" with
+    | Some dune when CString.is_prefix dune meta_file ->
+      normalize_path (to_relative_path meta_file)
+    | _ -> meta_file
+  in
   let cmxs_file =
     let meta_dir = Filename.dirname meta_file in
     normalize_path (Filename.concat meta_dir cmxs_file)

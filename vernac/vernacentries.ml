@@ -355,7 +355,7 @@ let print_registered () =
   let pr_lib_ref (s,r) =
     pr_global r ++ str " registered as " ++ str s
   in
-  hov 0 (prlist_with_sep fnl pr_lib_ref @@ Coqlib.get_lib_refs ())
+  hov 0 (prlist_with_sep fnl pr_lib_ref @@ Rocqlib.get_lib_refs ())
 
 let print_registered_schemes () =
   let schemes = DeclareScheme.all_schemes() in
@@ -423,10 +423,27 @@ let dump_universes_gen prl g s =
 
 let universe_subgraph kept univ =
   let open Univ in
-  let parse q =
-    try Level.make (Nametab.locate_universe q)
-    with Not_found ->
-      CErrors.user_err ?loc:q.loc Pp.(str "Undeclared universe " ++ pr_qualid q ++ str".")
+  let parse = function
+    | NamedUniv q ->
+      begin try Level.make (Nametab.locate_universe q)
+      with Not_found ->
+        CErrors.user_err ?loc:q.loc Pp.(str "Undeclared universe " ++ pr_qualid q ++ str".")
+      end
+    | RawUniv { CAst.v = s; loc } ->
+      let parts = String.split_on_char '.' s in
+      let () = if CList.is_empty parts then CErrors.user_err ?loc Pp.(str "Invalid raw universe.") in
+      let i, dp = List.sep_last parts in
+      let dp = Libnames.dirpath_of_string (String.concat "." dp) in
+      let i = match int_of_string_opt i with
+        | Some i -> i
+        | None -> CErrors.user_err ?loc Pp.(str "Invalid raw universe.")
+      in
+      let u = UGlobal.make dp "" i in
+      let u = Level.make u in
+      begin match UGraph.check_declared_universes univ (Level.Set.singleton u) with
+      | Ok () -> u
+      | Error _ -> CErrors.user_err ?loc Pp.(str "Undeclared universe " ++ Level.raw_pr u ++ str".")
+      end
   in
   let kept = List.fold_left (fun kept q -> Level.Set.add (parse q) kept) Level.Set.empty kept in
   let csts = UGraph.constraints_for ~kept univ in
@@ -489,7 +506,174 @@ let sort_universes g =
   in
   Level.Map.fold fold g ans
 
-let print_universes ~sort ~subgraph dst =
+type constraint_source = GlobRef of GlobRef.t | Library of DirPath.t
+
+(* The [edges] fields give the edges of the graph.
+   For [u <= v] and [u < v] we have [u |-> v |-> gref, k],
+   for [u = v] we have both directions.
+
+   When there are edges with different constraint types between the
+   same univs (eg [u < v] and [u <= v]) we keep the strictest one
+   (either [<] or [=], NB we can't get both at the same time).
+*)
+type constraint_sources = {
+  edges : (constraint_source * Univ.constraint_type) Univ.Level.Map.t Univ.Level.Map.t;
+}
+
+let empty_sources = { edges = Univ.Level.Map.empty }
+
+let mk_sources () =
+  let open Univ in
+  let srcs = DeclareUniv.constraint_sources () in
+  let pick_stricter_constraint (_,k as v) (_,k' as v') =
+    match k, k' with
+    | Le, Lt | Le, Eq -> v'
+    | Lt, Le | Eq, Le -> v
+    | Le, Le | Lt, Lt | Eq, Eq ->
+      (* same: prefer [v]
+         (the older refs are encountered last, and fallback libraries first) *)
+      v
+    | Lt, Eq | Eq, Lt ->
+      (* XXX don't assert in case of type in type? *)
+      assert false
+  in
+  let add_edge_unidirectional (u,k,v) ref edges =
+    Level.Map.update u (fun uedges ->
+        let uedges = Option.default Level.Map.empty uedges in
+        Some (Level.Map.update v (function
+            | None -> Some (ref, k)
+            | Some v' -> Some (pick_stricter_constraint (ref, k) v'))
+            uedges))
+      edges
+  in
+  let add_edge (u,k,v as cst) ref edges =
+    let edges = add_edge_unidirectional cst ref edges in
+    if k = Eq then add_edge_unidirectional (v,k,u) ref edges else edges
+  in
+  let edges = Level.Map.empty in
+  let edges =
+    let libs = Library.loaded_libraries () in
+    List.fold_left (fun edges dp ->
+        let _, csts = Safe_typing.univs_of_library @@ Library.library_compiled dp in
+        Constraints.fold (fun cst edges -> add_edge cst (Library dp) edges)
+          csts edges)
+      edges libs
+  in
+  let edges =
+    List.fold_left (fun edges (ref,csts) ->
+        Constraints.fold (fun cst edges -> add_edge cst (GlobRef ref) edges)
+          csts edges)
+      edges srcs
+  in
+  {
+    edges;
+  }
+
+exception Found of (Univ.constraint_type * Univ.Level.t * constraint_source) list
+
+(* We are looking for a path from [source] to [target].
+   If [k] is [Lt] the path must contain at least one [Lt].
+   If [k] is [Eq] the path must contain no [Lt].
+
+   [visited] is a map which for each level we have visited says if the
+   path had enough [Lt] (always true if the original [k] is [Le] or [Eq]).
+*)
+let search src ~target k ~source =
+  let module UMap = Univ.Level.Map in
+  let rec loop visited todo next_todo =
+    match todo, next_todo with
+    | [], [] -> ()
+    | _, _ :: _ -> loop visited next_todo []
+    | (source,k,revpath)::todo, _ ->
+      let is_visited = match UMap.find_opt source visited with
+        | None -> false
+        | Some has_enough_lt ->
+          if has_enough_lt then true
+          else (* original k was [Lt], if current k is also [Lt] we have no new info on this path *)
+            k = Univ.Lt
+      in
+      if is_visited then loop visited todo next_todo
+      else
+        let visited = UMap.add source (k <> Univ.Lt) visited in
+        let visited, next_todo =
+          UMap.fold (fun u (ref,k') (visited,next_todo) ->
+              if k = Univ.Eq && k' = Univ.Lt then
+                (* no point searching for a loop involving [u]  *)
+                (UMap.add u true visited, next_todo)
+              else
+                let next_k = if k = Univ.Lt && k' = Univ.Lt then Univ.Le
+                  else k
+                in
+                let revpath = (k',u,ref) :: revpath in
+                if Univ.Level.equal u target && next_k <> Univ.Lt
+                then raise (Found revpath)
+                else (visited, (u, next_k, revpath) :: next_todo))
+            (Option.default UMap.empty (UMap.find_opt source src.edges))
+            (visited,next_todo)
+        in
+        loop visited todo next_todo
+  in
+  try loop UMap.empty [source,k,[]] []; None
+  with Found l -> Some (List.rev l)
+
+let search src (u,k,v) =
+  let path = search src ~source:u k ~target:v in
+  match path with
+  | None -> None
+  | Some path ->
+    if k = Univ.Eq && not (List.for_all (fun (k',_,_) -> k' = Univ.Eq) path) then
+      let path' = search src ~source:v k ~target:u in
+      begin match path' with
+      | None -> None
+      | Some path' -> Some (path @ path')
+      end
+    else Some path
+
+let find_source (u,k,v as cst) src =
+  if Univ.Level.is_set u && k = Univ.Lt then []
+  else Option.default [] (search src cst)
+
+let pr_constraint_source = function
+  | GlobRef ref -> pr_global ref
+  | Library dp -> str "library " ++ pr_qualid (Nametab.shortest_qualid_of_module (MPfile dp))
+
+let pr_source_path prl u src =
+  if CList.is_empty src then mt()
+  else
+    let pr_rel = function
+      | Univ.Eq -> str"=" | Lt -> str"<" | Le -> str"<="
+    in
+    let pr_one (k,v,ref) =
+      spc() ++
+      h (pr_rel k ++ surround (str "from " ++ pr_constraint_source ref) ++
+         spc() ++ prl v)
+    in
+    spc() ++ surround (str"because" ++ spc() ++ prl u ++ prlist_with_sep mt pr_one src)
+
+let pr_pmap sep pr map =
+  let cmp (u,_) (v,_) = Univ.Level.compare u v in
+  Pp.prlist_with_sep sep pr (List.sort cmp (Univ.Level.Map.bindings map))
+
+let pr_arc srcs prl = let open Pp in
+  function
+  | u, UGraph.Node ltle ->
+    if Univ.Level.Map.is_empty ltle then mt ()
+    else
+      prl u ++ str " " ++
+      v 0
+        (pr_pmap spc (fun (v, strict) ->
+             let k = if strict then Univ.Lt else Univ.Le in
+             let src = find_source (u,k,v) srcs in
+             hov 2 ((if strict then str "< " else str "<= ") ++ prl v ++ pr_source_path prl u src))
+            ltle) ++
+      fnl ()
+  | u, UGraph.Alias v ->
+    let src = find_source (u,Eq,v) srcs in
+    prl u  ++ str " = " ++ prl v ++ pr_source_path prl u src ++ fnl ()
+
+let pr_universes srcs prl g = pr_pmap Pp.mt (pr_arc srcs prl) g
+
+let print_universes { sort; subgraph; with_sources; file; } =
   let univ = Global.universes () in
   let univ = match subgraph with
     | None -> univ
@@ -502,9 +686,16 @@ let print_universes ~sort ~subgraph dst =
     else str"There may remain asynchronous universe constraints"
   in
   let prl = UnivNames.pr_level_with_global_universes in
-  begin match dst with
-    | None -> UGraph.pr_universes prl univ ++ pr_remaining
-    | Some s -> dump_universes_gen (fun u -> Pp.string_of_ppcmds (prl u)) univ s
+  begin match file with
+  | None ->
+    let with_sources = match with_sources, subgraph with
+      | Some b, _ -> b
+      | _, None -> false
+      | _, Some _ -> true
+    in
+    let srcs = if with_sources then mk_sources () else empty_sources in
+    pr_universes srcs prl univ ++ pr_remaining
+  | Some s -> dump_universes_gen (fun u -> Pp.string_of_ppcmds (prl u)) univ s
   end
 
 (*********************)
@@ -560,7 +751,7 @@ let interp_enable_notation_rule on ntn interp flags scope =
   let rec parse_notation_enable_flags all query = function
     | [] -> all, query
     | EnableNotationEntry CAst.{loc;v=entry} :: flags ->
-      (match entry with InCustomEntry s when not (Egramcoq.exists_custom_entry s) -> user_err ?loc (str "Unknown custom entry.") | _ -> ());
+      (match entry with InCustomEntry s when not (Egramrocq.exists_custom_entry s) -> user_err ?loc (str "Unknown custom entry.") | _ -> ());
       parse_notation_enable_flags all { query with notation_entry_pattern = entry :: query.notation_entry_pattern } flags
     | EnableNotationOnly use :: flags ->
       parse_notation_enable_flags all { query with use_pattern = use } flags
@@ -649,7 +840,7 @@ let vernac_definition_interactive ~atts (discharge, kind) (lid, udecl) bl t =
   let canonical_instance, reversible = atts.canonical_instance, atts.reversible in
   let hook = vernac_definition_hook ~canonical_instance ~local ~poly ~reversible kind in
   let name = vernac_definition_name lid scope in
-  ComDefinition.do_definition_interactive ~typing_flags ~program_mode ~name ~poly ~scope ?clearbody:atts.clearbody
+  ComDefinition.do_definition_interactive ?loc:lid.loc ~typing_flags ~program_mode ~name ~poly ~scope ?clearbody:atts.clearbody
     ~kind:(Decls.IsDefinition kind) ?user_warns ?using:atts.using ?hook udecl bl t
 
 let vernac_definition ~atts ~pm (discharge, kind) (lid, udecl) bl red_option c typ_opt =
@@ -667,12 +858,12 @@ let vernac_definition ~atts ~pm (discharge, kind) (lid, udecl) bl red_option c t
       Some (snd (Redexpr.interp_redexp_no_ltac env sigma r)) in
   if program_mode then
     let kind = Decls.IsDefinition kind in
-    ComDefinition.do_definition_program ~pm ~name
+    ComDefinition.do_definition_program ?loc:lid.loc ~pm ~name
       ?clearbody ~poly ?typing_flags ~scope ~kind
       ?user_warns ?using udecl bl red_option c typ_opt ?hook
   else
     let () =
-      ComDefinition.do_definition ~name
+      ComDefinition.do_definition ~name ?loc:lid.loc
         ?clearbody ~poly ?typing_flags ~scope ~kind
         ?user_warns ?using udecl bl red_option c typ_opt ?hook in
     pm
@@ -687,11 +878,11 @@ let vernac_start_proof ~atts kind l =
   List.iter (fun ((id, _), _) -> check_name_freshness scope id) l;
   match l with
   | [] -> assert false
-  | [({v=name},udecl),(bl,typ)] ->
-    ComDefinition.do_definition_interactive
+  | [({v=name; loc},udecl),(bl,typ)] ->
+    ComDefinition.do_definition_interactive ?loc
       ~typing_flags ~program_mode ~name ~poly ?clearbody ~scope
       ~kind:(Decls.IsProof kind) ?user_warns ?using udecl bl typ
-  | _ ->
+  | ((lid,_),_) :: _ ->
     let fix = List.map (fun ((fname, univs), (binders, rtype)) ->
         { fname; binders; rtype; body_def = None; univs; notations = []}) l in
     let pm, proof =
@@ -783,8 +974,8 @@ let should_treat_as_uniform () =
 let vernac_record ~template udecl ~cumulative k ~poly ?typing_flags ~primitive_proj finite ?mode records =
   let map ((is_coercion, name), binders, sort, nameopt, cfs, ido) =
     let idbuild = match nameopt with
-    | None -> Nameops.add_prefix "Build_" name.v
-    | Some lid -> lid.v
+    | None -> CAst.map (Nameops.add_prefix "Build_") name
+    | Some lid -> lid
     in
     let default_inhabitant_id = Option.map (fun CAst.{v=id} -> id) ido in
     Record.Ast.{ name; is_coercion; binders; cfs; idbuild; sort; default_inhabitant_id }
@@ -1223,7 +1414,7 @@ let interp_import_cats cats =
 let import_module_with_filter ~export cats m f =
   match f with
   | ImportAll ->
-    Declaremods.import_module cats ~export m
+    Declaremods.Interp.import_module cats ~export m
   | ImportNames ns -> import_names ~export m ns
 
 let check_no_filter_when_using_cats l =
@@ -2004,7 +2195,9 @@ let vernac_print =
   | PrintModule qid -> no_state @@ fun () -> print_module qid
   | PrintModuleType qid -> no_state @@ fun () -> print_modtype qid
   | PrintNamespace ns -> with_pstate @@ print_namespace ns
-  | PrintMLLoadPath -> no_state Mltop.print_ml_path
+  | PrintMLLoadPath -> no_state @@ fun () ->
+    let paths = Findlib.search_path () in
+    v 0 (prlist_with_sep cut str paths )
   | PrintMLModules -> no_state Mltop.print_ml_modules
   | PrintDebugGC -> no_state Mltop.print_gc
   | PrintName (qid,udecl) -> with_proof_env_and_opaques @@ fun ~opaque_access env sigma ->
@@ -2021,8 +2214,8 @@ let vernac_print =
   | PrintCanonicalConversions qids -> with_proof_env @@ fun env sigma ->
     let grefs = List.map Smartlocate.smart_global qids in
     Prettyp.print_canonical_projections env sigma grefs
-  | PrintUniverses (sort, subgraph, dst) -> no_state @@ fun ()->
-    print_universes ~sort ~subgraph dst
+  | PrintUniverses prunivs -> no_state @@ fun ()->
+    print_universes prunivs
   | PrintHint r -> with_proof_env @@ fun env sigma ->
     Hints.pr_hint_ref env sigma (smart_global r)
   | PrintHintGoal -> with_pstate @@ fun ~pstate ->
@@ -2122,7 +2315,7 @@ let vernac_register ~atts qid r =
     end
     else
       let local = Attributes.parse hint_locality_default_superglobal atts in
-      Coqlib.register_ref local (Libnames.string_of_qualid n) gr
+      Rocqlib.register_ref local (Libnames.string_of_qualid n) gr
   | RegisterScheme { inductive; scheme_kind } ->
     let local = Attributes.parse hint_locality_default_superglobal atts in
     let gr = match gr with

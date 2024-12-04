@@ -40,7 +40,7 @@ variables:
   # echo $(md5sum dev/ci/docker/old_ubuntu_lts/Dockerfile | head -c 10)
   # echo $(md5sum dev/ci/docker/edge_ubuntu/Dockerfile | head -c 10)
   BASE_CACHEKEY: "old_ubuntu_lts-V2024-10-11-f72b1aa7c6"
-  EDGE_CACHEKEY: "edge_ubuntu-V2024-10-11-e53fa90d32"
+  EDGE_CACHEKEY: "edge_ubuntu-V2024-11-29-b19bb2b798"
   BASE_IMAGE: "$CI_REGISTRY_IMAGE:$BASE_CACHEKEY"
   EDGE_IMAGE: "$CI_REGISTRY_IMAGE:$EDGE_CACHEKEY"
 
@@ -79,7 +79,7 @@ before_script:
       - config/coq_config.ml
       - config/coq_byte_config.ml
       - config/dune.c_flags
-    expire_in: 1 month
+    expire_in: 1 week
   script:
     - PKGS=coq-core,coq-stdlib,coqide-server,coq
     - if [ "$COQIDE" != "no" ]; then PKGS=${PKGS},coqide; fi
@@ -119,7 +119,7 @@ before_script:
       - _build.tar.bz2
       - theories/dune
       - user-contrib/Ltac2/dune
-    expire_in: 1 month
+    expire_in: 1 week
 
 .doc-template:
   stage: build-1
@@ -157,8 +157,7 @@ before_script:
     when: on_failure
     paths:
       - test-suite/logs
-    # Gitlab doesn't support yet "expire_in: never" so we use the instance default
-    # expire_in: never
+    expire_in: 1 week
 
 # set "needs" when using
 .validate-template:
@@ -178,7 +177,7 @@ before_script:
     when: always
     paths:
       - coqchk.log
-    expire_in: 2 months
+    expire_in: 1 week
 
 # This template defaults to "needs: build:base"
 # Remember to include it as a transitive dependency if you want additional "needs:"
@@ -197,6 +196,7 @@ before_script:
       - _build_ci/**/.git # exclude .git directory itself as well
       - _build_ci/**/.git/**/*
     when: always
+    expire_in: 1 week
   needs:
     - build:base
   only: &full-ci
@@ -259,8 +259,7 @@ before_script:
     when: on_failure
     paths:
       - nix-build-coq.drv-0/*/test-suite/logs
-    # Gitlab doesn't support yet "expire_in: never" so we use the instance default
-    # expire_in: never
+    expire_in: 1 week
 
 ##############################################################################
 ########################## End of templates ##################################
@@ -516,8 +515,7 @@ test-suite:base:dev:
     when: on_failure
     paths:
       - _build/default/test-suite/logs
-    # Gitlab doesn't support yet "expire_in: never" so we use the instance default
-    # expire_in: never
+    expire_in: 1 week
 
 .test-suite:ocaml+beta+dune-template:
   stage: build-1 # even though it has no deps we put it with the other test suite jobs
@@ -540,7 +538,7 @@ test-suite:base:dev:
     paths:
       - _build/log
       - _build/default/test-suite/logs
-    expire_in: 2 week
+    expire_in: 1 week
   allow_failure: true
 
 test-suite:base+async:
@@ -732,6 +730,7 @@ library:ci-corn:
   needs:
   - build:edge+flambda
   - plugin:ci-bignums
+  - plugin:ci-elpi_hb # CoRN uses elpi only (not HB) - depending on ci-elpi_hb reduces CI package count
   - library:ci-math_classes
   stage: build-3+
 
@@ -830,9 +829,6 @@ library:ci-simple_io:
 
 library:ci-sf:
   extends: .ci-template
-
-library:ci-stdlib2:
-  extends: .ci-template-flambda
 
 library:ci-tlc:
   extends: .ci-template
@@ -1028,13 +1024,6 @@ library:ci-rupicola:
 
 plugin:ci-coq_lsp:
   extends: .ci-template-flambda
-
-plugin:ci-serapi:
-  extends: .ci-template-flambda
-  needs:
-  - build:edge+flambda
-  - plugin:ci-coq_lsp
-  stage: build-2
 
 plugin:ci-vscoq:
   extends: .ci-template-flambda

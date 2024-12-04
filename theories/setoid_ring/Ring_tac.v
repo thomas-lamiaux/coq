@@ -15,8 +15,7 @@ Require Import Ring_polynom.
 Require Import BinList.
 Require Export ListTactics.
 Require Import InitialRing.
-Declare ML Module "ring_plugin:coq-core.plugins.ring".
-
+Declare ML Module "coq-core.plugins.ring".
 
 (* adds a definition t' on the normal form of t and an hypothesis id
    stating that t = t' (tries to produces a proof as small as possible) *)
@@ -402,6 +401,8 @@ Tactic Notation (at level 0) "ring" "[" constr_list(lH) "]" :=
   ring_lookup (PackRing Ring_gen) [lH] G.
 
 (* Simplification *)
+(* This code is duplicated in Field_tac.  Any correction to this code should *)
+(* be ported there too. *)
 
 Ltac Ring_simplify_gen f RNG lH rl :=
   let lemma := get_SimplifyLemma RNG in

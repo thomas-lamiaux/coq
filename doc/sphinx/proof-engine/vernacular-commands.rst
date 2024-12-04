@@ -70,13 +70,18 @@ described elsewhere
 
 .. cmd:: About @reference {? @univ_name_list }
 
-   Displays information about the :n:`@reference` object, which,
-   if a proof is open,  may be a hypothesis of the selected goal,
-   or an accessible theorem, axiom, etc.:
-   its kind (module, constant, assumption, inductive,
-   constructor, abbreviation, …), long name, type, implicit arguments and
+   Displays information about the :n:`@reference` object, which may be the
+   name of any accessible defined symbol, such as a theorem, constructor,
+   fixpoint or module.  If a proof is open, :n:`@reference` may refer to a
+   hypothesis of the selected goal.  The information includes:
+   the kind of the object (module, constant, assumption, inductive,
+   constructor, abbreviation, projection, coercion,  …), long name, type,
+   opacity/transparency, implicit arguments, argument names and
    argument scopes (as set in the definition of :token:`reference` or
-   subsequently with the :cmd:`Arguments` command). It does not print the body of definitions or proofs.
+   subsequently with the :cmd:`Arguments` command). It does not print the
+   body of definitions or proofs.
+
+   See :cmd:`Strategy` for details on opacity.
 
 .. cmd:: Check @term
 
@@ -654,12 +659,13 @@ file is a particular case of a module called a *library file*.
 
 .. cmd:: Declare ML Module {+ @string }
 
-   Loads an OCaml plugin and its dependencies dynamically.  The :n:`@string`
-   argument must be a valid `findlib <http://projects.camlcity.org/projects/findlib.html>`_
-   plugin name, for example ``coq-core.plugins.ltac``. As of Coq 8.16,
-   the command also supports a legacy
-   syntax compatible with the plugin loading system used in Coq
-   8.0-8.15, see below.
+   Loads OCaml plugins and their dependencies dynamically.  The :n:`@string`
+   arguments must be valid `findlib <http://projects.camlcity.org/projects/findlib.html>`_
+   plugin names, for example ``coq-core.plugins.ltac``.
+
+   Effects (such as adding new commands) from the explicitly requested
+   plugin are activated, but effects from implicitly loaded
+   dependencies are not activated.
 
    The first component of the plugin name is a package name that has to
    be in scope of ``findlib``'s' search path. One can see the paths
@@ -678,17 +684,6 @@ file is a particular case of a module called a *library file*.
    ``findlib`` can see it. Different build systems provide different
    helpers to do this: see :ref:`here for coq_makefile <coq_makefile>`,
    and :ref:`here for Dune <building_dune>`.
-
-   Note that the plugin loading system for Rocq changed in 8.16 to use
-   findlib. Previous Coq versions loaded OCaml dynamic objects by
-   first locating the object file from ``-I`` directives, then
-   directly invoking ``Dynlink.loadfile``. For compatibility purposes,
-   8.16 still supports this legacy method, with the syntax being
-   ``Declare ML Module "my_package_plugin:pkg.plugin.my-package".``, where
-   ``my_package_plugin`` is the name of the OCaml object file.
-
-   This is useful if you are still using a third party build system
-   such as Dune or your own.
 
    This command supports the :attr:`local` attribute.  If present,
    the listed files are not exported, even if they're outside a section.
@@ -1175,7 +1170,7 @@ Exposing constants to OCaml libraries
    Makes the constant :n:`@qualid__1` accessible to OCaml libraries under
    the name :n:`@qualid__2`.  The constant can then be dynamically located
    in OCaml code by
-   calling :n:`Coqlib.lib_ref "@qualid__2"`.  The OCaml code doesn't need
+   calling :n:`Rocqlib.lib_ref "@qualid__2"`.  The OCaml code doesn't need
    to know where the constant is defined (what file, module, library, etc.).
 
    As a special case, when the first segment of :n:`@qualid__2` is :g:`kernel`,

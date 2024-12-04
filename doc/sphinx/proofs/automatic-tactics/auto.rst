@@ -21,8 +21,13 @@ Tactics
    tactic, then it reduces the goal to an atomic one using :tacn:`intros` and
    introduces the newly generated hypotheses as hints. Then it looks at
    the list of tactics associated with the head symbol of the goal and
-   tries to apply one of them.  Lower cost tactics are tried before higher-cost
-   tactics.  This process is recursively applied to the generated subgoals.
+   tries to apply one of them.  This process is recursively applied to the
+   generated subgoals.
+
+   Within each hintbase, lower cost tactics are tried before higher-cost
+   tactics.  When multiple hintbases are specified, all hints in the
+   first database are tried before any in the second database (and so forth)
+   regardless of their cost (unlike :tacn:`eauto` and :tacn:`typeclasses eauto`).
 
    :n:`@nat_or_var`
      Specifies the maximum search depth.  The default is 5.
@@ -132,12 +137,6 @@ Tactics
 
       Behaves like :tacn:`eauto` but shows the tactics it tries to solve the goal,
       including failing paths.
-
-   .. tacn:: dfs eauto {? @nat_or_var } {? @auto_using } {? @hintbases }
-
-      .. deprecated:: 8.16
-
-      An alias for :tacn:`eauto`.
 
 .. tacn:: autounfold {? @hintbases } {? @simple_occurrences }
 
@@ -391,9 +390,7 @@ Creating Hints
    Hints in hint databases are ordered, which is the order in which they're
    tried, as shown by the :cmd:`Print HintDb` command.
    Hints with lower costs are tried first.  Hints with the same cost are tried
-   in reverse of their order of definition, i.e., last to first.  When multiple hint
-   databases are specified in search tactics, all hints in the first database are
-   tried before any in the second database (and so forth).
+   in reverse of their order of definition, i.e., last to first.
 
    Outside of sections, these commands support the :attr:`local`, :attr:`export`
    and :attr:`global` attributes. :attr:`export` is the default.
@@ -411,10 +408,6 @@ Creating Hints
 
    + :attr:`global` hints are visible from other modules when they :cmd:`Import` or
      :cmd:`Require` the current module.
-
-   .. versionadded:: 8.14
-
-      The :cmd:`Hint Rewrite` now supports locality attributes like other `Hint` commands.
 
    .. versionchanged:: 8.18
 
@@ -526,11 +519,13 @@ Creating Hints
       :tacn:`unfold`. :n:`@natural` is the cost, :n:`@one_pattern` is the pattern
       to match and :n:`@ltac_expr` is the action to apply.
 
-      .. note::
+      **Usage tip**: tactics that can succeed even if they don't change the context,
+      such as most of the :ref:`conversion tactics <applyingconversionrules>`, should
+      be prefaced with :tacn:`progress` to avoid needless repetition of the tactic.
 
-         Use a :cmd:`Hint Extern` with no pattern to do
-         pattern matching on hypotheses using ``match goal with``
-         inside the tactic.
+      **Usage tip**: Use a :cmd:`Hint Extern` with no pattern to do
+      pattern matching on hypotheses using ``match goal with``
+      inside the tactic.
 
       .. example::
 
@@ -679,7 +674,7 @@ Creating Hints
       argument with ``1``, typeclass resolution succeeds as the second declared mode is matched,
       and instantiates ``x`` with ``11``.
 
-.. cmd:: Hint Rewrite {? {| -> | <- } } {+ @one_term } {? using @ltac_expr } {? : {* @ident } }
+.. cmd:: Hint Rewrite {? {| -> | <- } } {+ @one_term } {? using @ltac_expr } {? : {+ @ident } }
 
    :n:`{? using @ltac_expr }`
      If specified, :n:`@ltac_expr` is applied to the generated subgoals, except for the
@@ -724,7 +719,8 @@ Creating Hints
 
    This command displays all hints from database :n:`@ident`.  Hints
    in each group ("For ... ->") are shown in the order in which they will be tried
-   (first to last).  Note that hints with the same cost are tried in
+   (first to last).  The groups are shown ordered alphabetically on the last component of
+   the symbol name.  Note that hints with the same cost are tried in
    reverse of the order they're defined in, i.e., last to first.
 
 Hint locality

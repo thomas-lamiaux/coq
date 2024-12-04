@@ -230,7 +230,7 @@ val apply_delayed_in :
 (** {6 Elimination tactics. } *)
 
 val general_elim_clause : evars_flag -> unify_flags -> Id.t option ->
-  ((metavariable * Evd.clbinding) list * EConstr.t * EConstr.types) -> Constant.t -> unit Proofview.tactic
+  ((metavariable list * Unification.Meta.t) * EConstr.t * EConstr.types) -> Constant.t -> unit Proofview.tactic
 
 val default_elim  : evars_flag -> clear_flag -> constr with_bindings ->
   unit Proofview.tactic
@@ -343,7 +343,7 @@ val subst_one :
   (bool -> Id.t -> Id.t * constr * bool -> unit Proofview.tactic) Hook.t
 
 val declare_intro_decomp_eq :
-  ((int -> unit Proofview.tactic) -> Coqlib.coq_eq_data * types *
+  ((int -> unit Proofview.tactic) -> Rocqlib.rocq_eq_data * types *
    (types * constr * constr) ->
    constr * types -> unit Proofview.tactic) -> unit
 

@@ -54,7 +54,7 @@ let pr_debug_answer q r =
 
 (** Categories of commands *)
 
-let coqide_known_option table = List.mem table [
+let rocqide_known_option table = List.mem table [
   ["Printing";"Implicit"];
   ["Printing";"Coercions"];
   ["Printing";"Matching"];
@@ -72,7 +72,7 @@ let coqide_known_option table = List.mem table [
 let is_known_option cmd = match cmd with
   VernacSynterp (VernacSetOption (_, o, OptionSetTrue)
     | VernacSetOption (_, o, OptionSetString _)
-    | VernacSetOption (_, o, OptionUnset)) -> coqide_known_option o
+    | VernacSetOption (_, o, OptionUnset)) -> rocqide_known_option o
   | _ -> false
 
 let ide_cmd_warns ~id { CAst.loc; v } =
@@ -100,7 +100,7 @@ let add ((((s,eid),(sid,verbose)),off),(line_nb,bol_pos)) =
             ; line_nb_last=line_nb
             ; bol_pos_last=bol_pos } in
   let r_stream = Gramlib.Stream.of_string ~offset:off s in
-  let pa = Pcoq.Parsable.make ~loc r_stream in
+  let pa = Procq.Parsable.make ~loc r_stream in
   match Stm.parse_sentence ~doc sid ~entry:Pvernac.main_entry pa with
   | None -> assert false (* s may not be empty *)
   | Some ast ->
@@ -127,13 +127,13 @@ let edit_at id =
  * be removed in the next version of the protocol.
  *)
 let query (route, (s,id)) =
-  let pa = Pcoq.Parsable.make (Gramlib.Stream.of_string s) in
+  let pa = Procq.Parsable.make (Gramlib.Stream.of_string s) in
   let doc = get_doc () in
   Stm.query ~at:id ~doc ~route pa
 
 let annotate phrase =
   let doc = get_doc () in
-  let pa = Pcoq.Parsable.make (Gramlib.Stream.of_string phrase) in
+  let pa = Procq.Parsable.make (Gramlib.Stream.of_string phrase) in
   match Stm.parse_sentence ~doc (Stm.get_current_state ~doc) ~entry:Pvernac.main_entry pa with
   | None -> Richpp.richpp_of_pp ~width:78 (Pp.mt ())
   | Some ast ->
@@ -331,7 +331,7 @@ let status force =
   }
   [@@ocaml.warning "-3"]
 
-let export_coq_object t = {
+let export_rocq_object t = {
   Interface.coq_object_prefix = t.Search.coq_object_prefix;
   Interface.coq_object_qualid = t.Search.coq_object_qualid;
   Interface.coq_object_object =
@@ -346,13 +346,13 @@ let pattern_of_string ?env s =
     | None -> Global.env ()
     | Some e -> e
   in
-  let constr = Pcoq.parse_string Pcoq.Constr.cpattern s in
+  let constr = Procq.parse_string Procq.Constr.cpattern s in
   let (_, pat) = Constrintern.intern_constr_pattern env (Evd.from_env env) constr in
   pat
 
 let dirpath_of_string_list s =
   let path = String.concat "." s in
-  let qid = Pcoq.parse_string Pcoq.Constr.global path in
+  let qid = Procq.parse_string Procq.Constr.global path in
   let id =
     try Nametab.full_name_module qid
     with Not_found ->
@@ -373,7 +373,7 @@ let search flags =
   let sigma, env = match pstate with
   | None -> let env = Global.env () in Evd.(from_env env, env)
   | Some p -> Declare.Proof.get_goal_context p 1 in
-  List.map export_coq_object (Search.interface_search env sigma (
+  List.map export_rocq_object (Search.interface_search env sigma (
     List.map (fun (c, b) -> (import_search_constraint c, b)) flags)
   )
   [@@ocaml.warning "-3"]
@@ -617,7 +617,7 @@ let loop ( { Coqtop.run_mode; color_mode },_) ~opts:_ state =
         pr_error ("Expected XML node: " ^ msg);
         pr_error ("XML tree received: " ^ Xml_printer.to_string_fmt node)
       | any ->
-        pr_debug ("Fatal exception in coqtop:\n" ^ Printexc.to_string any);
+        pr_debug ("Fatal exception in rocqtop:\n" ^ Printexc.to_string any);
         exit 1
   in
 
@@ -670,6 +670,8 @@ let rec parse = function
         Xmlprotocol.document Xml_printer.to_string_fmt; exit 0
   | "--xml_format=Ppcmds" :: rest ->
         msg_format := (fun () -> Xmlprotocol.Ppcmds); parse rest
+  | "-xml-debug" :: rest ->
+    Flags.xml_debug := true; parse rest
   | x :: rest ->
      if String.length x > 0 && x.[0] = '-' then
        (prerr_endline ("Unknown option " ^ x); exit 1)
@@ -677,7 +679,7 @@ let rec parse = function
        x :: parse rest
   | [] -> []
 
-let coqidetop_specific_usage = Boot.Usage.{
+let rocqidetop_specific_usage = Boot.Usage.{
   executable_name = "coqidetop";
   extra_args = "";
   extra_options = "\n\
@@ -687,18 +689,23 @@ coqidetop specific options:\n\
 \n  --help-XML-protocol    print documentation of the Coq XML protocol\n"
 }
 
-let islave_parse extra_args =
+let islave_parse opts extra_args =
   let open Coqtop in
-  let ({ run_mode; color_mode }, stm_opts), extra_args = coqtop_toplevel.parse_extra extra_args in
+  let ({ run_mode; color_mode }, stm_opts), extra_args = coqtop_toplevel.parse_extra opts extra_args in
   let extra_args = parse extra_args in
   (* One of the role of coqidetop is to find the name of buffers to open *)
   (* in the command line; Coqide is waiting these names on stdout *)
-  (* (see filter_coq_opts in coq.ml), so we send them now *)
+  (* (see filter_rocq_opts in rocq.ml), so we send them now *)
   print_string (String.concat "\n" extra_args);
   ( { Coqtop.run_mode; color_mode }, stm_opts), []
 
 let islave_init ( { Coqtop.run_mode; color_mode }, stm_opts) injections ~opts =
   if run_mode = Coqtop.Batch then Flags.quiet := true;
+  (* -xml-debug implies -debug. *)
+  let injections = if !Flags.xml_debug
+    then Coqargs.OptionInjection (["Debug"], OptionAppend "all") :: injections
+    else injections
+  in
   Coqtop.init_toploop opts stm_opts injections
 
 let islave_default_opts = Coqargs.default
@@ -708,8 +715,8 @@ let () =
   Shared_os_specific.init ();
   let custom = {
       parse_extra = islave_parse ;
-      usage = coqidetop_specific_usage;
+      usage = rocqidetop_specific_usage;
       init_extra = islave_init;
       run = loop;
       initial_args = islave_default_opts } in
-  start_coq custom
+  start_coq custom (List.tl (Array.to_list Sys.argv))

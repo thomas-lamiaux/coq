@@ -28,14 +28,14 @@ open Proofview.Notations
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
 
-let _f_equal    = lazy (Coqlib.lib_ref "core.eq.congr")
-let _eq_rect    = lazy (Coqlib.lib_ref "core.eq.rect")
-let _refl_equal = lazy (Coqlib.lib_ref "core.eq.refl")
-let _sym_eq     = lazy (Coqlib.lib_ref "core.eq.sym")
-let _trans_eq   = lazy (Coqlib.lib_ref "core.eq.trans")
-let _eq         = lazy (Coqlib.lib_ref "core.eq.type")
-let _False      = lazy (Coqlib.lib_ref "core.False.type")
-let _not        = lazy (Coqlib.lib_ref "core.not.type")
+let _f_equal    = lazy (Rocqlib.lib_ref "core.eq.congr")
+let _eq_rect    = lazy (Rocqlib.lib_ref "core.eq.rect")
+let _refl_equal = lazy (Rocqlib.lib_ref "core.eq.refl")
+let _sym_eq     = lazy (Rocqlib.lib_ref "core.eq.sym")
+let _trans_eq   = lazy (Rocqlib.lib_ref "core.eq.trans")
+let _eq         = lazy (Rocqlib.lib_ref "core.eq.type")
+let _False      = lazy (Rocqlib.lib_ref "core.False.type")
+let _not        = lazy (Rocqlib.lib_ref "core.not.type")
 
 let whd env sigma t =
   Reductionops.clos_whd_flags RedFlags.betaiotazeta env sigma t
@@ -43,8 +43,10 @@ let whd env sigma t =
 let whd_delta env sigma t =
   Reductionops.clos_whd_flags RedFlags.all env sigma t
 
+let whd_all env sigma c = Reductionops.whd_all env sigma c
+
 let whd_in_concl =
-  reduct_in_concl ~cast:true ~check:false (Reductionops.whd_all, DEFAULTcast)
+  reduct_in_concl ~cast:true ~check:false (whd_all, DEFAULTcast)
 
 (* decompose member of equality in an applicative format *)
 
@@ -427,7 +429,7 @@ let discriminate_tac cstru p =
 let cc_tactic depth additional_terms b =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Tacmach.project gl in
-    Coqlib.(check_required_library logic_module_name);
+    Rocqlib.(check_required_library logic_module_name);
     let _ = debug_congruence (fun () -> Pp.str "Reading goal ...") in
     let state = make_prb gl depth additional_terms b in
     let _ = debug_congruence (fun () -> Pp.str "Problem built, solving ...") in
@@ -583,8 +585,3 @@ let f_equal =
         | e -> Proofview.tclZERO ~info e
       end
   end
-
-(* we need to be registered in case we are statically linked to avoid double loading
-   (in practice we are statically linked in coqtop.byte:
-    coqtop.byte -> coq-core.dev -> ltac2 -> cc_core) *)
-let () = Mltop.add_known_module "cc_core_plugin:coq-core.plugins.cc_core"

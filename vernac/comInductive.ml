@@ -469,16 +469,12 @@ let template_polymorphism_candidate uctx params entry template_syntax = match te
   univs
 
 let split_universe_context subset (univs, csts) =
+  let rem = Univ.Level.Set.diff univs subset in
   let subfilter (l, _, r) =
     let () = assert (not @@ Univ.Level.Set.mem r subset) in
     Univ.Level.Set.mem l subset
   in
-  let subcst = Univ.Constraints.filter subfilter csts in
-  let rem = Univ.Level.Set.diff univs subset in
-  let remfilter (l, _, r) =
-    not (Univ.Level.Set.mem l subset) && not (Univ.Level.Set.mem r subset)
-  in
-  let remcst = Univ.Constraints.filter remfilter csts in
+  let subcst, remcst = Univ.Constraints.partition subfilter csts in
   (subset, subcst), (rem, remcst)
 
 let warn_no_template_universe =
@@ -818,7 +814,7 @@ type t = {
   uctx : Univ.ContextSet.t;
   where_notations : Metasyntax.notation_interpretation_decl list;
   coercions : Libnames.qualid list;
-  indlocs : Loc.t option list;
+  indlocs : DeclareInd.indlocs;
 }
 
 end
@@ -831,7 +827,11 @@ let rec count_binder_expr = function
     Loc.raise ?loc (Gramlib.Grammar.Error "pattern with quote not allowed here")
 
 let interp_mutual_inductive ~env ~flags ?typing_flags udecl indl ~private_ind ~uniform =
-  let indlocs = List.map (fun ((n,_,_,_),_) -> n.CAst.loc) indl in
+  let indlocs = List.map (fun ((n,_,_,constructors),_) ->
+      let conslocs = List.map (fun (_,(c,_)) -> c.CAst.loc) constructors in
+      n.CAst.loc, conslocs)
+      indl
+  in
   let (params,indl),coercions,ntns = extract_mutual_inductive_declaration_components indl in
   let where_notations = List.map Metasyntax.prepare_where_notation ntns in
   (* Interpret the types *)
@@ -854,7 +854,7 @@ let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   (* Slightly hackish global universe declaration due to template types. *)
   let binders = match mie.mind_entry_universes with
   | Monomorphic_ind_entry -> (UState.Monomorphic_entry uctx, univ_binders)
-  | Template_ind_entry ctx -> (UState.Monomorphic_entry ctx, univ_binders)
+  | Template_ind_entry ctx -> (UState.Monomorphic_entry (Univ.ContextSet.union uctx ctx), univ_binders)
   | Polymorphic_ind_entry uctx -> (UState.Polymorphic_entry uctx, UnivNames.empty_binders)
   in
   (* Declare the global universes *)

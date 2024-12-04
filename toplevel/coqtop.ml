@@ -48,7 +48,7 @@ let fatal_error_exn exn =
   exit exit_code
 
 type ('a,'b) custom_toplevel =
-  { parse_extra : string list -> 'a * string list
+  { parse_extra : Coqargs.t -> string list -> 'a * string list
   ; usage : Boot.Usage.specific_usage
   ; init_extra : 'a -> Coqargs.injection_command list -> opts:Coqargs.t -> 'b
   ; initial_args : Coqargs.t
@@ -56,21 +56,22 @@ type ('a,'b) custom_toplevel =
   }
 
 (** Main init routine *)
-let init_toplevel { parse_extra; init_extra; usage; initial_args } =
+let init_toplevel { parse_extra; init_extra; usage; initial_args } args =
   Coqinit.init_ocaml ();
-  let opts, customopts = Coqinit.parse_arguments ~parse_extra ~usage ~initial_args () in
+  let opts, customopts = Coqinit.parse_arguments ~parse_extra ~initial_args args in
   Stm.init_process (snd customopts);
-  let injections = Coqinit.init_runtime opts in
+  let () = Coqinit.init_runtime ~usage opts in
+  let () = Coqinit.init_document opts in
   (* This state will be shared by all the documents *)
   Stm.init_core ();
-  let customstate = init_extra ~opts customopts injections in
+  let customstate = init_extra ~opts customopts (Coqargs.injection_commands opts) in
   opts, customopts, customstate
 
-let start_coq custom =
+let start_coq custom args =
   let init_feeder = Feedback.add_feeder Coqloop.coqloop_feed in
   (* Init phase *)
   let opts, custom_opts, state =
-    try init_toplevel custom
+    try init_toplevel custom args
     with any ->
       flush_all();
       fatal_error_exn any in
@@ -136,7 +137,7 @@ let init_toploop opts stm_opts injections =
 
 let coqtop_init ({ run_mode; color_mode }, async_opts) injections ~opts =
   if run_mode != Interactive then Flags.quiet := true;
-  Colors.init_color (if opts.config.print_emacs then `EMACS else color_mode);
+  Colors.init_color color_mode;
   Flags.if_verbose (print_header ~boot:opts.pre.boot) ();
   DebugHook.Intf.(set
     { read_cmd = ltac_debug_parse
@@ -145,16 +146,17 @@ let coqtop_init ({ run_mode; color_mode }, async_opts) injections ~opts =
     });
   init_toploop opts async_opts injections
 
-let coqtop_parse_extra extras =
+let coqtop_parse_extra opts extras =
   let rec parse_extra run_mode  = function
   | "-batch" :: rest -> parse_extra Batch  rest
+  | "-list-tags" :: rest -> Query PrintTags, []
   | "-print-mod-uid" :: rest -> Query (PrintModUid rest), []
   |   x :: rest ->
     let run_mode, rest = parse_extra run_mode rest in run_mode, x :: rest
   | [] -> run_mode, [] in
   let run_mode, extras = parse_extra Interactive extras in
-  let color_mode, extras = Colors.parse_extra_colors extras in
-  let async_opts, extras = Stmargs.parse_args ~init:Stm.AsyncOpts.default_opts extras in
+  let color_mode, extras = Colors.parse_extra_colors ~emacs:opts.config.print_emacs extras in
+  let async_opts, extras = Stmargs.parse_args opts extras in
   ({ run_mode; color_mode}, async_opts), extras
 
 let fix_windows_dirsep s =

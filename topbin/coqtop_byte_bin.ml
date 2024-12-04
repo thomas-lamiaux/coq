@@ -24,12 +24,8 @@ let load_module fmt name =
     CErrors.user_err Pp.(str ("Could not load plugin " ^ name))
 
 let load_plugin fmt ps =
-  match Mltop.PluginSpec.repr ps with
-  | (Some file, _)  ->
-    let file = file ^ ".cma" in
-    load_module fmt file
-  | (None, lib ) ->
-    Topfind.load_deeply [lib]
+  let lib = Mltop.PluginSpec.to_package ps in
+  Topfind.load_deeply [lib]
 
 let ml_loop fmt ?init_file () =
   let init_file = ref init_file in
@@ -56,4 +52,4 @@ let drop_setup () =
 (* Main coqtop initialization *)
 let _ =
   drop_setup ();
-  Coqtop.(start_coq coqtop_toplevel)
+  Coqtop.(start_coq coqtop_toplevel (List.tl (Array.to_list Sys.argv)))

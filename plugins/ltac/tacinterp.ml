@@ -128,7 +128,7 @@ let get_debug () = if Flags.async_proofs_is_worker () then DebugOff else !debug
 let log_trace = ref false
 
 let is_traced () =
-  !log_trace || !debug <> DebugOff || !Flags.profile_ltac
+  !log_trace || !debug <> DebugOff || Profile_tactic.get_profiling()
 
 (** More naming applications *)
 let name_vfun appl vle =
@@ -534,7 +534,7 @@ let interp_fresh_id ist env sigma l =
         String.concat "" (List.map (function
           | ArgArg s -> s
           | ArgVar {v=id} -> Id.to_string (extract_ident ist env sigma id)) l) in
-      let s = if CLexer.is_keyword (Pcoq.get_keyword_state()) s then s^"0" else s in
+      let s = if CLexer.is_keyword (Procq.get_keyword_state()) s then s^"0" else s in
       Id.of_string s in
   Tactics.fresh_id_in_env avoid id env
 
@@ -1381,7 +1381,7 @@ and tactic_of_value ist vle =
         (* todo: debug stack needs "trace" but that gives incorrect results for profiling
            Couldn't figure out how to make them play together.  Currently no way both can
            be enabled. Perhaps profiling should be redesigned as suggested in profile_ltac.mli *)
-        extra = TacStore.set ist.extra f_trace (if !Flags.profile_ltac then ([],[]) else trace); } in
+        extra = TacStore.set ist.extra f_trace (if Profile_tactic.get_profiling() then ([],[]) else trace); } in
       let tac = name_if_glob appl (eval_tactic_ist ist t) in
       let (stack, _) = trace in
       do_profile stack (catch_error_tac_loc loc stack tac)
@@ -1549,7 +1549,7 @@ and interp_genarg ist x : Val.t Ftactic.t =
     else if argument_type_eq tag (unquote (topwit (wit_list wit_constr))) then
       interp_genarg_constr_list ist x
     else
-    let GenArg (Glbwit wit, x) = x in
+    let GenArg (Glbwit wit, x) as x0 = x in
     match wit with
     | ListArg wit ->
       let map x = interp_genarg ist (Genarg.in_gen (glbwit wit) x) in
@@ -1568,7 +1568,7 @@ and interp_genarg ist x : Val.t Ftactic.t =
       interp_genarg ist (Genarg.in_gen (glbwit wit2) q) >>= fun q ->
       Ftactic.return (Val.Dyn (Val.typ_pair, (p, q)))
     | ExtraArg s ->
-      Geninterp.interp wit ist x
+      Geninterp.generic_interp ist x0
 
 (** returns [true] for genargs which have the same meaning
     independently of goals. *)

@@ -259,8 +259,22 @@ Ltac Field_norm_gen f n FLD lH rl :=
   ReflexiveRewriteTactic mkFFV mkFE lemma_tac main_tac fv0 rl;
   try simpl_PCond FLD.
 
+(* This is duplicated from Ring_tac mutatis mutandi. but the simplification
+  lemma is computed in Field_norm_gen, while the ring infrastructure does
+  it in Ring_simplify_gen. *)
 Ltac Field_simplify_gen f FLD lH rl :=
+  let l := fresh "to_rewrite" in
+  pose (l:= rl);
+  generalize (eq_refl l);
+  unfold l at 2;
   get_FldPre FLD ();
+  let rl :=
+    match goal with
+    | [|- l = ?RL -> _ ] => RL
+    | _ => fail 1 "ring_simplify anomaly: bad goal after pre"
+    end in
+  let Heq := fresh "Heq" in
+  intros Heq;clear Heq l;
   Field_norm_gen f ring_subst_niter FLD lH rl;
   get_FldPost FLD ().
 
@@ -582,3 +596,18 @@ Ltac field_lemmas set ext inv_m fspec pspec sspec dspec rk :=
        end
      | _ => fail 1 "field internal error : field_lemmas, please report"
      end).
+
+(** Registering for the ML plugin *)
+
+Register display_linear as plugins.field.display_linear.
+Register display_pow_linear as plugins.field.display_pow_linear.
+Register FEeval as plugins.field.FEeval.
+Register PCond as plugins.field.PCond.
+
+Register almost_field_theory as plugins.field.almost_field_theory.
+Register semi_field_theory as plugins.field.semi_field_theory.
+Register field_theory as plugins.field.field_theory.
+
+Register AF_AR as plugins.field.AF_AR.
+Register SF_SR as plugins.field.SF_SR.
+Register F_R as plugins.field.F_R.

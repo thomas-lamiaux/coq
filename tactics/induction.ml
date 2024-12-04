@@ -30,7 +30,7 @@ open Tacmach
 open Logic
 open Clenv
 open Tacticals
-open Coqlib
+open Rocqlib
 open Evarutil
 open Indrec
 open Unification
@@ -244,7 +244,7 @@ let mkletin_goal env sigma with_eq dep (id,lastlhyp,ccl,c) ty =
   in
   match with_eq with
   | Some (lr,heq) ->
-      let eqdata = build_coq_eq_data () in
+      let eqdata = build_rocq_eq_data () in
       let args = if lr then [mkVar id;c] else [c;mkVar id]in
       let (sigma, eq) = Evd.fresh_global env sigma eqdata.eq in
       let refl = mkRef (eqdata.refl, snd (destRef sigma eq)) in
@@ -1297,8 +1297,9 @@ let use_bindings env sigma elim must_be_closed (c,lbind) typ =
       if must_be_closed && occur_meta (clenv_evd indclause) (clenv_value indclause) then
         error NeedFullyAppliedArgument;
       (* We lose the possibility of coercions in with-bindings *)
-      let sigma, term = pose_all_metas_as_evars env (clenv_evd indclause) (clenv_value indclause) in
-      let sigma, typ = pose_all_metas_as_evars env sigma (clenv_type indclause) in
+      let metas = Clenv.clenv_meta_list indclause in
+      let sigma, metas, term = pose_all_metas_as_evars ~metas env (clenv_evd indclause) (clenv_value indclause) in
+      let sigma, metas, typ = pose_all_metas_as_evars ~metas env sigma (clenv_type indclause) in
       sigma, term, typ
     with e when noncritical e ->
     match red_product env sigma typ with

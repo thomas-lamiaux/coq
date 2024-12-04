@@ -73,9 +73,8 @@ let exact h =
     let sigma, t = Typing.type_of env sigma c in
     let concl = Proofview.Goal.concl gl in
     if occur_existential sigma t || occur_existential sigma concl then
-      let sigma = Evd.clear_metas sigma in
       try
-        let sigma = Unification.w_unify env sigma CONV ~flags:auto_unif_flags concl t in
+        let _, sigma = Unification.w_unify env sigma CONV ~flags:auto_unif_flags concl t in
         Proofview.Unsafe.tclEVARSADVANCE sigma <*>
         exact_no_check c
       with e when CErrors.noncritical e -> Proofview.tclZERO e
@@ -119,10 +118,9 @@ let conclPattern concl pat tac =
      let lfun = Id.Map.fold fold constr_bindings Id.Map.empty in
      let ist = { lfun
                ; poly
-               ; extra = TacStore.empty } in
-     match tac with
-     | GenArg (Glbwit wit, tac) ->
-      Ftactic.run (Geninterp.interp wit ist tac) (fun _ -> Proofview.tclUNIT ())
+               ; extra = TacStore.empty }
+     in
+     Ftactic.run (Geninterp.generic_interp ist tac) (fun _ -> Proofview.tclUNIT ())
   end
 
 (***********************************************************)

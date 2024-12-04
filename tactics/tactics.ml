@@ -30,7 +30,7 @@ open Logic
 open Clenv
 open Tacticals
 open Hipattern
-open Coqlib
+open Rocqlib
 open Evarutil
 open Indrec
 open Pretype_errors
@@ -543,7 +543,6 @@ let get_previous_hyp_position env sigma id =
 
 let clear_hyps2 env sigma ids sign t cl =
   try
-    let sigma = Evd.clear_metas sigma in
     Evarutil.clear_hyps2_in_evi env sigma sign t cl ids
   with Evarutil.ClearDependencyError (id,err,inglobal) ->
     error_replacing_dependency env sigma id err inglobal
@@ -1450,16 +1449,20 @@ let cut c =
 let check_unresolved_evars_of_metas sigma clenv =
   (* This checks that Metas turned into Evars by *)
   (* Refiner.pose_all_metas_as_evars are resolved *)
-  Metamap.iter (fun mv b -> match b with
-  | Clval (na, (c, _), _) ->
-    (match Constr.kind (EConstr.Unsafe.to_constr c.rebus) with
+  let metas = clenv_meta_list clenv in
+  let iter mv () = match Unification.Meta.meta_opt_fvalue metas mv with
+  | Some c ->
+    begin match Constr.kind (EConstr.Unsafe.to_constr c.rebus) with
     | Evar (evk,_) when Evd.is_undefined (clenv_evd clenv) evk
                      && not (Evd.mem sigma evk) ->
+      let na = Unification.Meta.meta_name metas mv in
       let id = match na with Name id -> id | _ -> anomaly (Pp.str "unnamed dependent meta.") in
       error (CannotFindInstance id)
-    | _ -> ())
-  | _ -> ())
-  (meta_list (clenv_evd clenv))
+    | _ -> ()
+    end
+  | None -> ()
+  in
+  Unification.Meta.fold iter metas ()
 
 let do_replace id = function
   | NamingMustBe {CAst.v=id'} when Option.equal Id.equal id (Some id') -> true
@@ -1474,12 +1477,12 @@ let do_replace id = function
 let clenv_refine_in with_evars targetid replace env sigma0 clenv =
   let clenv = Clenv.clenv_pose_dependent_evars ~with_evars clenv in
   let evd = Typeclasses.resolve_typeclasses ~fail:(not with_evars) env (clenv_evd clenv) in
-  let clenv = Clenv.update_clenv_evd clenv evd in
+  let clenv = Clenv.update_clenv_evd clenv evd (Clenv.clenv_meta_list clenv) in
   let new_hyp_typ = clenv_type clenv in
   if not with_evars then check_unresolved_evars_of_metas sigma0 clenv;
   let [@ocaml.warning "-3"] exact_tac = Clenv.Internal.refiner clenv in
   let naming = NamingMustBe (CAst.make targetid) in
-  Proofview.Unsafe.tclEVARS (clear_metas evd) <*>
+  Proofview.Unsafe.tclEVARS evd <*>
   Proofview.Goal.enter begin fun gl ->
     let id = find_name replace (LocalAssum (make_annot Anonymous Sorts.Relevant, new_hyp_typ)) naming gl in
     Tacticals.tclTHENLAST (internal_cut replace id new_hyp_typ <*> Proofview.cycle 1) exact_tac
@@ -1585,9 +1588,9 @@ let general_elim with_evars clear_flag (c, lbindc) elim =
   let t = try snd (reduce_to_quantified_ind env sigma ct) with UserError _ -> ct in
   let indclause = make_clenv_binding env sigma (c, t) lbindc in
   let flags = elim_flags () in
-  let metas = Evd.meta_list (clenv_evd indclause) in
-  let submetas = List.map (fun mv -> mv, Metamap.find mv metas) (clenv_arguments indclause) in
-  Proofview.Unsafe.tclEVARS (Evd.clear_metas (clenv_evd indclause)) <*>
+  let metas = clenv_meta_list indclause in
+  let submetas = (clenv_arguments indclause, metas) in
+  Proofview.Unsafe.tclEVARS (clenv_evd indclause) <*>
   Tacticals.tclTHEN
     (general_elim_clause0 with_evars flags (submetas, c, clenv_type indclause) elim)
     (apply_clear_request clear_flag (use_clear_hyp_by_default ()) id)
@@ -1626,13 +1629,13 @@ let general_case_analysis_in_context with_evars clear_flag (c,lbindc) =
     let (sigma, ev) = Evarutil.new_evar env sigma argtype in
     let _, sigma = Evd.pop_future_goals sigma in
     let evk, _ = destEvar sigma ev in
-    let indclause = Clenv.update_clenv_evd indclause (meta_merge (meta_list @@ Clenv.clenv_evd indclause) sigma) in
+    let indclause = Clenv.update_clenv_evd indclause sigma (Clenv.clenv_meta_list indclause) in
     Proofview.Unsafe.tclEVARS sigma <*>
     Proofview.Unsafe.tclNEWGOALS ~before:true [Proofview.goal_with_state evk state] <*>
     Proofview.tclDISPATCH [Clenv.res_pf ~with_evars:true indclause; tclIDTAC] <*>
     Proofview.tclEXTEND [] tclIDTAC [Clenv.case_pf ~with_evars ~dep (ev, argtype)]
   in
-  let sigma = Evd.clear_metas (clenv_evd indclause) in
+  let sigma = clenv_evd indclause in
   Tacticals.tclTHENLIST [
     Tacticals.tclWITHHOLES with_evars tac sigma;
     apply_clear_request clear_flag (use_clear_hyp_by_default ()) id;
@@ -1947,8 +1950,8 @@ let progress_with_clause env flags (id, t) clause mvs =
   if List.is_empty mvs then raise UnableToApply;
   let f mv =
     let rec find innerclause =
-      let metas = Evd.meta_list (clenv_evd innerclause) in
-      let submetas = List.map (fun mv -> mv, Metamap.find mv metas) (clenv_arguments innerclause) in
+      let metas = clenv_meta_list innerclause in
+      let submetas = (clenv_arguments innerclause, metas) in
       try
         Some (clenv_instantiate mv ~flags ~submetas clause (mkVar id, clenv_type innerclause))
       with e when noncritical e ->
@@ -2723,7 +2726,7 @@ let letin_tac_gen with_eq (id,depdecls,lastlhyp,ccl,c) ty =
             | IntroAnonymous -> new_fresh_id (Id.Set.singleton id) (add_prefix "Heq" id) gl
             | IntroFresh heq_base -> new_fresh_id (Id.Set.singleton id) heq_base gl
             | IntroIdentifier id -> id in
-          let eqdata = build_coq_eq_data () in
+          let eqdata = build_rocq_eq_data () in
           let args = if lr then [mkVar id;c] else [c;mkVar id]in
           let (sigma, eq) = Evd.fresh_global env sigma eqdata.eq in
           let refl = mkRef (eqdata.refl, snd @@ destRef sigma eq) in
@@ -3081,7 +3084,7 @@ let unfold_body x =
 let dest_intro_patterns with_evars avoid thin dest pat tac =
   intro_patterns_core with_evars avoid [] thin dest None 0 tac pat
 
-let coq_heq_ref        = lazy (Coqlib.lib_ref "core.JMeq.type")
+let rocq_heq_ref        = lazy (Rocqlib.lib_ref "core.JMeq.type")
 
 let compare_upto_variables sigma x y =
   let rec compare x y =
@@ -3114,7 +3117,7 @@ let specialize_eqs id =
               if unif (push_rel_context ctx env) evars pt t then
                 aux true ctx (mkApp (acc, [| p |])) (subst1 p b)
               else acc, in_eqs, ctx, ty
-        | App (heq, [| eqty; x; eqty'; y |]) when isRefX env !evars (Lazy.force coq_heq_ref) heq ->
+        | App (heq, [| eqty; x; eqty'; y |]) when isRefX env !evars (Lazy.force rocq_heq_ref) heq ->
             let eqt, c = if noccur_between !evars 1 (List.length ctx) x then eqty', y else eqty, x in
             let pt = mkApp (heq, [| eqt; c; eqt; c |]) in
             let ind = destInd !evars heq in
@@ -3161,7 +3164,7 @@ let exfalso =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let (sigma, f) = Evd.fresh_global env sigma (Coqlib.lib_ref "core.False.type") in
+    let (sigma, f) = Evd.fresh_global env sigma (Rocqlib.lib_ref "core.False.type") in
     let (ind, _) = reduce_to_atomic_ind env sigma f in
     let s = Retyping.get_sort_family_of env sigma (Proofview.Goal.concl gl) in
     let sigma, elimc = find_ind_eliminator env sigma (fst ind) s in
@@ -3414,7 +3417,7 @@ let unify ?(state=TransparentState.full) x y =
       merge_unify_flags = core_flags;
       subterm_unify_flags = { core_flags with modulo_delta = TransparentState.empty } }
     in
-    let sigma = w_unify (Tacmach.pf_env gl) sigma Conversion.CONV ~flags x y in
+    let _, sigma = w_unify (Tacmach.pf_env gl) sigma Conversion.CONV ~flags x y in
     Proofview.Unsafe.tclEVARS sigma
   with e when noncritical e ->
     let e, info = Exninfo.capture e in

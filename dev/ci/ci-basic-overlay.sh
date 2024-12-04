@@ -417,12 +417,6 @@ project verdi_raft "https://github.com/uwplse/verdi-raft" "master"
 # Contact @palmskog on github
 
 ########################################################################
-# stdlib2
-########################################################################
-project stdlib2 "https://github.com/coq/stdlib2" "master"
-# Contact @maximedenes, @vbgl on github
-
-########################################################################
 # argosy
 ########################################################################
 project argosy "https://github.com/mit-pdos/argosy" "master"
@@ -503,12 +497,6 @@ project jasmin "https://github.com/jasmin-lang/jasmin" "main"
 ########################################################################
 project lean_importer "https://github.com/SkySkimmer/coq-lean-import" "master"
 # Contact @SkySkimmer on github
-
-########################################################################
-# SerAPI
-########################################################################
-project serapi "https://github.com/ejgallego/coq-serapi" "main"
-# Contact @ejgallego on github
 
 ########################################################################
 # SMTCoq

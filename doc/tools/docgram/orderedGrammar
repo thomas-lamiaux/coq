@@ -722,6 +722,11 @@ simple_reserv: [
 | LIST1 ident ":" type
 ]
 
+debug_univ_name: [
+| qualid
+| string
+]
+
 command: [
 | "Goal" type
 | "Pwd"
@@ -765,7 +770,7 @@ command: [
 | "Print" "Scope" scope_name
 | "Print" "Visibility" OPT scope_name
 | "Print" "Implicit" reference
-| "Print" OPT "Sorted" "Universes" OPT ( "Subgraph" "(" LIST0 qualid ")" ) OPT string
+| "Print" OPT "Sorted" "Universes" OPT ( "Subgraph" "(" LIST0 debug_univ_name ")" ) OPT [ [ "With" | "Without" ] "Constraint" "Sources" ] OPT string
 | "Print" "Assumptions" reference
 | "Print" "Opaque" "Dependencies" reference
 | "Print" "Transparent" "Dependencies" reference
@@ -845,7 +850,7 @@ command: [
 | "Attributes" LIST1 attribute SEP ","
 | "Declare" "Instance" ident_decl LIST0 binder ":" term OPT hint_info
 | "Declare" "Scope" scope_name
-| "Obligation" natural OPT ( "of" ident ) OPT ( ":" type OPT ( "with" ltac_expr ) )
+| "Obligation" natural OPT ( "of" ident ) OPT ( "with" ltac_expr )
 | "Next" "Obligation" OPT ( "of" ident ) OPT ( "with" ltac_expr )
 | "Final" "Obligation" OPT ( "of" ident ) OPT ( "with" ltac_expr )
 | "Solve" "Obligations" OPT ( "of" ident ) OPT ( "with" ltac_expr )
@@ -892,7 +897,7 @@ command: [
 | "Functional" "Scheme" func_scheme_def LIST0 ( "with" func_scheme_def )
 | "Functional" "Case" func_scheme_def      (* funind plugin *)
 | "Generate" "graph" "for" qualid      (* funind plugin *)
-| "Hint" "Rewrite" OPT [ "->" | "<-" ] LIST1 one_term OPT ( "using" ltac_expr ) OPT ( ":" LIST0 ident )
+| "Hint" "Rewrite" OPT [ "->" | "<-" ] LIST1 one_term OPT ( "using" ltac_expr ) OPT ( ":" LIST1 ident )
 | "Derive" "Inversion_clear" ident "with" one_term OPT ( "Sort" sort_family )
 | "Derive" "Inversion" ident "with" one_term OPT ( "Sort" sort_family )
 | "Derive" "Dependent" "Inversion" ident "with" one_term "Sort" sort_family
@@ -983,7 +988,7 @@ command: [
 | "Ltac2" "@" "external" ident ":" ltac2_type ":=" string string
 | "Ltac2" "Notation" LIST1 ltac2_scope OPT ( ":" natural ) ":=" ltac2_expr      (* ltac2 plugin *)
 | "Ltac2" "Set" qualid OPT [ "as" ident ] ":=" ltac2_expr
-| "Ltac2" "Notation" [ string | ident ] ":=" ltac2_expr      (* Ltac2 plugin *)
+| "Ltac2" "Notation" ident ":=" ltac2_expr      (* Ltac2 plugin *)
 | "Ltac2" "Eval" ltac2_expr      (* ltac2 plugin *)
 | "Print" "Ltac2" qualid      (* ltac2 plugin *)
 | "Print" "Ltac2" "Type" qualid      (* ltac2 plugin *)
@@ -1491,7 +1496,6 @@ simple_tactic: [
 | "eauto" OPT nat_or_var OPT auto_using OPT hintbases
 | "debug" "eauto" OPT nat_or_var OPT auto_using OPT hintbases
 | "info_eauto" OPT nat_or_var OPT auto_using OPT hintbases
-| "dfs" "eauto" OPT nat_or_var OPT auto_using OPT hintbases
 | "autounfold" OPT hintbases OPT simple_occurrences
 | "autounfold_one" OPT hintbases OPT ( "in" ident )
 | "unify" one_term one_term OPT ( "with" ident )
@@ -1580,7 +1584,6 @@ simple_tactic: [
 | "simple" "congruence" OPT natural OPT ( "with" LIST1 one_term )
 | "f_equal"
 | "firstorder" OPT ltac_expr OPT ( "using" LIST1 qualid SEP "," ) OPT ( "with" LIST1 ident )
-| "gintuition" OPT ltac_expr
 | "functional" "inversion" [ ident | natural ] OPT qualid      (* funind plugin *)
 | "functional" "induction" term OPT ( "using" one_term_with_bindings ) OPT ( "as" simple_intropattern )      (* funind plugin *)
 | "soft" "functional" "induction" LIST1 one_term OPT ( "using" one_term_with_bindings ) OPT ( "as" simple_intropattern )      (* funind plugin *)

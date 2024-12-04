@@ -52,7 +52,7 @@ module SearchBlacklist =
      end)
 
 (* The functions iter_constructors and iter_declarations implement the behavior
-   needed for the Coq searching commands.
+   needed for the Rocq searching commands.
    These functions take as first argument the procedure
    that will be called to treat each entry.  This procedure receives the name
    of the object, the assumptions that will make it possible to print its type,
@@ -240,7 +240,7 @@ let search_pattern env sigma pat mods pr_search =
 
 (** SearchRewrite *)
 
-let eq () = Coqlib.(lib_ref "core.eq.type")
+let eq () = Rocqlib.(lib_ref "core.eq.type")
 
 let rewrite_pat1 pat =
   PApp (PRef (eq ()), [| PMeta None; pat; PMeta None |])

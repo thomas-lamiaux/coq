@@ -373,8 +373,6 @@ val evar_key : Id.t -> evar_map -> Evar.t
 
 val evar_names : evar_map -> Nameops.Fresh.t
 
-val evar_source_of_meta : metavariable -> evar_map -> Evar_kinds.t located
-
 val dependent_evar_ident : Evar.t -> evar_map -> Id.t
 
 (** {5 Side-effects} *)
@@ -481,62 +479,6 @@ val set_extra_data : Store.t -> evar_map -> evar_map
 module MonadR : Monad.S with type +'a t = evar_map -> evar_map * 'a
 module Monad  : Monad.S with type +'a t = evar_map -> 'a * evar_map
 
-(** {5 Meta machinery}
-
-    These functions are almost deprecated. They were used before the
-    introduction of the full-fledged evar calculus. In an ideal world, they
-    should be removed. Alas, some parts of the code still use them. Do not use
-    in newly-written code. *)
-
-module Metaset : Set.S with type elt = metavariable
-module Metamap : Map.ExtS with type key = metavariable and module Set := Metaset
-
-type 'a freelisted = {
-  rebus : 'a;
-  freemetas : Metaset.t }
-
-val metavars_of : econstr -> Metaset.t
-val mk_freelisted : econstr -> econstr freelisted
-val map_fl : ('a -> 'b) -> 'a freelisted -> 'b freelisted
-
-(** Status of an instance found by unification wrt to the meta it solves:
-  - a supertype of the meta (e.g. the solution to ?X <= T is a supertype of ?X)
-  - a subtype of the meta (e.g. the solution to T <= ?X is a supertype of ?X)
-  - a term that can be eta-expanded n times while still being a solution
-    (e.g. the solution [P] to [?X u v = P u v] can be eta-expanded twice)
-*)
-
-type instance_constraint = IsSuperType | IsSubType | Conv
-
-val eq_instance_constraint :
-  instance_constraint -> instance_constraint -> bool
-
-(** Status of the unification of the type of an instance against the type of
-     the meta it instantiates:
-   - CoerceToType means that the unification of types has not been done
-     and that a coercion can still be inserted: the meta should not be
-     substituted freely (this happens for instance given via the
-     "with" binding clause).
-   - TypeProcessed means that the information obtainable from the
-     unification of types has been extracted.
-   - TypeNotProcessed means that the unification of types has not been
-     done but it is known that no coercion may be inserted: the meta
-     can be substituted freely.
-*)
-
-type instance_typing_status =
-    CoerceToType | TypeNotProcessed | TypeProcessed
-
-(** Status of an instance together with the status of its type unification *)
-
-type instance_status = instance_constraint * instance_typing_status
-
-(** Clausal environments *)
-
-type clbinding =
-  | Cltyp of Name.t * econstr freelisted
-  | Clval of Name.t * (econstr freelisted * instance_status) * econstr freelisted
-
 (** Unification constraints *)
 type conv_pb = Conversion.conv_pb
 type evar_constraint = conv_pb * env * econstr * econstr
@@ -565,33 +507,6 @@ val evars_of_term : evar_map -> econstr -> Evar.Set.t
 val evars_of_named_context : evar_map -> (econstr, etypes, erelevance) Context.Named.pt -> Evar.Set.t
 
 val evars_of_filtered_evar_info : evar_map -> 'a evar_info -> Evar.Set.t
-
-(** Metas *)
-val meta_list : evar_map -> clbinding Metamap.t
-
-val meta_value     : evar_map -> metavariable -> econstr
-(** [meta_fvalue] raises [Not_found] if meta not in map or [Anomaly] if
-   meta has no value *)
-
-val meta_opt_fvalue : evar_map -> metavariable -> (econstr freelisted * instance_status) option
-val meta_ftype     : evar_map -> metavariable -> etypes freelisted
-val meta_name      : evar_map -> metavariable -> Name.t
-val meta_declare   :
-  metavariable -> etypes -> ?name:Name.t -> evar_map -> evar_map
-val meta_assign    : metavariable -> econstr * instance_status -> evar_map -> evar_map
-val meta_reassign  : metavariable -> econstr * instance_status -> evar_map -> evar_map
-
-val clear_metas : evar_map -> evar_map
-
-(** [meta_merge evd1 evd2] returns [evd2] extended with the metas of [evd1] *)
-val meta_merge : clbinding Metamap.t -> evar_map -> evar_map
-
-val map_metas_fvalue : (econstr -> econstr) -> evar_map -> evar_map
-val map_metas : (econstr -> econstr) -> evar_map -> evar_map
-
-type metabinding = metavariable * econstr * instance_status
-
-val retract_coercible_metas : evar_map -> metabinding list * evar_map
 
 (** {5 FIXME: Nothing to do here} *)
 

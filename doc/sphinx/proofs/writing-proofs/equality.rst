@@ -469,6 +469,9 @@ Tactics described in this section include:
   term
 - :tacn:`vm_compute` and :tacn:`native_compute`, which are performance-oriented.
 
+Except for :tacn:`red`, conversion tactics succeed even if the context is left
+unchanged.
+
 Conversion tactics, with two exceptions, only change the types and contexts
 of existential variables
 and leave the proof term unchanged.  (The :tacn:`vm_compute` and :tacn:`native_compute`
@@ -995,6 +998,8 @@ which supports additional fine-tuning.
    by default the projection themselves are made opaque and the compatibility
    constants always remain transparent. This mechanism is only intended for
    debugging purposes.
+
+   Use the :cmd:`About` command to see if a symbol is transparent or opaque.
 
 .. cmd:: Transparent {? ! } {+ @reference }
 

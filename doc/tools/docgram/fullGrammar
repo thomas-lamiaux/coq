@@ -116,8 +116,7 @@ term1: [
 term0: [
 | atomic_constr
 | term_match
-| ident Prim.fields univ_annot
-| ident univ_annot
+| reference univ_annot
 | NUMBER
 | string
 | "(" term200 ")"
@@ -315,7 +314,7 @@ open_binders: [
 
 binders: [
 | LIST0 binder
-| Pcoq.Constr.binders
+| Procq.Constr.binders
 ]
 
 binder: [
@@ -596,8 +595,8 @@ command: [
 | "Functional" "Scheme" LIST1 fun_scheme_arg SEP "with"      (* funind plugin *)
 | "Functional" "Case" fun_scheme_arg      (* funind plugin *)
 | "Generate" "graph" "for" reference      (* funind plugin *)
-| "Hint" "Rewrite" orient LIST1 constr ":" LIST0 preident
-| "Hint" "Rewrite" orient LIST1 constr "using" tactic ":" LIST0 preident
+| "Hint" "Rewrite" orient LIST1 constr ":" LIST1 preident
+| "Hint" "Rewrite" orient LIST1 constr "using" tactic ":" LIST1 preident
 | "Hint" "Rewrite" orient LIST1 constr
 | "Hint" "Rewrite" orient LIST1 constr "using" tactic
 | "Derive" "Inversion_clear" ident "with" constr "Sort" sort_family
@@ -625,9 +624,7 @@ command: [
 | "Locate" "Ltac" reference
 | "Ltac" LIST1 ltac_tacdef_body SEP "with"
 | "Print" "Ltac" "Signatures"
-| "Obligation" natural "of" identref ":" lglob withtac
 | "Obligation" natural "of" identref withtac
-| "Obligation" natural ":" lglob withtac
 | "Obligation" natural withtac
 | "Next" "Obligation" "of" identref withtac
 | "Next" "Obligation" withtac
@@ -1432,7 +1429,7 @@ printable: [
 | "Scope" IDENT
 | "Visibility" OPT IDENT
 | "Implicit" smart_global
-| [ "Sorted" | ] "Universes" OPT printunivs_subgraph OPT ne_string
+| [ "Sorted" | ] "Universes" OPT printunivs_subgraph OPT [ [ "With" | "Without" ] "Constraint" "Sources" ] OPT ne_string
 | "Assumptions" smart_global
 | "Opaque" "Dependencies" smart_global
 | "Transparent" "Dependencies" smart_global
@@ -1443,8 +1440,13 @@ printable: [
 | "Registered" "Schemes"
 ]
 
+debug_univ_name: [
+| reference
+| STRING
+]
+
 printunivs_subgraph: [
-| "Subgraph" "(" LIST0 reference ")"
+| "Subgraph" "(" LIST0 debug_univ_name ")"
 ]
 
 coercion_class: [
@@ -1664,7 +1666,6 @@ simple_tactic: [
 | "firstorder" OPT tactic firstorder_using
 | "firstorder" OPT tactic "with" LIST1 preident
 | "firstorder" OPT tactic firstorder_using "with" LIST1 preident
-| "gintuition" OPT tactic
 | "functional" "inversion" quantified_hypothesis OPT reference      (* funind plugin *)
 | "functional" "induction" lconstr fun_ind_using with_names      (* funind plugin *)
 | "soft" "functional" "induction" LIST1 constr fun_ind_using with_names      (* funind plugin *)
@@ -1830,7 +1831,6 @@ simple_tactic: [
 | "eauto" OPT nat_or_var auto_using hintbases
 | "debug" "eauto" OPT nat_or_var auto_using hintbases
 | "info_eauto" OPT nat_or_var auto_using hintbases
-| "dfs" "eauto" OPT nat_or_var auto_using hintbases
 | "autounfold" hintbases clause_dft_concl
 | "autounfold_one" hintbases "in" hyp
 | "autounfold_one" hintbases
@@ -2003,16 +2003,6 @@ fun_ind_using: [
 
 with_names: [
 | "as" simple_intropattern      (* funind plugin *)
-|      (* funind plugin *)
-]
-
-constr_comma_sequence': [
-| constr "," constr_comma_sequence'      (* funind plugin *)
-| constr      (* funind plugin *)
-]
-
-auto_using': [
-| "using" constr_comma_sequence'      (* funind plugin *)
 |      (* funind plugin *)
 ]
 
@@ -2243,11 +2233,6 @@ constr_eval: [
 | "eval" red_expr "in" Constr.constr
 | "context" identref "[" Constr.lconstr "]"
 | "type" "of" Constr.constr
-]
-
-constr_may_eval: [
-| constr_eval
-| Constr.constr
 ]
 
 tactic_atom: [

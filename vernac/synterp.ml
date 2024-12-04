@@ -323,7 +323,6 @@ let expand filename =
 
 let synterp_declare_ml_module ~local l =
   let local = Option.default false local in
-  let l = List.map expand l in
   Mltop.declare_ml_modules local l
 
 let warn_chdir = CWarnings.create ~name:"change-dir-deprecated" ~category:Deprecation.Version.v8_20
@@ -449,12 +448,12 @@ and synterp_load ~intern verbosely fname =
   let input =
     let longfname = Loadpath.locate_file fname in
     let in_chan = Util.open_utf8_file_in longfname in
-    Pcoq.Parsable.make ~loc:Loc.(initial (InFile { dirpath=None; file=longfname}))
+    Procq.Parsable.make ~loc:Loc.(initial (InFile { dirpath=None; file=longfname}))
         (Gramlib.Stream.of_channel in_chan) in
   (* Parsing loop *)
   let v_mod = if verbosely then Flags.verbosely else Flags.silently in
   let parse_sentence proof_mode =
-    Pcoq.Entry.parse (Pvernac.main_entry proof_mode)
+    Procq.Entry.parse (Pvernac.main_entry proof_mode)
   in
   let proof_mode = Some (get_default_proof_mode ()) in
   let rec load_loop entries =

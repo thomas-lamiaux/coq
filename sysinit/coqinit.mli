@@ -22,6 +22,8 @@
     This API should be called up very early, or not at all. *)
 val init_ocaml : unit -> unit
 
+val dirpath_of_top : Coqargs.top -> Names.DirPath.t
+
 (** 2 parsing of Sys.argv
 
     This API parses command line options which are known by Coq components.
@@ -29,12 +31,13 @@ val init_ocaml : unit -> unit
     on the spot instead of being represented as "injection commands" (a field
     of Coqargs.t).
 
+    The [string list] argument is typically [List.tl (Array.to_list Sys.argv)].
+
     [parse_extra] and [usage] can be used to parse/document more options. *)
 val parse_arguments :
-  parse_extra:(string list -> 'a * string list) ->
-  usage:Boot.Usage.specific_usage ->
+  parse_extra:(Coqargs.t -> string list -> 'a * string list) ->
   ?initial_args:Coqargs.t ->
-  unit ->
+  string list ->
   Coqargs.t * 'a
 
 (** 3 initialization of global runtime data
@@ -43,12 +46,10 @@ val parse_arguments :
     compilation. If Coq is used to process multiple libraries, what is set up
     here is really global and common to all of them.
 
-    The returned injections are options (as in "Set This Thing" or "Require
-    that") as specified on the command line.
-    The prelude is one of these (unless "-nois" is passed).
-
     This API must be called, typically jsut after parsing arguments. *)
-val init_runtime : Coqargs.t -> Coqargs.injection_command list
+val init_runtime : usage:Boot.Usage.specific_usage -> Coqargs.t -> unit
+
+val init_document : Coqargs.t -> unit
 
 (** 4 Start a library (sets options and loads objects like the prelude)
 

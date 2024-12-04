@@ -50,7 +50,7 @@ EXTRAARGS_lconstr:  [ | DELETENT ]
 EXTRAARGS_strategy_level: [ | DELETENT ]
 
 binders: [
-| DELETE Pcoq.Constr.binders
+| DELETE Procq.Constr.binders
 ]
 
 G_TACTIC_in_clause: [
@@ -162,11 +162,6 @@ DELETE: [
 | test_qualid_with_or_lpar_or_rbrac
 | test_leftsquarebracket_equal
 | test_sort_qvar
-
-(* unused *)
-| constr_comma_sequence'
-| auto_using'
-| constr_may_eval
 ]
 
 (* additional nts to be spliced *)
@@ -387,8 +382,7 @@ term1: [
 ]
 
 term0: [
-| DELETE ident univ_annot
-| DELETE ident Prim.fields univ_annot
+| DELETE reference univ_annot
 | REPLACE "{|" record_declaration bar_cbrace
 | WITH "{|" LIST0 field_def SEP ";" OPT ";" bar_cbrace
 | MOVETO number_or_string NUMBER
@@ -1220,8 +1214,8 @@ printable: [
 | WITH "Scope" scope_name
 | REPLACE "Visibility" OPT IDENT
 | WITH "Visibility" OPT scope_name
-| REPLACE [ "Sorted" | ] "Universes" OPT printunivs_subgraph OPT ne_string
-| WITH OPT "Sorted" "Universes" OPT printunivs_subgraph OPT ne_string
+| REPLACE [ "Sorted" | ] "Universes" OPT printunivs_subgraph OPT [ [ "With" | "Without" ] "Constraint" "Sources" ] OPT ne_string
+| WITH OPT "Sorted" "Universes" OPT printunivs_subgraph OPT [ [ "With" | "Without" ] "Constraint" "Sources" ] OPT ne_string
 | DELETE "Term" smart_global OPT univ_name_list  (* readded in commands *)
 | REPLACE "Hint"
 | WITH "Hint" OPT [ "*" | smart_global ]
@@ -1306,9 +1300,9 @@ command: [
 | WITH "Derive" "Inversion_clear" ident "with" constr OPT ( "Sort" sort_family )
 | DELETE "Derive" "Inversion_clear" ident "with" constr
 | EDIT "Focus" ADD_OPT natural
-| DELETE "Hint" "Rewrite" orient LIST1 constr ":" LIST0 preident
-| REPLACE "Hint" "Rewrite" orient LIST1 constr "using" tactic ":" LIST0 preident
-| WITH "Hint" "Rewrite" orient LIST1 constr OPT ( "using" tactic ) OPT ( ":" LIST0 preident )
+| DELETE "Hint" "Rewrite" orient LIST1 constr ":" LIST1 preident
+| REPLACE "Hint" "Rewrite" orient LIST1 constr "using" tactic ":" LIST1 preident
+| WITH "Hint" "Rewrite" orient LIST1 constr OPT ( "using" tactic ) OPT ( ":" LIST1 preident )
 | DELETE "Hint" "Rewrite" orient LIST1 constr
 | DELETE "Hint" "Rewrite" orient LIST1 constr "using" tactic
 | REPLACE "Next" "Obligation" "of" identref withtac
@@ -1317,10 +1311,8 @@ command: [
 | REPLACE "Final" "Obligation" "of" identref withtac
 | WITH "Final" "Obligation" OPT ( "of" identref ) withtac
 | DELETE "Final" "Obligation" withtac
-| REPLACE "Obligation" natural "of" identref ":" lglob withtac
-| WITH "Obligation" natural OPT ( "of" identref ) OPT ( ":" type withtac )
-| DELETE "Obligation" natural "of" identref withtac
-| DELETE "Obligation" natural ":" lglob withtac
+| REPLACE "Obligation" natural "of" identref withtac
+| WITH "Obligation" natural OPT ( "of" identref ) withtac
 | DELETE "Obligation" natural withtac
 | REPLACE "Obligations" "of" identref
 | WITH "Obligations" OPT ( "of" identref )
@@ -2058,7 +2050,7 @@ ltac2_entry: [
 | WITH "Ltac2" tac2def_val
 | REPLACE tac2def_ext     (* Ltac2 plugin *)
 | WITH "Ltac2" tac2def_ext
-| "Ltac2" "Notation" [ string | ident ] ":=" ltac2_expr6 TAG Ltac2  (* variant *)
+| "Ltac2" "Notation" ident ":=" ltac2_expr6 TAG Ltac2  (* variant *)
 | MOVEALLBUT command
 (* todo: MOVEALLBUT should ignore tag on "but" prodns *)
 ]
