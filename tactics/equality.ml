@@ -801,8 +801,8 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
             ->
           let mind_specif = lookup_mind_specif env ind1 in
           let false_mind_specif = lookup_mind_specif env false_ref in
-          let ind_allowed_elim = Inductive.is_allowed_elimination (mind_specif, EInstance.kind sigma u1) Sorts.type1 in
-          let eq_allowed_elim = Inductive.is_allowed_elimination (false_mind_specif, false_inst) goalsort in
+          let ind_allowed_elim = Inductive.is_allowed_elimination env (mind_specif, EInstance.kind sigma u1) Sorts.type1 in
+          let eq_allowed_elim = Inductive.is_allowed_elimination env (false_mind_specif, false_inst) goalsort in
              (* both sides are fully applied constructors, so either we descend,
              or we can discriminate here. *)
           if Environ.QConstruct.equal env sp1 sp2 then

@@ -977,7 +977,7 @@ let check_inductive_instances qnorm cv_pb variance u1 u2 univs =
   let u1 = UVars.Instance.subst_qualities qnorm u1 in
   let u2 =  UVars.Instance.subst_qualities qnorm u2 in
   let qcsts, ucsts = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if Sorts.QConstraints.trivial qcsts && (UGraph.check_constraints ucsts univs) then Result.Ok univs
+  if Sorts.ElimConstraints.trivial qcsts && (UGraph.check_constraints ucsts univs) then Result.Ok univs
   else Result.Error None
 
 let checked_universes qnorm =
