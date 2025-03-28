@@ -145,6 +145,7 @@ val info_env : clos_infos -> env
 val info_flags: clos_infos -> reds
 val info_univs : clos_infos -> UGraph.t
 val info_qnorm : clos_infos -> (Sorts.QVar.t -> Sorts.Quality.t)
+val info_elims : clos_infos -> QGraph.t
 val unfold_projection : clos_infos -> Projection.t -> Sorts.relevance -> stack_member option
 
 val push_relevance : clos_infos -> 'b binder_annot -> clos_infos

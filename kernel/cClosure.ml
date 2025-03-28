@@ -161,6 +161,7 @@ let info_flags info = info.i_flags
 let info_env info = info.i_cache.i_env
 let info_univs info = info.i_cache.i_univs
 let info_qnorm info = info.i_cache.i_sigma.qnorm
+let info_elims info = Environ.qualities (info_env info)
 
 let push_relevance infos x =
   { infos with i_relevances = Range.cons x.binder_relevance infos.i_relevances }
