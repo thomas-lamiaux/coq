@@ -360,12 +360,12 @@ let enforce_leq_quality a b csts =
 
 module QUConstraints = struct
 
-  type t = QCumulConstraints.t * Univ.Constraints.t
+  type t = QCumulConstraints.t * UnivConstraints.t
 
-  let empty = QCumulConstraints.empty, Univ.Constraints.empty
+  let empty = QCumulConstraints.empty, UnivConstraints.empty
 
   let union (qcsts,ucsts) (qcsts',ucsts') =
-    QCumulConstraints.union qcsts qcsts', Constraints.union ucsts ucsts'
+    QCumulConstraints.union qcsts qcsts', UnivConstraints.union ucsts ucsts'
 end
 
 type t =
