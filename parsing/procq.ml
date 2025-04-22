@@ -120,27 +120,12 @@ let grammar_extend e ext =
   let extend_one g = extend_gstate g e ext in
   modify_state_unsync extend_one ()
 
-(** NB: [extend_statement =
-         gram_position option * single_extend_statement list]
-    and [single_extend_statement =
-         string option * gram_assoc option * production_rule list]
-    and [production_rule = symbol list * action]
-
-    In [single_extend_statement], first two parameters are name and
-    assoc iff a level is created *)
-
-(** Type of reinitialization data *)
-type gram_reinit = Gramlib.Gramext.g_assoc * Gramlib.Gramext.position
-
 type extend_rule =
 | ExtendRule : 'a Entry.t * 'a extend_statement -> extend_rule
-| ExtendRuleReinit : 'a Entry.t * gram_reinit * 'a extend_statement -> extend_rule
 
 let grammar_extend_sync user_state entry rules state =
   let extend_one_sync state = function
-    (* NB: ocaml 4.14 is not smart enough to factorize these 2 GADT match cases *)
     | ExtendRule (e, ext) -> extend_gstate state e ext
-    | ExtendRuleReinit (e, _, ext) -> extend_gstate state e ext
   in
   let current_state = List.fold_left extend_one_sync state.current_state rules in
   { state with

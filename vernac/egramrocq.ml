@@ -27,9 +27,8 @@ open Procq
    translated in camlp5 into "constr" without level) or to another level
    (to be translated into "constr LEVEL n")
 
-   The boolean is true if the entry was existing _and_ empty; this to
-   circumvent a weakness of camlp5 whose undo mechanism is not the
-   converse of the extension mechanism *)
+   The boolean is true if the entry was existing _and_ empty;
+   cf use in find_positions_gen *)
 
 let constr_level = string_of_int
 
@@ -99,24 +98,21 @@ let create_pos = function
   | None -> NewFirst
   | Some lev -> NewAfter lev
 
-let reinit_pos = let open Gramlib.Gramext in function
-| None -> First
-| Some n -> After (constr_level n)
-
 let find_position_gen current ensure assoc lev =
   match lev with
   | None ->
-    current, (ReuseFirst, None, None, None)
+    current, (ReuseFirst, None, None)
   | Some n ->
     let rec add_level previous = function
       | (p,_,_ as pa)::l when p > n ->
         let updated, res = add_level (Some p) l in
         pa :: updated, res
-      | (p,a,reinit)::l when Int.equal p n ->
-        if reinit then
+      | (p,a,empty)::l when Int.equal p n ->
+        if empty then
+          (* XXX we ignore preexisting associativity for empty levels, is that what we want? *)
           let a' = create_assoc assoc in
           let updated = (p,a',false)::l in
-          updated, (ReuseLevel n, None, None, Some (a', reinit_pos previous))
+          updated, (ReuseLevel n, None, None)
         else if admissible_assoc (a,assoc) then
           raise_notrace Exit
         else
@@ -124,14 +120,14 @@ let find_position_gen current ensure assoc lev =
       | l ->
         let assoc = create_assoc assoc in
         let updated = (n,assoc,ensure)::l in
-        updated, (create_pos previous, Some assoc, Some (constr_level n), None)
+        updated, (create_pos previous, Some assoc, Some (constr_level n))
     in
     try add_level None current
     with
     (* Nothing has changed *)
       Exit ->
       (* Just inherit the existing associativity and name (None) *)
-      current, (ReuseLevel n, None, None, None)
+      current, (ReuseLevel n, None, None)
 
 let rec list_mem_assoc_triple x = function
   | [] -> false
@@ -532,18 +528,14 @@ let target_to_bool : type r. r target -> bool = function
 | ForConstr -> false
 | ForPattern -> true
 
-let prepare_empty_levels forpat (where,(pos,p4assoc,name,reinit)) =
+let prepare_empty_levels forpat (where,(pos,p4assoc,name)) =
   let empty = match pos with
   | ReuseFirst -> Procq.Reuse (None, [])
   | ReuseLevel n -> Procq.Reuse (Some (constr_level n), [])
   | NewFirst -> Procq.Fresh (Gramlib.Gramext.First, [(name, p4assoc, [])])
   | NewAfter n -> Procq.Fresh (Gramlib.Gramext.After (constr_level n), [(name, p4assoc, [])])
   in
-  match reinit with
-  | None ->
-    ExtendRule (target_entry where forpat, empty)
-  | Some reinit ->
-    ExtendRuleReinit (target_entry where forpat, reinit, empty)
+  ExtendRule (target_entry where forpat, empty)
 
 let different_levels (custom,opt_level) (custom',string_level) =
   match opt_level with
@@ -587,7 +579,7 @@ let extend_constr state forpat ng =
     let pure_sublevels = pure_sublevels' assoc fromlev forpat level pt in
     let isforpat = target_to_bool forpat in
     let needed_levels, state = register_empty_levels state isforpat pure_sublevels in
-    let (pos,p4assoc,name,reinit), state = find_position state custom isforpat assoc level in
+    let (pos,p4assoc,name), state = find_position state custom isforpat assoc level in
     let empty_rules = List.map (prepare_empty_levels forpat) needed_levels in
     let empty = { constrs = []; constrlists = []; binders = []; binderlists = [] } in
     let act = ty_eval r (make_act forpat ng.notgram_notation) empty in
@@ -603,10 +595,7 @@ let extend_constr state forpat ng =
       | ReuseFirst -> Procq.Reuse (None, [r])
       | ReuseLevel n -> Procq.Reuse (Some (constr_level n), [r])
     in
-    let r = match reinit with
-      | None -> ExtendRule (entry, rule)
-      | Some reinit -> ExtendRuleReinit (entry, reinit, rule)
-    in
+    let r = ExtendRule (entry, rule) in
     (accu @ empty_rules @ [r], state)
   in
   List.fold_left fold ([], state) ng.notgram_prods
