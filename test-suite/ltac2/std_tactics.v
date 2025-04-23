@@ -162,10 +162,10 @@ Goal nat * bool.
   - exact 0.
 Qed.
 
-(* only *)
+(* focus *)
 Goal bool * nat * nat.
   repeat split.
-  all: only 2 - 3: exact 0.
+  all: Control.focus 2 3 (fun () => exact 0).
   exact true.
 Qed.
 
