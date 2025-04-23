@@ -244,6 +244,8 @@ let define ?plugin s = define (pname ?plugin s)
 
 let () = define "print" (pp @-> ret unit) Feedback.msg_notice
 
+let () = define "message_empty" (ret pp) (Pp.mt ())
+
 let () = define "message_of_int" (int @-> ret pp) Pp.int
 
 let () = define "message_of_string" (string @-> ret pp) Pp.str
