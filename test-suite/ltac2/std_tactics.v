@@ -112,6 +112,7 @@ Axiom lem : forall x:nat, bool -> x = x.
 Axiom lem' : 3 = 3 -> False.
 
 Goal bool -> 2 = 2.
+Proof.
   Fail intros a%lem.
   eintros a%lem.
   revert a.
@@ -130,6 +131,7 @@ Definition my_coercion (_ : my_type) := True.
 Coercion my_coercion : my_type >-> Sortclass.
 
 Goal False.
+Proof.
   (* expected type is sortclass -> coercion inserted *)
   assert my_el by exact I.
 
@@ -138,11 +140,13 @@ Goal False.
 Abort.
 
 Goal nat.
+Proof.
   Std.apply true false [fun () => Control.plus (fun () => 'I) (fun _ => '0), Std.NoBindings] None.
 Qed.
 
 (* rename *)
 Goal forall (x : nat), x = x.
+Proof.
   intro x.
   rename x into y.
   exact (@eq_refl _ y).
@@ -150,12 +154,14 @@ Qed.
 
 (* eassumption *)
 Goal forall (x : nat) y z, x = y -> y = z -> x = z.
+Proof.
   intros **.
   etransitivity; eassumption.
 Qed.
 
 (* cycle *)
 Goal nat * bool.
+Proof.
   split.
   all: cycle 1.
   - exact true.
@@ -164,6 +170,7 @@ Qed.
 
 (* focus *)
 Goal bool * nat * nat.
+Proof.
   repeat split.
   all: Control.focus 2 3 (fun () => exact 0).
   exact true.
@@ -171,6 +178,7 @@ Qed.
 
 (* exfalso *)
 Goal False -> nat * nat.
+Proof.
   intros oops.
   split.
   all: exfalso; assumption.
