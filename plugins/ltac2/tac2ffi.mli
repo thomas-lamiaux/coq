@@ -101,6 +101,8 @@ val of_fun1 : (valexpr -> 'a) -> ('b -> valexpr) -> ('a, 'b) fun1 -> valexpr
 val to_fun1 : ('a -> valexpr) -> (valexpr -> 'b) -> valexpr -> ('a, 'b) fun1
 val fun1 : 'a repr -> 'b repr -> ('a, 'b) fun1 repr
 
+val thunk : 'a repr -> (unit,'a) fun1 repr
+
 val of_block : (int * valexpr array) -> valexpr
 val to_block : valexpr -> (int * valexpr array)
 val block : (int * valexpr array) repr

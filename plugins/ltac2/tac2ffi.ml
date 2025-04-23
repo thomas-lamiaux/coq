@@ -175,6 +175,8 @@ let fun1 arg res = {
   r_to = to_fun1 arg.r_of res.r_to;
 }
 
+let thunk r = fun1 unit r
+
 let of_ext tag c =
   ValExt (tag, c)
 

@@ -25,7 +25,6 @@ let make_to_repr f = Tac2ffi.make_repr (fun _ -> assert false) f
 let return x = Proofview.tclUNIT x
 let thaw f = f ()
 let uthaw r f = Tac2ffi.to_fun1 Tac2ffi.of_unit (repr_to r) f ()
-let thunk r = fun1 unit r
 
 let to_name c = match Value.to_option Value.to_ident c with
 | None -> Anonymous
