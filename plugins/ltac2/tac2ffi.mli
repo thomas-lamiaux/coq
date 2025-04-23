@@ -95,6 +95,12 @@ val of_closure : closure -> valexpr
 val to_closure : valexpr -> closure
 val closure : closure repr
 
+type ('a, 'b) fun1 = 'a -> 'b Proofview.tactic
+
+val of_fun1 : (valexpr -> 'a) -> ('b -> valexpr) -> ('a, 'b) fun1 -> valexpr
+val to_fun1 : ('a -> valexpr) -> (valexpr -> 'b) -> valexpr -> ('a, 'b) fun1
+val fun1 : 'a repr -> 'b repr -> ('a, 'b) fun1 repr
+
 val of_block : (int * valexpr array) -> valexpr
 val to_block : valexpr -> (int * valexpr array)
 val block : (int * valexpr array) repr
@@ -213,13 +219,6 @@ val float : Float64.t repr
 val of_pstring : Pstring.t -> valexpr
 val to_pstring : valexpr -> Pstring.t
 val pstring : Pstring.t repr
-
-type ('a, 'b) fun1
-
-val app_fun1 : ('a, 'b) fun1 -> 'a repr -> 'b repr -> 'a -> 'b Proofview.tactic
-
-val to_fun1 : 'a repr -> 'b repr -> valexpr -> ('a, 'b) fun1
-val fun1 : 'a repr -> 'b repr -> ('a, 'b) fun1 repr
 
 val valexpr : valexpr repr
 

@@ -159,6 +159,22 @@ let closure = {
   r_to = to_closure;
 }
 
+type ('a, 'b) fun1 = 'a -> 'b Proofview.tactic
+
+let of_fun1 to_arg of_res f =
+  of_closure (mk_closure arity_one (fun x ->
+      Proofview.Monad.map of_res @@
+      f (to_arg x)))
+
+let to_fun1 of_arg to_res f x =
+  Proofview.Monad.map to_res @@
+  apply (to_closure f) [of_arg x]
+
+let fun1 arg res = {
+  r_of = of_fun1 arg.r_to res.r_of;
+  r_to = to_fun1 arg.r_of res.r_to;
+}
+
 let of_ext tag c =
   ValExt (tag, c)
 
@@ -409,12 +425,3 @@ let reference = {
   r_of = of_reference;
   r_to = to_reference;
 }
-
-type ('a, 'b) fun1 = closure
-
-let fun1 (r0 : 'a repr) (r1 : 'b repr) : ('a, 'b) fun1 repr = closure
-let to_fun1 r0 r1 f = to_closure f
-
-let app_fun1 cls r0 r1 x =
-  let open Proofview.Notations in
-  apply cls [r0.r_of x] >>= fun v -> Proofview.tclUNIT (r1.r_to v)
