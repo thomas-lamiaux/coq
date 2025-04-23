@@ -1011,9 +1011,8 @@ let () =
   Proofview.tclOR (thaw x) k
 
 let () =
-  define "plus_bt" (thunk valexpr @-> closure @-> tac valexpr) @@ fun run handle ->
-    Proofview.tclOR (thaw run)
-      (fun e -> Tac2val.apply handle [Tac2ffi.of_exn e; of_exninfo (snd e)])
+  define "plus_bt" (thunk valexpr @-> fun2 exn exninfo valexpr @-> tac valexpr) @@ fun run handle ->
+    Proofview.tclOR (thaw run) (fun e -> handle e (snd e))
 
 (** (unit -> 'a) -> 'a *)
 let () =
@@ -1022,16 +1021,12 @@ let () =
 
 (** (unit -> 'a) -> ('a * ('exn -> 'a)) result *)
 let () =
-  define "case" (thunk valexpr @-> tac valexpr) @@ fun f ->
+  define "case" (thunk valexpr @-> tac (result (pair valexpr (fun1 exn valexpr)))) @@ fun f ->
   Proofview.tclCASE (thaw f) >>= begin function
   | Proofview.Next (x, k) ->
-    let k = Tac2val.mk_closure arity_one begin fun e ->
-      let (e, info) = Tac2ffi.to_exn e in
-      set_bt info >>= fun info ->
-      k (e, info)
-    end in
-    return (v_blk 0 [| Tac2ffi.of_tuple [| x; Tac2ffi.of_closure k |] |])
-  | Proofview.Fail e -> return (v_blk 1 [| Tac2ffi.of_exn e |])
+    let k (e,info) = set_bt info >>= fun info -> k (e,info) in
+    return (Ok (x, k))
+  | Proofview.Fail e -> return (Error e)
   end
 
 let () =
