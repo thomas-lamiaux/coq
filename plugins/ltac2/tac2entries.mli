@@ -27,6 +27,8 @@ val register_struct : Attributes.vernac_flags -> strexpr -> unit
 
 type notation_interpretation_data
 
+val pr_register_notation : sexpr list -> int option -> raw_tacexpr -> Pp.t
+
 val register_notation : Attributes.vernac_flags -> sexpr list ->
   int option -> raw_tacexpr -> notation_interpretation_data
 

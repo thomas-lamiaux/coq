@@ -981,8 +981,9 @@ let rules = [
 
 {
 
-let pr_ltac2entry _ = mt () (* FIXME *)
-let pr_ltac2expr _ = mt () (* FIXME *)
+let pr_ltac2entry = Tac2print.pr_strexpr
+let pr_ltac2expr e = Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty e
+let pr_ltac2def_syn (a,b,c) = Tac2entries.pr_register_notation a b c
 
 }
 
@@ -995,7 +996,7 @@ PRINTED BY { pr_ltac2entry }
 END
 
 VERNAC ARGUMENT EXTEND ltac2def_syn
-PRINTED BY { pr_ltac2entry }
+PRINTED BY { pr_ltac2def_syn }
 | [ tac2def_syn(e) ] -> { e }
 END
 
