@@ -22,6 +22,10 @@ open Util
 open Pp
 open Miniml
 
+(*s Extraction Blacklist of filenames not to use while extracting *)
+
+let blacklist_table = Summary.ref Id.Set.empty ~name:"ExtrBlacklist"
+
 (** Sets and maps for [global_reference] that use the "user" [kernel_name]
     instead of the canonical one *)
 
@@ -100,64 +104,90 @@ let labels_of_ref r =
   parse_labels2 [l] mp
 
 
-(*S The main tables: constants, inductives, records, ... *)
+(*S The main table: constants, inductives, records, ... *)
 
-(* These tables are not registered within coq save/undo mechanism
-   since we reset their contents at each run of Extraction *)
+(* This table is not registered within coq save/undo mechanism
+   since we set its contents at each run of Extraction *)
 
 (* We use [constant_body] (resp. [mutual_inductive_body]) as checksum
    to ensure that the table contents aren't outdated. *)
 
-(*s Constants tables. *)
+type table = {
+  typedefs : (constant_body * ml_type) Cmap_env.t;
+  cst_types : (constant_body * ml_schema) Cmap_env.t;
+  inductives : (mutual_inductive_body * ml_ind) Mindmap_env.t;
+  inductive_kinds : inductive_kind Mindmap_env.t;
+  recursors : KNset.t;
+  (* recursors: we can use the equivalence between canonical and user constant names. *)
+  projs : (inductive * int) GlobRef.Map.t;
+  (* projs: working modulo name equivalence is ok *)
+  info_axioms : Refset'.t;
+  log_axioms : Refset'.t;
+  symbols : Label.t list Refmap'.t;
+  opaques:  Refset'.t;
+  modfile_ids : Id.Set.t;
+  modfile_mps : pp_tag MPmap.t;
+}
 
-let typedefs = ref (Cmap_env.empty : (constant_body * ml_type) Cmap_env.t)
-let init_typedefs () = typedefs := Cmap_env.empty
+let empty_table = {
+  typedefs = Cmap_env.empty;
+  cst_types = Cmap_env.empty;
+  inductives = Mindmap_env.empty;
+  inductive_kinds = Mindmap_env.empty;
+  recursors = KNset.empty;
+  projs = GlobRef.Map.empty;
+  info_axioms = Refset'.empty;
+  log_axioms = Refset'.empty;
+  symbols = Refmap'.empty;
+  opaques = Refset'.empty;
+  modfile_ids = Id.Set.empty;
+  modfile_mps = MPmap.empty;
+}
+
+let table = ref empty_table
+
+let reset_tables () = table := { empty_table with modfile_ids = !blacklist_table }
+
 let add_typedef kn cb t =
-  typedefs := Cmap_env.add kn (cb,t) !typedefs
+  table := { !table with typedefs = Cmap_env.add kn (cb,t) !table.typedefs }
+
 let lookup_typedef kn cb =
   try
-    let (cb0,t) = Cmap_env.find kn !typedefs in
+    let (cb0,t) = Cmap_env.find kn !table.typedefs in
     if cb0 == cb then Some t else None
   with Not_found -> None
 
-let cst_types =
-  ref (Cmap_env.empty : (constant_body * ml_schema) Cmap_env.t)
-let init_cst_types () = cst_types := Cmap_env.empty
-let add_cst_type kn cb s = cst_types := Cmap_env.add kn (cb,s) !cst_types
+let add_cst_type kn cb s =
+  table := { !table with cst_types = Cmap_env.add kn (cb,s) !table.cst_types }
+
 let lookup_cst_type kn cb =
   try
-    let (cb0,s) = Cmap_env.find kn !cst_types in
+    let (cb0,s) = Cmap_env.find kn !table.cst_types in
     if cb0 == cb then Some s else None
   with Not_found -> None
 
-(*s Inductives table. *)
-
-let inductives =
-  ref (Mindmap_env.empty : (mutual_inductive_body * ml_ind) Mindmap_env.t)
-let init_inductives () = inductives := Mindmap_env.empty
 let add_ind kn mib ml_ind =
-  inductives := Mindmap_env.add kn (mib,ml_ind) !inductives
+  table := { !table with inductives = Mindmap_env.add kn (mib,ml_ind) !table.inductives }
+
 let lookup_ind kn mib =
   try
-    let (mib0,ml_ind) = Mindmap_env.find kn !inductives in
+    let (mib0,ml_ind) = Mindmap_env.find kn !table.inductives in
     if mib == mib0 then Some ml_ind
     else None
   with Not_found -> None
 
-let unsafe_lookup_ind kn = snd (Mindmap_env.find kn !inductives)
+let unsafe_lookup_ind kn = snd (Mindmap_env.find kn !table.inductives)
 
-let inductive_kinds =
-  ref (Mindmap_env.empty : inductive_kind Mindmap_env.t)
-let init_inductive_kinds () = inductive_kinds := Mindmap_env.empty
 let add_inductive_kind kn k =
-    inductive_kinds := Mindmap_env.add kn k !inductive_kinds
+  table := { !table with inductive_kinds = Mindmap_env.add kn k !table.inductive_kinds }
+
 let is_coinductive r =
   let kn = let open GlobRef in match r with
     | ConstructRef ((kn,_),_) -> kn
     | IndRef (kn,_) -> kn
     | _ -> assert false
   in
-  try Mindmap_env.find kn !inductive_kinds == Coinductive
+  try Mindmap_env.find kn !table.inductive_kinds == Coinductive
   with Not_found -> false
 
 let is_coinductive_type = function
@@ -170,7 +200,7 @@ let get_record_fields r =
     | IndRef (kn,_) -> kn
     | _ -> assert false
   in
-  try match Mindmap_env.find kn !inductive_kinds with
+  try match Mindmap_env.find kn !table.inductive_kinds with
     | Record f -> f
     | _ -> []
   with Not_found -> []
@@ -178,14 +208,6 @@ let get_record_fields r =
 let record_fields_of_type = function
   | Tglob (r,_) -> get_record_fields r
   | _ -> []
-
-(*s Recursors table. *)
-
-(* NB: here we can use the equivalence between canonical
-   and user constant names. *)
-
-let recursors = ref KNset.empty
-let init_recursors () = recursors := KNset.empty
 
 let add_recursors env ind =
   let kn = MutInd.canonical ind in
@@ -198,40 +220,28 @@ let add_recursors env ind =
        let id = mip.mind_typename in
        let kn_rec = mk_kn (Nameops.add_suffix id "_rec")
        and kn_rect = mk_kn (Nameops.add_suffix id "_rect") in
-       recursors := KNset.add kn_rec (KNset.add kn_rect !recursors))
+       table := { !table with recursors = KNset.add kn_rec (KNset.add kn_rect !table.recursors) })
     mib.mind_packets
 
 let is_recursor = function
-  | GlobRef.ConstRef c -> KNset.mem (Constant.canonical c) !recursors
+  | GlobRef.ConstRef c -> KNset.mem (Constant.canonical c) !table.recursors
   | _ -> false
 
-(*s Record tables. *)
-
-(* NB: here, working modulo name equivalence is ok *)
-
-let projs = ref (GlobRef.Map.empty : (inductive*int) GlobRef.Map.t)
-let init_projs () = projs := GlobRef.Map.empty
-let add_projection n kn ip = projs := GlobRef.Map.add (GlobRef.ConstRef kn) (ip,n) !projs
-let is_projection r = GlobRef.Map.mem r !projs
-let projection_arity r = snd (GlobRef.Map.find r !projs)
-let projection_info r = GlobRef.Map.find r !projs
+let add_projection n kn ip = table := { !table with projs = GlobRef.Map.add (GlobRef.ConstRef kn) (ip,n) !table.projs }
+let is_projection r = GlobRef.Map.mem r !table.projs
+let projection_arity r = snd (GlobRef.Map.find r !table.projs)
+let projection_info r = GlobRef.Map.find r !table.projs
 
 (*s Table of used axioms *)
 
-let info_axioms = ref Refset'.empty
-let log_axioms = ref Refset'.empty
-let symbols = ref Refmap'.empty
-let init_axioms () = info_axioms := Refset'.empty; log_axioms := Refset'.empty; symbols := Refmap'.empty
-let add_info_axiom r = info_axioms := Refset'.add r !info_axioms
-let remove_info_axiom r = info_axioms := Refset'.remove r !info_axioms
-let add_log_axiom r = log_axioms := Refset'.add r !log_axioms
-let add_symbol r = symbols := Refmap'.update r (function Some l -> Some l | _ -> Some []) !symbols
-let add_symbol_rule r l = symbols := Refmap'.update r (function Some lst -> Some (l :: lst) | _ -> Some [l]) !symbols
+let add_info_axiom r = table := { !table with info_axioms = Refset'.add r !table.info_axioms }
+let remove_info_axiom r = table := { !table with info_axioms = Refset'.remove r !table.info_axioms }
+let add_log_axiom r = table := { !table with log_axioms = Refset'.add r !table.log_axioms }
+let add_symbol r = table := { !table with symbols = Refmap'.update r (function Some l -> Some l | _ -> Some []) !table.symbols }
+let add_symbol_rule r l = table := { !table with symbols = Refmap'.update r (function Some lst -> Some (l :: lst) | _ -> Some [l]) !table.symbols }
 
-let opaques = ref Refset'.empty
-let init_opaques () = opaques := Refset'.empty
-let add_opaque r = opaques := Refset'.add r !opaques
-let remove_opaque r = opaques := Refset'.remove r !opaques
+let add_opaque r = table := { !table with opaques = Refset'.add r !table.opaques }
+let remove_opaque r = table := { !table with opaques = Refset'.remove r !table.opaques }
 
 (*s Extraction modes: modular or monolithic, library or minimal ?
 
@@ -341,13 +351,13 @@ let warn_extraction_symbols =
       fnl ())
 
 let warning_axioms () =
-  let info_axioms = Refset'.elements !info_axioms in
+  let info_axioms = Refset'.elements !table.info_axioms in
   if not (List.is_empty info_axioms) then
     warn_extraction_axiom_to_realize info_axioms;
-  let log_axioms = Refset'.elements !log_axioms in
+  let log_axioms = Refset'.elements !table.log_axioms in
   if not (List.is_empty log_axioms) then
     warn_extraction_logical_axiom log_axioms;
-  let symbols = Refmap'.bindings !symbols in
+  let symbols = Refmap'.bindings !table.symbols in
   if not (List.is_empty symbols) then
     warn_extraction_symbols symbols
 
@@ -366,7 +376,7 @@ let warn_extraction_opaque_as_axiom =
          ++ fnl ())
 
 let warning_opaques accessed =
-  let opaques = Refset'.elements !opaques in
+  let opaques = Refset'.elements !table.opaques in
   if not (List.is_empty opaques) then
     let lst = hov 1 (spc () ++ prlist_with_sep spc safe_pr_global opaques) in
     if accessed then warn_extraction_opaque_accessed lst
@@ -814,26 +824,16 @@ let extraction_implicit r l =
   check_inside_section ();
   Lib.add_leaf (implicit_extraction (Smartlocate.global_with_alias r,l))
 
-
-(*s Extraction Blacklist of filenames not to use while extracting *)
-
-let blacklist_table = Summary.ref Id.Set.empty ~name:"ExtrBlacklist"
-
-let modfile_ids = ref Id.Set.empty
-let modfile_mps = ref MPmap.empty
-
-let reset_modfile () =
-  modfile_ids := !blacklist_table;
-  modfile_mps := MPmap.empty
-
 let string_of_modfile mp =
-  try MPmap.find mp !modfile_mps
+  try MPmap.find mp !table.modfile_mps
   with Not_found ->
     let id = Id.of_string (raw_string_of_modfile mp) in
-    let id' = next_ident_away id !modfile_ids in
+    let id' = next_ident_away id !table.modfile_ids in
     let s' = Id.to_string id' in
-    modfile_ids := Id.Set.add id' !modfile_ids;
-    modfile_mps := MPmap.add mp s' !modfile_mps;
+    table := { !table with
+      modfile_ids = Id.Set.add id' !table.modfile_ids;
+      modfile_mps = MPmap.add mp s' !table.modfile_mps;
+    };
     s'
 
 (* same as [string_of_modfile], but preserves the capital/uncapital 1st char *)
@@ -1014,12 +1014,3 @@ let extract_inductive r s l optstr =
              Lib.add_leaf (inline_extraction (true,[g]));
              Lib.add_leaf (in_customs (g,[],s))) l
     | _ -> error_inductive ?loc:r.CAst.loc g
-
-
-
-(*s Tables synchronization. *)
-
-let reset_tables () =
-  init_typedefs (); init_cst_types (); init_inductives ();
-  init_inductive_kinds (); init_recursors ();
-  init_projs (); init_axioms (); init_opaques (); reset_modfile ()
