@@ -107,7 +107,7 @@ VERBOSE?=
 
 # if VERBOSE we print the command instead
 # if QUIET we print nothing (except errors)
-SHOW0 := $(if $(VERBOSE) $(QUIET),true,echo)
+SHOW0 := $(if $(strip $(VERBOSE) $(QUIET)),true,echo)
 SHOW := @$(SHOW0)
 HIDE := $(if $(VERBOSE),,@)
 
