@@ -1559,11 +1559,11 @@ let manual_inline = function
    we are free to act (AutoInline is set)
    \end{itemize} *)
 
-let inline r t =
+let inline table r t =
   not (to_keep r) (* The user DOES want to keep it *)
   && not (is_inline_custom r)
   && (to_inline r (* The user DOES want to inline it *)
      || (lang () != Haskell &&
-         (is_projection r || is_recursor r ||
+         (is_projection table r || is_recursor table r ||
           manual_inline r || inline_test r t)))
 
