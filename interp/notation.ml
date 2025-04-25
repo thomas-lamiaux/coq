@@ -1999,11 +1999,11 @@ let discharge_available_scopes map =
       if List.is_empty ltop && List.is_empty lbot then None else Some (ltop, lbot)) map
 
 let discharge_arguments_scope (req,r,scs,_cls,available_scopes) =
-  if req == ArgsScopeNoDischarge || (isVarRef r && Lib.is_in_section r) then None
+  if req == ArgsScopeNoDischarge || (isVarRef r && Global.is_in_section r) then None
   else
     let n =
       try
-        Array.length (Lib.section_instance r)
+        Array.length (Global.section_instance r)
       with
         Not_found (* Not a ref defined in this section *) -> 0 in
     let available_scopes = discharge_available_scopes available_scopes in
@@ -2054,7 +2054,7 @@ let inArgumentsScope : arguments_scope_obj -> obj =
       discharge_function = discharge_arguments_scope;
       rebuild_function = rebuild_arguments_scope }
 
-let is_local local ref = local || isVarRef ref && Lib.is_in_section ref
+let is_local local ref = local || isVarRef ref && Global.is_in_section ref
 
 let declare_arguments_scope_gen req r (scl,cls) =
   Lib.add_leaf (inArgumentsScope (req,r,scl,cls,!scope_class_map))

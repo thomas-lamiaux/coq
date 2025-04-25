@@ -235,12 +235,12 @@ let discharge_coercion c =
   if c.coe_local then None
   else
     let n =
-      try Array.length (Lib.section_instance c.coe_value)
+      try Array.length (Global.section_instance c.coe_value)
       with Not_found -> 0
     in
     let nc = { c with
       coe_param = n + c.coe_param;
-      coe_is_projection = Option.map Lib.discharge_proj_repr c.coe_is_projection;
+      coe_is_projection = Option.map Global.discharge_proj_repr c.coe_is_projection;
     } in
     Some nc
 

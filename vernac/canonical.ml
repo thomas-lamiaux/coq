@@ -22,7 +22,7 @@ let cache_canonical_structure (o,_) =
 
 let discharge_canonical_structure (x, local) =
   let gref = Instance.repr x in
-  if local || (Globnames.isVarRef gref && Lib.is_in_section gref) then None
+  if local || (Globnames.isVarRef gref && Global.is_in_section gref) then None
   else Some (x, local)
 
 let canon_cat = create_category "canonicals"
