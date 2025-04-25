@@ -290,20 +290,12 @@ let inTypExt : typext -> obj =
 
 (** Toplevel entries *)
 
-let fresh_var avoid x =
-  let bad id =
-    Id.Set.mem id avoid ||
-    (try ignore (Tac2env.locate_ltac (qualid_of_ident id)); true with Not_found -> false)
-  in
-  Namegen.next_ident_away_from (Id.of_string x) bad
-
 let extract_pattern_type ({loc;v=p} as pat) = match p with
 | CPatCnv (pat, ty) -> pat, Some ty
 | CPatAtm _ | CPatVar _ | CPatRef _ | CPatOr _ | CPatAs _ | CPatRecord _ -> pat, None
 
 (** Mangle recursive tactics *)
 let inline_rec_tactic tactics =
-  let avoid = List.fold_left (fun accu ({v=id}, _) -> Id.Set.add id accu) Id.Set.empty tactics in
   let map (id, e) = match e.v with
   | CTacFun (pat, _) -> (id, List.map extract_pattern_type pat, e)
   | _ ->
@@ -311,25 +303,15 @@ let inline_rec_tactic tactics =
   in
   let tactics = List.map map tactics in
   let map (id, pat, e) =
-    let fold_var (avoid, ans) (pat, _) =
-      let id = fresh_var avoid "x" in
-      let loc = pat.loc in
-      (Id.Set.add id avoid, CAst.make ?loc id :: ans)
-    in
-    (* Fresh variables to abstract over the function patterns *)
-    let _, vars = List.fold_left fold_var (avoid, []) pat in
     let map_body ({loc;v=id}, _, e) = CAst.(make ?loc @@ CPatVar (Name id)), e in
     let bnd = List.map map_body tactics in
-    let pat_of_id {loc;v=id} = CAst.make ?loc @@ CPatVar (Name id) in
     let var_of_id {loc;v=id} =
       let qid = qualid_of_ident ?loc id in
       CAst.make ?loc @@ CTacRef (RelId qid)
     in
     let loc0 = e.loc in
-    let vpat = List.map pat_of_id vars in
-    let varg = List.map var_of_id vars in
-    let e = CAst.make ?loc:loc0 @@ CTacLet (true, bnd, CAst.make ?loc:loc0 @@ CTacApp (var_of_id id, varg)) in
-    (id, CAst.make ?loc:loc0 @@ CTacFun (vpat, e))
+    let e = CAst.make ?loc:loc0 @@ CTacLet (true, bnd, var_of_id id) in
+    (id, e)
   in
   List.map map tactics
 
