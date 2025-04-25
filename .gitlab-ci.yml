@@ -1063,6 +1063,9 @@ library:ci-jasmin:
   - library:ci-mathcomp_word
   - library:ci-mczify
   - library:ci-algebra_tactics
+  - library:ci-ext_lib
+  - library:ci-paco
+  - library:ci-itree
   stage: build-3+
 
 library:ci-http:
