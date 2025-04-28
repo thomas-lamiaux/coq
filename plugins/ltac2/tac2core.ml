@@ -1952,18 +1952,8 @@ let () =
 let add_syntax_class s f =
   Tac2entries.register_syntax_class (Id.of_string s) f
 
-let rec pr_syntax_class = let open CAst in function
-| SexprStr {v=s} -> qstring s
-| SexprInt {v=n} -> Pp.int n
-| SexprRec (_, {v=na}, args) ->
-  let na = match na with
-  | None -> str "_"
-  | Some id -> Id.print id
-  in
-  na ++ str "(" ++ prlist_with_sep (fun () -> str ", ") pr_syntax_class args ++ str ")"
-
 let syntax_class_fail s args =
-  let args = str "(" ++ prlist_with_sep (fun () -> str ", ") pr_syntax_class args ++ str ")" in
+  let args = str "(" ++ prlist_with_sep (fun () -> str ", ") Tac2print.pr_syntax_class args ++ str ")" in
   CErrors.user_err (str "Invalid arguments " ++ args ++ str " in syntactic class " ++ str s)
 
 let q_unit = CAst.make @@ CTacCst (AbsKn (Tuple 0))

@@ -830,6 +830,11 @@ type notation_interpretation_data =
 | Abbreviation of Id.t * Deprecation.t option * raw_tacexpr
 | Synext of bool * KerName.t * Id.Set.t * raw_tacexpr
 
+let pr_register_notation tkn lev body =
+  prlist_with_sep spc Tac2print.pr_syntax_class tkn ++
+  pr_opt (fun n -> str ": " ++ int n) lev ++ spc() ++
+  hov 2 (str ":= " ++ Tac2print.pr_rawexpr_gen E5 ~avoid:Id.Set.empty body)
+
 let register_notation atts tkn lev body =
   let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
   let local = Option.default false local in
