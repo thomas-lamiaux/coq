@@ -910,29 +910,24 @@ let branch_as_cst (l,_,c) =
    at what position, and then finally return the most frequent
    element and its positions. *)
 
-let census_add, census_max, census_clean =
-  let h = ref [] in
-  let clearf () = h := [] in
+let census_add h k i =
   let rec add k v = function
   | [] -> raise Not_found
   | (k', s) as p :: l ->
     if eq_ml_ast k k' then (k', Int.Set.add v s) :: l
     else p :: add k v l
   in
-  let addf k i =
-    try h := add k i !h
-    with Not_found -> h := (k, Int.Set.singleton i) :: !h
-  in
-  let maxf () =
-    let len = ref 0 and lst = ref Int.Set.empty and elm = ref (MLaxiom "should not appear") in
-    List.iter
-      (fun (e, s) ->
-         let n = Int.Set.cardinal s in
-         if n > !len then begin len := n; lst := s; elm := e end)
-      !h;
-    (!elm,!lst)
-  in
-  (addf,maxf,clearf)
+  try h := add k i !h
+  with Not_found -> h := (k, Int.Set.singleton i) :: !h
+
+let census_max h =
+  let len = ref 0 and lst = ref Int.Set.empty and elm = ref (MLaxiom "should not appear") in
+  List.iter
+    (fun (e, s) ->
+        let n = Int.Set.cardinal s in
+        if n > !len then begin len := n; lst := s; elm := e end)
+    !h;
+  (!elm,!lst)
 
 (* [factor_branches] return the longest possible list of branches
    that have the same factorization, either as a function or as a
@@ -946,15 +941,14 @@ let is_opt_pat (_,p,_) = match p with
 let factor_branches o typ br =
   if Array.exists is_opt_pat br then None (* already optimized *)
   else begin
-    census_clean ();
+    let h = ref [] in
     for i = 0 to Array.length br - 1 do
       if o.opt_case_idr then
-        (try census_add (branch_as_fun typ br.(i)) i with Impossible -> ());
+        (try census_add h (branch_as_fun typ br.(i)) i with Impossible -> ());
       if o.opt_case_cst then
-        (try census_add (branch_as_cst br.(i)) i with Impossible -> ());
+        (try census_add h (branch_as_cst br.(i)) i with Impossible -> ());
     done;
-    let br_factor, br_set = census_max () in
-    census_clean ();
+    let br_factor, br_set = census_max h in
     let n = Int.Set.cardinal br_set in
     if Int.equal n 0 then None
     else if Array.length br >= 2 && n < 2 then None
@@ -1568,11 +1562,11 @@ let manual_inline = function
    we are free to act (AutoInline is set)
    \end{itemize} *)
 
-let inline r t =
+let inline table r t =
   not (to_keep r) (* The user DOES want to keep it *)
   && not (is_inline_custom r)
   && (to_inline r (* The user DOES want to inline it *)
      || (lang () != Haskell &&
-         (is_projection r || is_recursor r ||
+         (is_projection table r || is_recursor table r ||
           manual_inline r || inline_test r t)))
 
