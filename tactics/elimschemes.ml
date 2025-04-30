@@ -27,7 +27,7 @@ let build_induction_scheme_in_type env dep sort ind =
   let sigma = Evd.from_env env in
   let sigma, pind = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma ind in
   let pind = Util.on_snd EConstr.EInstance.make pind in
-  let sigma, sort = Evd.fresh_sort_quality ~rigid:UnivRigid sigma sort in
+  let sigma, sort = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma sort in
   let sigma, c = build_induction_scheme env sigma pind dep sort in
   EConstr.to_constr sigma c, Evd.ustate sigma
 
@@ -96,7 +96,7 @@ let optimize_non_type_induction_scheme kind dep sort env _handle ind =
         mib.mind_nparams in
     (* here, if [sort] is [Type] then it means that it's actually a [Set]:
        we optimise non-[Type] schemes *)
-    let sigma, sort = Evd.fresh_sort_quality sigma sort in
+    let sigma, sort = Evd.fresh_sort_in_quality sigma sort in
     let sigma, t', c' = weaken_sort_scheme env sigma sort npars c t in
     let sigma = Evd.minimize_universes sigma in
     (Evarutil.nf_evars_universes sigma c', Evd.ustate sigma)
@@ -156,7 +156,7 @@ let build_case_analysis_scheme_in_type env dep sort ind =
   let sigma = Evd.from_env env in
   let (sigma, indu) = Evd.fresh_inductive_instance env sigma ind in
   let indu = Util.on_snd EConstr.EInstance.make indu in
-  let sigma, sort = Evd.fresh_sort_quality ~rigid:UnivRigid sigma sort in
+  let sigma, sort = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma sort in
   let (sigma, c) = build_case_analysis_scheme env sigma indu dep sort in
   let (c, _) = Indrec.eval_case_analysis c in
   EConstr.Unsafe.to_constr c, Evd.ustate sigma

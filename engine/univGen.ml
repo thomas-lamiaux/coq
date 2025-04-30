@@ -195,7 +195,7 @@ let constr_of_monomorphic_global env gr =
       Pp.(str "globalization of polymorphic reference " ++ Nametab.pr_global_env Id.Set.empty gr ++
           str " would forget universes.")
 
-let fresh_sort_quality =
+let fresh_sort_in_quality =
   let open QualityOrSet in
   function
   | Qual (QConstant QSProp) -> Sorts.sprop, empty_sort_context

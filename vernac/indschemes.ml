@@ -389,7 +389,7 @@ let do_mutual_induction_scheme ?(force_mutual=false) env ?(isrec=true) l =
   in
   let sigma, lrecspec =
     List.fold_left_map (fun sigma (_,dep,ind,sort) ->
-        let sigma, sort = Evd.fresh_sort_quality ~rigid:UnivRigid sigma sort in
+        let sigma, sort = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma sort in
         (sigma, ((ind,inst),dep,sort)))
       sigma
       l

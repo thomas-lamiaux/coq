@@ -412,7 +412,7 @@ let build_l2r_rew_scheme dep env handle ind kind =
                      rel_vect (nrealargs+4) nrealargs;
                      rel_vect 1 nrealargs;
                      [|mkRel 1|]]) in
-  let s, ctx' = UnivGen.fresh_sort_quality kind in
+  let s, ctx' = UnivGen.fresh_sort_in_quality kind in
   let ctx = UnivGen.sort_context_union ctx ctx' in
   let s = mkSort s in
   let rci = Sorts.Relevant in (* TODO relevance *)
@@ -520,7 +520,7 @@ let build_l2r_forward_rew_scheme dep env ind kind =
     name_context env ((LocalAssum (make_annot (Name varH) indr,applied_ind))::realsign) in
   let realsign_ind_P n aP =
     name_context env ((LocalAssum (make_annot (Name varH) indr,aP))::realsign_P n) in
-  let s, ctx' = UnivGen.fresh_sort_quality kind in
+  let s, ctx' = UnivGen.fresh_sort_in_quality kind in
   let ctx = UnivGen.sort_context_union ctx ctx' in
   let s = mkSort s in
   let rci = Sorts.Relevant in
@@ -602,7 +602,7 @@ let build_r2l_forward_rew_scheme dep env ind kind =
   let applied_ind = build_dependent_inductive indu specif in
   let realsign_ind =
     name_context env ((LocalAssum (make_annot (Name varH) indr,applied_ind))::realsign) in
-  let s, ctx' = UnivGen.fresh_sort_quality kind in
+  let s, ctx' = UnivGen.fresh_sort_in_quality kind in
   let ctx = UnivGen.sort_context_union ctx ctx' in
   let s = mkSort s in
   let rci = Sorts.Relevant in (* TODO relevance *)
@@ -693,7 +693,7 @@ let build_r2l_rew_scheme dep env ind k =
   let sigma = Evd.from_env env in
   let (sigma, indu) = Evd.fresh_inductive_instance env sigma ind in
   let indu = on_snd EConstr.EInstance.make indu in
-  let sigma, k = Evd.fresh_sort_quality ~rigid:UnivRigid sigma k in
+  let sigma, k = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma k in
   let (sigma, c) = build_case_analysis_scheme env sigma indu dep k in
   let (c, _) = Indrec.eval_case_analysis c in
   EConstr.Unsafe.to_constr c, Evd.ustate sigma
