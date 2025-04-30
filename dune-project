@@ -147,20 +147,6 @@ This package provides the RocqIDE, a graphical user interface for the
 development of interactive proofs."))
 
 (package
- (name rocq-doc)
- (license "OPUBL-1.0")
- (depends
-  (conf-python-3 :build)
-  (coq (and :build (= :version))))
- (synopsis "The Rocq Prover --- Reference Manual")
- (description "The Rocq Prover is an interactive theorem prover, or proof assistant. It provides
-a formal language to write mathematical definitions, executable
-algorithms and theorems together with an environment for
-semi-interactive development of machine-checked proofs.
-
-This package provides the Rocq Reference Manual."))
-
-(package
  (name rocq-test-suite)
  (depends
   (rocq-core (= :version))
