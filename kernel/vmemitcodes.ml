@@ -210,9 +210,6 @@ let compress_code src sz =
 let decompress_code src =
   let sz = String.length src in
   let buf = Buffer.create (sz * 4) in
-  (* TODO: remove the following two lines once the minimal version of OCaml is 4.13 *)
-  let module String = Bytes in
-  let src = String.unsafe_of_string src in
   let i = ref 0 in
   while !i < sz do
     let c01, c23 =

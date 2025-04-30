@@ -359,14 +359,10 @@ let db_string_of_pp pp =
   Format.asprintf "%a" db_print_pp pp
 
 let has_format_special s =
-  (* String.exists needs ocaml 4.13 *)
-  let rec aux i =
-    if i = String.length s then false
-    else match String.unsafe_get s i with
+  String.exists (function
       | '@' | '%' | '\\' | '"' -> true
-      | _ -> aux (i+1)
-  in
-  aux 0
+      | _ -> false)
+    s
 
 let pp_as_format ?(with_tags=false) pp =
   let open Format in
