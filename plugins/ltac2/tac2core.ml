@@ -172,7 +172,7 @@ let err_division_by_zero =
 
 (** Helper functions *)
 
-let thaw f = Tac2val.apply f [v_unit]
+let thaw f : _ Proofview.tactic = f ()
 
 let fatal_flag : unit Exninfo.t = Exninfo.make "fatal_flag"
 
@@ -747,7 +747,7 @@ let () = define "constr_cast_vm" (ret valexpr) (of_cast VMcast)
 let () = define "constr_cast_native" (ret valexpr) (of_cast NATIVEcast)
 
 let () =
-  define "constr_in_context" (ident @-> constr @-> closure @-> tac constr) @@ fun id t c ->
+  define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) @@ fun id t c ->
   Proofview.Goal.goals >>= function
   | [gl] ->
     gl >>= fun gl ->
@@ -1007,31 +1007,26 @@ let () =
 
 (** (unit -> 'a) -> (exn -> 'a) -> 'a *)
 let () =
-  define "plus" (closure @-> closure @-> tac valexpr) @@ fun x k ->
-  Proofview.tclOR (thaw x) (fun e -> Tac2val.apply k [Tac2ffi.of_exn e])
+  define "plus" (thunk valexpr @-> fun1 exn valexpr @-> tac valexpr) @@ fun x k ->
+  Proofview.tclOR (thaw x) k
 
 let () =
-  define "plus_bt" (closure @-> closure @-> tac valexpr) @@ fun run handle ->
-    Proofview.tclOR (thaw run)
-      (fun e -> Tac2val.apply handle [Tac2ffi.of_exn e; of_exninfo (snd e)])
+  define "plus_bt" (thunk valexpr @-> fun2 exn exninfo valexpr @-> tac valexpr) @@ fun run handle ->
+    Proofview.tclOR (thaw run) (fun e -> handle e (snd e))
 
 (** (unit -> 'a) -> 'a *)
 let () =
-  define "once" (closure @-> tac valexpr) @@ fun f ->
+  define "once" (thunk valexpr @-> tac valexpr) @@ fun f ->
   Proofview.tclONCE (thaw f)
 
 (** (unit -> 'a) -> ('a * ('exn -> 'a)) result *)
 let () =
-  define "case" (closure @-> tac valexpr) @@ fun f ->
+  define "case" (thunk valexpr @-> tac (result (pair valexpr (fun1 exn valexpr)))) @@ fun f ->
   Proofview.tclCASE (thaw f) >>= begin function
   | Proofview.Next (x, k) ->
-    let k = Tac2val.mk_closure arity_one begin fun e ->
-      let (e, info) = Tac2ffi.to_exn e in
-      set_bt info >>= fun info ->
-      k (e, info)
-    end in
-    return (v_blk 0 [| Tac2ffi.of_tuple [| x; Tac2ffi.of_closure k |] |])
-  | Proofview.Fail e -> return (v_blk 1 [| Tac2ffi.of_exn e |])
+    let k (e,info) = set_bt info >>= fun info -> k (e,info) in
+    return (Ok (x, k))
+  | Proofview.Fail e -> return (Error e)
   end
 
 let () =
@@ -1040,27 +1035,27 @@ let () =
 
 (** (unit -> unit) list -> unit *)
 let () =
-  define "dispatch" (list closure @-> tac unit) @@ fun l ->
-  let l = List.map (fun f -> Proofview.tclIGNORE (thaw f)) l in
+  define "dispatch" (list (thunk unit) @-> tac unit) @@ fun l ->
+  let l = List.map (fun f -> thaw f) l in
   Proofview.tclDISPATCH l
 
 (** (unit -> unit) list -> (unit -> unit) -> (unit -> unit) list -> unit *)
 let () =
-  define "extend" (list closure @-> closure @-> list closure @-> tac unit) @@ fun lft tac rgt ->
-  let lft = List.map (fun f -> Proofview.tclIGNORE (thaw f)) lft in
-  let tac = Proofview.tclIGNORE (thaw tac) in
-  let rgt = List.map (fun f -> Proofview.tclIGNORE (thaw f)) rgt in
+  define "extend" (list (thunk unit) @-> thunk unit @-> list (thunk unit) @-> tac unit) @@ fun lft tac rgt ->
+  let lft = List.map (fun f -> thaw f) lft in
+  let tac = thaw tac in
+  let rgt = List.map (fun f -> thaw f) rgt in
   Proofview.tclEXTEND lft tac rgt
 
 (** (unit -> unit) -> unit *)
 let () =
-  define "enter" (closure @-> tac unit) @@ fun f ->
+  define "enter" (thunk unit @-> tac unit) @@ fun f ->
   let f = Proofview.tclIGNORE (thaw f) in
   Proofview.tclINDEPENDENT f
 
 (** int -> int -> (unit -> 'a) -> 'a *)
 let () =
-  define "focus" (int @-> int @-> closure @-> tac valexpr) @@ fun i j tac ->
+  define "focus" (int @-> int @-> thunk valexpr @-> tac valexpr) @@ fun i j tac ->
   Proofview.tclFOCUS i j (thaw tac)
 
 (** int -> unit **)
@@ -1088,7 +1083,7 @@ let () =
   else throw err_notfound
 
 let () =
-  define "unshelve" (closure @-> tac valexpr) @@ fun t ->
+  define "unshelve" (thunk valexpr @-> tac valexpr) @@ fun t ->
   Proofview.with_shelf (thaw t) >>= fun (gls,v) ->
   let gls = List.map Proofview.with_empty_state gls in
   Proofview.Unsafe.tclGETGOALS >>= fun ogls ->
@@ -1146,33 +1141,33 @@ let () =
 
 (** (unit -> constr) -> unit *)
 let () =
-  define "refine" (closure @-> tac unit) @@ fun c ->
-  let c = thaw c >>= fun c -> Proofview.tclUNIT ((), Tac2ffi.to_constr c, None) in
+  define "refine" (thunk constr @-> tac unit) @@ fun c ->
+  let c = thaw c >>= fun c -> Proofview.tclUNIT ((), c, None) in
   Proofview.Goal.enter @@ fun gl ->
   Refine.generic_refine ~typecheck:true c gl
 
 let () =
-  define "with_holes" (closure @-> closure @-> tac valexpr) @@ fun x f ->
-  Tacticals.tclRUNWITHHOLES false (thaw x) (fun ans -> Tac2val.apply f [ans])
+  define "with_holes" (thunk valexpr @-> fun1 valexpr valexpr @-> tac valexpr) @@ fun x f ->
+  Tacticals.tclRUNWITHHOLES false (thaw x) f
 
 let () =
-  define "progress" (closure @-> tac valexpr) @@ fun f ->
+  define "progress" (thunk valexpr @-> tac valexpr) @@ fun f ->
   Proofview.tclPROGRESS (thaw f)
 
 let () =
-  define "abstract" (option ident @-> closure @-> tac unit) @@ fun id f ->
-  Abstract.tclABSTRACT id (Proofview.tclIGNORE (thaw f))
+  define "abstract" (option ident @-> thunk unit @-> tac unit) @@ fun id f ->
+  Abstract.tclABSTRACT id (thaw f)
 
 let () =
-  define "time" (option string @-> closure @-> tac valexpr) @@ fun s f ->
+  define "time" (option string @-> thunk valexpr @-> tac valexpr) @@ fun s f ->
   Proofview.tclTIME s (thaw f)
 
 let () =
-  define "timeout" (int @-> closure @-> tac valexpr) @@ fun i f ->
+  define "timeout" (int @-> thunk valexpr @-> tac valexpr) @@ fun i f ->
     Proofview.tclTIMEOUT i (thaw f)
 
 let () =
-  define "timeoutf" (float @-> closure @-> tac valexpr) @@ fun f64 f ->
+  define "timeoutf" (float @-> thunk valexpr @-> tac valexpr) @@ fun f64 f ->
     Proofview.tclTIMEOUTF (Float64.to_float f64) (thaw f)
 
 let () =
