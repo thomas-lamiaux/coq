@@ -446,12 +446,12 @@ let tclFOCUSSELECTORLIST ?(nosuchgoal=tclZERO (NoSuchGoals 0)) l t =
   try
     let (ranges, shelved_evars) =
       CList.partition_map (function
-          | NthSelector n -> Inl (n, n)
-          | RangeSelector r -> Inl r
+          | NthSelector n -> Left (n, n)
+          | RangeSelector r -> Left r
           | IdSelector id ->
              match find_evar_in_pv id initial with
-             | ev, Some n -> Inl (n, n) (* goal is focused with index n *)
-             | ev, None -> Inr ev (* goal is shelved *)) l in
+             | ev, Some n -> Left (n, n) (* goal is focused with index n *)
+             | ev, None -> Right ev (* goal is shelved *)) l in
     match CList.is_empty ranges, CList.is_empty shelved_evars with
     | true, true -> nosuchgoal
     | true, false -> tclFOCUSSHELF ~nosuchgoal shelved_evars t
