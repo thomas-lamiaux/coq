@@ -276,9 +276,9 @@ let params_ren_add, params_ren_mem =
 
 type visible_layer = { mp : ModPath.t;
                        params : ModPath.t list;
-                       mutable content : Label.t KMap.t; }
+                       content : Label.t KMap.t; }
 
-let pop_visible, push_visible, get_visible =
+let pop_visible, push_visible, add_visible, get_visible =
   let vis = ref [] in
   register_cleanup (fun () -> vis := []);
   let pop () =
@@ -292,14 +292,14 @@ let pop_visible, push_visible, get_visible =
   and push mp mps =
     vis := { mp = mp; params = mps; content = KMap.empty } :: !vis
   and get () = !vis
-  in (pop,push,get)
+  and add ks l = match !vis with
+  | [] -> assert false
+  | v :: r -> vis := { v with content = KMap.add ks l v.content } :: r
+  in (pop,push,add,get)
 
 let get_visible_mps () = List.map (function v -> v.mp) (get_visible ())
 let top_visible () = match get_visible () with [] -> assert false | v::_ -> v
 let top_visible_mp () = (top_visible ()).mp
-let add_visible ks l =
-  let visible = top_visible () in
-  visible.content <- KMap.add ks l visible.content
 
 (* table of local module wrappers used to provide non-ambiguous names *)
 
