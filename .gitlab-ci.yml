@@ -1055,7 +1055,7 @@ library:ci-mathcomp_word:
   - library:ci-mathcomp
   stage: build-2
 
-library:ci-jasmin:
+.library:ci-jasmin:  # disabled until repaired
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
