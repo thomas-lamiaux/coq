@@ -689,14 +689,6 @@ let deprecated_ltac2_notation =
     ~warning_name_if_no_since:"deprecated-ltac2-notation"
     (fun (toks : sexpr list) -> pr_sequence ParseToken.print_token toks)
 
-(* This is a hack to preserve the level 4 entry which is initially empty. The
-   grammar engine has the great idea to silently delete empty levels on rule
-   removal, so we have to work around this using the Procq API.
-   FIXME: we should really keep those levels around instead. *)
-let get_reinit = function
-| 4 -> Some (Gramlib.Gramext.LeftA, Gramlib.Gramext.After "5")
-| _ -> None
-
 let perform_notation syn st =
   let tok = List.rev_map ParseToken.parse_token syn.synext_tok in
   let KRule (rule, act) = get_rule tok in
@@ -714,11 +706,7 @@ let perform_notation syn st =
   let rule = Procq.Production.make rule (act mk) in
   let pos = Some (string_of_int syn.synext_lev) in
   let rule = Procq.Reuse (pos, [rule]) in
-  match get_reinit syn.synext_lev with
-  | None ->
-    ([Procq.ExtendRule (Pltac.ltac2_expr, rule)], st)
-  | Some reinit ->
-    ([Procq.ExtendRuleReinit (Pltac.ltac2_expr, reinit, rule)], st)
+  [Procq.ExtendRule (Pltac.ltac2_expr, rule)], st
 
 let ltac2_notation =
   Procq.create_grammar_command "ltac2-notation" { gext_fun = perform_notation; gext_eq = (==) (* FIXME *) }
