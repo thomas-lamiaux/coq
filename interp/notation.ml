@@ -424,7 +424,7 @@ type 'target conversion_kind = 'target * option_kind
    [ToPostCheck r] behaves as [ToPostCopy] except in the reverse
    translation which fails if the copied term is not [r].
    When [n] is null, no translation is performed. *)
-type to_post_arg = ToPostCopy | ToPostAs of int | ToPostHole | ToPostCheck of Constr.t
+type to_post_arg = ToPostCopy | ToPostAs of int | ToPostHole of Id.t | ToPostCheck of Constr.t
 type ('target, 'warning) prim_token_notation_obj =
   { to_kind : 'target conversion_kind;
     to_ty : GlobRef.t;
@@ -578,7 +578,7 @@ let rec constr_of_glob to_post post env sigma g = match DAst.get g with
          (* [g] is not a GApp so check that [post]
             does not expect any actual argument
             (i.e., [a] contains only ToPostHole since they mean "ignore arg") *)
-         if List.exists ((<>) ToPostHole) a then raise NotAValidPrimToken;
+         if List.exists (function ToPostHole _ -> false | _ -> true) a then raise NotAValidPrimToken;
          constr_of_globref env sigma r
       end
   | Glob_term.GApp (gc, gcl) ->
@@ -606,7 +606,7 @@ let rec constr_of_glob to_post post env sigma g = match DAst.get g with
               let sigma,c = constr_of_glob to_post to_post.(i) env sigma gc in
               let sigma,cl = aux sigma a gcl in
               sigma, c :: cl
-           | ToPostHole :: post, _ :: gcl -> aux sigma post gcl
+           | ToPostHole _ :: post, _ :: gcl -> aux sigma post gcl
            | [], _ :: _ | _ :: _, [] -> raise NotAValidPrimToken
          in
          let sigma,cl = aux sigma a gcl in
@@ -707,8 +707,8 @@ let rec postprocess env token_kind ?loc ty to_post post g =
   match o with None -> g | Some (_, r, a) ->
   let rec f n a gl = match a, gl with
     | [], [] -> []
-    | ToPostHole :: a, gl ->
-       let e = GImplicitArg (r, (n, None), true) in
+    | ToPostHole id :: a, gl ->
+       let e = GImplicitArg (r, (n, Some id), true) in
        let h = DAst.make ?loc (Glob_term.GHole e) in
        h :: f (n+1) a gl
     | (ToPostCopy | ToPostCheck _) :: a, g :: gl -> g :: f (n+1) a gl

@@ -357,7 +357,7 @@ let elaborate_to_post_via env sigma ty_name ty_ind l =
   (* Finally elaborate [to_post] *)
   let to_post =
     let rec map_prod impls tindc = match impls with
-      | Some _ :: impls -> ToPostHole :: map_prod impls tindc
+      | (Some _ as i) :: impls -> ToPostHole (Impargs.name_of_implicit i) :: map_prod impls tindc
       | _ ->
          match tindc with
          | [] -> []
