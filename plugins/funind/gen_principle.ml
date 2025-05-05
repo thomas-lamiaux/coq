@@ -249,7 +249,7 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
     new_princ_name funs i proof_tac =
   try
     let f = funs.(i) in
-    let sigma, type_sort = Evd.fresh_sort_quality !evd UnivGen.QualityOrSet.qtype in
+    let sigma, type_sort = Evd.fresh_sort_in_quality !evd UnivGen.QualityOrSet.qtype in
     evd := sigma;
     let new_sorts =
       match sorts with
@@ -269,7 +269,7 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
         (*     let id_of_f = Label.to_id (con_label f) in *)
         let register_with_sort sort =
           let evd' = Evd.from_env (Global.env ()) in
-          let evd', s = Evd.fresh_sort_quality evd' sort in
+          let evd', s = Evd.fresh_sort_in_quality evd' sort in
           let name =
             Indrec.make_elimination_ident base_new_princ_name sort
           in
@@ -1316,7 +1316,7 @@ let make_scheme evd (fas : (Constr.pconstant * UnivGen.QualityOrSet.t) list) : _
   let sorts =
     List.rev_map
       (fun (_, x) ->
-        let sigma, fs = Evd.fresh_sort_quality !evd x in
+        let sigma, fs = Evd.fresh_sort_in_quality !evd x in
         evd := sigma;
         fs)
       fas
@@ -1527,7 +1527,7 @@ let derive_correctness (funs : Constr.pconstant list) (graphs : inductive list)
       let mib, _mip = Inductive.lookup_mind_specif env graph_ind in
       let sigma, scheme =
         let sigma, inds = CArray.fold_left_map_i (fun i sigma _ ->
-            let sigma, s = Evd.fresh_sort_quality ~rigid:UnivRigid sigma UnivGen.QualityOrSet.qtype in
+            let sigma, s = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma UnivGen.QualityOrSet.qtype in
             sigma, (((kn, i), u), true, s))
             !evd
             mib.mind_packets
@@ -2214,7 +2214,7 @@ let build_case_scheme fa =
   in
   let scheme, scheme_type = Indrec.eval_case_analysis scheme in
   let sorts = (fun (_, _, x) ->
-      EConstr.ESorts.make @@ fst @@ UnivGen.fresh_sort_quality x) fa in
+      EConstr.ESorts.make @@ fst @@ UnivGen.fresh_sort_in_quality x) fa in
   let princ_name = (fun (x, _, _) -> x) fa in
   let (_ : unit) =
     (* Pp.msgnl (str "Generating " ++ Ppconstr.pr_id princ_name ++str " with " ++

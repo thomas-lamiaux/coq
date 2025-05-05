@@ -55,8 +55,9 @@ exception UniverseLengthMismatch of univ_length_mismatch
 (** Side-effecting functions creating new universe levels. *)
 
 val new_univ_global : unit -> UGlobal.t
-val new_sort_global : unit -> Sorts.QVar.t
+val new_sort_global : Id.t -> Sorts.QGlobal.t
 val fresh_level : unit -> Level.t
+val fresh_sort_quality : unit -> Sorts.QVar.t
 
 val new_global_univ : unit -> Universe.t in_universe_context_set
 
@@ -81,7 +82,7 @@ val fresh_instance : AbstractContext.t -> Instance.t in_sort_context_set
 val fresh_instance_from : ?loc:Loc.t -> AbstractContext.t -> (GlobRef.t * Instance.t) option ->
   Instance.t in_sort_context_set
 
-val fresh_sort_quality : QualityOrSet.t -> Sorts.t in_sort_context_set
+val fresh_sort_in_quality : QualityOrSet.t -> Sorts.t in_sort_context_set
 (** NB: QSort is treated as QType *)
 
 val fresh_constant_instance : env -> Constant.t ->
