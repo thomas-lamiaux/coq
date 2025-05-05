@@ -708,7 +708,7 @@ let rec postprocess env token_kind ?loc ty to_post post g =
   let rec f n a gl = match a, gl with
     | [], [] -> []
     | ToPostHole id :: a, gl ->
-       let e = GImplicitArg (r, (n, Some id), true) in
+       let e = GImplicitArg (r, (n, id), true) in
        let h = DAst.make ?loc (Glob_term.GHole e) in
        h :: f (n+1) a gl
     | (ToPostCopy | ToPostCheck _) :: a, g :: gl -> g :: f (n+1) a gl

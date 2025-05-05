@@ -2087,8 +2087,7 @@ let intern_ind_pattern genv ntnvars env pat =
 (**********************************************************************)
 (* Utilities for application                                          *)
 
-let get_implicit_name n imps =
-  Some (Impargs.name_of_implicit (List.nth imps (n-1)))
+let get_implicit_name n imps = Impargs.name_of_implicit (List.nth imps (n-1))
 
 let set_hole_implicit i na imp r =
   let loc, r = match r with
