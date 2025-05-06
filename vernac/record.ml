@@ -725,25 +725,25 @@ module Ast = struct
     { name : Names.lident
     ; is_coercion : coercion_flag
     ; binders: local_binder_expr list
-    ; cfs : (local_decl_expr * record_field_attr) list
+    ; cfs : (local_decl_expr * Data.projection_flags * notation_declaration list) list
     ; idbuild : lident
     ; sort : constr_expr option
     ; default_inhabitant_id : Id.t option
     }
 
   let to_datai { name; idbuild; cfs; sort; default_inhabitant_id; } =
-    let fs = List.map fst cfs in
+    let fs = List.map pi1 cfs in
     { DataI.name = name
     ; constructor_name = idbuild.CAst.v
     ; arity = sort
-    ; nots = List.map (fun (_, { rf_notation }) -> List.map Metasyntax.prepare_where_notation rf_notation) cfs
+    ; nots = List.map (fun (_, _, rf_notation) -> List.map Metasyntax.prepare_where_notation rf_notation) cfs
     ; fs
     ; default_inhabitant_id
     }
 end
 
 let check_unique_names ~def records =
-  let extract_name acc (rf_decl, _) = match rf_decl with
+  let extract_name acc (rf_decl, _, _) = match rf_decl with
       Vernacexpr.AssumExpr({CAst.v=Name id},_,_) -> id::acc
     | Vernacexpr.DefExpr ({CAst.v=Name id},_,_,_) -> id::acc
     | _ -> acc in
@@ -770,57 +770,10 @@ let kind_class =
   function Class true -> DefClass | Class false -> RecordClass
   | Inductive_kw | CoInductive | Variant | Record | Structure -> NotClass
 
-let check_proj_flags rf =
-  let open Vernacexpr in
-  let () = match rf.rf_coercion, rf.rf_instance with
-    | NoCoercion, NoInstance ->
-      if rf.rf_locality <> Goptions.OptDefault then
-        Attributes.(unsupported_attributes
-                      [CAst.make ("locality (without :> or ::)",VernacFlagEmpty)])
-    | AddCoercion, NoInstance ->
-      if rf.rf_locality = Goptions.OptExport then
-        Attributes.(unsupported_attributes
-                      [CAst.make ("export (without ::)",VernacFlagEmpty)])
-    | _ -> ()
-  in
-  let pf_coercion =
-    match rf.rf_coercion with
-    | AddCoercion ->
-      Some {
-        Data.coe_local = rf.rf_locality = OptLocal;
-        coe_reversible = Option.default true rf.rf_reversible;
-      }
-    | NoCoercion ->
-       if rf.rf_reversible <> None then
-         Attributes.(unsupported_attributes
-           [CAst.make ("reversible (without :>)",VernacFlagEmpty)]);
-       None
-  in
-  let pf_instance =
-    match rf.rf_instance with
-    | NoInstance ->
-      let () = if Option.has_some rf.rf_priority then
-          CErrors.user_err Pp.(str "Priority not allowed without \"::\".")
-      in
-      None
-    | BackInstance ->
-      let local =
-        match rf.rf_locality with
-        | Goptions.OptLocal -> Hints.Local
-        | Goptions.(OptDefault | OptExport) -> Hints.Export
-        | Goptions.OptGlobal -> Hints.SuperGlobal
-      in
-      Some {
-        Data.inst_locality = local;
-        inst_priority = rf.rf_priority;
-      }
-  in
-  Data.{ pf_coercion; pf_instance; pf_canonical = rf.rf_canonical }
-
 let extract_record_data records =
   let data = List.map Ast.to_datai records in
   let decl_data = List.map (fun { Ast.is_coercion; cfs } ->
-      let proj_flags = List.map (fun (_,rf) -> check_proj_flags rf) cfs in
+      let proj_flags = List.map (fun (_,rf,_) -> rf) cfs in
       { Data.is_coercion; proj_flags })
       records
   in

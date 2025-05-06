@@ -38,7 +38,7 @@ module Ast : sig
     { name : Names.lident
     ; is_coercion : coercion_flag
     ; binders: local_binder_expr list
-    ; cfs : (local_decl_expr * record_field_attr) list
+    ; cfs : (local_decl_expr * Data.projection_flags * notation_declaration list) list
     ; idbuild : lident
     ; sort : constr_expr option
     ; default_inhabitant_id : Id.t option
