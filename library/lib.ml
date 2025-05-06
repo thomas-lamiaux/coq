@@ -671,16 +671,3 @@ let init () =
   Interp.init ();
   Summary.Synterp.init_summaries ();
   Summary.Interp.init_summaries ()
-
-(** Deprecated *)
-let section_segment_of_constant = Global.section_segment_of_constant
-
-let section_segment_of_inductive = Global.section_segment_of_inductive
-
-let section_segment_of_reference = Global.section_segment_of_reference
-
-let section_instance = Global.section_instance
-
-let is_in_section = Global.is_in_section
-
-let discharge_proj_repr = Global.discharge_proj_repr
