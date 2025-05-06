@@ -170,7 +170,7 @@ let end_compilation_checks dir =
           if not (Names.DirPath.equal m dir) then
             CErrors.anomaly Pp.(str "The current open module has name"
               ++ spc () ++ DirPath.print m ++ spc () ++ str "and not"
-              ++ spc () ++ DirPath.print m ++ str ".");
+              ++ spc () ++ DirPath.print dir ++ str ".");
   in
   ()
 
