@@ -54,7 +54,7 @@ let print_coercions = ref false
 
 (* This forces printing of parentheses even when
    it is implied by associativity/precedence *)
-let print_parentheses = Notation_ops.print_parentheses
+let print_parentheses = ref false
 
 (* This forces printing universe names of Type{.} *)
 let print_universes = Detyping.print_universes
@@ -83,7 +83,7 @@ let is_reserved_type na t =
   | Name id ->
     try
       let pat = Reserve.find_reserved_type id in
-      let _ = match_notation_constr ~print_univ:false t ~vars:Id.Set.empty ([],pat) in
+      let _ = match_notation_constr ~print_parentheses:true ~print_univ:false t ~vars:Id.Set.empty ([],pat) in
       true
     with Not_found | No_match -> false
 
@@ -1339,7 +1339,9 @@ and extern_notation depth inctx ((custom,(lev_after: int option)),scopes as alls
         (* Try matching ... *)
         let vars, uvars = vars in
         let terms,termlists,binders,binderlists =
-          match_notation_constr ~print_univ:(!print_universes) t ~vars pat in
+          match_notation_constr ~print_parentheses:!print_parentheses ~print_univ:(!print_universes)
+            t ~vars pat
+        in
         let lev_after = if List.is_empty args then lev_after else Some Notation.app_level in
         (* Try externing extra args... *)
         let extra_args =
