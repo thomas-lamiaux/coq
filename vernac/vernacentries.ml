@@ -1961,20 +1961,24 @@ let () =
       optwrite = (fun b -> Constrextern.print_universes:=b) }
 
 let () =
-  declare_bool_option
+  (* no summary: handled as part of the debug state *)
+  declare_option ~no_summary:true ~kind:BoolKind
     { optstage = Summary.Stage.Interp;
-      optdepr  = None;
+      optdepr  = Some (Deprecation.make ~since:"9.1" ~note:"Set Debug \"vmbytecode\" instead." ());
       optkey   = ["Dump";"Bytecode"];
-      optread  = (fun () -> !Vmbytegen.dump_bytecode);
-      optwrite = (:=) Vmbytegen.dump_bytecode }
+      optread  = (fun () -> CDebug.get_flag Vmbytegen.dump_bytecode_flag);
+      optwrite = (fun b -> CDebug.set_flag Vmbytegen.dump_bytecode_flag b);
+    }
 
 let () =
-  declare_bool_option
+  (* no summary: handled as part of the debug state *)
+  declare_option ~no_summary:true ~kind:BoolKind
     { optstage = Summary.Stage.Interp;
-      optdepr  = None;
+      optdepr  = Some (Deprecation.make ~since:"9.1" ~note:"Set Debug \"vmlambda\" instead." ());
       optkey   = ["Dump";"Lambda"];
-      optread  = (fun () -> !Vmlambda.dump_lambda);
-      optwrite = (:=) Vmlambda.dump_lambda }
+      optread  = (fun () -> CDebug.get_flag Vmlambda.dump_lambda_flag);
+      optwrite = (fun b ->  CDebug.set_flag Vmlambda.dump_lambda_flag b);
+    }
 
 let () =
   declare_bool_option
