@@ -189,6 +189,7 @@ type state = {
   mod_index : int Id.Map.t;
   ref_renaming : pp_tag list Refmap'.t;
   mp_renaming : pp_tag list MPmap.t;
+  params_ren : MPset.t; (* List of module parameters that we should alpha-rename *)
 }
 
 type t = {
@@ -214,6 +215,7 @@ let make_state kw = {
   mod_index = Id.Map.empty;
   ref_renaming = Refmap'.empty;
   mp_renaming = MPmap.empty;
+  params_ren = MPset.empty;
 }
 
 let make ~modular ~library ~extrcompute ~keywords () = {
@@ -270,6 +272,13 @@ let add_mp_renaming s mp l =
   let state = s.state.contents in
   s.state := { state with mp_renaming = MPmap.add mp l state.mp_renaming }
 
+let add_params_ren s mp =
+  let state = s.state.contents in
+  s.state := { state with params_ren = MPset.add mp state.params_ren }
+
+let mem_params_ren s mp =
+  MPset.mem mp s.state.contents.params_ren
+
 (* Reset *)
 
 let reset s =
@@ -278,6 +287,7 @@ let reset s =
     mod_index = Id.Map.empty;
     ref_renaming = Refmap'.empty;
     mp_renaming = MPmap.empty;
+    params_ren = MPset.empty;
   } in
   s.state := state
 
@@ -319,17 +329,6 @@ let mpfiles_add, mpfiles_mem, mpfiles_list, mpfiles_clear =
   in
   register_cleanup clear;
   (add,mem,list,clear)
-
-(*s List of module parameters that we should alpha-rename *)
-
-let params_ren_add, params_ren_mem =
-  let m = ref MPset.empty in
-  let add mp = m:=MPset.add mp !m
-  and mem mp = MPset.mem mp !m
-  and clear _ = m:=MPset.empty
-  in
-  register_cleanup clear;
-  (add,mem)
 
 (*s table indicating the visible horizon at a precise moment,
     i.e. the stack of structures we are inside.
@@ -449,7 +448,7 @@ let rec mp_renaming_fun table mp = match mp with
       mp ::lmp
   | MPbound mbid ->
       let s = modular_rename table Mod (MBId.to_id mbid) in
-      if not (params_ren_mem mp) then [s]
+      if not (State.mem_params_ren table mp) then [s]
       else let i,_,_ = MBId.repr mbid in [s^"__"^string_of_int i]
   | MPfile _ ->
       assert (State.get_modular table); (* see [at_toplevel] above *)
@@ -510,7 +509,7 @@ let rec params_lookup table mp0 ks = function
   | param :: _ when ModPath.equal mp0 param -> true
   | param :: params ->
       let () = match ks with
-      | (Mod, mp) when String.equal (List.hd (mp_renaming table param)) mp -> params_ren_add param
+      | (Mod, mp) when String.equal (List.hd (mp_renaming table param)) mp -> State.add_params_ren table param
       | _ -> ()
       in
       params_lookup table mp0 ks params
@@ -523,7 +522,7 @@ let visible_clash table mp0 ks =
         let b = KMap.mem ks v.content in
         if b && not (is_mp_bound mp0) then true
         else begin
-          if b then params_ren_add mp0;
+          if b then State.add_params_ren table mp0;
           if params_lookup table mp0 ks v.params then false
           else clash vis
         end
