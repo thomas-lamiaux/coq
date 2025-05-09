@@ -59,7 +59,7 @@ let keywords =
 (* Note: do not shorten [str "foo" ++ fnl ()] into [str "foo\n"],
    the '\n' character interacts badly with the Format boxing mechanism *)
 
-let pp_open table mp = str ("open "^ string_of_modfile table mp) ++ fnl ()
+let pp_open table mp = str ("open "^ string_of_modfile (State.get_table table) mp) ++ fnl ()
 
 let pp_comment s = str "(* " ++ hov 0 s ++ str " *)"
 
@@ -263,13 +263,13 @@ let rec pp_expr table par env args =
           | [a1;a2] when is_infix r ->
             let pp = pp_expr table true env [] in
             pp_par par (pp a1 ++ str (get_infix r) ++ pp a2)
-          | _ when is_coinductive table r ->
+          | _ when is_coinductive (State.get_table table) r ->
             let ne = not (List.is_empty a) in
             let tuple = space_if ne ++ pp_tuple (pp_expr table true env []) a in
             pp_par par (str "lazy " ++ pp_par ne (pp_global table Cons r ++ tuple))
           | [] -> pp_global table Cons r
           | _ ->
-            let fds = get_record_fields table r in
+            let fds = get_record_fields (State.get_table table) r in
             if not (List.is_empty fds) then
               pp_record_pat (pp_fields table r fds, List.map (pp_expr table true env []) a)
             else
@@ -297,7 +297,7 @@ let rec pp_expr table par env args =
         apply2 (hov 2 inner)
     | MLcase (typ, t, pv) ->
         let head =
-          if not (is_coinductive_type table typ) then pp_expr table false env [] t
+          if not (is_coinductive_type (State.get_table table) typ) then pp_expr table false env [] t
           else (str "Lazy.force" ++ spc () ++ pp_expr table true env [] t)
         in
         (* First, can this match be printed as a mere record projection ? *)
@@ -333,7 +333,7 @@ let rec pp_expr table par env args =
 
 and pp_record_proj table par env typ t pv args =
   (* Can a match be printed as a mere record projection ? *)
-  let fields = record_fields_of_type table typ in
+  let fields = record_fields_of_type (State.get_table table) typ in
   if List.is_empty fields then raise Impossible;
   if not (Int.equal (Array.length pv) 1) then raise Impossible;
   if has_deep_pattern pv then raise Impossible;
@@ -380,7 +380,7 @@ and pp_cons_pat table r ppl =
   if is_infix r && Int.equal (List.length ppl) 2 then
     List.hd ppl ++ str (get_infix r) ++ List.hd (List.tl ppl)
   else
-    let fields = get_record_fields table r in
+    let fields = get_record_fields (State.get_table table) r in
     if not (List.is_empty fields) then pp_record_pat (pp_fields table r fields, ppl)
     else if String.is_empty (str_global table Cons r) then
       pp_boxed_tuple identity ppl (* Hack Extract Inductive prod *)
@@ -423,7 +423,7 @@ and pp_function table env t =
   let bl,env' = push_vars (List.map id_of_mlid bl) env in
   match t' with
     | MLcase(Tglob(r,_),MLrel 1,pv) when
-        not (is_coinductive table r) && List.is_empty (get_record_fields table r) &&
+        not (is_coinductive (State.get_table table) r) && List.is_empty (get_record_fields (State.get_table table) r) &&
         not (is_custom_match pv) ->
         if not (ast_occurs 1 (MLcase(Tunknown,MLaxiom "",pv))) then
           pr_binding (List.rev (List.tl bl)) ++
@@ -807,10 +807,12 @@ let pp_struct table s = do_struct (fun e -> pp_structure_elem table e) s
 
 let pp_signature table s = do_struct (fun e -> pp_specif table e) s
 
+let file_naming state mp = file_of_modfile (State.get_table state) mp
+
 let ocaml_descr = {
   keywords = keywords;
   file_suffix = ".ml";
-  file_naming = file_of_modfile;
+  file_naming = file_naming;
   preamble = preamble;
   pp_struct = pp_struct;
   sig_suffix = Some ".mli";

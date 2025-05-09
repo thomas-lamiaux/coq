@@ -183,6 +183,21 @@ let get_db_name n (db,_) = List.nth db (pred n)
 
 (*s Tables of global renamings *)
 
+module State =
+struct
+
+type t = {
+  table : Table.t;
+}
+
+let make () = {
+  table = Table.make_table ();
+}
+
+let get_table s = s.table
+
+end
+
 let register_cleanup, do_cleanup =
   let funs = ref [] in
   (fun f -> funs:=f::!funs), (fun () -> List.iter (fun f -> f ()) !funs)
@@ -384,7 +399,7 @@ let rec mp_renaming_fun table mp = match mp with
       assert (get_phase () == Pre);
       let current_mpfile = (List.last (get_visible ())).mp in
       if not (ModPath.equal mp current_mpfile) then mpfiles_add mp;
-      [string_of_modfile table mp]
+      [string_of_modfile (State.get_table table) mp]
 
 (* ... and its version using a cache *)
 
@@ -402,7 +417,7 @@ let ref_renaming_fun table (k,r) =
   let l = mp_renaming table mp in
   let l = if lang () != Ocaml && not (modular ()) then [""] else l in
   let s =
-    let idg = safe_basename_of_global table r in
+    let idg = safe_basename_of_global (State.get_table table) r in
     match l with
     | [""] -> (* this happens only at toplevel of the monolithic case *)
       let globs = get_global_ids () in
@@ -480,7 +495,7 @@ let opened_libraries table =
   if not (modular ()) then []
   else
     let used_files = mpfiles_list () in
-    let used_ks = List.map (fun mp -> Mod,string_of_modfile table mp) used_files in
+    let used_ks = List.map (fun mp -> Mod,string_of_modfile (State.get_table table) mp) used_files in
     (* By default, we open all used files. Ambiguities will be resolved later
        by using qualified names. Nonetheless, we don't open any file A that
        contains an immediate submodule A.B hiding another file B : otherwise,

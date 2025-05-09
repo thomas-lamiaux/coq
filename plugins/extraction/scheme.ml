@@ -99,7 +99,7 @@ let rec pp_expr table env args =
                  (if List.is_empty args' then mt () else spc ()) ++
                  prlist_with_sep spc (pp_cons_args table env) args')
         in
-        if is_coinductive table r then paren (str "delay " ++ st) else st
+        if is_coinductive (State.get_table table) r then paren (str "delay " ++ st) else st
     | MLtuple _ -> user_err Pp.(str "Cannot handle tuples in Scheme yet.")
     | MLcase (_,_,pv) when not (is_regular_match pv) ->
         user_err Pp.(str "Cannot handle general patterns in Scheme yet.")
@@ -116,7 +116,7 @@ let rec pp_expr table env args =
                  ++ pp_expr table env [] t)))
     | MLcase (typ,t, pv) ->
         let e =
-          if not (is_coinductive_type table typ) then pp_expr table env [] t
+          if not (is_coinductive_type (State.get_table table) typ) then pp_expr table env [] t
           else paren (str "force" ++ spc () ++ pp_expr table env [] t)
         in
         apply (v 3 (paren (str "match " ++ e ++ fnl () ++ pp_pat table env pv)))
@@ -141,7 +141,7 @@ let rec pp_expr table env args =
             paren (str "Prelude.error \"EXTRACTION OF PARRAY NOT IMPLEMENTED\"")
 
 and pp_cons_args table env = function
-  | MLcons (_,r,args) when is_coinductive table r ->
+  | MLcons (_,r,args) when is_coinductive (State.get_table table) r ->
       paren (pp_global table Cons r ++
              (if List.is_empty args then mt () else spc ()) ++
              prlist_with_sep spc (pp_cons_args table env) args)
@@ -231,10 +231,12 @@ let pp_struct table =
   in
   prlist_strict pp_sel
 
+let file_naming state mp = file_of_modfile (State.get_table state) mp
+
 let scheme_descr = {
   keywords = keywords;
   file_suffix = ".scm";
-  file_naming = file_of_modfile;
+  file_naming = file_naming;
   preamble = preamble;
   pp_struct = pp_struct;
   sig_suffix = None;

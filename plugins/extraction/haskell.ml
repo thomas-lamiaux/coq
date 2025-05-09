@@ -38,7 +38,7 @@ let pp_bracket_comment s = str"{- " ++ hov 0 s ++ str" -}"
    the '\n' character interacts badly with the Format boxing mechanism *)
 
 let preamble table mod_name comment used_modules usf =
-  let pp_import mp = str ("import qualified "^ string_of_modfile table mp) ++ fnl ()
+  let pp_import mp = str ("import qualified "^ string_of_modfile (State.get_table table) mp) ++ fnl ()
   in
   (if not (usf.magic || usf.tunknown) then mt ()
    else
@@ -398,11 +398,12 @@ let pp_struct table =
   in
   prlist_strict pp_sel
 
+let file_naming state mp = file_of_modfile (State.get_table state) mp
 
 let haskell_descr = {
   keywords = keywords;
   file_suffix = ".hs";
-  file_naming = string_of_modfile;
+  file_naming = file_naming;
   preamble = preamble;
   pp_struct = pp_struct;
   sig_suffix = None;

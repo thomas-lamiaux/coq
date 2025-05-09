@@ -286,7 +286,7 @@ and extract_msignature_spec table venv env mp1 reso = function
       MTfunsig (mbid, extract_mbody_spec table venv env mp mtb,
                 extract_msignature_spec table venv env' mp1 reso me)
 
-and extract_mbody_spec : 'a. _ -> _ -> _ -> _ -> 'a generic_module_body -> _ =
+and extract_mbody_spec : 'a. State.t -> _ -> _ -> _ -> 'a generic_module_body -> _ =
   fun table venv env mp mb -> match mod_type_alg mb with
   | Some ty -> extract_mexpression_spec table venv env mp (mod_type mb, ty)
   | None -> extract_msignature_spec table venv env mp (mod_delta mb) (mod_type mb)
@@ -340,7 +340,7 @@ let rec extract_structure table access venv env mp reso ~all = function
       let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst) rrb.rewrules_rules in
       let ms = extract_structure table access venv env mp reso ~all struc in
       if all || b then begin
-        List.iter (fun (cst, _) -> Table.add_symbol_rule table (ConstRef cst) l) rrb.rewrules_rules;
+        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) (ConstRef cst) l) rrb.rewrules_rules;
         ms
       end else ms
   | (l,SFBmodule mb) :: struc ->
@@ -483,7 +483,7 @@ let mono_filename f =
 (* Builds a suitable filename from a module id *)
 
 let module_filename table mp =
-  let f = file_of_modfile table mp in
+  let f = file_of_modfile (State.get_table table) mp in
   let id = Id.of_string f in
   let f = Filename.concat (output_directory ()) f in
   let d = descr () in
@@ -610,9 +610,10 @@ let init ?(compute=false) ?(inner=false) modular library =
   set_extrcompute compute;
   reset ();
   if modular && lang () == Scheme then error_scheme ();
-  Table.make_table ()
+  State.make ()
 
 let warns table =
+  let table = State.get_table table in
   warning_opaques table (access_opaque ());
   warning_axioms table
 
@@ -643,7 +644,7 @@ let rec locate_ref = function
 let full_extr opaque_access f (refs,mps) =
   let table = init false false in
   List.iter (fun mp -> if is_modfile mp then error_MPfile_as_mod mp true) mps;
-  let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
+  let struc = optimize_struct (State.get_table table) (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = warns table in
   print_structure_to_file table (mono_filename f) false struc;
   reset ()
@@ -657,7 +658,7 @@ let full_extraction ~opaque_access f lr =
 let separate_extraction ~opaque_access lr =
   let table = init true false in
   let refs,mps = locate_ref lr in
-  let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
+  let struc = optimize_struct (State.get_table table) (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = List.iter (function
     | MPfile _, _ -> ()
     | (MPdot _ | MPbound _), _ ->
@@ -681,7 +682,7 @@ let simple_extraction ~opaque_access r =
   | ([], [mp]) as p -> full_extr opaque_access None p
   | [r],[] ->
       let table = init false false in
-      let struc = optimize_struct table ([r],[]) (mono_environment table ~opaque_access [r] []) in
+      let struc = optimize_struct (State.get_table table) ([r],[]) (mono_environment table ~opaque_access [r] []) in
       let d = get_decl_in_structure r struc in
       let () = warns table in
       let flag =
@@ -715,7 +716,7 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
     else l
   in
   let struc = List.fold_left select [] l in
-  let struc = optimize_struct table ([],[]) struc in
+  let struc = optimize_struct (State.get_table table) ([],[]) struc in
   let () = warns table in
   let print = function
     | (MPfile dir as mp, sel) as e ->
@@ -748,7 +749,7 @@ let structure_for_compute ~opaque_access env sg c =
   let add_ref r = refs := GlobRef.Set.add r !refs in
   let () = ast_iter_references add_ref add_ref add_ref ast in
   let refs = GlobRef.Set.elements !refs in
-  let struc = optimize_struct table (refs,[]) (mono_environment table ~opaque_access refs []) in
+  let struc = optimize_struct (State.get_table table) (refs,[]) (mono_environment table ~opaque_access refs []) in
   table, (flatten_structure struc), ast, mlt
 
 (* For the test-suite :
