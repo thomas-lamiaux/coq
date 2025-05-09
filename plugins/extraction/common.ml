@@ -181,6 +181,16 @@ let get_db_name n (db,_) = List.nth db (pred n)
 
 type phase = Pre | Impl | Intf
 
+module DupOrd =
+struct
+  type t = ModPath.t * Label.t
+  let compare (mp1, l1) (mp2, l2) =
+    let c = Label.compare l1 l2 in
+    if Int.equal c 0 then ModPath.compare mp1 mp2 else c
+end
+
+module DupMap = Map.Make(DupOrd)
+
 module State =
 struct
 
@@ -191,6 +201,7 @@ type state = {
   mp_renaming : pp_tag list MPmap.t;
   params_ren : MPset.t; (* List of module parameters that we should alpha-rename *)
   mpfiles : MPset.t; (* List of external modules that will be opened initially *)
+  duplicates : int * string DupMap.t; (* table of local module wrappers used to provide non-ambiguous names *)
 }
 
 type t = {
@@ -218,6 +229,7 @@ let make_state kw = {
   mp_renaming = MPmap.empty;
   params_ren = MPset.empty;
   mpfiles = MPset.empty;
+  duplicates = (0, DupMap.empty);
 }
 
 let make ~modular ~library ~extrcompute ~keywords () = {
@@ -292,6 +304,16 @@ let clear_mpfiles s =
   let state = s.state.contents in
   s.state := { state with mpfiles = MPset.empty }
 
+let add_duplicate s mp l =
+  let state = s.state.contents in
+  let (index, dups) = state.duplicates in
+  let ren = "Coq__" ^ string_of_int (index + 1) in
+  let dups = DupMap.add (mp, l) ren dups in
+  s.state := { state with duplicates = (index + 1, dups) }
+
+let get_duplicate s mp l =
+  DupMap.find_opt (mp, l) (snd s.state.contents.duplicates)
+
 (* Reset *)
 
 let reset s =
@@ -302,6 +324,7 @@ let reset s =
     mp_renaming = MPmap.empty;
     params_ren = MPset.empty;
     mpfiles = MPset.empty;
+    duplicates = (0, DupMap.empty);
   } in
   s.state := state
 
@@ -373,29 +396,6 @@ let pop_visible, push_visible, add_visible, get_visible =
 let get_visible_mps () = List.map (function v -> v.mp) (get_visible ())
 let top_visible () = match get_visible () with [] -> assert false | v::_ -> v
 let top_visible_mp () = (top_visible ()).mp
-
-(* table of local module wrappers used to provide non-ambiguous names *)
-
-module DupOrd =
-struct
-  type t = ModPath.t * Label.t
-  let compare (mp1, l1) (mp2, l2) =
-    let c = Label.compare l1 l2 in
-    if Int.equal c 0 then ModPath.compare mp1 mp2 else c
-end
-
-module DupMap = Map.Make(DupOrd)
-
-let add_duplicate, get_duplicate =
-  let index = ref 0 and dups = ref DupMap.empty in
-  register_cleanup (fun _ -> index := 0; dups := DupMap.empty);
-  let add mp l =
-     incr index;
-     let ren = "Coq__" ^ string_of_int !index in
-     dups := DupMap.add (mp,l) ren !dups
-  and get mp l =
-    try Some (DupMap.find (mp, l) !dups) with Not_found -> None
-  in (add,get)
 
 type reset_kind = AllButExternal | Everything
 
@@ -585,11 +585,11 @@ let pp_duplicate table k' prefix mp rls olab =
       (* Here rls=s::rls', we search the label for s inside mp *)
       List.tl rls, get_nth_label_mp (mp_length mp - mp_length prefix) mp
   in
-  match get_duplicate prefix lbl with
+  match State.get_duplicate table prefix lbl with
   | Some ren -> dottify (ren :: rls')
   | None ->
      assert (State.get_phase table == Pre); (* otherwise it's too late *)
-     add_duplicate prefix lbl; dottify rls
+     State.add_duplicate table prefix lbl; dottify rls
 
 let fstlev_ks k = function
   | [] -> assert false

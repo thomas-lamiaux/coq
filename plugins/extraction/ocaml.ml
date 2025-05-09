@@ -656,7 +656,7 @@ let pp_spec table = function
 let rec pp_specif table = function
   | (_,Spec (Sval _ as s)) -> pp_spec table s
   | (l,Spec s) ->
-     (match Common.get_duplicate (top_visible_mp ()) l with
+     (match Common.State.get_duplicate table (top_visible_mp ()) l with
       | None -> pp_spec table s
       | Some ren ->
          hov 1 (str ("module "^ren^" : sig") ++ fnl () ++ pp_spec table s) ++
@@ -666,7 +666,7 @@ let rec pp_specif table = function
       let def = pp_module_type table [] mt in
       let name = pp_modname table (MPdot (top_visible_mp (), l)) in
       hov 1 (str "module " ++ name ++ str " :" ++ fnl () ++ def) ++
-      (match Common.get_duplicate (top_visible_mp ()) l with
+      (match Common.State.get_duplicate table (top_visible_mp ()) l with
        | None -> Pp.mt ()
        | Some ren ->
          fnl () ++
@@ -676,7 +676,7 @@ let rec pp_specif table = function
       let def = pp_module_type table [] mt in
       let name = pp_modname table (MPdot (top_visible_mp (), l)) in
       hov 1 (str "module type " ++ name ++ str " =" ++ fnl () ++ def) ++
-      (match Common.get_duplicate (top_visible_mp ()) l with
+      (match Common.State.get_duplicate table (top_visible_mp ()) l with
        | None -> Pp.mt ()
        | Some ren -> fnl () ++ str ("module type "^ren^" = ") ++ name)
 
@@ -729,7 +729,7 @@ let is_short = function MEident _ | MEapply _ -> true | _ -> false
 
 let rec pp_structure_elem table = function
   | (l,SEdecl d) ->
-     (match Common.get_duplicate (top_visible_mp ()) l with
+     (match Common.State.get_duplicate table (top_visible_mp ()) l with
       | None -> pp_decl table d
       | Some ren ->
          v 1 (str ("module "^ren^" = struct") ++ fnl () ++ pp_decl table d) ++
@@ -746,14 +746,14 @@ let rec pp_structure_elem table = function
       hov 1
         (str "module " ++ name ++ typ ++ str " =" ++
          (if is_short m.ml_mod_expr then spc () else fnl ()) ++ def) ++
-      (match Common.get_duplicate (top_visible_mp ()) l with
+      (match Common.State.get_duplicate table (top_visible_mp ()) l with
        | Some ren -> fnl () ++ str ("module "^ren^" = ") ++ name
        | None -> mt ())
   | (l,SEmodtype m) ->
       let def = pp_module_type table [] m in
       let name = pp_modname table (MPdot (top_visible_mp (), l)) in
       hov 1 (str "module type " ++ name ++ str " =" ++ fnl () ++ def) ++
-      (match Common.get_duplicate (top_visible_mp ()) l with
+      (match Common.State.get_duplicate table (top_visible_mp ()) l with
        | None -> mt ()
        | Some ren -> fnl () ++ str ("module type "^ren^" = ") ++ name)
 
