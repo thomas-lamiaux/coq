@@ -495,7 +495,7 @@ let module_filename table mp =
 
 let print_one_decl table struc mp decl =
   let d = descr () in
-  reset_renaming_tables AllButExternal;
+  reset_renaming_tables (State.get_keywords table) AllButExternal;
   set_phase Pre;
   ignore (d.pp_struct table struc);
   set_phase Impl;
@@ -541,7 +541,7 @@ let get_comment () =
 let print_structure_to_file table (fn,si,mo) dry struc =
   Buffer.clear buf;
   let d = descr () in
-  reset_renaming_tables AllButExternal;
+  reset_renaming_tables (State.get_keywords table) AllButExternal;
   let unsafe_needs = {
     mldummy = struct_ast_search Mlutil.isMLdummy struc;
     tdummy = struct_type_search Mlutil.isTdummy struc;
@@ -599,15 +599,15 @@ let print_structure_to_file table (fn,si,mo) dry struc =
 (*********************************************)
 
 
-let reset () =
-  reset_renaming_tables Everything
+let reset kw =
+  reset_renaming_tables kw Everything
 
 let init ?(compute=false) ?(inner=false) modular library =
   if not inner then check_inside_section ();
-  set_keywords (descr ()).keywords;
-  reset ();
+  let keywords = (descr ()).keywords in
+  let () = reset keywords in
   if modular && lang () == Scheme then error_scheme ();
-  State.make ~modular ~library ~extrcompute:compute ()
+  State.make ~modular ~library ~extrcompute:compute ~keywords ()
 
 let warns table =
   let table = State.get_table table in
@@ -644,7 +644,7 @@ let full_extr opaque_access f (refs,mps) =
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = warns table in
   print_structure_to_file table (mono_filename f) false struc;
-  reset ()
+  reset (State.get_keywords table)
 
 let full_extraction ~opaque_access f lr =
   full_extr opaque_access f (locate_ref lr)
@@ -669,7 +669,7 @@ let separate_extraction ~opaque_access lr =
     | (MPdot _ | MPbound _), _ -> assert false
   in
   List.iter print struc;
-  reset ()
+  reset (State.get_keywords table)
 
 (*s Simple extraction in the Rocq toplevel. The vernacular command
     is \verb!Extraction! [qualid]. *)
@@ -687,7 +687,7 @@ let simple_extraction ~opaque_access r =
         else mt ()
       in
       let ans = flag ++ print_one_decl table struc (modpath_of_r r) d in
-      reset ();
+      reset (State.get_keywords table);
       Feedback.msg_notice ans
   | _ -> assert false
 
@@ -722,7 +722,7 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
     | _ -> assert false
   in
   List.iter print struc;
-  reset ()
+  reset (State.get_keywords table)
 
 (** For extraction compute, we flatten all the module structure,
     getting rid of module types or unapplied functors *)

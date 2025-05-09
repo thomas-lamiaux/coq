@@ -199,13 +199,15 @@ type t = {
   - Separate Extraction : modular, minimal
   - Extraction Library : modular, library
   *)
+  keywords : Id.Set.t;
 }
 
-let make ~modular ~library ~extrcompute () = {
+let make ~modular ~library ~extrcompute ~keywords () = {
   table = Table.make_table ();
   modular;
   library;
   extrcompute;
+  keywords;
 }
 
 let get_table s = s.table
@@ -216,24 +218,23 @@ let get_library s = s.library
 
 let get_extrcompute s = s.extrcompute
 
+let get_keywords s = s.keywords
+
 end
 
 let register_cleanup, do_cleanup =
   let funs = ref [] in
-  (fun f -> funs:=f::!funs), (fun () -> List.iter (fun f -> f ()) !funs)
+  (fun f -> funs:=f::!funs), (fun kw -> List.iter (fun f -> f kw) !funs)
 
 type phase = Pre | Impl | Intf
 
 let set_phase, get_phase =
   let ph = ref Impl in ((:=) ph), (fun () -> !ph)
 
-let set_keywords, get_keywords =
-  let k = ref Id.Set.empty in
-  ((:=) k), (fun () -> !k)
-
 let add_global_ids, get_global_ids =
   let ids = ref Id.Set.empty in
-  register_cleanup (fun () -> ids := get_keywords ());
+  let clean kw = ids := kw in
+  register_cleanup clean;
   let add s = ids := Id.Set.add s !ids
   and get () = !ids
   in (add,get)
@@ -246,19 +247,19 @@ let empty_env () = [], get_global_ids ()
 
 let mktable_id autoclean =
   let m = ref Id.Map.empty in
-  let clear () = m := Id.Map.empty in
+  let clear _ = m := Id.Map.empty in
   if autoclean then register_cleanup clear;
   (fun r v -> m := Id.Map.add r v !m), (fun r -> Id.Map.find r !m), clear
 
 let mktable_ref autoclean =
   let m = ref Refmap'.empty in
-  let clear () = m := Refmap'.empty in
+  let clear _ = m := Refmap'.empty in
   if autoclean then register_cleanup clear;
   (fun r v -> m := Refmap'.add r v !m), (fun r -> Refmap'.find r !m), clear
 
 let mktable_modpath autoclean =
   let m = ref MPmap.empty in
-  let clear () = m := MPmap.empty in
+  let clear _ = m := MPmap.empty in
   if autoclean then register_cleanup clear;
   (fun r v -> m := MPmap.add r v !m), (fun r -> MPmap.find r !m), clear
 
@@ -278,7 +279,7 @@ let mpfiles_add, mpfiles_mem, mpfiles_list, mpfiles_clear =
   let add mp = m:=MPset.add mp !m
   and mem mp = MPset.mem mp !m
   and list () = MPset.elements !m
-  and clear () = m:=MPset.empty
+  and clear _ = m:=MPset.empty
   in
   register_cleanup clear;
   (add,mem,list,clear)
@@ -289,7 +290,7 @@ let params_ren_add, params_ren_mem =
   let m = ref MPset.empty in
   let add mp = m:=MPset.add mp !m
   and mem mp = MPset.mem mp !m
-  and clear () = m:=MPset.empty
+  and clear _ = m:=MPset.empty
   in
   register_cleanup clear;
   (add,mem)
@@ -315,7 +316,7 @@ type visible_layer = { mp : ModPath.t;
 
 let pop_visible, push_visible, add_visible, get_visible =
   let vis = ref [] in
-  register_cleanup (fun () -> vis := []);
+  register_cleanup (fun _ -> vis := []);
   let pop ~modular () =
     match !vis with
       | [] -> assert false
@@ -350,7 +351,7 @@ module DupMap = Map.Make(DupOrd)
 
 let add_duplicate, get_duplicate =
   let index = ref 0 and dups = ref DupMap.empty in
-  register_cleanup (fun () -> index := 0; dups := DupMap.empty);
+  register_cleanup (fun _ -> index := 0; dups := DupMap.empty);
   let add mp l =
      incr index;
      let ren = "Coq__" ^ string_of_int !index in
@@ -361,8 +362,8 @@ let add_duplicate, get_duplicate =
 
 type reset_kind = AllButExternal | Everything
 
-let reset_renaming_tables flag =
-  do_cleanup ();
+let reset_renaming_tables table flag =
+  do_cleanup table;
   if flag == Everything then clear_mpfiles_content ()
 
 (*S Renaming functions *)
@@ -372,11 +373,11 @@ let reset_renaming_tables flag =
    with previous [Coq_id] variable, these prefixes are duplicated if already
    existing. *)
 
-let modular_rename k id =
+let modular_rename table k id =
   let s = ascii_of_id id in
   let prefix,is_ok = if upperkind k then "Coq_",is_upper else "coq_",is_lower
   in
-  if not (is_ok s) || Id.Set.mem id (get_keywords ()) || begins_with s prefix
+  if not (is_ok s) || Id.Set.mem id (State.get_keywords table) || begins_with s prefix
   then prefix ^ s
   else s
 
@@ -407,11 +408,11 @@ let rec mp_renaming_fun table mp = match mp with
       let lmp = mp_renaming table mp in
       let mp = match lmp with
       | [""] -> modfstlev_rename l
-      | _ -> modular_rename Mod (Label.to_id l)
+      | _ -> modular_rename table Mod (Label.to_id l)
       in
       mp ::lmp
   | MPbound mbid ->
-      let s = modular_rename Mod (MBId.to_id mbid) in
+      let s = modular_rename table Mod (MBId.to_id mbid) in
       if not (params_ren_mem mp) then [s]
       else let i,_,_ = MBId.repr mbid in [s^"__"^string_of_int i]
   | MPfile _ ->
@@ -443,7 +444,7 @@ let ref_renaming_fun table (k,r) =
       let globs = get_global_ids () in
       let id = next_ident_away (kindcase_id k idg) globs in
       Id.to_string id
-    | _ -> modular_rename k idg
+    | _ -> modular_rename table k idg
   in
   add_global_ids (Id.of_string s);
   s::l

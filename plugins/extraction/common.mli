@@ -53,11 +53,12 @@ val get_phase : unit -> phase
 module State :
 sig
   type t
-  val make : modular:bool -> library:bool -> extrcompute:bool -> unit -> t
+  val make : modular:bool -> library:bool -> extrcompute:bool -> keywords:Id.Set.t -> unit -> t
   val get_table : t -> Table.t
   val get_modular : t -> bool
   val get_library : t -> bool
   val get_extrcompute : t -> bool
+  val get_keywords : t -> Id.Set.t
 end
 
 val opened_libraries : State.t -> ModPath.t list
@@ -79,9 +80,7 @@ val get_duplicate : ModPath.t -> Label.t -> string option
 
 type reset_kind = AllButExternal | Everything
 
-val reset_renaming_tables : reset_kind -> unit
-
-val set_keywords : Id.Set.t -> unit
+val reset_renaming_tables : Id.Set.t -> reset_kind -> unit
 
 (** Special hack for constants of type Ascii.ascii : if an
     [Extract Inductive ascii => char] has been declared, then
