@@ -700,8 +700,7 @@ let rec explain_evar_kind env sigma evk ty =
           try pr_existential_key env sigma evk
           with (* defined *) Not_found -> strbrk "an internal placeholder" in
       strbrk "the type of " ++ pp
-  | Evar_kinds.ImplicitArg (c,(n,ido),b) ->
-      let id = Option.get ido in
+  | Evar_kinds.ImplicitArg (c,(n,id),b) ->
       strbrk "the implicit parameter " ++ Id.print id ++ spc () ++ str "of" ++
       spc () ++ Nametab.pr_global_env Id.Set.empty c ++
       strbrk " whose type is " ++ ty
