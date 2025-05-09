@@ -191,12 +191,21 @@ type t = {
   (* fields below are read-only *)
   modular : bool;
   library : bool;
+  extrcompute : bool;
+  (*s Extraction modes: modular or monolithic, library or minimal ?
+
+  Nota:
+  - Recursive Extraction : monolithic, minimal
+  - Separate Extraction : modular, minimal
+  - Extraction Library : modular, library
+  *)
 }
 
-let make ~modular ~library () = {
+let make ~modular ~library ~extrcompute () = {
   table = Table.make_table ();
   modular;
   library;
+  extrcompute;
 }
 
 let get_table s = s.table
@@ -204,6 +213,8 @@ let get_table s = s.table
 let get_modular s = s.modular
 
 let get_library s = s.library
+
+let get_extrcompute s = s.extrcompute
 
 end
 

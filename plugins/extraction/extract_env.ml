@@ -361,7 +361,7 @@ let rec extract_structure table access venv env mp reso ~all = function
 
 and extract_mexpr table access venv env mp = function
   | MEwith _ -> assert false (* no 'with' syntax for modules *)
-  | me when lang () != Ocaml || Table.is_extrcompute () ->
+  | me when lang () != Ocaml || State.get_extrcompute table ->
       (* In Haskell/Scheme, we expand everything.
          For now, we also extract everything, dead code will be removed later
          (see [Modutil.optimize_struct]. *)
@@ -605,10 +605,9 @@ let reset () =
 let init ?(compute=false) ?(inner=false) modular library =
   if not inner then check_inside_section ();
   set_keywords (descr ()).keywords;
-  set_extrcompute compute;
   reset ();
   if modular && lang () == Scheme then error_scheme ();
-  State.make ~modular ~library ()
+  State.make ~modular ~library ~extrcompute:compute ()
 
 let warns table =
   let table = State.get_table table in

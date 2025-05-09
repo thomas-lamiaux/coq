@@ -249,11 +249,6 @@ Nota:
  - Extraction Library : modular, library
 *)
 
-let extrcompute = ref false
-
-let set_extrcompute b = extrcompute := b
-let is_extrcompute () = !extrcompute
-
 (*s Printing. *)
 
 (* The following functions work even on objects not in [Global.env ()].
