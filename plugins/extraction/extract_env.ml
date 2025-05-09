@@ -499,9 +499,9 @@ let print_one_decl table struc mp decl =
   let table = State.set_phase table Pre in
   ignore (d.pp_struct table struc);
   let table = State.set_phase table Impl in
-  push_visible mp [];
-  let ans = d.pp_decl table decl in
-  pop_visible ~modular:(State.get_modular table) ~phase:(State.get_phase table) ();
+  let ans = State.with_visibility table mp [] begin fun table ->
+    d.pp_decl table decl
+  end in
   v 0 ans
 
 (*s Extraction of a ml struct to a file. *)

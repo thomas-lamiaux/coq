@@ -57,6 +57,14 @@ sig
   (** Setters *)
   val set_phase : t -> phase -> t
 
+  (** Reader-like *)
+
+  val with_visibility : t -> ModPath.t -> ModPath.t list -> (t -> 'a) -> 'a
+  (* the [module_path list] corresponds to module parameters, the innermost one
+    coming first in the list *)
+
+  val get_top_visible_mp : t -> ModPath.t
+
 end
 
 type env = Id.t list * Id.Set.t
@@ -75,12 +83,6 @@ val pp_global_with_key : State.t -> kind -> KerName.t -> GlobRef.t -> string
 val pp_global : State.t -> kind -> GlobRef.t -> string
 val pp_global_name : State.t -> kind -> GlobRef.t -> string
 val pp_module : State.t -> ModPath.t -> string
-
-val top_visible_mp : unit -> ModPath.t
-(* In [push_visible], the [module_path list] corresponds to
-   module parameters, the innermost one coming first in the list *)
-val push_visible : ModPath.t -> ModPath.t list -> unit
-val pop_visible : modular:bool -> phase:phase -> unit -> unit
 
 type reset_kind = AllButExternal | Everything
 

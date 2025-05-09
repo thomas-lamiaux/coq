@@ -267,12 +267,11 @@ and pp_module_expr table = function
       (* should be expansed in extract_env *)
 
 let pp_struct table mls =
-  let pp_sel (mp,sel) =
-    push_visible mp [];
+  let pp_sel (mp,sel) = State.with_visibility table mp [] begin fun table ->
     let p = prlist_with_sep pr_comma identity
       (List.concat (List.map (pp_structure_elem table) sel)) in
-    pop_visible ~modular:(State.get_modular table) ~phase:(State.get_phase table) (); p
-  in
+    p
+  end in
   str "," ++ fnl () ++
   str "  " ++ qs "declarations" ++ str ": [" ++ fnl () ++
   str "    " ++ hov 0 (prlist_with_sep pr_comma pp_sel mls) ++ fnl () ++

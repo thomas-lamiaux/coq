@@ -191,6 +191,36 @@ end
 
 module DupMap = Map.Make(DupOrd)
 
+(* We might have built [global_reference] whose canonical part is
+   inaccurate. We must hence compare only the user part,
+   hence using a Hashtbl might be incorrect *)
+
+(* A table recording objects in the first level of all MPfile *)
+
+let add_mpfiles_content,get_mpfiles_content,clear_mpfiles_content =
+  let m = ref MPmap.empty in
+  let clear _ = m := MPmap.empty in
+  (fun r v -> m := MPmap.add r v !m), (fun r -> MPmap.find r !m), clear
+
+(*s table indicating the visible horizon at a precise moment,
+    i.e. the stack of structures we are inside.
+
+  - The sequence of [mp] parts should have the following form:
+  a [MPfile] at the beginning, and then more and more [MPdot]
+  over this [MPfile], or [MPbound] when inside the type of a
+  module parameter.
+
+  - the [params] are the [MPbound] when [mp] is a functor,
+    the innermost [MPbound] coming first in the list.
+
+  - The [content] part is used to record all the names already
+  seen at this level.
+*)
+
+type visible_layer = { mp : ModPath.t;
+                       params : ModPath.t list;
+                       content : Label.t KMap.t; }
+
 module State =
 struct
 
@@ -207,6 +237,7 @@ type state = {
 type t = {
   table : Table.t;
   state : state ref;
+  visibility : visible_layer ref list;
   (* fields below are read-only *)
   modular : bool;
   library : bool;
@@ -240,6 +271,7 @@ let make ~modular ~library ~extrcompute ~keywords () = {
   extrcompute;
   keywords;
   phase = Impl;
+  visibility = [];
 }
 
 let get_table s = s.table
@@ -255,6 +287,32 @@ let get_keywords s = s.keywords
 let get_phase s = s.phase
 
 let set_phase s phase = { s with phase }
+
+(* Reader-like *)
+
+let with_visibility s mp mps k =
+  let v = ref { mp = mp; params = mps; content = KMap.empty } in
+  let ans = k { s with visibility = v :: s.visibility } in
+  (* we save the 1st-level-content of MPfile for later use *)
+  let () =
+    if s.phase == Impl && s.modular && is_modfile !v.mp
+    then add_mpfiles_content !v.mp !v.content
+  in
+  ans
+
+let add_visible s ks l = match s.visibility with
+| [] -> assert false
+| v :: r -> v := { !v with content = KMap.add ks l !v.content }
+
+let get_visible s =
+  List.map (!) s.visibility
+
+let get_visible_mps s =
+  List.map (function v -> !v.mp) s.visibility
+
+let get_top_visible_mp s = match s.visibility with
+| [] -> assert false
+| v :: _ -> !v.mp
 
 (* Mutable primitives *)
 
@@ -317,6 +375,7 @@ let get_duplicate s mp l =
 (* Reset *)
 
 let reset s =
+  let () = assert (List.is_empty s.visibility) in
   let state = {
     global_ids = s.keywords;
     mod_index = Id.Map.empty;
@@ -334,73 +393,16 @@ end
 
 (*s Tables of global renamings *)
 
-let register_cleanup, do_cleanup =
-  let funs = ref [] in
-  (fun f -> funs:=f::!funs), (fun state -> State.reset state; List.iter (fun f -> f ()) !funs)
-
 let empty_env state () = [], State.get_global_ids state
-
-(* We might have built [global_reference] whose canonical part is
-   inaccurate. We must hence compare only the user part,
-   hence using a Hashtbl might be incorrect *)
-
-(* A table recording objects in the first level of all MPfile *)
-
-let add_mpfiles_content,get_mpfiles_content,clear_mpfiles_content =
-  let m = ref MPmap.empty in
-  let clear _ = m := MPmap.empty in
-  (fun r v -> m := MPmap.add r v !m), (fun r -> MPmap.find r !m), clear
 
 let get_mpfiles_content mp =
   try get_mpfiles_content mp
   with Not_found -> failwith "get_mpfiles_content"
 
-(*s table indicating the visible horizon at a precise moment,
-    i.e. the stack of structures we are inside.
-
-  - The sequence of [mp] parts should have the following form:
-  a [MPfile] at the beginning, and then more and more [MPdot]
-  over this [MPfile], or [MPbound] when inside the type of a
-  module parameter.
-
-  - the [params] are the [MPbound] when [mp] is a functor,
-    the innermost [MPbound] coming first in the list.
-
-  - The [content] part is used to record all the names already
-  seen at this level.
-*)
-
-type visible_layer = { mp : ModPath.t;
-                       params : ModPath.t list;
-                       content : Label.t KMap.t; }
-
-let pop_visible, push_visible, add_visible, get_visible =
-  let vis = ref [] in
-  register_cleanup (fun _ -> vis := []);
-  let pop ~modular ~phase () =
-    match !vis with
-      | [] -> assert false
-      | v :: vl ->
-          vis := vl;
-          (* we save the 1st-level-content of MPfile for later use *)
-          if phase == Impl && modular && is_modfile v.mp
-          then add_mpfiles_content v.mp v.content
-  and push mp mps =
-    vis := { mp = mp; params = mps; content = KMap.empty } :: !vis
-  and get () = !vis
-  and add ks l = match !vis with
-  | [] -> assert false
-  | v :: r -> vis := { v with content = KMap.add ks l v.content } :: r
-  in (pop,push,add,get)
-
-let get_visible_mps () = List.map (function v -> v.mp) (get_visible ())
-let top_visible () = match get_visible () with [] -> assert false | v::_ -> v
-let top_visible_mp () = (top_visible ()).mp
-
 type reset_kind = AllButExternal | Everything
 
 let reset_renaming_tables table flag =
-  do_cleanup table;
+  let () = State.reset table in
   if flag == Everything then clear_mpfiles_content ()
 
 (*S Renaming functions *)
@@ -455,7 +457,7 @@ let rec mp_renaming_fun table mp = match mp with
   | MPfile _ ->
       assert (State.get_modular table); (* see [at_toplevel] above *)
       assert (State.get_phase table == Pre);
-      let current_mpfile = (List.last (get_visible ())).mp in
+      let current_mpfile = (List.last (State.get_visible table)).mp in
       if not (ModPath.equal mp current_mpfile) then State.add_mpfiles table mp;
       [string_of_modfile (State.get_table table) mp]
 
@@ -528,7 +530,7 @@ let visible_clash table mp0 ks =
           if params_lookup table mp0 ks v.params then false
           else clash vis
         end
-  in clash (get_visible ())
+  in clash (State.get_visible table)
 
 (* Same, but with verbose output (and mp0 shouldn't be a MPbound) *)
 
@@ -541,7 +543,7 @@ let visible_clash_dbg table mp0 ks =
         with Not_found ->
           if params_lookup table mp0 ks v.params then None
           else clash vis
-  in clash (get_visible ())
+  in clash (State.get_visible table)
 
 (* After the 1st pass, we can decide which modules will be opened initially *)
 
@@ -638,7 +640,7 @@ let pp_ocaml_extern table k base rls = match rls with
 (* [pp_ocaml_gen] : choosing between [pp_ocaml_local] or [pp_ocaml_extern] *)
 
 let pp_ocaml_gen table k mp rls olab =
-  match common_prefix_from_list mp (get_visible_mps ()) with
+  match common_prefix_from_list mp (State.get_visible_mps table) with
     | Some prefix -> pp_ocaml_local table k prefix mp rls olab
     | None ->
         let base = base_mp mp in
@@ -647,12 +649,12 @@ let pp_ocaml_gen table k mp rls olab =
 
 (* For Haskell, things are simpler: we have removed (almost) all structures *)
 
-let pp_haskell_gen k mp rls = match rls with
+let pp_haskell_gen table k mp rls = match rls with
   | [] -> assert false
   | s::rls' ->
     let str = pseudo_qualify rls' in
     let str = if is_upper str && not (upperkind k) then ("_"^str) else str in
-    if ModPath.equal (base_mp mp) (top_visible_mp ()) then str else s^"."^str
+    if ModPath.equal (base_mp mp) (State.get_top_visible_mp table) then str else s^"."^str
 
 (* Main name printing function for a reference *)
 
@@ -661,16 +663,17 @@ let pp_global_with_key table k key r =
   assert (List.length ls > 1);
   let s = List.hd ls in
   let mp,l = KerName.repr key in
-  if ModPath.equal mp (top_visible_mp ()) then
+  if ModPath.equal mp (State.get_top_visible_mp table) then
     (* simplest situation: definition of r (or use in the same context) *)
     (* we update the visible environment *)
-    (add_visible (k,s) l; unquote s)
+    let () = State.add_visible table (k, s) l in
+    unquote s
   else
     let rls = List.rev ls in (* for what come next it's easier this way *)
     match lang () with
       | Scheme -> unquote s (* no modular Scheme extraction... *)
       | JSON -> dottify (List.map unquote rls)
-      | Haskell -> if State.get_modular table then pp_haskell_gen k mp rls else s
+      | Haskell -> if State.get_modular table then pp_haskell_gen table k mp rls else s
       | Ocaml -> pp_ocaml_gen table k mp rls (Some l)
 
 let pp_global table k r =
@@ -688,11 +691,12 @@ let pp_global_name table k r =
 let pp_module table mp =
   let ls = mp_renaming table mp in
   match mp with
-    | MPdot (mp0,l) when ModPath.equal mp0 (top_visible_mp ()) ->
+    | MPdot (mp0,l) when ModPath.equal mp0 (State.get_top_visible_mp table) ->
         (* simplest situation: definition of mp (or use in the same context) *)
         (* we update the visible environment *)
         let s = List.hd ls in
-        add_visible (Mod,s) l; s
+        let () = State.add_visible table (Mod, s) l in
+        s
     | _ -> pp_ocaml_gen table Mod mp (List.rev ls) None
 
 (** Special hack for constants of type Ascii.ascii : if an

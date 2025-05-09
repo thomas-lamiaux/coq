@@ -656,7 +656,7 @@ let pp_spec table = function
 let rec pp_specif table = function
   | (_,Spec (Sval _ as s)) -> pp_spec table s
   | (l,Spec s) ->
-     (match Common.State.get_duplicate table (top_visible_mp ()) l with
+     (match Common.State.get_duplicate table (State.get_top_visible_mp table) l with
       | None -> pp_spec table s
       | Some ren ->
          hov 1 (str ("module "^ren^" : sig") ++ fnl () ++ pp_spec table s) ++
@@ -664,9 +664,9 @@ let rec pp_specif table = function
          str ("include module type of struct include "^ren^" end"))
   | (l,Smodule mt) ->
       let def = pp_module_type table [] mt in
-      let name = pp_modname table (MPdot (top_visible_mp (), l)) in
+      let name = pp_modname table (MPdot (State.get_top_visible_mp table, l)) in
       hov 1 (str "module " ++ name ++ str " :" ++ fnl () ++ def) ++
-      (match Common.State.get_duplicate table (top_visible_mp ()) l with
+      (match Common.State.get_duplicate table (State.get_top_visible_mp table) l with
        | None -> Pp.mt ()
        | Some ren ->
          fnl () ++
@@ -674,9 +674,9 @@ let rec pp_specif table = function
                 str "module type of struct include " ++ name ++ str " end"))
   | (l,Smodtype mt) ->
       let def = pp_module_type table [] mt in
-      let name = pp_modname table (MPdot (top_visible_mp (), l)) in
+      let name = pp_modname table (MPdot (State.get_top_visible_mp table, l)) in
       hov 1 (str "module type " ++ name ++ str " =" ++ fnl () ++ def) ++
-      (match Common.State.get_duplicate table (top_visible_mp ()) l with
+      (match Common.State.get_duplicate table (State.get_top_visible_mp table) l with
        | None -> Pp.mt ()
        | Some ren -> fnl () ++ str ("module type "^ren^" = ") ++ name)
 
@@ -689,15 +689,15 @@ and pp_module_type table params = function
       let def = pp_module_type table (MPbound mbid :: params) mt' in
       str "functor (" ++ name ++ str ":" ++ typ ++ str ") ->" ++ fnl () ++ def
   | MTsig (mp, sign) ->
-      push_visible mp params;
-      let try_pp_specif l x =
-        let px = pp_specif table x in
-        if Pp.ismt px then l else px::l
-      in
-      (* We cannot use fold_right here due to side effects in pp_specif *)
-      let l = List.fold_left try_pp_specif [] sign in
-      let l = List.rev l in
-      pop_visible ~modular:(State.get_modular table) ~phase:(State.get_phase table) ();
+      let l = State.with_visibility table mp params begin fun table ->
+        let try_pp_specif l x =
+          let px = pp_specif table x in
+          if Pp.ismt px then l else px::l
+        in
+        (* We cannot use fold_right here due to side effects in pp_specif *)
+        let l = List.fold_left try_pp_specif [] sign in
+        List.rev l
+      end in
       str "sig" ++ fnl () ++
       (if List.is_empty l then mt ()
        else
@@ -711,25 +711,25 @@ and pp_module_type table params = function
         List.fold_left (fun mp l -> MPdot(mp,Label.of_id l)) mp_mt idl'
       in
       let r = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l)) in
-      push_visible mp_mt [];
-      let pp_w = str " with type " ++ ids ++ pp_global table Type r in
-      pop_visible ~modular:(State.get_modular table) ~phase:(State.get_phase table) ();
+      let pp_w = State.with_visibility table mp_mt [] begin fun table ->
+        str " with type " ++ ids ++ pp_global table Type r
+      end in
       pp_module_type table [] mt ++ pp_w ++ str " = " ++ pp_type table false vl typ
   | MTwith(mt,ML_With_module(idl,mp)) ->
       let mp_mt = msid_of_mt mt in
       let mp_w =
         List.fold_left (fun mp id -> MPdot(mp,Label.of_id id)) mp_mt idl
       in
-      push_visible mp_mt [];
-      let pp_w = str " with module " ++ pp_modname table mp_w in
-      pop_visible ~modular:(State.get_modular table) ~phase:(State.get_phase table) ();
+      let pp_w = State.with_visibility table mp_mt [] begin fun table ->
+        str " with module " ++ pp_modname table mp_w
+      end in
       pp_module_type table [] mt ++ pp_w ++ str " = " ++ pp_modname table mp
 
 let is_short = function MEident _ | MEapply _ -> true | _ -> false
 
 let rec pp_structure_elem table = function
   | (l,SEdecl d) ->
-     (match Common.State.get_duplicate table (top_visible_mp ()) l with
+     (match Common.State.get_duplicate table (State.get_top_visible_mp table) l with
       | None -> pp_decl table d
       | Some ren ->
          v 1 (str ("module "^ren^" = struct") ++ fnl () ++ pp_decl table d) ++
@@ -742,18 +742,18 @@ let rec pp_structure_elem table = function
         else mt ()
       in
       let def = pp_module_expr table [] m.ml_mod_expr in
-      let name = pp_modname table (MPdot (top_visible_mp (), l)) in
+      let name = pp_modname table (MPdot (State.get_top_visible_mp table, l)) in
       hov 1
         (str "module " ++ name ++ typ ++ str " =" ++
          (if is_short m.ml_mod_expr then spc () else fnl ()) ++ def) ++
-      (match Common.State.get_duplicate table (top_visible_mp ()) l with
+      (match Common.State.get_duplicate table (State.get_top_visible_mp table) l with
        | Some ren -> fnl () ++ str ("module "^ren^" = ") ++ name
        | None -> mt ())
   | (l,SEmodtype m) ->
       let def = pp_module_type table [] m in
-      let name = pp_modname table (MPdot (top_visible_mp (), l)) in
+      let name = pp_modname table (MPdot (State.get_top_visible_mp table, l)) in
       hov 1 (str "module type " ++ name ++ str " =" ++ fnl () ++ def) ++
-      (match Common.State.get_duplicate table (top_visible_mp ()) l with
+      (match Common.State.get_duplicate table (State.get_top_visible_mp table) l with
        | None -> mt ()
        | Some ren -> fnl () ++ str ("module type "^ren^" = ") ++ name)
 
@@ -767,15 +767,15 @@ and pp_module_expr table params = function
       let def = pp_module_expr table (MPbound mbid :: params) me in
       str "functor (" ++ name ++ str ":" ++ typ ++ str ") ->" ++ fnl () ++ def
   | MEstruct (mp, sel) ->
-      push_visible mp params;
-      let try_pp_structure_elem l x =
-        let px = pp_structure_elem table x in
-        if Pp.ismt px then l else px::l
-      in
-      (* We cannot use fold_right here due to side effects in pp_structure_elem *)
-      let l = List.fold_left try_pp_structure_elem [] sel in
-      let l = List.rev l in
-      pop_visible ~modular:(State.get_modular table) ~phase:(State.get_phase table) ();
+      let l = State.with_visibility table mp params begin fun table ->
+        let try_pp_structure_elem l x =
+          let px = pp_structure_elem table x in
+          if Pp.ismt px then l else px::l
+        in
+        (* We cannot use fold_right here due to side effects in pp_structure_elem *)
+        let l = List.fold_left try_pp_structure_elem [] sel in
+        List.rev l
+      end in
       str "struct" ++ fnl () ++
       (if List.is_empty l then mt ()
        else
@@ -793,20 +793,31 @@ let rec prlist_sep_nonempty sep f = function
 
 let do_struct table f s =
   let modular = State.get_modular table in
-  let ppl (mp,sel) =
-    push_visible mp [];
-    let p = prlist_sep_nonempty cut2 f sel in
+  let p =
     (* for monolithic extraction, we try to simulate the unavailability
        of [MPfile] in names by artificially nesting these [MPfile] *)
-    (if modular then pop_visible ~modular ~phase:(State.get_phase table) ()); p
+    if modular then
+      let ppl (mp, sel) = State.with_visibility table mp [] begin fun table ->
+        prlist_sep_nonempty cut2 (fun s -> f table s) sel
+      end in
+      List.map_left ppl s
+    else
+      let rec eval table = function
+      | [] -> []
+      | (mp, sel) :: l ->
+        State.with_visibility table mp [] begin fun table ->
+          let h = prlist_sep_nonempty cut2 (fun s -> f table s) sel in
+          h :: eval table l
+        end
+      in
+      eval table s
   in
-  let p = prlist_sep_nonempty cut2 ppl s in
-  (if not modular then repeat (List.length s) (fun () -> pop_visible ~modular ~phase:(State.get_phase table) ()) ());
+  let p = prlist_sep_nonempty cut2 (fun x -> x) p in
   v 0 p ++ fnl ()
 
-let pp_struct table s = do_struct table (fun e -> pp_structure_elem table e) s
+let pp_struct table s = do_struct table (fun table e -> pp_structure_elem table e) s
 
-let pp_signature table s = do_struct table (fun e -> pp_specif table e) s
+let pp_signature table s = do_struct table (fun table e -> pp_specif table e) s
 
 let file_naming state mp = file_of_modfile (State.get_table state) mp
 
