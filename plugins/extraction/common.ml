@@ -188,6 +188,7 @@ type state = {
   global_ids : Id.Set.t;
   mod_index : int Id.Map.t;
   ref_renaming : pp_tag list Refmap'.t;
+  mp_renaming : pp_tag list MPmap.t;
 }
 
 type t = {
@@ -212,6 +213,7 @@ let make_state kw = {
   global_ids = kw;
   mod_index = Id.Map.empty;
   ref_renaming = Refmap'.empty;
+  mp_renaming = MPmap.empty;
 }
 
 let make ~modular ~library ~extrcompute ~keywords () = {
@@ -261,6 +263,13 @@ let add_ref_renaming s r l =
 let get_ref_renaming s r =
   Refmap'.find r s.state.contents.ref_renaming
 
+let get_mp_renaming s mp =
+  MPmap.find mp s.state.contents.mp_renaming
+
+let add_mp_renaming s mp l =
+  let state = s.state.contents in
+  s.state := { state with mp_renaming = MPmap.add mp l state.mp_renaming }
+
 (* Reset *)
 
 let reset s =
@@ -268,6 +277,7 @@ let reset s =
     global_ids = s.keywords;
     mod_index = Id.Map.empty;
     ref_renaming = Refmap'.empty;
+    mp_renaming = MPmap.empty;
   } in
   s.state := state
 
@@ -287,16 +297,12 @@ let empty_env state () = [], State.get_global_ids state
    inaccurate. We must hence compare only the user part,
    hence using a Hashtbl might be incorrect *)
 
-let mktable_modpath autoclean =
-  let m = ref MPmap.empty in
-  let clear _ = m := MPmap.empty in
-  if autoclean then register_cleanup clear;
-  (fun r v -> m := MPmap.add r v !m), (fun r -> MPmap.find r !m), clear
-
 (* A table recording objects in the first level of all MPfile *)
 
 let add_mpfiles_content,get_mpfiles_content,clear_mpfiles_content =
-  mktable_modpath false
+  let m = ref MPmap.empty in
+  let clear _ = m := MPmap.empty in
+  (fun r v -> m := MPmap.add r v !m), (fun r -> MPmap.find r !m), clear
 
 let get_mpfiles_content mp =
   try get_mpfiles_content mp
@@ -454,11 +460,9 @@ let rec mp_renaming_fun table mp = match mp with
 
 (* ... and its version using a cache *)
 
-and mp_renaming =
-  let add,get,_ = mktable_modpath true in
-  fun table x ->
-    try if is_mp_bound (base_mp x) then raise Not_found; get x
-    with Not_found -> let y = mp_renaming_fun table x in add x y; y
+and mp_renaming table x =
+  try if is_mp_bound (base_mp x) then raise Not_found; State.get_mp_renaming table x
+  with Not_found -> let y = mp_renaming_fun table x in State.add_mp_renaming table x y; y
 
 (*s Renamings creation for a [global_reference]: we build its fully-qualified
     name in a [string list] form (head is the short name). *)
