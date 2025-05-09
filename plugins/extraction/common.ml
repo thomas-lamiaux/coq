@@ -186,6 +186,7 @@ struct
 
 type state = {
   global_ids : Id.Set.t;
+  mod_index : int Id.Map.t;
 }
 
 type t = {
@@ -208,6 +209,7 @@ type t = {
 
 let make_state kw = {
   global_ids = kw;
+  mod_index = Id.Map.empty;
 }
 
 let make ~modular ~library ~extrcompute ~keywords () = {
@@ -238,15 +240,26 @@ let set_phase s phase = { s with phase }
 
 let add_global_ids s id =
   let state = s.state.contents in
-  s.state := { global_ids = Id.Set.add id state.global_ids }
+  s.state := { state with global_ids = Id.Set.add id state.global_ids }
 
 let get_global_ids s =
   s.state.contents.global_ids
 
+let add_mod_index s id i =
+  let state = s.state.contents in
+  s.state := { state with mod_index = Id.Map.add id i state.mod_index }
+
+let get_mod_index s id =
+  Id.Map.find id s.state.contents.mod_index
+
 (* Reset *)
 
 let reset s =
-  s.state := { global_ids = s.keywords }
+  let state = {
+    global_ids = s.keywords;
+    mod_index = Id.Map.empty;
+  } in
+  s.state := state
 
 end
 
@@ -263,12 +276,6 @@ let empty_env state () = [], State.get_global_ids state
 (* We might have built [global_reference] whose canonical part is
    inaccurate. We must hence compare only the user part,
    hence using a Hashtbl might be incorrect *)
-
-let mktable_id autoclean =
-  let m = ref Id.Map.empty in
-  let clear _ = m := Id.Map.empty in
-  if autoclean then register_cleanup clear;
-  (fun r v -> m := Id.Map.add r v !m), (fun r -> Id.Map.find r !m), clear
 
 let mktable_ref autoclean =
   let m = ref Refmap'.empty in
@@ -403,21 +410,21 @@ let modular_rename table k id =
 (*s For monolithic extraction, first-level modules might have to be renamed
     with unique numbers *)
 
-let modfstlev_rename =
-  let add_index,get_index,_ = mktable_id true in
-  fun l ->
-    let id = Label.to_id l in
-    try
-      let n = get_index id in
-      add_index id (n+1);
-      let s = if n == 0 then "" else string_of_int (n-1) in
-      "Coq"^s^"_"^(ascii_of_id id)
-    with Not_found ->
-      let s = ascii_of_id id in
-      if is_lower s || begins_with_CoqXX s then
-        (add_index id 1; "Coq_"^s)
-      else
-        (add_index id 0; s)
+let modfstlev_rename table l =
+  let id = Label.to_id l in
+  try
+    let n = State.get_mod_index table id in
+    let () = State.add_mod_index table id (n+1) in
+    let s = if n == 0 then "" else string_of_int (n-1) in
+    "Coq"^s^"_"^(ascii_of_id id)
+  with Not_found ->
+    let s = ascii_of_id id in
+    if is_lower s || begins_with_CoqXX s then
+      let () = State.add_mod_index table id 1 in
+      "Coq_" ^ s
+    else
+      let () = State.add_mod_index table id 0 in
+      s
 
 (*s Creating renaming for a [module_path] : first, the real function ... *)
 
@@ -426,7 +433,7 @@ let rec mp_renaming_fun table mp = match mp with
   | MPdot (mp,l) ->
       let lmp = mp_renaming table mp in
       let mp = match lmp with
-      | [""] -> modfstlev_rename l
+      | [""] -> modfstlev_rename table l
       | _ -> modular_rename table Mod (Label.to_id l)
       in
       mp ::lmp
