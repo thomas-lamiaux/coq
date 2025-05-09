@@ -496,12 +496,12 @@ let module_filename table mp =
 let print_one_decl table struc mp decl =
   let d = descr () in
   reset_renaming_tables (State.get_keywords table) AllButExternal;
-  set_phase Pre;
+  let table = State.set_phase table Pre in
   ignore (d.pp_struct table struc);
-  set_phase Impl;
+  let table = State.set_phase table Impl in
   push_visible mp [];
   let ans = d.pp_decl table decl in
-  pop_visible ~modular:(State.get_modular table) ();
+  pop_visible ~modular:(State.get_modular table) ~phase:(State.get_phase table) ();
   v 0 ans
 
 (*s Extraction of a ml struct to a file. *)
@@ -551,7 +551,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
       else struct_ast_search (function MLmagic _ -> true | _ -> false) struc }
   in
   (* First, a dry run, for computing objects to rename or duplicate *)
-  set_phase Pre;
+  let table = State.set_phase table Pre in
   ignore (d.pp_struct table struc);
   let opened = opened_libraries table in
   (* Print the implementation *)
@@ -560,7 +560,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
   let comment = get_comment () in
   begin try
     (* The real printing of the implementation *)
-    set_phase Impl;
+    let table = State.set_phase table Impl in
     pp_with ft (d.preamble table mo comment opened unsafe_needs);
     pp_with ft (d.pp_struct table struc);
     Format.pp_print_flush ft ();
@@ -576,7 +576,7 @@ let print_structure_to_file table (fn,si,mo) dry struc =
        let cout = open_out si in
        let ft = formatter false (Some cout) in
        begin try
-         set_phase Intf;
+         let table = State.set_phase table Intf in
          pp_with ft (d.sig_preamble table mo comment opened unsafe_needs);
          pp_with ft (d.pp_sig table (signature_of_structure struc));
          Format.pp_print_flush ft ();

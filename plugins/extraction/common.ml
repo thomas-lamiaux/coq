@@ -179,9 +179,7 @@ let push_vars ids (db,avoid) =
 
 let get_db_name n (db,_) = List.nth db (pred n)
 
-(*S Renamings of global objects. *)
-
-(*s Tables of global renamings *)
+type phase = Pre | Impl | Intf
 
 module State =
 struct
@@ -200,6 +198,7 @@ type t = {
   - Extraction Library : modular, library
   *)
   keywords : Id.Set.t;
+  phase : phase;
 }
 
 let make ~modular ~library ~extrcompute ~keywords () = {
@@ -208,6 +207,7 @@ let make ~modular ~library ~extrcompute ~keywords () = {
   library;
   extrcompute;
   keywords;
+  phase = Impl;
 }
 
 let get_table s = s.table
@@ -220,16 +220,19 @@ let get_extrcompute s = s.extrcompute
 
 let get_keywords s = s.keywords
 
+let get_phase s = s.phase
+
+let set_phase s phase = { s with phase }
+
 end
+
+(*S Renamings of global objects. *)
+
+(*s Tables of global renamings *)
 
 let register_cleanup, do_cleanup =
   let funs = ref [] in
   (fun f -> funs:=f::!funs), (fun kw -> List.iter (fun f -> f kw) !funs)
-
-type phase = Pre | Impl | Intf
-
-let set_phase, get_phase =
-  let ph = ref Impl in ((:=) ph), (fun () -> !ph)
 
 let add_global_ids, get_global_ids =
   let ids = ref Id.Set.empty in
@@ -317,13 +320,13 @@ type visible_layer = { mp : ModPath.t;
 let pop_visible, push_visible, add_visible, get_visible =
   let vis = ref [] in
   register_cleanup (fun _ -> vis := []);
-  let pop ~modular () =
+  let pop ~modular ~phase () =
     match !vis with
       | [] -> assert false
       | v :: vl ->
           vis := vl;
           (* we save the 1st-level-content of MPfile for later use *)
-          if get_phase () == Impl && modular && is_modfile v.mp
+          if phase == Impl && modular && is_modfile v.mp
           then add_mpfiles_content v.mp v.content
   and push mp mps =
     vis := { mp = mp; params = mps; content = KMap.empty } :: !vis
@@ -417,7 +420,7 @@ let rec mp_renaming_fun table mp = match mp with
       else let i,_,_ = MBId.repr mbid in [s^"__"^string_of_int i]
   | MPfile _ ->
       assert (State.get_modular table); (* see [at_toplevel] above *)
-      assert (get_phase () == Pre);
+      assert (State.get_phase table == Pre);
       let current_mpfile = (List.last (get_visible ())).mp in
       if not (ModPath.equal mp current_mpfile) then mpfiles_add mp;
       [string_of_modfile (State.get_table table) mp]
@@ -543,7 +546,7 @@ let opened_libraries table =
    we duplicate the _definition_ of t in a Coq__XXX module, and similarly
    for a sub-module [M.N] *)
 
-let pp_duplicate k' prefix mp rls olab =
+let pp_duplicate table k' prefix mp rls olab =
   let rls', lbl =
     if k' != Mod then
       (* Here rls=[s], the ref to print is <prefix>.<s>, and olab<>None *)
@@ -555,7 +558,7 @@ let pp_duplicate k' prefix mp rls olab =
   match get_duplicate prefix lbl with
   | Some ren -> dottify (ren :: rls')
   | None ->
-     assert (get_phase () == Pre); (* otherwise it's too late *)
+     assert (State.get_phase table == Pre); (* otherwise it's too late *)
      add_duplicate prefix lbl; dottify rls
 
 let fstlev_ks k = function
@@ -573,14 +576,14 @@ let pp_ocaml_local table k prefix mp rls olab =
   let k's = fstlev_ks k rls' in
   (* Reference r / module path mp is of the form [<prefix>.s.<...>]. *)
   if not (visible_clash table prefix k's) then dottify rls'
-  else pp_duplicate (fst k's) prefix mp rls' olab
+  else pp_duplicate table (fst k's) prefix mp rls' olab
 
 (* [pp_ocaml_bound] : [mp] starts with a [MPbound], and we are not inside
    (i.e. we are not printing the type of the module parameter) *)
 
 let pp_ocaml_bound table base rls =
   (* clash with a MPbound will be detected and fixed by renaming this MPbound *)
-  if get_phase () == Pre then ignore (visible_clash table base (Mod,List.hd rls));
+  if State.get_phase table == Pre then ignore (visible_clash table base (Mod,List.hd rls));
   dottify rls
 
 (* [pp_ocaml_extern] : [mp] isn't local, it is defined in another [MPfile]. *)

@@ -394,7 +394,7 @@ let pp_struct table =
   let pp_sel (mp,sel) =
     push_visible mp [];
     let p = prlist_strict (fun e -> pp_structure_elem table e) sel in
-    pop_visible ~modular:(State.get_modular table) (); p
+    pop_visible ~modular:(State.get_modular table) ~phase:(State.get_phase table) (); p
   in
   prlist_strict pp_sel
 
