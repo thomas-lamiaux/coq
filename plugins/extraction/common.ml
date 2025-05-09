@@ -187,6 +187,7 @@ struct
 type state = {
   global_ids : Id.Set.t;
   mod_index : int Id.Map.t;
+  ref_renaming : pp_tag list Refmap'.t;
 }
 
 type t = {
@@ -210,6 +211,7 @@ type t = {
 let make_state kw = {
   global_ids = kw;
   mod_index = Id.Map.empty;
+  ref_renaming = Refmap'.empty;
 }
 
 let make ~modular ~library ~extrcompute ~keywords () = {
@@ -252,12 +254,20 @@ let add_mod_index s id i =
 let get_mod_index s id =
   Id.Map.find id s.state.contents.mod_index
 
+let add_ref_renaming s r l =
+  let state = s.state.contents in
+  s.state := { state with ref_renaming = Refmap'.add r l state.ref_renaming }
+
+let get_ref_renaming s r =
+  Refmap'.find r s.state.contents.ref_renaming
+
 (* Reset *)
 
 let reset s =
   let state = {
     global_ids = s.keywords;
     mod_index = Id.Map.empty;
+    ref_renaming = Refmap'.empty;
   } in
   s.state := state
 
@@ -276,12 +286,6 @@ let empty_env state () = [], State.get_global_ids state
 (* We might have built [global_reference] whose canonical part is
    inaccurate. We must hence compare only the user part,
    hence using a Hashtbl might be incorrect *)
-
-let mktable_ref autoclean =
-  let m = ref Refmap'.empty in
-  let clear _ = m := Refmap'.empty in
-  if autoclean then register_cleanup clear;
-  (fun r v -> m := Refmap'.add r v !m), (fun r -> Refmap'.find r !m), clear
 
 let mktable_modpath autoclean =
   let m = ref MPmap.empty in
@@ -477,11 +481,9 @@ let ref_renaming_fun table (k,r) =
 
 (* Cached version of the last function *)
 
-let ref_renaming =
-  let add,get,_ = mktable_ref true in
-  fun table ((k,r) as x) ->
-    try if is_mp_bound (base_mp (modpath_of_r r)) then raise Not_found; get r
-    with Not_found -> let y = ref_renaming_fun table x in add r y; y
+let ref_renaming table ((k,r) as x) =
+  try if is_mp_bound (base_mp (modpath_of_r r)) then raise Not_found; State.get_ref_renaming table r
+  with Not_found -> let y = ref_renaming_fun table x in State.add_ref_renaming table r y; y
 
 (* [visible_clash mp0 (k,s)] checks if [mp0-s] of kind [k]
    can be printed as [s] in the current context of visible
