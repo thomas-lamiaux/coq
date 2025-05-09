@@ -364,7 +364,7 @@ let pp_decl table = function
             (if is_custom r then
                 (names.(i) ++ str " = " ++ str (find_custom r))
              else
-                (pp_function table (empty_env ()) names.(i) defs.(i)))
+                (pp_function table (empty_env table ()) names.(i) defs.(i)))
             ++ fnl2 ())
         rv
   | Dterm (r, a, t) ->
@@ -375,7 +375,7 @@ let pp_decl table = function
           if is_custom r then
             hov 0 (e ++ str " = " ++ str (find_custom r) ++ fnl2 ())
           else
-            hov 0 (pp_function table (empty_env ()) e a ++ fnl2 ())
+            hov 0 (pp_function table (empty_env table ()) e a ++ fnl2 ())
 
 let rec pp_structure_elem table = function
   | (l,SEdecl d) -> pp_decl table d

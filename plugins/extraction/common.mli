@@ -37,14 +37,6 @@ val pr_binding : Id.t list -> Pp.t
 
 val rename_id : Id.t -> Id.Set.t -> Id.t
 
-type env = Id.t list * Id.Set.t
-val empty_env : unit -> env
-
-val rename_vars: Id.Set.t -> Id.t list -> env
-val rename_tvars: Id.Set.t -> Id.t list -> Id.t list
-val push_vars : Id.t list -> env -> Id.t list * env
-val get_db_name : int -> env -> Id.t
-
 type phase = Pre | Impl | Intf
 
 module State :
@@ -66,6 +58,14 @@ sig
 
 end
 
+type env = Id.t list * Id.Set.t
+val empty_env : State.t -> unit -> env
+
+val rename_vars: Id.Set.t -> Id.t list -> env
+val rename_tvars: Id.Set.t -> Id.t list -> Id.t list
+val push_vars : Id.t list -> env -> Id.t list * env
+val get_db_name : int -> env -> Id.t
+
 val opened_libraries : State.t -> ModPath.t list
 
 type kind = Term | Type | Cons | Mod
@@ -85,7 +85,7 @@ val get_duplicate : ModPath.t -> Label.t -> string option
 
 type reset_kind = AllButExternal | Everything
 
-val reset_renaming_tables : Id.Set.t -> reset_kind -> unit
+val reset_renaming_tables : State.t -> reset_kind -> unit
 
 (** Special hack for constants of type Ascii.ascii : if an
     [Extract Inductive ascii => char] has been declared, then

@@ -477,7 +477,7 @@ let pp_Dfix table (rv,c,t) =
       else
         let def =
           if is_custom rv.(i) then str " = " ++ str (find_custom rv.(i))
-          else pp_function table (empty_env ()) c.(i)
+          else pp_function table (empty_env table ()) c.(i)
         in
         (if init then mt () else cut2 ()) ++
         pp_val table names.(i) t.(i) ++
@@ -608,7 +608,7 @@ let pp_decl table = function
           if is_foreign_custom r then str ": " ++ pp_type table false [] t ++ str " = \"" ++ str (find_custom r) ++ str "\""
           (* Otherwise, check if it is a regular custom term. *)
           else if is_custom r then str (" = " ^ find_custom r)
-          else pp_function table (empty_env ()) a
+          else pp_function table (empty_env table ()) a
         in
         let name = pp_global_name table Term r in
         (* If it is an foreign custom, begin the expression with 'external'/'foreign' instead of 'let' *)

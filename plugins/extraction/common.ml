@@ -184,8 +184,13 @@ type phase = Pre | Impl | Intf
 module State =
 struct
 
+type state = {
+  global_ids : Id.Set.t;
+}
+
 type t = {
   table : Table.t;
+  state : state ref;
   (* fields below are read-only *)
   modular : bool;
   library : bool;
@@ -201,8 +206,13 @@ type t = {
   phase : phase;
 }
 
+let make_state kw = {
+  global_ids = kw;
+}
+
 let make ~modular ~library ~extrcompute ~keywords () = {
   table = Table.make_table ();
+  state = ref (make_state keywords);
   modular;
   library;
   extrcompute;
@@ -224,6 +234,20 @@ let get_phase s = s.phase
 
 let set_phase s phase = { s with phase }
 
+(* Mutable primitives *)
+
+let add_global_ids s id =
+  let state = s.state.contents in
+  s.state := { global_ids = Id.Set.add id state.global_ids }
+
+let get_global_ids s =
+  s.state.contents.global_ids
+
+(* Reset *)
+
+let reset s =
+  s.state := { global_ids = s.keywords }
+
 end
 
 (*S Renamings of global objects. *)
@@ -232,17 +256,9 @@ end
 
 let register_cleanup, do_cleanup =
   let funs = ref [] in
-  (fun f -> funs:=f::!funs), (fun kw -> List.iter (fun f -> f kw) !funs)
+  (fun f -> funs:=f::!funs), (fun state -> State.reset state; List.iter (fun f -> f ()) !funs)
 
-let add_global_ids, get_global_ids =
-  let ids = ref Id.Set.empty in
-  let clean kw = ids := kw in
-  register_cleanup clean;
-  let add s = ids := Id.Set.add s !ids
-  and get () = !ids
-  in (add,get)
-
-let empty_env () = [], get_global_ids ()
+let empty_env state () = [], State.get_global_ids state
 
 (* We might have built [global_reference] whose canonical part is
    inaccurate. We must hence compare only the user part,
@@ -444,12 +460,12 @@ let ref_renaming_fun table (k,r) =
     let idg = safe_basename_of_global (State.get_table table) r in
     match l with
     | [""] -> (* this happens only at toplevel of the monolithic case *)
-      let globs = get_global_ids () in
+      let globs = State.get_global_ids table in
       let id = next_ident_away (kindcase_id k idg) globs in
       Id.to_string id
     | _ -> modular_rename table k idg
   in
-  add_global_ids (Id.of_string s);
+  let () = State.add_global_ids table (Id.of_string s) in
   s::l
 
 (* Cached version of the last function *)

@@ -243,14 +243,14 @@ let pp_decl table = function
           ("what", json_str "fixgroup:item");
           ("name", json_global table Term rv.(i));
           ("type", json_type table [] typs.(i));
-          ("value", json_function table (empty_env ()) defs.(i))
+          ("value", json_function table (empty_env table ()) defs.(i))
         ]) rv))
     ]
   | Dterm (r, a, t) -> json_dict [
       ("what", json_str "decl:term");
       ("name", json_global table Term r);
       ("type", json_type table [] t);
-      ("value", json_function table (empty_env ()) a)
+      ("value", json_function table (empty_env table ()) a)
     ]
 
 let rec pp_structure_elem table = function

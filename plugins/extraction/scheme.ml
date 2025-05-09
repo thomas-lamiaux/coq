@@ -199,7 +199,7 @@ let pp_decl table = function
             hov 2
               (paren (str "define " ++ names.(i) ++ spc () ++
                         (if is_custom r then str (find_custom r)
-                         else pp_expr table (empty_env ()) [] defs.(i)))
+                         else pp_expr table (empty_env table ()) [] defs.(i)))
                ++ fnl ()) ++ fnl ())
         rv
   | Dterm (r, a, _) ->
@@ -207,7 +207,7 @@ let pp_decl table = function
       else
         hov 2 (paren (str "define " ++ pp_global table Term r ++ spc () ++
                         (if is_custom r then str (find_custom r)
-                         else pp_expr table (empty_env ()) [] a)))
+                         else pp_expr table (empty_env table ()) [] a)))
         ++ fnl2 ()
 
 let rec pp_structure_elem table = function
