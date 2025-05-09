@@ -190,6 +190,7 @@ type state = {
   ref_renaming : pp_tag list Refmap'.t;
   mp_renaming : pp_tag list MPmap.t;
   params_ren : MPset.t; (* List of module parameters that we should alpha-rename *)
+  mpfiles : MPset.t; (* List of external modules that will be opened initially *)
 }
 
 type t = {
@@ -216,6 +217,7 @@ let make_state kw = {
   ref_renaming = Refmap'.empty;
   mp_renaming = MPmap.empty;
   params_ren = MPset.empty;
+  mpfiles = MPset.empty;
 }
 
 let make ~modular ~library ~extrcompute ~keywords () = {
@@ -279,6 +281,17 @@ let add_params_ren s mp =
 let mem_params_ren s mp =
   MPset.mem mp s.state.contents.params_ren
 
+let get_mpfiles s =
+  s.state.contents.mpfiles
+
+let add_mpfiles s mp =
+  let state = s.state.contents in
+  s.state := { state with mpfiles = MPset.add mp state.mpfiles }
+
+let clear_mpfiles s =
+  let state = s.state.contents in
+  s.state := { state with mpfiles = MPset.empty }
+
 (* Reset *)
 
 let reset s =
@@ -288,6 +301,7 @@ let reset s =
     ref_renaming = Refmap'.empty;
     mp_renaming = MPmap.empty;
     params_ren = MPset.empty;
+    mpfiles = MPset.empty;
   } in
   s.state := state
 
@@ -317,18 +331,6 @@ let add_mpfiles_content,get_mpfiles_content,clear_mpfiles_content =
 let get_mpfiles_content mp =
   try get_mpfiles_content mp
   with Not_found -> failwith "get_mpfiles_content"
-
-(*s The list of external modules that will be opened initially *)
-
-let mpfiles_add, mpfiles_mem, mpfiles_list, mpfiles_clear =
-  let m = ref MPset.empty in
-  let add mp = m:=MPset.add mp !m
-  and mem mp = MPset.mem mp !m
-  and list () = MPset.elements !m
-  and clear _ = m:=MPset.empty
-  in
-  register_cleanup clear;
-  (add,mem,list,clear)
 
 (*s table indicating the visible horizon at a precise moment,
     i.e. the stack of structures we are inside.
@@ -454,7 +456,7 @@ let rec mp_renaming_fun table mp = match mp with
       assert (State.get_modular table); (* see [at_toplevel] above *)
       assert (State.get_phase table == Pre);
       let current_mpfile = (List.last (get_visible ())).mp in
-      if not (ModPath.equal mp current_mpfile) then mpfiles_add mp;
+      if not (ModPath.equal mp current_mpfile) then State.add_mpfiles table mp;
       [string_of_modfile (State.get_table table) mp]
 
 (* ... and its version using a cache *)
@@ -500,9 +502,9 @@ let rec clash mem mp0 ks = function
   | mp :: _ when mem mp ks -> true
   | _ :: mpl -> clash mem mp0 ks mpl
 
-let mpfiles_clash mp0 ks =
+let mpfiles_clash table mp0 ks =
   clash (fun mp k -> KMap.mem k (get_mpfiles_content mp)) mp0 ks
-    (List.rev (mpfiles_list ()))
+    (List.rev (MPset.elements (State.get_mpfiles table)))
 
 let rec params_lookup table mp0 ks = function
   | [] -> false
@@ -546,7 +548,7 @@ let visible_clash_dbg table mp0 ks =
 let opened_libraries table =
   if not (State.get_modular table) then []
   else
-    let used_files = mpfiles_list () in
+    let used_files = MPset.elements (State.get_mpfiles table) in
     let used_ks = List.map (fun mp -> Mod,string_of_modfile (State.get_table table) mp) used_files in
     (* By default, we open all used files. Ambiguities will be resolved later
        by using qualified names. Nonetheless, we don't open any file A that
@@ -558,9 +560,9 @@ let opened_libraries table =
            not (List.exists (fun k -> KMap.mem k (get_mpfiles_content mp)) used_ks))
         used_files
     in
-    mpfiles_clear ();
-    List.iter mpfiles_add to_open;
-    mpfiles_list ()
+    let () = State.clear_mpfiles table in
+    let () = List.iter (fun mp -> State.add_mpfiles table mp) to_open in
+    MPset.elements (State.get_mpfiles table)
 
 (*s On-the-fly qualification issues for both monolithic or modular extraction. *)
 
@@ -621,8 +623,8 @@ let pp_ocaml_extern table k base rls = match rls with
   | base_s :: rls' ->
       if (not (State.get_modular table)) (* Pseudo qualification with "" *)
         || (List.is_empty rls')  (* Case of a file A.v used as a module later *)
-        || (not (mpfiles_mem base)) (* Module not opened *)
-        || (mpfiles_clash base (fstlev_ks k rls')) (* Conflict in opened files *)
+        || (not (MPset.mem base (State.get_mpfiles table))) (* Module not opened *)
+        || (mpfiles_clash table base (fstlev_ks k rls')) (* Conflict in opened files *)
         || (visible_clash table base (fstlev_ks k rls')) (* Local conflict *)
       then
         (* We need to fully qualify. Last clash situation is unsupported *)
