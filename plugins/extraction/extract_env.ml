@@ -601,7 +601,6 @@ let print_structure_to_file table (fn,si,mo) dry struc =
 let init ?(compute=false) ?(inner=false) modular library =
   if not inner then check_inside_section ();
   let keywords = (descr ()).keywords in
-  let () = Common.clear_mpfiles_content () in
   let state = State.make ~modular ~library ~extrcompute:compute ~keywords () in
   if modular && lang () == Scheme then error_scheme ();
   state
@@ -640,8 +639,7 @@ let full_extr opaque_access f (refs,mps) =
   List.iter (fun mp -> if is_modfile mp then error_MPfile_as_mod mp true) mps;
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = warns table in
-  print_structure_to_file table (mono_filename f) false struc;
-  Common.clear_mpfiles_content ()
+  print_structure_to_file table (mono_filename f) false struc
 
 let full_extraction ~opaque_access f lr =
   full_extr opaque_access f (locate_ref lr)
@@ -666,7 +664,7 @@ let separate_extraction ~opaque_access lr =
     | (MPdot _ | MPbound _), _ -> assert false
   in
   let () = List.iter print struc in
-  Common.clear_mpfiles_content ()
+  ()
 
 (*s Simple extraction in the Rocq toplevel. The vernacular command
     is \verb!Extraction! [qualid]. *)
@@ -684,7 +682,6 @@ let simple_extraction ~opaque_access r =
         else mt ()
       in
       let ans = flag ++ print_one_decl table struc (modpath_of_r r) d in
-      let () = Common.clear_mpfiles_content () in
       Feedback.msg_notice ans
   | _ -> assert false
 
@@ -719,7 +716,7 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
     | _ -> assert false
   in
   let () = List.iter print struc in
-  Common.clear_mpfiles_content ()
+  ()
 
 (** For extraction compute, we flatten all the module structure,
     getting rid of module types or unapplied functors *)

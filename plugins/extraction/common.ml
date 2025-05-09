@@ -195,13 +195,6 @@ module DupMap = Map.Make(DupOrd)
    inaccurate. We must hence compare only the user part,
    hence using a Hashtbl might be incorrect *)
 
-(* A table recording objects in the first level of all MPfile *)
-
-let add_mpfiles_content,get_mpfiles_content,clear_mpfiles_content =
-  let m = ref MPmap.empty in
-  let clear _ = m := MPmap.empty in
-  (fun r v -> m := MPmap.add r v !m), (fun r -> MPmap.find r !m), clear
-
 (*s table indicating the visible horizon at a precise moment,
     i.e. the stack of structures we are inside.
 
@@ -232,6 +225,7 @@ type state = {
   params_ren : MPset.t; (* List of module parameters that we should alpha-rename *)
   mpfiles : MPset.t; (* List of external modules that will be opened initially *)
   duplicates : int * string DupMap.t; (* table of local module wrappers used to provide non-ambiguous names *)
+  mpfiles_content : Label.t KMap.t MPmap.t; (* table recording objects in the first level of all MPfile *)
 }
 
 type t = {
@@ -261,6 +255,7 @@ let make_state kw = {
   params_ren = MPset.empty;
   mpfiles = MPset.empty;
   duplicates = (0, DupMap.empty);
+  mpfiles_content = MPmap.empty;
 }
 
 let make ~modular ~library ~extrcompute ~keywords () = {
@@ -296,7 +291,9 @@ let with_visibility s mp mps k =
   (* we save the 1st-level-content of MPfile for later use *)
   let () =
     if s.phase == Impl && s.modular && is_modfile !v.mp
-    then add_mpfiles_content !v.mp !v.content
+    then
+      let state = s.state.contents in
+      s.state := { state with mpfiles_content = MPmap.add !v.mp !v.content state.mpfiles_content }
   in
   ans
 
@@ -372,6 +369,9 @@ let add_duplicate s mp l =
 let get_duplicate s mp l =
   DupMap.find_opt (mp, l) (snd s.state.contents.duplicates)
 
+let get_mpfiles_content s mp =
+  MPmap.find mp s.state.contents.mpfiles_content
+
 (* Reset *)
 
 let reset s =
@@ -384,6 +384,7 @@ let reset s =
     params_ren = MPset.empty;
     mpfiles = MPset.empty;
     duplicates = (0, DupMap.empty);
+    mpfiles_content = s.state.contents.mpfiles_content; (* don't reset! *)
   } in
   s.state := state
 
@@ -395,8 +396,8 @@ end
 
 let empty_env state () = [], State.get_global_ids state
 
-let get_mpfiles_content mp =
-  try get_mpfiles_content mp
+let get_mpfiles_content s mp =
+  try State.get_mpfiles_content s mp
   with Not_found -> failwith "get_mpfiles_content"
 
 (*S Renaming functions *)
@@ -499,7 +500,7 @@ let rec clash mem mp0 ks = function
   | _ :: mpl -> clash mem mp0 ks mpl
 
 let mpfiles_clash table mp0 ks =
-  clash (fun mp k -> KMap.mem k (get_mpfiles_content mp)) mp0 ks
+  clash (fun mp k -> KMap.mem k (get_mpfiles_content table mp)) mp0 ks
     (List.rev (MPset.elements (State.get_mpfiles table)))
 
 let rec params_lookup table mp0 ks = function
@@ -553,7 +554,7 @@ let opened_libraries table =
     let to_open =
       List.filter
         (fun mp ->
-           not (List.exists (fun k -> KMap.mem k (get_mpfiles_content mp)) used_ks))
+           not (List.exists (fun k -> KMap.mem k (get_mpfiles_content table mp)) used_ks))
         used_files
     in
     let () = State.clear_mpfiles table in

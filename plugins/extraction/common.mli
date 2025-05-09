@@ -88,7 +88,7 @@ val pp_global : State.t -> kind -> GlobRef.t -> string
 val pp_global_name : State.t -> kind -> GlobRef.t -> string
 val pp_module : State.t -> ModPath.t -> string
 
-val clear_mpfiles_content : unit -> unit
+(* val clear_mpfiles_content : unit -> unit *)
 
 (** Special hack for constants of type Ascii.ascii : if an
     [Extract Inductive ascii => char] has been declared, then
