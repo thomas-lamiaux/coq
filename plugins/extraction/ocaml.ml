@@ -697,7 +697,7 @@ and pp_module_type table params = function
       (* We cannot use fold_right here due to side effects in pp_specif *)
       let l = List.fold_left try_pp_specif [] sign in
       let l = List.rev l in
-      pop_visible ();
+      pop_visible ~modular:(State.get_modular table) ();
       str "sig" ++ fnl () ++
       (if List.is_empty l then mt ()
        else
@@ -713,7 +713,7 @@ and pp_module_type table params = function
       let r = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l)) in
       push_visible mp_mt [];
       let pp_w = str " with type " ++ ids ++ pp_global table Type r in
-      pop_visible();
+      pop_visible ~modular:(State.get_modular table) ();
       pp_module_type table [] mt ++ pp_w ++ str " = " ++ pp_type table false vl typ
   | MTwith(mt,ML_With_module(idl,mp)) ->
       let mp_mt = msid_of_mt mt in
@@ -722,7 +722,7 @@ and pp_module_type table params = function
       in
       push_visible mp_mt [];
       let pp_w = str " with module " ++ pp_modname table mp_w in
-      pop_visible ();
+      pop_visible ~modular:(State.get_modular table) ();
       pp_module_type table [] mt ++ pp_w ++ str " = " ++ pp_modname table mp
 
 let is_short = function MEident _ | MEapply _ -> true | _ -> false
@@ -775,7 +775,7 @@ and pp_module_expr table params = function
       (* We cannot use fold_right here due to side effects in pp_structure_elem *)
       let l = List.fold_left try_pp_structure_elem [] sel in
       let l = List.rev l in
-      pop_visible ();
+      pop_visible ~modular:(State.get_modular table) ();
       str "struct" ++ fnl () ++
       (if List.is_empty l then mt ()
        else
@@ -791,21 +791,22 @@ let rec prlist_sep_nonempty sep f = function
      if Pp.ismt e then r
      else e ++ sep () ++ r
 
-let do_struct f s =
+let do_struct table f s =
+  let modular = State.get_modular table in
   let ppl (mp,sel) =
     push_visible mp [];
     let p = prlist_sep_nonempty cut2 f sel in
     (* for monolithic extraction, we try to simulate the unavailability
        of [MPfile] in names by artificially nesting these [MPfile] *)
-    (if modular () then pop_visible ()); p
+    (if modular then pop_visible ~modular ()); p
   in
   let p = prlist_sep_nonempty cut2 ppl s in
-  (if not (modular ()) then repeat (List.length s) pop_visible ());
+  (if not modular then repeat (List.length s) (fun () -> pop_visible ~modular ()) ());
   v 0 p ++ fnl ()
 
-let pp_struct table s = do_struct (fun e -> pp_structure_elem table e) s
+let pp_struct table s = do_struct table (fun e -> pp_structure_elem table e) s
 
-let pp_signature table s = do_struct (fun e -> pp_specif table e) s
+let pp_signature table s = do_struct table (fun e -> pp_specif table e) s
 
 let file_naming state mp = file_of_modfile (State.get_table state) mp
 

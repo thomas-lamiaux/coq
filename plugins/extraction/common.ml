@@ -188,13 +188,18 @@ struct
 
 type t = {
   table : Table.t;
+  (* fields below are read-only *)
+  modular : bool;
 }
 
-let make () = {
+let make ~modular () = {
   table = Table.make_table ();
+  modular;
 }
 
 let get_table s = s.table
+
+let get_modular s = s.modular
 
 end
 
@@ -296,13 +301,13 @@ type visible_layer = { mp : ModPath.t;
 let pop_visible, push_visible, add_visible, get_visible =
   let vis = ref [] in
   register_cleanup (fun () -> vis := []);
-  let pop () =
+  let pop ~modular () =
     match !vis with
       | [] -> assert false
       | v :: vl ->
           vis := vl;
           (* we save the 1st-level-content of MPfile for later use *)
-          if get_phase () == Impl && modular () && is_modfile v.mp
+          if get_phase () == Impl && modular && is_modfile v.mp
           then add_mpfiles_content v.mp v.content
   and push mp mps =
     vis := { mp = mp; params = mps; content = KMap.empty } :: !vis
@@ -382,7 +387,7 @@ let modfstlev_rename =
 (*s Creating renaming for a [module_path] : first, the real function ... *)
 
 let rec mp_renaming_fun table mp = match mp with
-  | _ when not (modular ()) && at_toplevel mp -> [""]
+  | _ when not (State.get_modular table) && at_toplevel mp -> [""]
   | MPdot (mp,l) ->
       let lmp = mp_renaming table mp in
       let mp = match lmp with
@@ -395,7 +400,7 @@ let rec mp_renaming_fun table mp = match mp with
       if not (params_ren_mem mp) then [s]
       else let i,_,_ = MBId.repr mbid in [s^"__"^string_of_int i]
   | MPfile _ ->
-      assert (modular ()); (* see [at_toplevel] above *)
+      assert (State.get_modular table); (* see [at_toplevel] above *)
       assert (get_phase () == Pre);
       let current_mpfile = (List.last (get_visible ())).mp in
       if not (ModPath.equal mp current_mpfile) then mpfiles_add mp;
@@ -415,7 +420,7 @@ and mp_renaming =
 let ref_renaming_fun table (k,r) =
   let mp = modpath_of_r r in
   let l = mp_renaming table mp in
-  let l = if lang () != Ocaml && not (modular ()) then [""] else l in
+  let l = if lang () != Ocaml && not (State.get_modular table) then [""] else l in
   let s =
     let idg = safe_basename_of_global (State.get_table table) r in
     match l with
@@ -492,7 +497,7 @@ let visible_clash_dbg table mp0 ks =
 (* After the 1st pass, we can decide which modules will be opened initially *)
 
 let opened_libraries table =
-  if not (modular ()) then []
+  if not (State.get_modular table) then []
   else
     let used_files = mpfiles_list () in
     let used_ks = List.map (fun mp -> Mod,string_of_modfile (State.get_table table) mp) used_files in
@@ -567,7 +572,7 @@ let pp_ocaml_bound table base rls =
 let pp_ocaml_extern table k base rls = match rls with
   | [] -> assert false
   | base_s :: rls' ->
-      if (not (modular ())) (* Pseudo qualification with "" *)
+      if (not (State.get_modular table)) (* Pseudo qualification with "" *)
         || (List.is_empty rls')  (* Case of a file A.v used as a module later *)
         || (not (mpfiles_mem base)) (* Module not opened *)
         || (mpfiles_clash base (fstlev_ks k rls')) (* Conflict in opened files *)
@@ -616,7 +621,7 @@ let pp_global_with_key table k key r =
     match lang () with
       | Scheme -> unquote s (* no modular Scheme extraction... *)
       | JSON -> dottify (List.map unquote rls)
-      | Haskell -> if modular () then pp_haskell_gen k mp rls else s
+      | Haskell -> if State.get_modular table then pp_haskell_gen k mp rls else s
       | Ocaml -> pp_ocaml_gen table k mp rls (Some l)
 
 let pp_global table k r =

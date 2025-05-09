@@ -368,7 +368,7 @@ and extract_mexpr table access venv env mp = function
       let sign, delta = expand_mexpr env mp me in
       extract_msignature table access venv env mp delta ~all:true sign
   | MEident mp ->
-      if is_modfile mp && not (modular ()) then error_MPfile_as_mod mp false;
+      if is_modfile mp && not (State.get_modular table) then error_MPfile_as_mod mp false;
       Visit.add_mp_all venv mp; Miniml.MEident mp
   | MEapply (me, arg) ->
       Miniml.MEapply (extract_mexpr table access venv env mp me,
@@ -501,7 +501,7 @@ let print_one_decl table struc mp decl =
   set_phase Impl;
   push_visible mp [];
   let ans = d.pp_decl table decl in
-  pop_visible ();
+  pop_visible ~modular:(State.get_modular table) ();
   v 0 ans
 
 (*s Extraction of a ml struct to a file. *)
@@ -605,12 +605,11 @@ let reset () =
 let init ?(compute=false) ?(inner=false) modular library =
   if not inner then check_inside_section ();
   set_keywords (descr ()).keywords;
-  set_modular modular;
   set_library library;
   set_extrcompute compute;
   reset ();
   if modular && lang () == Scheme then error_scheme ();
-  State.make ()
+  State.make ~modular ()
 
 let warns table =
   let table = State.get_table table in

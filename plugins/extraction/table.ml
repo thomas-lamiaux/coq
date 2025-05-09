@@ -249,11 +249,7 @@ Nota:
  - Extraction Library : modular, library
 *)
 
-let modular_ref = ref false
 let library_ref = ref false
-
-let set_modular b = modular_ref := b
-let modular () = !modular_ref
 
 let set_library b = library_ref := b
 let library () = !library_ref

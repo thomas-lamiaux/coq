@@ -481,7 +481,7 @@ and extract_really_ind table env kn mib =
        (cf Vector and bug #2570) *)
     let equiv =
       if lang () != Ocaml ||
-         (not (modular ()) && at_toplevel (MutInd.modpath kn)) ||
+         (not (Common.State.get_modular table) && at_toplevel (MutInd.modpath kn)) ||
          KerName.equal (MutInd.canonical kn) (MutInd.user kn)
       then
         NoEquiv

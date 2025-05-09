@@ -53,8 +53,9 @@ val get_phase : unit -> phase
 module State :
 sig
   type t
-  val make : unit -> t
+  val make : modular:bool -> unit -> t
   val get_table : t -> Table.t
+  val get_modular : t -> bool
 end
 
 val opened_libraries : State.t -> ModPath.t list
@@ -70,7 +71,7 @@ val top_visible_mp : unit -> ModPath.t
 (* In [push_visible], the [module_path list] corresponds to
    module parameters, the innermost one coming first in the list *)
 val push_visible : ModPath.t -> ModPath.t list -> unit
-val pop_visible : unit -> unit
+val pop_visible : modular:bool -> unit -> unit
 
 val get_duplicate : ModPath.t -> Label.t -> string option
 

@@ -167,9 +167,6 @@ Nota:
  - Extraction Library : modular, library
 *)
 
-val set_modular : bool -> unit
-val modular : unit -> bool
-
 val set_library : bool -> unit
 val library : unit -> bool
 

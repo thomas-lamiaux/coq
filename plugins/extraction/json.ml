@@ -271,7 +271,7 @@ let pp_struct table mls =
     push_visible mp [];
     let p = prlist_with_sep pr_comma identity
       (List.concat (List.map (pp_structure_elem table) sel)) in
-    pop_visible (); p
+    pop_visible ~modular:(State.get_modular table) (); p
   in
   str "," ++ fnl () ++
   str "  " ++ qs "declarations" ++ str ": [" ++ fnl () ++
