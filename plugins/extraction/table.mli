@@ -167,9 +167,6 @@ Nota:
  - Extraction Library : modular, library
 *)
 
-val set_library : bool -> unit
-val library : unit -> bool
-
 val set_extrcompute : bool -> unit
 val is_extrcompute : unit -> bool
 

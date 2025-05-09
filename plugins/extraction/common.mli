@@ -53,9 +53,10 @@ val get_phase : unit -> phase
 module State :
 sig
   type t
-  val make : modular:bool -> unit -> t
+  val make : modular:bool -> library:bool -> unit -> t
   val get_table : t -> Table.t
   val get_modular : t -> bool
+  val get_library : t -> bool
 end
 
 val opened_libraries : State.t -> ModPath.t list

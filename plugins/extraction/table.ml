@@ -249,11 +249,6 @@ Nota:
  - Extraction Library : modular, library
 *)
 
-let library_ref = ref false
-
-let set_library b = library_ref := b
-let library () = !library_ref
-
 let extrcompute = ref false
 
 let set_extrcompute b = extrcompute := b

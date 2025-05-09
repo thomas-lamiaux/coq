@@ -190,16 +190,20 @@ type t = {
   table : Table.t;
   (* fields below are read-only *)
   modular : bool;
+  library : bool;
 }
 
-let make ~modular () = {
+let make ~modular ~library () = {
   table = Table.make_table ();
   modular;
+  library;
 }
 
 let get_table s = s.table
 
 let get_modular s = s.modular
+
+let get_library s = s.library
 
 end
 

@@ -605,11 +605,10 @@ let reset () =
 let init ?(compute=false) ?(inner=false) modular library =
   if not inner then check_inside_section ();
   set_keywords (descr ()).keywords;
-  set_library library;
   set_extrcompute compute;
   reset ();
   if modular && lang () == Scheme then error_scheme ();
-  State.make ~modular ()
+  State.make ~modular ~library ()
 
 let warns table =
   let table = State.get_table table in
@@ -643,7 +642,7 @@ let rec locate_ref = function
 let full_extr opaque_access f (refs,mps) =
   let table = init false false in
   List.iter (fun mp -> if is_modfile mp then error_MPfile_as_mod mp true) mps;
-  let struc = optimize_struct (State.get_table table) (refs,mps) (mono_environment table ~opaque_access refs mps) in
+  let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = warns table in
   print_structure_to_file table (mono_filename f) false struc;
   reset ()
@@ -657,7 +656,7 @@ let full_extraction ~opaque_access f lr =
 let separate_extraction ~opaque_access lr =
   let table = init true false in
   let refs,mps = locate_ref lr in
-  let struc = optimize_struct (State.get_table table) (refs,mps) (mono_environment table ~opaque_access refs mps) in
+  let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = List.iter (function
     | MPfile _, _ -> ()
     | (MPdot _ | MPbound _), _ ->
@@ -681,7 +680,7 @@ let simple_extraction ~opaque_access r =
   | ([], [mp]) as p -> full_extr opaque_access None p
   | [r],[] ->
       let table = init false false in
-      let struc = optimize_struct (State.get_table table) ([r],[]) (mono_environment table ~opaque_access [r] []) in
+      let struc = optimize_struct table ([r],[]) (mono_environment table ~opaque_access [r] []) in
       let d = get_decl_in_structure r struc in
       let () = warns table in
       let flag =
@@ -715,7 +714,7 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
     else l
   in
   let struc = List.fold_left select [] l in
-  let struc = optimize_struct (State.get_table table) ([],[]) struc in
+  let struc = optimize_struct table ([],[]) struc in
   let () = warns table in
   let print = function
     | (MPfile dir as mp, sel) as e ->
@@ -748,7 +747,7 @@ let structure_for_compute ~opaque_access env sg c =
   let add_ref r = refs := GlobRef.Set.add r !refs in
   let () = ast_iter_references add_ref add_ref add_ref ast in
   let refs = GlobRef.Set.elements !refs in
-  let struc = optimize_struct (State.get_table table) (refs,[]) (mono_environment table ~opaque_access refs []) in
+  let struc = optimize_struct table (refs,[]) (mono_environment table ~opaque_access refs []) in
   table, (flatten_structure struc), ast, mlt
 
 (* For the test-suite :
