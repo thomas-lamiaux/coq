@@ -495,7 +495,7 @@ let module_filename table mp =
 
 let print_one_decl table struc mp decl =
   let d = descr () in
-  reset_renaming_tables table AllButExternal;
+  let () = State.reset table in
   let table = State.set_phase table Pre in
   ignore (d.pp_struct table struc);
   let table = State.set_phase table Impl in
@@ -541,7 +541,7 @@ let get_comment () =
 let print_structure_to_file table (fn,si,mo) dry struc =
   Buffer.clear buf;
   let d = descr () in
-  reset_renaming_tables table AllButExternal;
+  let () = State.reset table in
   let unsafe_needs = {
     mldummy = struct_ast_search Mlutil.isMLdummy struc;
     tdummy = struct_type_search Mlutil.isTdummy struc;
@@ -598,15 +598,11 @@ let print_structure_to_file table (fn,si,mo) dry struc =
 (*s Part III: the actual extraction commands *)
 (*********************************************)
 
-
-let reset kw =
-  reset_renaming_tables kw Everything
-
 let init ?(compute=false) ?(inner=false) modular library =
   if not inner then check_inside_section ();
   let keywords = (descr ()).keywords in
+  let () = Common.clear_mpfiles_content () in
   let state = State.make ~modular ~library ~extrcompute:compute ~keywords () in
-  let () = reset state in
   if modular && lang () == Scheme then error_scheme ();
   state
 
@@ -645,7 +641,7 @@ let full_extr opaque_access f (refs,mps) =
   let struc = optimize_struct table (refs,mps) (mono_environment table ~opaque_access refs mps) in
   let () = warns table in
   print_structure_to_file table (mono_filename f) false struc;
-  reset table
+  Common.clear_mpfiles_content ()
 
 let full_extraction ~opaque_access f lr =
   full_extr opaque_access f (locate_ref lr)
@@ -669,8 +665,8 @@ let separate_extraction ~opaque_access lr =
         print_structure_to_file table (module_filename table mp) false [e]
     | (MPdot _ | MPbound _), _ -> assert false
   in
-  List.iter print struc;
-  reset table
+  let () = List.iter print struc in
+  Common.clear_mpfiles_content ()
 
 (*s Simple extraction in the Rocq toplevel. The vernacular command
     is \verb!Extraction! [qualid]. *)
@@ -688,7 +684,7 @@ let simple_extraction ~opaque_access r =
         else mt ()
       in
       let ans = flag ++ print_one_decl table struc (modpath_of_r r) d in
-      reset table;
+      let () = Common.clear_mpfiles_content () in
       Feedback.msg_notice ans
   | _ -> assert false
 
@@ -722,8 +718,8 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
         print_structure_to_file table (module_filename table mp) dry [e]
     | _ -> assert false
   in
-  List.iter print struc;
-  reset table
+  let () = List.iter print struc in
+  Common.clear_mpfiles_content ()
 
 (** For extraction compute, we flatten all the module structure,
     getting rid of module types or unapplied functors *)

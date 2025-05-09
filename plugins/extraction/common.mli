@@ -65,6 +65,10 @@ sig
 
   val get_top_visible_mp : t -> ModPath.t
 
+  (** Cleanup *)
+
+  val reset : t -> unit
+
 end
 
 type env = Id.t list * Id.Set.t
@@ -84,9 +88,7 @@ val pp_global : State.t -> kind -> GlobRef.t -> string
 val pp_global_name : State.t -> kind -> GlobRef.t -> string
 val pp_module : State.t -> ModPath.t -> string
 
-type reset_kind = AllButExternal | Everything
-
-val reset_renaming_tables : State.t -> reset_kind -> unit
+val clear_mpfiles_content : unit -> unit
 
 (** Special hack for constants of type Ascii.ascii : if an
     [Extract Inductive ascii => char] has been declared, then

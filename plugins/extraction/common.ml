@@ -399,12 +399,6 @@ let get_mpfiles_content mp =
   try get_mpfiles_content mp
   with Not_found -> failwith "get_mpfiles_content"
 
-type reset_kind = AllButExternal | Everything
-
-let reset_renaming_tables table flag =
-  let () = State.reset table in
-  if flag == Everything then clear_mpfiles_content ()
-
 (*S Renaming functions *)
 
 (* This function creates from [id] a correct uppercase/lowercase identifier.
