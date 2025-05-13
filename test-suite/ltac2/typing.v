@@ -70,3 +70,10 @@ Print Ltac2 tuple0.
 Fail Ltac2 not_a_value := { contents := 0 }.
 Fail Ltac2 not_a_value := "nope".
 Fail Ltac2 not_a_value := list_length [].
+
+(** Check type ascription on letrec *)
+
+Ltac2 rec loop : 'a -> 'b := fun x => loop x.
+Fail Ltac2 rec loop2 : bool -> bool := fun x => if x then loop2 false else 0.
+
+Fail Ltac2 rec not_a_fun := ().
