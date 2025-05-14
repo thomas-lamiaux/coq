@@ -9,6 +9,8 @@ git_download algebra_tactics
 
 if [ "$DOWNLOAD_ONLY" ]; then exit 0; fi
 
+export COQEXTRAFLAGS='-native-compiler no'
+
 ( cd "${CI_BUILD_DIR}/algebra_tactics"
   make
   make install
