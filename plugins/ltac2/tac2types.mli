@@ -104,3 +104,7 @@ type format =
 | FmtAlpha
 | FmtAlpha0
 | FmtMessage
+
+type red_flag = Names.GlobRef.t Genredexpr.glob_red_flag
+
+type red_context = (Pattern.constr_pattern * occurrences) option
