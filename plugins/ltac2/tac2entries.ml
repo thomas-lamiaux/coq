@@ -290,20 +290,10 @@ let inTypExt : typext -> obj =
 
 (** Toplevel entries *)
 
-let extract_pattern_type ({loc;v=p} as pat) = match p with
-| CPatCnv (pat, ty) -> pat, Some ty
-| CPatAtm _ | CPatVar _ | CPatRef _ | CPatOr _ | CPatAs _ | CPatRecord _ -> pat, None
-
 (** Mangle recursive tactics *)
 let inline_rec_tactic tactics =
-  let map (id, e) = match e.v with
-  | CTacFun (pat, _) -> (id, List.map extract_pattern_type pat, e)
-  | _ ->
-    user_err ?loc:id.loc (str "Recursive tactic definitions must be functions")
-  in
-  let tactics = List.map map tactics in
-  let map (id, pat, e) =
-    let map_body ({loc;v=id}, _, e) = CAst.(make ?loc @@ CPatVar (Name id)), e in
+  let map (id, e) =
+    let map_body ({loc;v=id}, e) = CAst.(make ?loc @@ CPatVar (Name id)), e in
     let bnd = List.map map_body tactics in
     let var_of_id {loc;v=id} =
       let qid = qualid_of_ident ?loc id in
