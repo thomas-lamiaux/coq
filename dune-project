@@ -27,7 +27,7 @@
  (name rocq-runtime)
  (depends
   (ocaml (>= 4.14.0))
-  (ocamlfind (>= 1.9.1))
+  (ocamlfind (and (>= 1.9.1) (or (>= 1.9.8) (<> :os "windows"))))
   (zarith (>= 1.11))
   (conf-linux-libc-dev (= :os "linux")))
  (conflicts

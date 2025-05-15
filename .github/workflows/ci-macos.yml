@@ -5,9 +5,15 @@ on: [push, pull_request]
 permissions:
   contents: read
 
+# Cancels previous runs of the same workflow
+concurrency:
+  group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   macOS:
     runs-on: macos-13
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v3

@@ -3,7 +3,8 @@ Installing From Sources
 
 To install and use Rocq, we recommend relying on [the Rocq
 platform](https://github.com/coq/platform/) or on a package manager
-(e.g. opam or Nix).
+(e.g. opam or Nix). Opam 2.3 is known to work on Unix-like, macOS, and
+native Windows platforms.
 
 See https://rocq-prover.org/install and
 https://github.com/rocq-prover/rocq/wiki#coq-installation to learn more.
@@ -40,9 +41,6 @@ To compile Rocq yourself, you need:
   of today (gtk+3 >= 3.18 and gtksourceview3 >= 3.18)
 
 - [optional] GNU Make (version >= 3.81)
-
-See [below](#Known-Problems) for a discussion of platform-specific
-issues with dependencies.
 
 Primitive floating-point numbers require IEEE-754 compliance
 (`Require Import Floats`). Common sources of incompatibility
