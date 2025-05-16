@@ -1,0 +1,54 @@
+name: Github CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+# Cancels previous runs of the same workflow
+concurrency:
+  group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - name: macOS
+            os: macos-latest
+            test_disabled:
+            # We exclude the coq-core package
+            packages: ./coqide-server.opam ./rocq*.opam
+          - name: Windows
+            os: windows-latest
+            test_disabled: misc coq-makefile precomputed-time-tests
+            # we don't support rocqide on Windows yet, so we filter it, see #20631
+            packages: ./coqide-server.opam ./rocq-*.opam
+      fail-fast: false
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - name: 🐛 Special macOS Config
+        if: matrix.os == 'macos-latest'
+        run: brew install gnu-time
+
+      - name: 🔭 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐫 Setup OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: 4.14
+          dune-cache: true
+
+      - name: 🐫🐪🐫 Get Rocq dependencies
+        run: opam install --deps-only ${{ matrix.packages }}
+
+      - name: 🧱 Build Rocq
+        run: opam exec -- make world
+
+      - name: 🐛 Test Rocq
+        run: opam exec -- make -j 4 -C test-suite DISABLED_SUBSYSTEMS='${{ matrix.test_disabled }}'
