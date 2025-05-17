@@ -11,6 +11,42 @@
 Require Import Ltac2.Init.
 Require Ltac2.TransparentState.
 
+
+(** This file contains conversion and unification.
+    Both can add universe constraints.
+    Compared to conversion, unification can additionaly instantiate evars.
+*)
+
+
+  (** Conversion  **)
+
+(** Controls if cumulativity Prop <= Set <= Type 1 <= ... <= Type i <= ... is used for conversion. *)
+Ltac2 Type conv_flag := [
+| CONV
+| CUMUL
+].
+
+(** Conv returns true if both terms are convertible, in which case it updates the
+    environment with the universes constraints required for the terms to be convertible.
+    It returns false if the terms are not convertible.
+    It fails if there is more than one goal under focus.
+
+    Conv is parametrised by:
+    - conv_flag which controls if conversion is done up to cumulativity or not
+    - TransparentState.t which controls which constants get unfolded during conversion
+*)
+Ltac2 @external conv : conv_flag -> TransparentState.t -> constr -> constr -> bool
+  := "rocq-runtime.plugins.ltac2" "infer_conv".
+
+(** It only unfolds constants that are transparent in the current state *)
+Ltac2 conv_current : constr -> constr -> bool := fun c1 c2 => conv CONV (TransparentState.current ()) c1 c2.
+
+(** All constants are considered as transparents when doing conversion *)
+Ltac2 conv_full : constr -> constr -> bool := fun c1 c2 => conv CONV TransparentState.full c1 c2.
+
+
+  (** Unification **)
+
 (** [unify ts c1 c2] unifies [c1] and [c2] (using Evarconv unification), which
     may have the effect of instantiating evars. If the [c1] and [c2] cannot be
     unified, an [Internal] exception is raised. *)
