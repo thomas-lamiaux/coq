@@ -502,11 +502,11 @@ let () =
 
 let () =
   define "constr_conv" (constr @-> constr @-> tac bool) @@ fun c1 c2 ->
-  pf_apply (fun env sigma ->
-    match (Reductionops.infer_conv env sigma c1 c2) with
-    | Some sigma -> Proofview.Unsafe.tclEVARS sigma <*> return true
-    | None -> return false
-  )
+  pf_apply @@ fun env sigma ->
+  match (Reductionops.infer_conv env sigma c1 c2) with
+  | Some sigma -> Proofview.Unsafe.tclEVARS sigma <*> return true
+  | None -> return false
+
 
 let () =
   define "constr_kind" (constr @-> eret valexpr) @@ fun c env sigma ->
