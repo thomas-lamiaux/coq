@@ -502,8 +502,8 @@ let () =
 
 let () =
   define "constr_conv" (constr @-> constr @-> tac bool) @@ fun c1 c2 ->
-  Proofview.Goal.enter_one (fun t ->
-    match (Reductionops.infer_conv (Proofview.Goal.env t) (Proofview.Goal.sigma t) c1 c2) with
+  pf_apply (fun env sigma ->
+    match (Reductionops.infer_conv env sigma c1 c2) with
     | Some sigma -> Proofview.Unsafe.tclEVARS sigma <*> return true
     | None -> return false
   )
