@@ -147,12 +147,12 @@ let get_infix r =
   let s = find_custom r in
   String.sub s 1 (String.length s - 2)
 
-let get_ind = let open GlobRef in function
-  | IndRef _ as r -> r
-  | ConstructRef (ind,_) -> IndRef ind
+let get_ind r = let open GlobRef in match r.glob with
+  | IndRef _ -> r
+  | ConstructRef (ind,_) -> { glob = IndRef ind }
   | _ -> assert false
 
-let kn_of_ind = let open GlobRef in function
+let kn_of_ind r = let open GlobRef in match r.glob with
   | IndRef (kn,_) -> MutInd.user kn
   | _ -> assert false
 
@@ -176,7 +176,7 @@ let pp_type table par vl t =
         pp_par par (pp_rec true a1 ++ str (get_infix r) ++ pp_rec true a2)
     | Tglob (r,[]) -> pp_global table Type r
     | Tglob (gr,l)
-        when not (keep_singleton ()) && Rocqlib.check_ref sig_type_name gr ->
+        when not (keep_singleton ()) && Rocqlib.check_ref sig_type_name gr.glob ->
         pp_tuple_light pp_rec l
     | Tglob (r,l) ->
         pp_tuple_light pp_rec l ++ spc () ++ pp_global table Type r
@@ -490,7 +490,8 @@ let pp_Dfix table (rv,c,t) =
 let pp_equiv table param_list name = function
   | NoEquiv, _ -> mt ()
   | Equiv kn, i ->
-      str " = " ++ pp_parameters param_list ++ pp_global table Type (GlobRef.IndRef (MutInd.make1 kn,i))
+    let r = { glob = GlobRef.IndRef (MutInd.make1 kn, i) } in
+    str " = " ++ pp_parameters param_list ++ pp_global table Type r
   | RenEquiv ren, _  ->
       str " = " ++ pp_parameters param_list ++ str (ren^".") ++ name
 
@@ -710,7 +711,7 @@ and pp_module_type table params = function
       let mp_w =
         List.fold_left (fun mp l -> MPdot(mp,Label.of_id l)) mp_mt idl'
       in
-      let r = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l)) in
+      let r = { glob = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l)) } in
       let pp_w = State.with_visibility table mp_mt [] begin fun table ->
         str " with type " ++ ids ++ pp_global table Type r
       end in

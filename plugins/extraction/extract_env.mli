@@ -25,7 +25,7 @@ val extract_and_compile : opaque_access:Global.indirect_accessor -> qualid list 
 (* For debug / external output via coqtop.byte + Drop : *)
 
 val mono_environment :
- Common.State.t -> opaque_access:Global.indirect_accessor -> GlobRef.t list -> ModPath.t list -> Miniml.ml_structure
+ Common.State.t -> opaque_access:Global.indirect_accessor -> Miniml.global list -> ModPath.t list -> Miniml.ml_structure
 
 (* Used by the Relation Extraction plugin *)
 

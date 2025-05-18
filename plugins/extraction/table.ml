@@ -29,19 +29,25 @@ let blacklist_table = Summary.ref Id.Set.empty ~name:"ExtrBlacklist"
 (** Sets and maps for [global_reference] that use the "user" [kernel_name]
     instead of the canonical one *)
 
-module Refmap' = GlobRef.Map_env
-module Refset' = GlobRef.Set_env
+module GlobOrd =
+struct
+  type t = global
+  let compare g1 g2 = GlobRef.UserOrd.compare g1.glob g2.glob
+end
+
+module Refmap' = CMap.Make(GlobOrd)
+module Refset' = Set.Make(GlobOrd)
 
 (*S Utilities about [module_path] and [kernel_names] and [global_reference] *)
 
-let occur_kn_in_ref kn = let open GlobRef in function
+let occur_kn_in_ref kn r = let open GlobRef in match r.glob with
   | IndRef (kn',_)
   | ConstructRef ((kn',_),_) -> MutInd.CanOrd.equal kn kn'
   | ConstRef _ | VarRef _ -> false
 
 (* Return the "canonical" name used for declaring a name *)
 
-let repr_of_r = let open GlobRef in function
+let repr_of_r r = let open GlobRef in match r.glob with
   | ConstRef kn -> Constant.user kn
   | IndRef (kn,_)
   | ConstructRef ((kn,_),_) -> MutInd.user kn
@@ -180,7 +186,7 @@ let add_inductive_kind table kn k =
   table := { !table with inductive_kinds = Mindmap_env.add kn k !table.inductive_kinds }
 
 let is_coinductive table r =
-  let kn = let open GlobRef in match r with
+  let kn = let open GlobRef in match r.glob with
     | ConstructRef ((kn,_),_) -> kn
     | IndRef (kn,_) -> kn
     | _ -> assert false
@@ -193,7 +199,7 @@ let is_coinductive_type table = function
   | _ -> false
 
 let get_record_fields table r =
-  let kn = let open GlobRef in match r with
+  let kn = let open GlobRef in match r.glob with
     | ConstructRef ((kn,_),_) -> kn
     | IndRef (kn,_) -> kn
     | _ -> assert false
@@ -221,14 +227,12 @@ let add_recursors table env ind =
        table := { !table with recursors = KNset.add kn_rec (KNset.add kn_rect !table.recursors) })
     mib.mind_packets
 
-let is_recursor table = function
+let is_recursor table r = match r.glob with
   | GlobRef.ConstRef c -> KNset.mem (Constant.canonical c) !table.recursors
   | _ -> false
 
 let add_projection table n kn ip = table := { !table with projs = GlobRef.Map.add (GlobRef.ConstRef kn) (ip,n) !table.projs }
-let is_projection table r = GlobRef.Map.mem r !table.projs
-let projection_arity table r = snd (GlobRef.Map.find r !table.projs)
-let projection_info table r = GlobRef.Map.find r !table.projs
+let is_projection table r = GlobRef.Map.mem r.glob !table.projs
 
 (*s Table of used axioms *)
 
@@ -257,6 +261,7 @@ Nota:
    currently visible objects. *)
 
 let safe_basename_of_global_gen table r =
+  let r = r.glob in
   let last_chance r (kn, pos) =
     try Nametab.basename_of_global r
     with Not_found ->
@@ -286,8 +291,8 @@ let safe_basename_of_global_gen table r =
 
 let safe_basename_of_global table r = safe_basename_of_global_gen (Some table) r
 
-let string_of_global r =
- try string_of_qualid (Nametab.shortest_qualid_of_global Id.Set.empty r)
+let string_of_global r  =
+ try string_of_qualid (Nametab.shortest_qualid_of_global Id.Set.empty r.glob)
  with Not_found -> Id.to_string (safe_basename_of_global_gen None r)
 
 let safe_pr_global r = str (string_of_global r)
@@ -295,8 +300,8 @@ let safe_pr_global r = str (string_of_global r)
 (* idem, but with qualification, and only for constants. *)
 
 let safe_pr_long_global r =
-  try Printer.pr_global r
-  with Not_found -> match r with
+  try Printer.pr_global r.glob
+  with Not_found -> match r.glob with
     | GlobRef.ConstRef kn ->
         let mp,l = KerName.repr (Constant.user kn) in
         str ((ModPath.to_string mp)^"."^(Label.to_string l))
@@ -430,7 +435,7 @@ let error_no_module_expr mp =
        ++ str "This situation is currently unsupported by the extraction.")
 
 let error_singleton_become_prop ind =
-  err (str "The informative inductive type " ++ safe_pr_global (IndRef ind) ++
+  err (str "The informative inductive type " ++ safe_pr_global { glob = IndRef ind } ++
        str " has a Prop instance" ++ str "." ++ fnl () ++
        str "This happens when a sort-polymorphic singleton inductive type\n" ++
        str "has logical parameters, such as (I,I) : (True * True) : Prop.\n" ++
@@ -459,7 +464,7 @@ let error_MPfile_as_mod mp b =
 
 let argnames_of_global r =
   let env = Global.env () in
-  let typ, _ = Typeops.type_of_global_in_context env r in
+  let typ, _ = Typeops.type_of_global_in_context env r.glob in
   let rels,_ =
     decompose_prod (Reduction.whd_all env typ) in
   List.rev_map (fun x -> Context.binder_name (fst x)) rels
@@ -704,22 +709,24 @@ let add_callback_entry alias_opt qualid_ref =
 
 (* Registration of operations for rollback. *)
 
-let inline_extraction : bool * GlobRef.t list -> obj =
+let subst_global s g = { glob = fst (subst_global s g.glob) }
+
+let inline_extraction : bool * global list -> obj =
   declare_object @@ superglobal_object "Extraction Inline"
     ~cache:(fun (b,l) -> add_inline_entries b l)
-    ~subst:(Some (fun (s,(b,l)) -> (b,(List.map (fun x -> fst (subst_global s x)) l))))
+    ~subst:(Some (fun (s,(b,l)) -> (b,(List.map (fun x -> subst_global s x) l))))
     ~discharge:(fun x -> Some x)
 
-let foreign_extraction : GlobRef.t list -> obj =
+let foreign_extraction : global list -> obj =
   declare_object @@ superglobal_object "Extraction Foreign"
     ~cache:(fun l -> add_foreign_entries l)
-    ~subst:(Some (fun (s,l) -> (List.map (fun x -> fst (subst_global s x)) l)))
+    ~subst:(Some (fun (s,l) -> (List.map (fun x -> subst_global s x) l)))
     ~discharge:(fun x -> Some x)
 
-let callback_extraction : string option * GlobRef.t -> obj =
+let callback_extraction : string option * global -> obj =
   declare_object @@ superglobal_object "Extraction Callback"
     ~cache:(fun (alias, x) -> add_callback_entry alias x)
-    ~subst:(Some (fun (s,(alias, x)) -> (alias, (fst (subst_global s x)))))
+    ~subst:(Some (fun (s,(alias, x)) -> (alias, subst_global s x)))
     ~discharge:(fun x -> Some x)
 
 
@@ -728,8 +735,9 @@ let callback_extraction : string option * GlobRef.t -> obj =
 
 let extraction_inline b l =
   let refs = List.map Smartlocate.global_with_alias l in
+  let refs = List.map (fun r -> { glob = r }) refs in
   List.iter
-    (fun r -> match r with
+    (fun r -> match r.glob with
        | GlobRef.ConstRef _ -> ()
        | _ -> error_constant r) refs;
   Lib.add_leaf (inline_extraction (b,refs))
@@ -738,7 +746,7 @@ let extraction_inline b l =
 
 let print_extraction_inline () =
   let (i,n)= !inline_table in
-  let i'= Refset'.filter (function GlobRef.ConstRef _ -> true | _ -> false) i in
+  let i'= Refset'.filter (function { glob = GlobRef.ConstRef _ } -> true | _ -> false) i in
     (str "Extraction Inline:" ++ fnl () ++
      Refset'.fold
        (fun r p ->
@@ -809,16 +817,18 @@ let add_implicits r l =
 
 (* Registration of operations for rollback. *)
 
-let implicit_extraction : GlobRef.t * int_or_id list -> obj =
+let implicit_extraction : global * int_or_id list -> obj =
   declare_object @@ superglobal_object_nodischarge "Extraction Implicit"
     ~cache:(fun (r,l) -> add_implicits r l)
-    ~subst:(Some (fun (s,(r,l)) -> (fst (subst_global s r), l)))
+    ~subst:(Some (fun (s,(r,l)) -> (subst_global s r, l)))
 
 (* Grammar entries. *)
 
 let extraction_implicit r l =
   check_inside_section ();
-  Lib.add_leaf (implicit_extraction (Smartlocate.global_with_alias r,l))
+  let r = Smartlocate.global_with_alias r in
+  let r = { glob = r } in
+  Lib.add_leaf (implicit_extraction (r, l))
 
 let string_of_modfile table mp =
   try MPmap.find mp !table.modfile_mps
@@ -903,8 +913,8 @@ let indref_of_match pv =
   if Array.is_empty pv then raise Not_found;
   let (_,pat,_) = pv.(0) in
   match pat with
-    | Pusual (GlobRef.ConstructRef (ip,_)) -> GlobRef.IndRef ip
-    | Pcons (GlobRef.ConstructRef (ip,_),_) -> GlobRef.IndRef ip
+    | Pusual { glob = GlobRef.ConstructRef (ip,_) } -> { glob = GlobRef.IndRef ip }
+    | Pcons ({ glob = GlobRef.ConstructRef (ip,_) }, _) -> { glob = GlobRef.IndRef ip }
     | _ -> raise Not_found
 
 let is_custom_match pv =
@@ -917,7 +927,7 @@ let find_custom_match pv =
 (* Printing entries *)
 
 let print_constref_extractions ref_set val_lookup_f section_str =
-  let i'= Refset'.filter (function GlobRef.ConstRef _ -> true | _ -> false) ref_set in
+  let i'= Refset'.filter (function { glob = GlobRef.ConstRef _ } -> true | _ -> false) ref_set in
       (str section_str ++ fnl () ++
        Refset'.fold
          (fun r p ->
@@ -936,15 +946,15 @@ let print_extraction_callback () =
 
 (* Registration of operations for rollback. *)
 
-let in_customs : GlobRef.t * string list * string -> obj =
+let in_customs : global * string list * string -> obj =
   declare_object @@ superglobal_object_nodischarge "ML extractions"
     ~cache:(fun (r,ids,s) -> add_custom r ids s)
-    ~subst:(Some (fun (s,(r,ids,str)) -> (fst (subst_global s r), ids, str)))
+    ~subst:(Some (fun (s,(r,ids,str)) -> (subst_global s r, ids, str)))
 
-let in_custom_matchs : GlobRef.t * string -> obj =
+let in_custom_matchs : global * string -> obj =
   declare_object @@ superglobal_object_nodischarge "ML extractions custom matches"
     ~cache:(fun (r,s) -> add_custom_match r s)
-    ~subst:(Some (fun (subs,(r,s)) -> (fst (subst_global subs r), s)))
+    ~subst:(Some (fun (subs,(r,s)) -> (subst_global subs r, s)))
 
 (* Grammar entries. *)
 
@@ -953,7 +963,8 @@ let extract_callback optstr x =
       CErrors.user_err (Pp.str "Extract Callback is supported only for OCaml extraction.");
 
   let qualid_ref = Smartlocate.global_with_alias x in
-  match qualid_ref with
+  let qualid_ref = { glob = qualid_ref } in
+  match qualid_ref.glob with
       (* Add the alias and qualid_ref to callback extraction.*)
     | GlobRef.ConstRef _ -> Lib.add_leaf (callback_extraction (optstr, qualid_ref))
     | _                  -> error_constant ?loc:x.CAst.loc qualid_ref
@@ -961,7 +972,8 @@ let extract_callback optstr x =
 let extract_constant_generic r ids s arity_handler (is_redef, redef_msg) extr_type =
   check_inside_section ();
   let g = Smartlocate.global_with_alias r in
-  match g with
+  let g = { glob = g } in
+  match g.glob with
     | GlobRef.ConstRef kn ->
         let env = Global.env () in
         let typ, _ = Typeops.type_of_global_in_context env (GlobRef.ConstRef kn) in
@@ -995,7 +1007,8 @@ let extract_inductive r s l optstr =
   check_inside_section ();
   let g = Smartlocate.global_with_alias r in
   Dumpglob.add_glob ?loc:r.CAst.loc g;
-  match g with
+  let g = { glob = g } in
+  match g.glob with
     | GlobRef.IndRef ((kn,i) as ip) ->
         let mib = Global.lookup_mind kn in
         let n = Array.length mib.mind_packets.(i).mind_consnames in
@@ -1006,7 +1019,7 @@ let extract_inductive r s l optstr =
           optstr;
         List.iteri
           (fun j s ->
-             let g = GlobRef.ConstructRef (ip,succ j) in
+             let g = { glob = GlobRef.ConstructRef (ip,succ j) } in
              Lib.add_leaf (inline_extraction (true,[g]));
              Lib.add_leaf (in_customs (g,[],s))) l
     | _ -> error_inductive ?loc:r.CAst.loc g

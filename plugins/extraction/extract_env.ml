@@ -59,7 +59,7 @@ module type VISIT = sig
 
   (* Add reference / ... in the visit lists.
      These functions silently add the mp of their arg in the mp list *)
-  val add_ref : t -> GlobRef.t -> unit
+  val add_ref : t -> global -> unit
   val add_kn : t -> KerName.t -> unit
   val add_decl_deps : t -> ml_decl -> unit
   val add_spec_deps : t -> ml_spec -> unit
@@ -95,7 +95,7 @@ module Visit : VISIT = struct
     v.mp <- MPset.union (prefixes_mp mp) v.mp;
     v.mp_all <- MPset.add mp v.mp_all
   let add_kn v kn = v.kn <- KNset.add kn v.kn; add_mp v (KerName.modpath kn)
-  let add_ref v = let open GlobRef in function
+  let add_ref v r = let open GlobRef in match r.glob with
     | ConstRef c -> add_kn v (Constant.user c)
     | IndRef (ind,_) | ConstructRef ((ind,_),_) -> add_kn v (MutInd.user ind)
     | VarRef _ -> assert false
@@ -340,7 +340,7 @@ let rec extract_structure table access venv env mp reso ~all = function
       let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst) rrb.rewrules_rules in
       let ms = extract_structure table access venv env mp reso ~all struc in
       if all || b then begin
-        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) (ConstRef cst) l) rrb.rewrules_rules;
+        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) { glob = ConstRef cst } l) rrb.rewrules_rules;
         ms
       end else ms
   | (l,SFBmodule mb) :: struc ->
@@ -618,7 +618,7 @@ let rec locate_ref = function
   | qid::l ->
       let mpo = try Some (Nametab.locate_module qid) with Not_found -> None
       and ro =
-        try Some (Smartlocate.global_with_alias qid)
+        try Some { glob = Smartlocate.global_with_alias qid }
         with Nametab.GlobalizationError _ | UserError _ -> None
       in
       match mpo, ro with
@@ -626,7 +626,7 @@ let rec locate_ref = function
         | None, Some r -> let refs,mps = locate_ref l in r::refs,mps
         | Some mp, None -> let refs,mps = locate_ref l in refs,mp::mps
         | Some mp, Some r ->
-           warning_ambiguous_name ?loc:qid.CAst.loc (qid,mp,r);
+           warning_ambiguous_name ?loc:qid.CAst.loc (qid,mp,r.glob);
            let refs,mps = locate_ref l in refs,mp::mps
 
 (*s Recursive extraction in the Rocq toplevel. The vernacular command is
@@ -765,7 +765,7 @@ let show_extraction ~pstate =
     let ast, ty = extract_constr table env sigma t in
     let mp = Lib.current_mp () in
     let l = Label.of_id (Declare.Proof.get_name pstate) in
-    let fake_ref = GlobRef.ConstRef (Constant.make2 mp l) in
+    let fake_ref = { glob = GlobRef.ConstRef (Constant.make2 mp l) } in
     let decl = Dterm (fake_ref, ast, ty) in
     print_one_decl table [] mp decl
   in

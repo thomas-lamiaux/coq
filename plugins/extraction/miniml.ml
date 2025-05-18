@@ -12,6 +12,8 @@
 
 open Names
 
+type global = { glob : GlobRef.t }
+
 (* The [signature] type is used to know how many arguments a CIC
    object expects, and what these arguments will become in the ML
    object. *)
@@ -25,10 +27,9 @@ open Names
 type kill_reason =
   | Ktype
   | Kprop
-  | Kimplicit of GlobRef.t * int  (* n-th arg of a cst or construct *)
+  | Kimplicit of global * int  (* n-th arg of a cst or construct *)
 
 type sign = Keep | Kill of kill_reason
-
 
 (* Convention: outmost lambda/product gives the head of the list. *)
 
@@ -38,7 +39,7 @@ type signature = sign list
 
 type ml_type =
   | Tarr    of ml_type * ml_type
-  | Tglob   of GlobRef.t * ml_type list
+  | Tglob   of global * ml_type list
   | Tvar    of int
   | Tvar'   of int (* same as Tvar, used to avoid clash *)
   | Tmeta   of ml_meta (* used during ML type reconstruction *)
@@ -59,7 +60,7 @@ type inductive_kind =
   | Singleton
   | Coinductive
   | Standard
-  | Record of GlobRef.t option list (* None for anonymous field *)
+  | Record of global option list (* None for anonymous field *)
 
 (* A [ml_ind_packet] is the miniml counterpart of a [one_inductive_body].
    If the inductive is logical ([ip_logical = false]), then all other fields
@@ -71,9 +72,9 @@ type inductive_kind =
 
 type ml_ind_packet = {
   ip_typename : Id.t;
-  ip_typename_ref : GlobRef.t;
+  ip_typename_ref : global;
   ip_consnames : Id.t array;
-  ip_consnames_ref : GlobRef.t array;
+  ip_consnames_ref : global array;
   ip_logical : bool;
   ip_sign : signature;
   ip_vars : Id.t list;
@@ -119,8 +120,8 @@ and ml_ast =
   | MLapp    of ml_ast * ml_ast list
   | MLlam    of ml_ident * ml_ast
   | MLletin  of ml_ident * ml_ast * ml_ast
-  | MLglob   of GlobRef.t
-  | MLcons   of ml_type * GlobRef.t * ml_ast list
+  | MLglob   of global
+  | MLcons   of ml_type * global * ml_ast list
   | MLtuple  of ml_ast list
   | MLcase   of ml_type * ml_ast * ml_branch array
   | MLfix    of int * Id.t array * ml_ast array
@@ -134,24 +135,24 @@ and ml_ast =
   | MLparray of ml_ast array * ml_ast
 
 and ml_pattern =
-  | Pcons   of GlobRef.t * ml_pattern list
+  | Pcons   of global * ml_pattern list
   | Ptuple  of ml_pattern list
   | Prel    of int (** Cf. the idents in the branch. [Prel 1] is the last one. *)
   | Pwild
-  | Pusual  of GlobRef.t (** Shortcut for Pcons (r,[Prel n;...;Prel 1]) **)
+  | Pusual  of global (** Shortcut for Pcons (r,[Prel n;...;Prel 1]) **)
 
 (*s ML declarations. *)
 
 type ml_decl =
   | Dind  of ml_ind
-  | Dtype of GlobRef.t * Id.t list * ml_type
-  | Dterm of GlobRef.t * ml_ast * ml_type
-  | Dfix  of GlobRef.t array * ml_ast array * ml_type array
+  | Dtype of global * Id.t list * ml_type
+  | Dterm of global * ml_ast * ml_type
+  | Dfix  of global array * ml_ast array * ml_type array
 
 type ml_spec =
   | Sind  of ml_ind
-  | Stype of GlobRef.t * Id.t list * ml_type option
-  | Sval  of GlobRef.t * ml_type
+  | Stype of global * Id.t list * ml_type option
+  | Sval  of global * ml_type
 
 type ml_specif =
   | Spec of ml_spec

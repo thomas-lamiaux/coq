@@ -42,6 +42,7 @@ let se_iter do_decl do_spec do_mp =
           List.fold_left (fun mp l -> MPdot(mp,Label.of_id l)) mp_mt idl'
         in
         let r = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l')) in
+        let r = { glob = r } in
         mt_iter mt; do_spec (Stype(r,l,Some t))
     | MTwith (mt,ML_With_module(idl,mp))->
         let mp_mt = msid_of_mt mt in
@@ -75,7 +76,7 @@ let struct_iter do_decl do_spec do_mp s =
 (*s Apply some fonctions upon all references in [ml_type], [ml_ast],
   [ml_decl], [ml_spec] and [ml_structure]. *)
 
-type do_ref = GlobRef.t -> unit
+type do_ref = global -> unit
 
 let record_iter_references do_term = function
   | Record l -> List.iter (Option.iter do_term) l
@@ -118,7 +119,7 @@ let ind_iter_references do_term do_cons do_type ind =
     let () = do_type p.ip_typename_ref in
     if lang () == Ocaml then
       (match ind.ind_equiv with
-         | Miniml.Equiv kne -> do_type (GlobRef.IndRef (MutInd.make1 kne, i));
+         | Miniml.Equiv kne -> do_type { glob = (GlobRef.IndRef (MutInd.make1 kne, i)) };
          | _ -> ());
     Array.iteri (fun j -> cons_iter p.ip_consnames_ref.(j)) p.ip_types
   in
@@ -261,7 +262,7 @@ let dfix_to_mlfix rv av i =
   let s = make_subst (Array.length rv - 1) Refmap'.empty
   in
   let rec subst n t = match t with
-    | MLglob ((GlobRef.ConstRef kn) as refe) ->
+    | MLglob refe ->
         (try MLrel (n + (Refmap'.find refe s)) with Not_found -> t)
     | _ -> ast_map_lift subst n t
   in
@@ -312,10 +313,10 @@ and optim_me table to_appear s = function
    For non-library extraction, we recompute a minimal set of dependencies
    for first-level definitions (no module pruning yet). *)
 
-let base_r = let open GlobRef in function
-  | ConstRef c as r -> r
-  | IndRef (kn,_) -> IndRef (kn,0)
-  | ConstructRef ((kn,_),_) -> IndRef (kn,0)
+let base_r r = let open GlobRef in match r.glob with
+  | ConstRef _ -> r
+  | IndRef (kn,_) -> { glob = IndRef (kn, 0) }
+  | ConstructRef ((kn,_),_) -> { glob = IndRef (kn, 0) }
   | _ -> assert false
 
 let reset_needed, add_needed, add_needed_mp, found_needed, is_needed =

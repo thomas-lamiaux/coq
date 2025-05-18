@@ -82,9 +82,9 @@ val opened_libraries : State.t -> ModPath.t list
 
 type kind = Term | Type | Cons | Mod
 
-val pp_global_with_key : State.t -> kind -> KerName.t -> GlobRef.t -> string
-val pp_global : State.t -> kind -> GlobRef.t -> string
-val pp_global_name : State.t -> kind -> GlobRef.t -> string
+val pp_global_with_key : State.t -> kind -> KerName.t -> global -> string
+val pp_global : State.t -> kind -> global -> string
+val pp_global_name : State.t -> kind -> global -> string
 val pp_module : State.t -> ModPath.t -> string
 
 (* val clear_mpfiles_content : unit -> unit *)

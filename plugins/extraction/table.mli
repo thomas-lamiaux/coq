@@ -13,12 +13,12 @@ open Libnames
 open Miniml
 open Declarations
 
-module Refset' : CSig.USetS with type elt = GlobRef.t
-module Refmap' : CSig.UMapS with type key = GlobRef.t
+module Refset' : CSig.USetS with type elt = global
+module Refmap' : CSig.UMapS with type key = global
 
 type t
 
-val safe_basename_of_global : t -> GlobRef.t -> Id.t
+val safe_basename_of_global : t -> global -> Id.t
 
 val make_table : unit -> t
 
@@ -28,16 +28,16 @@ val warning_axioms : t -> unit
 val warning_opaques : t -> bool -> unit
 val warning_ambiguous_name : ?loc:Loc.t -> qualid * ModPath.t * GlobRef.t -> unit
 val warning_id : string -> unit
-val error_axiom_scheme : ?loc:Loc.t -> GlobRef.t -> int -> 'a
-val error_constant : ?loc:Loc.t -> GlobRef.t -> 'a
-val error_inductive : ?loc:Loc.t -> GlobRef.t -> 'a
+val error_axiom_scheme : ?loc:Loc.t -> global -> int -> 'a
+val error_constant : ?loc:Loc.t -> global -> 'a
+val error_inductive : ?loc:Loc.t -> global -> 'a
 val error_nb_cons : unit -> 'a
 val error_module_clash : ModPath.t -> ModPath.t -> 'a
 val error_no_module_expr : ModPath.t -> 'a
 val error_singleton_become_prop : inductive -> 'a
 val error_unknown_module : ?loc:Loc.t -> qualid -> 'a
 val error_scheme : unit -> 'a
-val error_not_visible : GlobRef.t -> 'a
+val error_not_visible : global -> 'a
 val error_MPfile_as_mod : ModPath.t -> bool -> 'a
 val check_inside_section : unit -> unit
 val check_loaded_modfile : ModPath.t -> unit
@@ -48,10 +48,10 @@ val info_file : string -> unit
 
 (*s utilities about [module_path] and [kernel_names] and [GlobRef.t] *)
 
-val occur_kn_in_ref : MutInd.t -> GlobRef.t -> bool
-val repr_of_r : GlobRef.t -> KerName.t
-val modpath_of_r : GlobRef.t -> ModPath.t
-val label_of_r : GlobRef.t -> Label.t
+val occur_kn_in_ref : MutInd.t -> global -> bool
+val repr_of_r : global -> KerName.t
+val modpath_of_r : global -> ModPath.t
+val label_of_r : global -> Label.t
 val base_mp : ModPath.t -> ModPath.t
 val is_modfile : ModPath.t -> bool
 val string_of_modfile : t -> ModPath.t -> string
@@ -63,7 +63,7 @@ val prefixes_mp : ModPath.t -> MPset.t
 val common_prefix_from_list :
   ModPath.t -> ModPath.t list -> ModPath.t option
 val get_nth_label_mp : int -> ModPath.t -> Label.t
-val labels_of_ref : GlobRef.t -> ModPath.t * Label.t list
+val labels_of_ref : global -> ModPath.t * Label.t list
 
 (*s Some table-related operations *)
 
@@ -85,29 +85,27 @@ val add_ind : t -> MutInd.t -> mutual_inductive_body -> ml_ind -> unit
 val lookup_ind : t -> MutInd.t -> mutual_inductive_body -> ml_ind option
 
 val add_inductive_kind : t -> MutInd.t -> inductive_kind -> unit
-val is_coinductive : t -> GlobRef.t -> bool
+val is_coinductive : t -> global -> bool
 val is_coinductive_type : t -> ml_type -> bool
 (* What are the fields of a record (empty for a non-record) *)
 val get_record_fields :
-  t -> GlobRef.t -> GlobRef.t option list
-val record_fields_of_type : t -> ml_type -> GlobRef.t option list
+  t -> global -> global option list
+val record_fields_of_type : t -> ml_type -> global option list
 
 val add_recursors : t -> Environ.env -> MutInd.t -> unit
-val is_recursor : t -> GlobRef.t -> bool
+val is_recursor : t -> global -> bool
 
 val add_projection : t -> int -> Constant.t -> inductive -> unit
-val is_projection : t -> GlobRef.t -> bool
-val projection_arity : t -> GlobRef.t -> int
-val projection_info : t -> GlobRef.t -> inductive * int (* arity *)
+val is_projection : t -> global -> bool
 
-val add_info_axiom : t -> GlobRef.t -> unit
-val remove_info_axiom : t -> GlobRef.t -> unit
-val add_log_axiom : t -> GlobRef.t -> unit
-val add_symbol : t -> GlobRef.t -> unit
-val add_symbol_rule : t -> GlobRef.t -> Label.t -> unit
+val add_info_axiom : t -> global -> unit
+val remove_info_axiom : t -> global -> unit
+val add_log_axiom : t -> global-> unit
+val add_symbol : t -> global -> unit
+val add_symbol_rule : t -> global -> Label.t -> unit
 
-val add_opaque : t -> GlobRef.t -> unit
-val remove_opaque : t -> GlobRef.t -> unit
+val add_opaque : t -> global -> unit
+val remove_opaque : t -> global -> unit
 
 (*s Output Directory parameter *)
 
@@ -161,24 +159,24 @@ val lang : unit -> lang
 
 (*s Table for custom inlining *)
 
-val to_inline : GlobRef.t -> bool
-val to_keep : GlobRef.t -> bool
+val to_inline : global -> bool
+val to_keep : global -> bool
 
 (*s Table for implicits arguments *)
 
-val implicits_of_global : GlobRef.t -> Int.Set.t
+val implicits_of_global : global -> Int.Set.t
 
 (*s Table for user-given custom ML extractions. *)
 
 (* UGLY HACK: registration of a function defined in [extraction.ml] *)
 val type_scheme_nb_args_hook : (Environ.env -> Constr.t -> int) Hook.t
 
-val is_custom : GlobRef.t -> bool
-val is_inline_custom : GlobRef.t -> bool
-val is_foreign_custom : GlobRef.t -> bool
-val find_callback : GlobRef.t -> string option
-val find_custom : GlobRef.t -> string
-val find_type_custom : GlobRef.t -> string list * string
+val is_custom : global -> bool
+val is_inline_custom : global -> bool
+val is_foreign_custom : global -> bool
+val find_callback : global -> string option
+val find_custom : global -> string
+val find_type_custom : global -> string list * string
 
 val is_custom_match : ml_branch array -> bool
 val find_custom_match : ml_branch array -> string
