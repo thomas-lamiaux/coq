@@ -71,7 +71,9 @@ type inductive_kind =
 
 type ml_ind_packet = {
   ip_typename : Id.t;
+  ip_typename_ref : GlobRef.t;
   ip_consnames : Id.t array;
+  ip_consnames_ref : GlobRef.t array;
   ip_logical : bool;
   ip_sign : signature;
   ip_vars : Id.t list;

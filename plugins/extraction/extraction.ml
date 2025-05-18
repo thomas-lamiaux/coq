@@ -508,9 +508,12 @@ and extract_really_ind table env kn mib =
            let ar = EConstr.of_constr ar in
            let info = (fst (flag_of_type env sg ar) = Info) in
            let s,v = if info then type_sign_vl env sg ar else [],[] in
-           let t = Array.make (Array.length mip.mind_nf_lc) [] in
+           let ncons = Array.length mip.mind_nf_lc in
+           let t = Array.make ncons [] in
            { ip_typename = mip.mind_typename;
+             ip_typename_ref = GlobRef.IndRef (kn, i);
              ip_consnames = mip.mind_consnames;
+             ip_consnames_ref = Array.init ncons (fun j -> GlobRef.ConstructRef ((kn, i), j + 1));
              ip_logical = not info;
              ip_sign = s;
              ip_vars = v;
