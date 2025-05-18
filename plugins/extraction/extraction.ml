@@ -1249,7 +1249,7 @@ let logical_decl = function
   | Dfix (_,av,tv) ->
       (Array.for_all isMLdummy av) &&
       (Array.for_all isTdummy tv)
-  | Dind (_,i) -> Array.for_all (fun ip -> ip.ip_logical) i.ind_packets
+  | Dind i -> Array.for_all (fun ip -> ip.ip_logical) i.ind_packets
   | _ -> false
 
 (*s Is a [ml_spec] logical ? *)
@@ -1257,5 +1257,5 @@ let logical_decl = function
 let logical_spec = function
   | Stype (_, _, Some (Tdummy _)) -> true
   | Sval (_,Tdummy _) -> true
-  | Sind (_,i) -> Array.for_all (fun ip -> ip.ip_logical) i.ind_packets
+  | Sind i -> Array.for_all (fun ip -> ip.ip_logical) i.ind_packets
   | _ -> false

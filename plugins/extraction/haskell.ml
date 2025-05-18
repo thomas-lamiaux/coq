@@ -283,8 +283,8 @@ let pp_logical_ind packet =
     (Id.print packet.ip_typename ++ str " : logical inductive" ++ fnl () ++
      str "with constructors : " ++ prvect_with_sep spc Id.print packet.ip_consnames)
 
-let pp_singleton table kn packet =
-  let name = pp_global table Type (GlobRef.IndRef (kn,0)) in
+let pp_singleton table packet =
+  let name = pp_global table Type packet.ip_typename_ref in
   let l = rename_tvars keywords packet.ip_vars in
   hov 2 (str "type " ++ name ++ spc () ++
          prlist_with_sep spc Id.print l ++
@@ -293,7 +293,7 @@ let pp_singleton table kn packet =
          pp_comment (str "singleton inductive, whose constructor was " ++
                      Id.print packet.ip_consnames.(0)))
 
-let pp_one_ind table ip pl cv =
+let pp_one_ind table p pl cv =
   let pl = rename_tvars keywords pl in
   let pp_constructor (r,l) =
     (pp_global table Cons r ++
@@ -304,36 +304,36 @@ let pp_one_ind table ip pl cv =
                   (fun () -> (str " ")) (pp_type table true pl) l))
   in
   str (if Array.is_empty cv then "type " else "data ") ++
-  pp_global table Type (GlobRef.IndRef ip) ++
+  pp_global table Type p.ip_typename_ref ++
   prlist_strict (fun id -> str " " ++ pr_lower_id id) pl ++ str " =" ++
   if Array.is_empty cv then str " () -- empty inductive"
   else
     (fnl () ++ str " " ++
      v 0 (str "  " ++
           prvect_with_sep (fun () -> fnl () ++ str "| ") pp_constructor
-            (Array.mapi (fun i c -> GlobRef.ConstructRef (ip,i+1),c) cv)))
+            (Array.mapi (fun i c -> p.ip_consnames_ref.(i), c) cv)))
 
-let rec pp_ind table first kn i ind =
+let rec pp_ind table first i ind =
   if i >= Array.length ind.ind_packets then
     if first then mt () else fnl ()
   else
-    let ip = (kn,i) in
     let p = ind.ind_packets.(i) in
-    if is_custom (GlobRef.IndRef (kn,i)) then pp_ind table first kn (i+1) ind
+    let ip = p.ip_typename_ref in
+    if is_custom ip then pp_ind table first (i+1) ind
     else
       if p.ip_logical then
-        pp_logical_ind p ++ pp_ind table first kn (i+1) ind
+        pp_logical_ind p ++ pp_ind table first (i+1) ind
       else
-        pp_one_ind table ip p.ip_vars p.ip_types ++ fnl () ++
-        pp_ind table false kn (i+1) ind
+        pp_one_ind table p p.ip_vars p.ip_types ++ fnl () ++
+        pp_ind table false (i+1) ind
 
 
 (*s Pretty-printing of a declaration. *)
 
 let pp_decl table = function
-  | Dind (kn,i) when i.ind_kind == Singleton ->
-      pp_singleton table kn i.ind_packets.(0) ++ fnl ()
-  | Dind (kn,i) -> hov 0 (pp_ind table true kn 0 i)
+  | Dind i when i.ind_kind == Singleton ->
+      pp_singleton table i.ind_packets.(0) ++ fnl ()
+  | Dind i -> hov 0 (pp_ind table true 0 i)
   | Dtype (r, l, t) ->
       if is_inline_custom r then mt ()
       else

@@ -215,10 +215,10 @@ and json_function table env t =
 
 let json_ind table ip pl cv = json_dict [
     ("what", json_str "decl:ind");
-    ("name", json_global table Type (GlobRef.IndRef ip));
+    ("name", json_global table Type ip.ip_typename_ref);
     ("argnames", json_list (List.map json_id pl));
     ("constructors", json_listarr (Array.mapi (fun idx c -> json_dict [
-        ("name", json_global table Cons (GlobRef.ConstructRef (ip, idx+1)));
+        ("name", json_global table Cons ip.ip_consnames_ref.(idx));
         ("argtypes", json_list (List.map (json_type table pl) c))
       ]) cv))
   ]
@@ -227,9 +227,9 @@ let json_ind table ip pl cv = json_dict [
 (*s Pretty-printing of a declaration. *)
 
 let pp_decl table = function
-  | Dind (kn, defs) -> prvecti_with_sep pr_comma
+  | Dind defs -> prvecti_with_sep pr_comma
     (fun i p -> if p.ip_logical then str ""
-     else json_ind table (kn, i) p.ip_vars p.ip_types) defs.ind_packets
+     else json_ind table p p.ip_vars p.ip_types) defs.ind_packets
   | Dtype (r, l, t) -> json_dict [
       ("what", json_str "decl:type");
       ("name", json_global table Type r);
