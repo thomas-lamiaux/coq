@@ -699,7 +699,7 @@ let rec extract_term table env sg mle mlt c args =
                in
                let b = new_meta () in
                (* If [mlt] cannot be unified with an arrow type, then magic! *)
-               let magic = needs_magic ~compute:(Common.State.get_extrcompute table) (mlt, Tarr (a, b)) in
+               let magic = needs_magic (mlt, Tarr (a, b)) in
                let d' = extract_term table env' sg (Mlenv.push_type mle a) b d [] in
                put_magic_if magic (MLlam (id, d')))
     | LetIn (n, c1, t1, c2) ->
@@ -738,7 +738,7 @@ let rec extract_term table env sg mle mlt c args =
     | Rel n ->
         (* As soon as the expected [mlt] for the head is known, *)
         (* we unify it with an fresh copy of the stored type of [Rel n]. *)
-        let extract_rel mlt = put_magic ~compute:(Common.State.get_extrcompute table) (mlt, Mlenv.get mle n) (MLrel n)
+        let extract_rel mlt = put_magic (mlt, Mlenv.get mle n) (MLrel n)
         in extract_app table env sg mle mlt extract_rel args
     | Case (ci, u, pms, r, iv, c0, br) ->
         (* If invert_case then this is a match that will get erased later, but right now we don't care. *)
@@ -759,7 +759,7 @@ let rec extract_term table env sg mle mlt c args =
          | LocalDef (_,_,ty) -> ty
        in
        let vty = extract_type table env sg [] 0 ty [] in
-       let extract_var mlt = put_magic ~compute:(Common.State.get_extrcompute table) (mlt,vty) (MLglob (GlobRef.VarRef v)) in
+       let extract_var mlt = put_magic (mlt,vty) (MLglob (GlobRef.VarRef v)) in
        extract_app table env sg mle mlt extract_var args
     | Int i -> assert (args = []); MLuint i
     | Float f -> assert (args = []); MLfloat f
@@ -778,7 +778,7 @@ and extract_maybe_term table env sg mle mlt c =
   try check_default env sg (type_of env sg c);
     extract_term table env sg mle mlt c []
   with NotDefault d ->
-    put_magic ~compute:(Common.State.get_extrcompute table) (mlt, Tdummy d) (MLdummy d)
+    put_magic (mlt, Tdummy d) (MLdummy d)
 
 (*s Generic way to deal with an application. *)
 
@@ -821,9 +821,9 @@ and extract_cst_app table env sg mle mlt kn args =
   (* We compare stored and expected types in two steps. *)
   (* First, can [kn] be applied to all args ? *)
   let metas = List.map new_meta args in
-  let magic1 = needs_magic ~compute:(Common.State.get_extrcompute table) (type_recomp (metas, a), instantiated) in
+  let magic1 = needs_magic (type_recomp (metas, a), instantiated) in
   (* Second, is the resulting type compatible with the expected type [mlt] ? *)
-  let magic2 = needs_magic ~compute:(Common.State.get_extrcompute table) (a, mlt) in
+  let magic2 = needs_magic (a, mlt) in
   (* The internal head receives a magic if [magic1] *)
   let head = put_magic_if magic1 (MLglob (GlobRef.ConstRef kn)) in
   (* Now, the extraction of the arguments. *)
@@ -888,8 +888,8 @@ and extract_cons_app table env sg mle mlt (((kn,i) as ip,j) as cp) args =
   let metas = List.map new_meta args' in
   (* If stored and expected types differ, then magic! *)
   let a = new_meta () in
-  let magic1 = needs_magic ~compute:(Common.State.get_extrcompute table) (type_cons, type_recomp (metas, a)) in
-  let magic2 = needs_magic ~compute:(Common.State.get_extrcompute table) (a, mlt) in
+  let magic1 = needs_magic (type_cons, type_recomp (metas, a)) in
+  let magic2 = needs_magic (a, mlt) in
   let head mla =
     if mi.ind_kind == Singleton then
       put_magic_if magic1 (List.hd mla) (* assert (List.length mla = 1) *)

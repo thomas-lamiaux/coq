@@ -42,14 +42,13 @@ type phase = Pre | Impl | Intf
 module State :
 sig
   type t
-  val make : modular:bool -> library:bool -> extrcompute:bool -> keywords:Id.Set.t -> unit -> t
+  val make : modular:bool -> library:bool -> keywords:Id.Set.t -> unit -> t
 
   (** Getters *)
 
   val get_table : t -> Table.t
   val get_modular : t -> bool
   val get_library : t -> bool
-  val get_extrcompute : t -> bool
   val get_keywords : t -> Id.Set.t
   val get_phase : t -> phase
   val get_duplicate : t -> ModPath.t -> Label.t -> string option

@@ -361,7 +361,7 @@ let rec extract_structure table access venv env mp reso ~all = function
 
 and extract_mexpr table access venv env mp = function
   | MEwith _ -> assert false (* no 'with' syntax for modules *)
-  | me when lang () != Ocaml || State.get_extrcompute table ->
+  | me when lang () != Ocaml ->
       (* In Haskell/Scheme, we expand everything.
          For now, we also extract everything, dead code will be removed later
          (see [Modutil.optimize_struct]. *)
@@ -598,10 +598,10 @@ let print_structure_to_file table (fn,si,mo) dry struc =
 (*s Part III: the actual extraction commands *)
 (*********************************************)
 
-let init ?(compute=false) ?(inner=false) modular library =
+let init ?(inner=false) modular library =
   if not inner then check_inside_section ();
   let keywords = (descr ()).keywords in
-  let state = State.make ~modular ~library ~extrcompute:compute ~keywords () in
+  let state = State.make ~modular ~library ~keywords () in
   if modular && lang () == Scheme then error_scheme ();
   state
 
@@ -717,31 +717,6 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
   in
   let () = List.iter print struc in
   ()
-
-(** For extraction compute, we flatten all the module structure,
-    getting rid of module types or unapplied functors *)
-
-let flatten_structure struc =
-  let rec flatten_elem (lab,elem) = match elem with
-    |SEdecl d -> [d]
-    |SEmodtype _ -> []
-    |SEmodule m -> match m.ml_mod_expr with
-      |MEfunctor _ -> []
-      |MEident _ | MEapply _ -> assert false (* should be expanded *)
-      |MEstruct (_,elems) -> flatten_elems elems
-  and flatten_elems l = List.flatten (List.map flatten_elem l)
-  in flatten_elems (List.flatten (List.map snd struc))
-
-let structure_for_compute ~opaque_access env sg c =
-  let table = init false false ~compute:true in
-  let ast, mlt = Extraction.extract_constr table env sg c in
-  let ast = Mlutil.normalize ast in
-  let refs = ref GlobRef.Set.empty in
-  let add_ref r = refs := GlobRef.Set.add r !refs in
-  let () = ast_iter_references add_ref add_ref add_ref ast in
-  let refs = GlobRef.Set.elements !refs in
-  let struc = optimize_struct table (refs,[]) (mono_environment table ~opaque_access refs []) in
-  table, (flatten_structure struc), ast, mlt
 
 (* For the test-suite :
    extraction to a temporary file + run ocamlc on it *)

@@ -235,7 +235,6 @@ type t = {
   (* fields below are read-only *)
   modular : bool;
   library : bool;
-  extrcompute : bool;
   (*s Extraction modes: modular or monolithic, library or minimal ?
 
   Nota:
@@ -258,12 +257,11 @@ let make_state kw = {
   mpfiles_content = MPmap.empty;
 }
 
-let make ~modular ~library ~extrcompute ~keywords () = {
+let make ~modular ~library ~keywords () = {
   table = Table.make_table ();
   state = ref (make_state keywords);
   modular;
   library;
-  extrcompute;
   keywords;
   phase = Impl;
   visibility = [];
@@ -274,8 +272,6 @@ let get_table s = s.table
 let get_modular s = s.modular
 
 let get_library s = s.library
-
-let get_extrcompute s = s.extrcompute
 
 let get_keywords s = s.keywords
 
