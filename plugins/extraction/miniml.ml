@@ -12,7 +12,65 @@
 
 open Names
 
-type global = { glob : GlobRef.t }
+module InfvInst =
+struct
+  type t = bool array (* true if informative *)
+  let empty = [||]
+  let compare i1 i2 = CArray.compare Bool.compare i1 i2
+  let equal i1 i2 = Int.equal (compare i1 i2) 0
+
+  let generate actx =
+    let names = UVars.AbstractContext.names actx in
+    let quals = Array.length names.UVars.quals in
+    let init n =
+      let ans = Array.make quals true in
+      let n = ref n in
+      for i = 0 to quals - 1 do
+        let b = !n mod 2 = 0 in
+        ans.(i) <- b;
+        n := !n / 2
+      done;
+      ans
+    in
+    List.init (1 lsl quals) init
+
+  let default actx =
+    let names = UVars.AbstractContext.names actx in
+    let quals = Array.length names.UVars.quals in
+    Array.make quals true
+
+  let ground inst =
+    let qvars, _ = UVars.Instance.to_array inst in
+    let map q = match q with
+    | Sorts.Quality.QConstant (QProp | QSProp) -> false
+    | Sorts.Quality.QConstant QType -> true
+    | Sorts.Quality.QVar qv ->
+      match Sorts.QVar.repr qv with
+      | Var _ -> CErrors.anomaly (Pp.str "Non-ground instance")
+      | Unif _ | Global _ -> true (* informative by default *)
+    in
+    Array.map map qvars
+
+  let instantiate actx inst =
+    let u = UVars.make_abstract_instance actx in
+    let fl l = l in
+    let fq q = match Sorts.QVar.var_index q with
+    | None -> assert false
+    | Some i ->
+      if inst.(i) then Sorts.Quality.qtype
+      else Sorts.Quality.qsprop
+    in
+    UVars.Instance.subst_fn (fq, fl) u
+
+  let encode inst =
+    if Array.for_all (fun b -> b) inst then None
+    else
+      let len = Array.length inst in
+      Some (String.init len (fun i -> if inst.(i) then 'X' else 'O'))
+
+end
+
+type global = { glob : GlobRef.t; inst : InfvInst.t }
 
 (* The [signature] type is used to know how many arguments a CIC
    object expects, and what these arguments will become in the ML
@@ -166,7 +224,7 @@ and ml_module_type =
   | MTwith of ml_module_type * ml_with_declaration
 
 and ml_with_declaration =
-  | ML_With_type of Id.t list * Id.t list * ml_type
+  | ML_With_type of InfvInst.t * Id.t list * Id.t list * ml_type
   | ML_With_module of Id.t list * ModPath.t
 
 and ml_module_sig = (Label.t * ml_specif) list

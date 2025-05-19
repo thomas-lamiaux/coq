@@ -75,16 +75,16 @@ val labels_of_ref : global -> ModPath.t * Label.t list
    [mutual_inductive_body] as checksum. In both case, we should ideally
    also check the env *)
 
-val add_typedef : t -> Constant.t -> constant_body -> ml_type -> unit
-val lookup_typedef : t -> Constant.t -> constant_body -> ml_type option
+val add_typedef : t -> Constant.t -> InfvInst.t -> constant_body -> ml_type -> unit
+val lookup_typedef : t -> Constant.t -> InfvInst.t -> constant_body -> ml_type option
 
-val add_cst_type : t -> Constant.t -> constant_body -> ml_schema -> unit
-val lookup_cst_type : t -> Constant.t -> constant_body -> ml_schema option
+val add_cst_type : t -> Constant.t -> InfvInst.t -> constant_body -> ml_schema -> unit
+val lookup_cst_type : t -> Constant.t -> InfvInst.t -> constant_body -> ml_schema option
 
-val add_ind : t -> MutInd.t -> mutual_inductive_body -> ml_ind -> unit
-val lookup_ind : t -> MutInd.t -> mutual_inductive_body -> ml_ind option
+val add_ind : t -> MutInd.t -> InfvInst.t -> mutual_inductive_body -> ml_ind -> unit
+val lookup_ind : t -> MutInd.t ->  InfvInst.t -> mutual_inductive_body -> ml_ind option
 
-val add_inductive_kind : t -> MutInd.t -> inductive_kind -> unit
+val add_inductive_kind : t -> MutInd.t -> InfvInst.t -> inductive_kind -> unit
 val is_coinductive : t -> global -> bool
 val is_coinductive_type : t -> ml_type -> bool
 (* What are the fields of a record (empty for a non-record) *)

@@ -5,7 +5,7 @@ Definition foo@{s| |} := tt.
 
 Definition bar := foo@{Prop|}.
 
-Fail Extraction bar.
+Extraction bar.
 
 (* the actual problem only appears once we have inductives with sort poly output: *)
 
@@ -18,4 +18,4 @@ Definition make_pair := pair@{Prop|_} _ I I.
 
 Definition hell := use_pair True (fun _ => 0) make_pair.
 
-Fail Recursive Extraction hell.
+Recursive Extraction hell.

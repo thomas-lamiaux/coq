@@ -35,14 +35,14 @@ let se_iter do_decl do_spec do_mp =
   let rec mt_iter = function
     | MTident mp -> do_mp mp
     | MTfunsig (_,mt,mt') -> mt_iter mt; mt_iter mt'
-    | MTwith (mt,ML_With_type(idl,l,t))->
+    | MTwith (mt, ML_With_type (rlv, idl, l, t))->
         let mp_mt = msid_of_mt mt in
         let l',idl' = List.sep_last idl in
         let mp_w =
           List.fold_left (fun mp l -> MPdot(mp,Label.of_id l)) mp_mt idl'
         in
         let r = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l')) in
-        let r = { glob = r } in
+        let r = { glob = r; inst = rlv } in
         mt_iter mt; do_spec (Stype(r,l,Some t))
     | MTwith (mt,ML_With_module(idl,mp))->
         let mp_mt = msid_of_mt mt in
@@ -118,8 +118,9 @@ let ind_iter_references do_term do_cons do_type ind =
   let packet_iter i p =
     let () = do_type p.ip_typename_ref in
     if lang () == Ocaml then
+      let inst = ind.ind_packets.(0).ip_typename_ref.inst in
       (match ind.ind_equiv with
-         | Miniml.Equiv kne -> do_type { glob = (GlobRef.IndRef (MutInd.make1 kne, i)) };
+         | Miniml.Equiv kne -> do_type { glob = (GlobRef.IndRef (MutInd.make1 kne, i)); inst };
          | _ -> ());
     Array.iteri (fun j -> cons_iter p.ip_consnames_ref.(j)) p.ip_types
   in
@@ -315,8 +316,8 @@ and optim_me table to_appear s = function
 
 let base_r r = let open GlobRef in match r.glob with
   | ConstRef _ -> r
-  | IndRef (kn,_) -> { glob = IndRef (kn, 0) }
-  | ConstructRef ((kn,_),_) -> { glob = IndRef (kn, 0) }
+  | IndRef (kn,_) -> { glob = IndRef (kn, 0); inst = r.inst }
+  | ConstructRef ((kn,_),_) -> { glob = IndRef (kn, 0); inst = r.inst }
   | _ -> assert false
 
 let reset_needed, add_needed, add_needed_mp, found_needed, is_needed =

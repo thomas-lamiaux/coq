@@ -12,7 +12,35 @@
 
 open Names
 
-type global = { glob : GlobRef.t }
+(* Informativity data for sort polymorphism *)
+module InfvInst :
+sig
+  type t
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+
+  val empty : t
+  (** No bound sort variables *)
+
+  val generate : UVars.AbstractContext.t -> t list
+  (** 2^n possible instances for this context *)
+
+  val default : UVars.AbstractContext.t -> t
+  (** All sorts informative *)
+
+  val ground : UVars.Instance.t -> t
+  (** From a ground instance returns an informativity instance *)
+
+  val instantiate : UVars.AbstractContext.t -> t -> UVars.Instance.t
+  (** The other way around *)
+
+  val encode : t -> string option
+  (** A string that can be used as an identifier suffix, guaranteed to be
+      injective for instances of the same length. *)
+
+end
+
+type global = { glob : GlobRef.t; inst : InfvInst.t }
 
 (* The [signature] type is used to know how many arguments a CIC
    object expects, and what these arguments will become in the ML
@@ -167,7 +195,7 @@ and ml_module_type =
   | MTwith of ml_module_type * ml_with_declaration
 
 and ml_with_declaration =
-  | ML_With_type of Id.t list * Id.t list * ml_type
+  | ML_With_type of InfvInst.t * Id.t list * Id.t list * ml_type
   | ML_With_module of Id.t list * ModPath.t
 
 and ml_module_sig = (Label.t * ml_specif) list

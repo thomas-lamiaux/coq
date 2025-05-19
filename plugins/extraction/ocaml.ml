@@ -149,7 +149,7 @@ let get_infix r =
 
 let get_ind r = let open GlobRef in match r.glob with
   | IndRef _ -> r
-  | ConstructRef (ind,_) -> { glob = IndRef ind }
+  | ConstructRef (ind,_) -> { glob = IndRef ind; inst = r.inst }
   | _ -> assert false
 
 let kn_of_ind r = let open GlobRef in match r.glob with
@@ -487,16 +487,16 @@ let pp_Dfix table (rv,c,t) =
 
 (*s Pretty-printing of inductive types declaration. *)
 
-let pp_equiv table param_list name = function
+let pp_equiv table param_list name inst = function
   | NoEquiv, _ -> mt ()
   | Equiv kn, i ->
-    let r = { glob = GlobRef.IndRef (MutInd.make1 kn, i) } in
+    let r = { glob = GlobRef.IndRef (MutInd.make1 kn, i); inst } in
     str " = " ++ pp_parameters param_list ++ pp_global table Type r
   | RenEquiv ren, _  ->
       str " = " ++ pp_parameters param_list ++ str (ren^".") ++ name
 
 
-let pp_one_ind table prefix ip_equiv pl name cnames ctyps =
+let pp_one_ind table prefix inst ip_equiv pl name cnames ctyps =
   let pl = rename_tvars keywords pl in
   let pp_constructor i typs =
     (if Int.equal i 0 then mt () else fnl ()) ++
@@ -506,7 +506,7 @@ let pp_one_ind table prefix ip_equiv pl name cnames ctyps =
             (fun () -> spc () ++ str "* ") (pp_type table true pl) typs)
   in
   pp_parameters pl ++ str prefix ++ name ++
-  pp_equiv table pl name ip_equiv ++ str " =" ++
+  pp_equiv table pl name inst ip_equiv ++ str " =" ++
   if Int.equal (Array.length ctyps) 0 then str " |"
   else fnl () ++ v 0 (prvecti pp_constructor ctyps)
 
@@ -532,7 +532,7 @@ let pp_record table fields ip_equiv packet =
   let l = List.combine fieldnames packet.ip_types.(0) in
   let pl = rename_tvars keywords packet.ip_vars in
   str "type " ++ pp_parameters pl ++ name ++
-  pp_equiv table pl name ip_equiv ++ str " = { "++
+  pp_equiv table pl name ind.inst ip_equiv ++ str " = { "++
   hov 0 (prlist_with_sep (fun () -> str ";" ++ spc ())
            (fun (p,t) -> p ++ str " : " ++ pp_type table true pl t) l)
   ++ str " }"
@@ -568,8 +568,9 @@ let pp_ind table co ind =
       if is_custom ip then pp (i+1) kwd
       else if p.ip_logical then pp_logical_ind p ++ pp (i+1) kwd
       else
+        let inst = p.ip_typename_ref.inst in
         kwd ++ (if co then pp_coind p.ip_vars names.(i) else mt ()) ++
-        pp_one_ind table prefix ip_equiv p.ip_vars names.(i) cnames.(i) p.ip_types ++
+        pp_one_ind table prefix inst ip_equiv p.ip_vars names.(i) cnames.(i) p.ip_types ++
         pp (i+1) nextkwd
   in
   pp 0 initkwd
@@ -704,14 +705,14 @@ and pp_module_type table params = function
        else
          v 1 (str " " ++ prlist_with_sep cut2 identity l) ++ fnl ())
       ++ str "end"
-  | MTwith(mt,ML_With_type(idl,vl,typ)) ->
+  | MTwith(mt,ML_With_type (rlv, idl, vl, typ)) ->
       let ids = pp_parameters (rename_tvars keywords vl) in
       let mp_mt = msid_of_mt mt in
       let l,idl' = List.sep_last idl in
       let mp_w =
         List.fold_left (fun mp l -> MPdot(mp,Label.of_id l)) mp_mt idl'
       in
-      let r = { glob = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l)) } in
+      let r = { glob = GlobRef.ConstRef (Constant.make2 mp_w (Label.of_id l)); inst = rlv } in
       let pp_w = State.with_visibility table mp_mt [] begin fun table ->
         str " with type " ++ ids ++ pp_global table Type r
       end in

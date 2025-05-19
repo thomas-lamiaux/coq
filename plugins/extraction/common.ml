@@ -467,12 +467,16 @@ let ref_renaming_fun table (k,r) =
   let l = if lang () != Ocaml && not (State.get_modular table) then [""] else l in
   let s =
     let idg = safe_basename_of_global (State.get_table table) r in
+    let app_suf s = match InfvInst.encode r.inst with
+    | None -> s
+    | Some suf -> s ^ "__" ^ suf
+    in
     match l with
     | [""] -> (* this happens only at toplevel of the monolithic case *)
       let globs = State.get_global_ids table in
       let id = next_ident_away (kindcase_id k idg) globs in
-      Id.to_string id
-    | _ -> modular_rename table k idg
+      app_suf (Id.to_string id)
+    | _ -> app_suf (modular_rename table k idg)
   in
   let () = State.add_global_ids table (Id.of_string s) in
   s::l
@@ -701,7 +705,9 @@ let is_ascii_registered () =
   Rocqlib.has_ref ascii_type_name
   && Rocqlib.has_ref ascii_constructor_name
 
-let ascii_type_ref () = { glob = Rocqlib.lib_ref ascii_type_name }
+let ascii_type_ref () =
+  (* FIXME: support sort poly? *)
+  { glob = Rocqlib.lib_ref ascii_type_name; inst = InfvInst.empty }
 
 let check_extract_ascii () =
   try
@@ -754,7 +760,9 @@ let is_string_registered () =
   && Rocqlib.has_ref empty_string_name
   && Rocqlib.has_ref string_constructor_name
 
-let string_type_ref () = { glob = Rocqlib.lib_ref string_type_name }
+let string_type_ref () =
+  (* FIXME: support sort poly? *)
+  { glob = Rocqlib.lib_ref string_type_name; inst = InfvInst.empty }
 
 let check_extract_string () =
   try
