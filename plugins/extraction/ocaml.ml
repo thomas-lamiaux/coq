@@ -516,16 +516,16 @@ let pp_logical_ind packet =
               prvect_with_sep spc Id.print packet.ip_consnames) ++
   fnl ()
 
-let pp_singleton table kn packet =
-  let name = pp_global_name table Type (GlobRef.IndRef (kn,0)) in
+let pp_singleton table packet =
+  let name = pp_global_name table Type packet.ip_typename_ref in
   let l = rename_tvars keywords packet.ip_vars in
   hov 2 (str "type " ++ pp_parameters l ++ name ++ str " =" ++ spc () ++
          pp_type table false l (List.hd packet.ip_types.(0)) ++ fnl () ++
          pp_comment (str "singleton inductive, whose constructor was " ++
                      Id.print packet.ip_consnames.(0)))
 
-let pp_record table kn fields ip_equiv packet =
-  let ind = GlobRef.IndRef (kn,0) in
+let pp_record table fields ip_equiv packet =
+  let ind = packet.ip_typename_ref in
   let name = pp_global_name table Type ind in
   let fieldnames = pp_fields table ind fields in
   let l = List.combine fieldnames packet.ip_types.(0) in
@@ -542,29 +542,29 @@ let pp_coind pl name =
   pp_parameters pl ++ str "__" ++ name ++ str " Lazy.t" ++
   fnl() ++ str "and "
 
-let pp_ind table co kn ind =
+let pp_ind table co ind =
   let prefix = if co then "__" else "" in
   let initkwd = str "type " in
   let nextkwd = fnl () ++ str "and " in
   let names =
     Array.mapi (fun i p -> if p.ip_logical then mt () else
-                  pp_global_name table Type (GlobRef.IndRef (kn,i)))
+                  pp_global_name table Type p.ip_typename_ref)
       ind.ind_packets
   in
   let cnames =
     Array.mapi
       (fun i p -> if p.ip_logical then [||] else
-         Array.mapi (fun j _ -> pp_global table Cons (GlobRef.ConstructRef ((kn,i),j+1)))
+         Array.mapi (fun j _ -> pp_global table Cons p.ip_consnames_ref.(j))
            p.ip_types)
       ind.ind_packets
   in
   let rec pp i kwd =
     if i >= Array.length ind.ind_packets then mt ()
     else
-      let ip = (kn,i) in
+      let ip = ind.ind_packets.(i).ip_typename_ref in
       let ip_equiv = ind.ind_equiv, i in
       let p = ind.ind_packets.(i) in
-      if is_custom (GlobRef.IndRef ip) then pp (i+1) kwd
+      if is_custom ip then pp (i+1) kwd
       else if p.ip_logical then pp_logical_ind p ++ pp (i+1) kwd
       else
         kwd ++ (if co then pp_coind p.ip_vars names.(i) else mt ()) ++
@@ -576,17 +576,17 @@ let pp_ind table co kn ind =
 
 (*s Pretty-printing of a declaration. *)
 
-let pp_mind table kn i =
+let pp_mind table i =
   match i.ind_kind with
-    | Singleton -> pp_singleton table kn i.ind_packets.(0)
-    | Coinductive -> pp_ind table true kn i
-    | Record fields -> pp_record table kn fields (i.ind_equiv,0) i.ind_packets.(0)
-    | Standard -> pp_ind table false kn i
+    | Singleton -> pp_singleton table i.ind_packets.(0)
+    | Coinductive -> pp_ind table true i
+    | Record fields -> pp_record table fields (i.ind_equiv,0) i.ind_packets.(0)
+    | Standard -> pp_ind table false i
 
 let pp_decl table = function
     | Dtype (r,_,_) when is_inline_custom r -> mt ()
     | Dterm (r,_,_) when is_inline_custom r -> mt ()
-    | Dind (kn,i) -> pp_mind table kn i
+    | Dind i -> pp_mind table i
     | Dtype (r, l, t) ->
         let name = pp_global_name table Type r in
         let l = rename_tvars keywords l in
@@ -632,7 +632,7 @@ let pp_decl table = function
 let pp_spec table = function
   | Sval (r,_) when is_inline_custom r -> mt ()
   | Stype (r,_,_) when is_inline_custom r -> mt ()
-  | Sind (kn,i) -> pp_mind table kn i
+  | Sind i -> pp_mind table i
   | Sval (r,t) ->
       let def = pp_type table false [] t in
       let name = pp_global_name table Term r in

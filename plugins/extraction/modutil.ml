@@ -111,32 +111,32 @@ let ast_iter_references do_term do_cons do_type a =
       | MLstring _ | MLparray _ -> ()
   in iter a
 
-let ind_iter_references do_term do_cons do_type kn ind =
+let ind_iter_references do_term do_cons do_type ind =
   let type_iter = type_iter_references do_type in
-  let cons_iter cp l = do_cons (GlobRef.ConstructRef cp); List.iter type_iter l in
-  let packet_iter ip p =
-    do_type (GlobRef.IndRef ip);
+  let cons_iter cp l = do_cons cp; List.iter type_iter l in
+  let packet_iter i p =
+    let () = do_type p.ip_typename_ref in
     if lang () == Ocaml then
       (match ind.ind_equiv with
-         | Miniml.Equiv kne -> do_type (GlobRef.IndRef (MutInd.make1 kne, snd ip));
+         | Miniml.Equiv kne -> do_type (GlobRef.IndRef (MutInd.make1 kne, i));
          | _ -> ());
-    Array.iteri (fun j -> cons_iter (ip,j+1)) p.ip_types
+    Array.iteri (fun j -> cons_iter p.ip_consnames_ref.(j)) p.ip_types
   in
   if lang () == Ocaml then record_iter_references do_term ind.ind_kind;
-    Array.iteri (fun i -> packet_iter (kn,i)) ind.ind_packets
+    Array.iteri (fun i p -> packet_iter i p) ind.ind_packets
 
 let decl_iter_references do_term do_cons do_type =
   let type_iter = type_iter_references do_type
   and ast_iter = ast_iter_references do_term do_cons do_type in
   function
-    | Dind (kn,ind) -> ind_iter_references do_term do_cons do_type kn ind
+    | Dind ind -> ind_iter_references do_term do_cons do_type ind
     | Dtype (r,_,t) -> do_type r; type_iter t
     | Dterm (r,a,t) -> do_term r; ast_iter a; type_iter t
     | Dfix(rv,c,t) ->
         Array.iter do_term rv; Array.iter ast_iter c; Array.iter type_iter t
 
 let spec_iter_references do_term do_cons do_type = function
-  | Sind (kn,ind) -> ind_iter_references do_term do_cons do_type kn ind
+  | Sind ind -> ind_iter_references do_term do_cons do_type ind
   | Stype (r,_,ot) -> do_type r; Option.iter (type_iter_references do_type) ot
   | Sval (r,t) -> do_term r; type_iter_references do_type t
 
@@ -162,7 +162,7 @@ let rec type_search f = function
   | u -> if f u then raise Found
 
 let decl_type_search f = function
-  | Dind (_,{ind_packets=p})  ->
+  | Dind {ind_packets = p}  ->
       Array.iter
         (fun {ip_types=v} -> Array.iter (List.iter (type_search f)) v) p
   | Dterm (_,_,u) -> type_search f u
@@ -170,7 +170,7 @@ let decl_type_search f = function
   | Dtype (_,_,u) -> type_search f u
 
 let spec_type_search f = function
-  | Sind (_,{ind_packets=p}) ->
+  | Sind {ind_packets = p} ->
       Array.iter
         (fun {ip_types=v} -> Array.iter (List.iter (type_search f)) v) p
   | Stype (_,_,ot) -> Option.iter (type_search f) ot
@@ -187,8 +187,8 @@ let struct_type_search f s =
 
 let rec msig_of_ms = function
   | [] -> []
-  | (l,SEdecl (Dind (kn,i))) :: ms ->
-      (l,Spec (Sind (kn,i))) :: (msig_of_ms ms)
+  | (l,SEdecl (Dind i)) :: ms ->
+      (l,Spec (Sind i)) :: (msig_of_ms ms)
   | (l,SEdecl (Dterm (r,_,t))) :: ms ->
       (l,Spec (Sval (r,t))) :: (msig_of_ms ms)
   | (l,SEdecl (Dtype (r,v,t))) :: ms ->
@@ -330,7 +330,7 @@ let reset_needed, add_needed, add_needed_mp, found_needed, is_needed =
      Refset'.mem r !needed || MPset.mem (modpath_of_r r) !needed_mps))
 
 let declared_refs = function
-  | Dind (kn,_) -> [GlobRef.IndRef (kn,0)]
+  | Dind p -> [p.ind_packets.(0).ip_typename_ref]
   | Dtype (r,_,_) -> [r]
   | Dterm (r,_,_) -> [r]
   | Dfix (rv,_,_) -> Array.to_list rv
@@ -339,9 +339,9 @@ let declared_refs = function
    of custom extraction. *)
 
 let compute_deps_decl = function
-  | Dind (kn,ind) ->
+  | Dind ind ->
       (* Todo Later : avoid dependencies when Extract Inductive *)
-      ind_iter_references add_needed add_needed add_needed kn ind
+      ind_iter_references add_needed add_needed add_needed ind
   | Dtype (r,ids,t) ->
       if not (is_custom r) then type_iter_references add_needed t
   | Dterm (r,u,t) ->
@@ -352,9 +352,9 @@ let compute_deps_decl = function
       decl_iter_references add_needed add_needed add_needed d
 
 let compute_deps_spec = function
-  | Sind (kn,ind) ->
+  | Sind ind ->
       (* Todo Later : avoid dependencies when Extract Inductive *)
-      ind_iter_references add_needed add_needed add_needed kn ind
+      ind_iter_references add_needed add_needed add_needed ind
   | Stype (r,ids,t) ->
       if not (is_custom r) then Option.iter (type_iter_references add_needed) t
   | Sval (r,t) ->

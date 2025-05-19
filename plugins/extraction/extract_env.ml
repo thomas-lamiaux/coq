@@ -217,7 +217,7 @@ let rec extract_structure_spec table venv env mp reso = function
       else begin Visit.add_spec_deps venv s; (l,Spec s) :: specs end
   | (l,SFBmind _) :: msig ->
       let mind = make_mind reso mp l in
-      let s = Sind (mind, extract_inductive table env mind) in
+      let s = Sind (extract_inductive table env mind) in
       let specs = extract_structure_spec table venv env mp reso msig in
       if logical_spec s then specs
       else begin Visit.add_spec_deps venv s; (l,Spec s) :: specs end
@@ -330,7 +330,7 @@ let rec extract_structure table access venv env mp reso ~all = function
       let mind = make_mind reso mp l in
       let b = Visit.needed_ind venv mind in
       if all || b then
-        let d = Dind (mind, extract_inductive table env mind) in
+        let d = Dind (extract_inductive table env mind) in
         if (not b) && (logical_decl d) then ms
         else
           let () = Visit.add_decl_deps venv d in

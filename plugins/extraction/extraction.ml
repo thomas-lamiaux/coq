@@ -508,9 +508,12 @@ and extract_really_ind table env kn mib =
            let ar = EConstr.of_constr ar in
            let info = (fst (flag_of_type env sg ar) = Info) in
            let s,v = if info then type_sign_vl env sg ar else [],[] in
-           let t = Array.make (Array.length mip.mind_nf_lc) [] in
+           let ncons = Array.length mip.mind_nf_lc in
+           let t = Array.make ncons [] in
            { ip_typename = mip.mind_typename;
+             ip_typename_ref = GlobRef.IndRef (kn, i);
              ip_consnames = mip.mind_consnames;
+             ip_consnames_ref = Array.init ncons (fun j -> GlobRef.ConstructRef ((kn, i), j + 1));
              ip_logical = not info;
              ip_sign = s;
              ip_vars = v;
@@ -1246,7 +1249,7 @@ let logical_decl = function
   | Dfix (_,av,tv) ->
       (Array.for_all isMLdummy av) &&
       (Array.for_all isTdummy tv)
-  | Dind (_,i) -> Array.for_all (fun ip -> ip.ip_logical) i.ind_packets
+  | Dind i -> Array.for_all (fun ip -> ip.ip_logical) i.ind_packets
   | _ -> false
 
 (*s Is a [ml_spec] logical ? *)
@@ -1254,5 +1257,5 @@ let logical_decl = function
 let logical_spec = function
   | Stype (_, _, Some (Tdummy _)) -> true
   | Sval (_,Tdummy _) -> true
-  | Sind (_,i) -> Array.for_all (fun ip -> ip.ip_logical) i.ind_packets
+  | Sind i -> Array.for_all (fun ip -> ip.ip_logical) i.ind_packets
   | _ -> false
