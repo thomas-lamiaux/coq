@@ -14,10 +14,9 @@ open Inductiveops
 
 (* This represents how a term is getting extracted from another term *)
 type term_extraction =
-(* The term that is getting extracted *)
-| Id of EConstr.t
-(* The rel term that is getting extracted, the rel term from wich its getting extracted, The constructor from which to extract, Type of the Cosntructor that is getting extracted, index (1 based) to extract from, further extraction *)
-| Extraction of (EConstr.t * EConstr.t * (constructor * EInstance.t) * EConstr.t * int * term_extraction)
+| Id
+(* the constructor from which to extract, type of the constructor that is getting extracted, index (1 based) to extract from, further extraction *)
+| Extraction of ((constructor * EInstance.t) * EConstr.t * int * term_extraction)
 
 (* this represents how a term is getting composed from an inductive type *)
 type term_composition =
@@ -25,18 +24,17 @@ type term_composition =
 | FromEnv of EConstr.t
 (* env type to compose, env parameter term to extract from, index (1 based) of parameter, extraction for the given type*)
 | FromParameter of EConstr.t * EConstr.t * int * term_extraction
-(* env type to compose, rel index term to extract from, index (1 based) index to compose from, extraction for the given type *)
-| FromIndex of EConstr.t * EConstr.t * int * term_extraction
-(* (env f type to compose, composition for f), array of (env arg type to compose, composition for arg)*)
-| Composition of (EConstr.t * term_composition) * (EConstr.t * term_composition) array
+(* env type to compose, index (1 based) index to compose from, extraction for the given type *)
+| FromIndex of EConstr.t * int * term_extraction
+(* composition for f, array of composition for arg *)
+| Composition of term_composition * term_composition array
 
-(*type possible projection*)
 type projection_type =
-(* Simple for simply typed fields, *)
+(* simply typed fields *)
 | Simple
-(* Dependen_Ectractable for dependently typed fields for wich a type term_composition exists *)
+(* dependently typed fields for wich a type term_composition exists *)
 | Dependent_Extractable of term_composition
-(* NotProjectable for dependently typed fields for which currently no projection generation is known, simply typed generation is getting tried anyways*)
+(* dependently typed fields for which currently no projection generation is known, simply typed generation is getting tried anyways *)
 | NotProjectable
 
 (*get the ith (1 based) argument in a series of prods*)
@@ -91,8 +89,8 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
       Some (FromParameter (env_term_to_compose, env_ind_params.(i-1), i, extraction))
     | None ->
       begin match find_arg env sigma rel_term_to_compose rel_ind_args env_ind_args with
-      | Some (i, rel_term_to_compose_from, extraction) ->
-        Some (FromIndex (env_term_to_compose, rel_term_to_compose_from, i, extraction))
+      | Some (i, _, extraction) ->
+        Some (FromIndex (env_term_to_compose, i, extraction))
       | None ->
         begin match EConstr.kind sigma rel_term_to_compose with
         | App (rel_f,rel_args) ->
@@ -106,12 +104,12 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
                 let map i rel_arg =
                   let arg_composition = find_term_composition_rec env sigma rel_arg env_args.(i) in
                   match arg_composition with
-                  | Some arg_composition -> (env_args.(i), arg_composition)
+                  | Some arg_composition -> arg_composition
                   | None -> raise ArgNotComposable
                 in
                 try Some (CArray.mapi map rel_args) with ArgNotComposable -> None
               in
-              Some (Composition ((env_f, f_composition), args_compositions))
+              Some (Composition (f_composition, args_compositions))
         | _ -> None
       end
     end
@@ -136,16 +134,16 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
   (*finds the term_extraction for a given term*)
   and find_term_extraction env sigma term_to_extract term_to_extract_from type_of_term_to_extract_from =
     if eq_constr_nounivs sigma term_to_extract term_to_extract_from then
-      Some (Id term_to_extract)
+      Some Id
     else match EConstr.kind sigma term_to_extract_from with
     | App (f, args) ->
       begin match EConstr.kind sigma f with
       | Construct c ->
         let (_, env_args) = decompose_app sigma type_of_term_to_extract_from in
-        let* (i, arg_to_extract_from, extraction_result) =
+        let* (i, _, extraction_result) =
           find_arg env sigma term_to_extract args env_args
         in
-        Some (Extraction (term_to_extract, arg_to_extract_from, c, type_of_term_to_extract_from, i, extraction_result))
+        Some (Extraction (c, type_of_term_to_extract_from, i, extraction_result))
       | _ -> None
       end
     | _ -> None
@@ -165,10 +163,9 @@ let projectability_test env sigma cnstr argindex field_type ind ind_params ind_a
 (*builds the term of a given term_extraction*)
 let rec build_term_extraction env sigma default rel_term_to_extract_from env_term_to_extract_from extraction =
   match extraction with
-  (* The term that is getting extracted *)
-  | Id _ -> rel_term_to_extract_from
+  | Id -> rel_term_to_extract_from
   (* The term that is getting extracted, the term from wich its getting extracted, The constructor from which zu extract, index (1 based without params) to extract from, further extraction *)
-  | Extraction (_, _, (cnstr, _), env_next_term_to_extract_from, index, next_extraction) ->
+  | Extraction ((cnstr, _), env_next_term_to_extract_from, index, next_extraction) ->
     let cnstr_n_args = constructor_nrealargs env cnstr in
     let special = build_term_extraction env sigma default (mkRel (cnstr_n_args-(index-1))) env_next_term_to_extract_from next_extraction in
     let pos = snd cnstr in
@@ -185,13 +182,14 @@ let rec build_term_composition env sigma term_composition ind_params n_ind_param
     let type_to_extract_from = ind_params.(parameter_index-1) in
     build_term_extraction env sigma env_type_to_compose env_parameter_to_extract_from type_to_extract_from extraction
   (* type to compose, indec term to extract from, index (1 based) index to compose from, extraction for the given type *)
-  | FromIndex (env_type_to_compose, _, index_index, extraction) ->
+  | FromIndex (env_type_to_compose, index_index, extraction) ->
     let type_to_extract_from = ind_args.(index_index-1) in
     build_term_extraction env sigma env_type_to_compose (mkRel (n_ind_args-(index_index-1))) type_to_extract_from extraction
   (* (f type to compose, composition for f), array of (arg type to compose, composition for arg)*)
-  | Composition ((_ , f_composition),  arg_compositions) ->
+  | Composition (f_composition,  arg_compositions) ->
     let f_extraction_term = build_term_composition env sigma f_composition ind_params n_ind_params ind_args n_ind_args in
-    let arg_extraction_terms = Array.map (fun (_,arg_composition) -> build_term_composition env sigma arg_composition ind_params n_ind_params ind_args n_ind_args) arg_compositions in
+    let map arg_composition = build_term_composition env sigma arg_composition ind_params n_ind_params ind_args n_ind_args in
+    let arg_extraction_terms = Array.map map arg_compositions in
     mkApp (f_extraction_term, arg_extraction_terms)
 
 (*replaces all rel variables corresponding to indices in a match statment with the index definition in the inductive definition*)
