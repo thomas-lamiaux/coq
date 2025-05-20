@@ -68,6 +68,10 @@ let build_simple_projection env sigma intype cnstr special default =
   let id = fresh_id env (Id.of_string "t") in
   mkLambda (make_annot (Name id) ERelevance.relevant, intype, body)
 
+let (let*) m f = match m with
+| None -> None
+| Some x -> f x
+
 (*find a composition to form a given term by extracting from given terms*)
 let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_params env_ind_args =
   (*first we need to get some information about the inductive type*)
@@ -80,49 +84,38 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
   let (rel_ind_params, rel_ind_args) = CArray.chop env_ind_n_params rel_args in
   (*the actual recursive search for the term_composition*)
   let rec find_term_composition_rec env sigma rel_term_to_compose env_term_to_compose =
-    let rel_term_to_compose_kind = EConstr.kind sigma rel_term_to_compose in
-    match rel_term_to_compose_kind with
-    | Var _ | Const _ | Ind _ | Construct _ ->
+    if isRef sigma rel_term_to_compose then
       Some (FromEnv rel_term_to_compose)
-    | _ ->
-      match find_arg env sigma rel_term_to_compose rel_ind_params env_ind_params with
-      | Some (i, _, extraction) ->
-        Some (FromParameter (env_term_to_compose, env_ind_params.(i-1), i, extraction))
+    else match find_arg env sigma rel_term_to_compose rel_ind_params env_ind_params with
+    | Some (i, _, extraction) ->
+      Some (FromParameter (env_term_to_compose, env_ind_params.(i-1), i, extraction))
+    | None ->
+      begin match find_arg env sigma rel_term_to_compose rel_ind_args env_ind_args with
+      | Some (i, rel_term_to_compose_from, extraction) ->
+        Some (FromIndex (env_term_to_compose, rel_term_to_compose_from, i, extraction))
       | None ->
-        begin match find_arg env sigma rel_term_to_compose rel_ind_args env_ind_args with
-        | Some (i, rel_term_to_compose_from, extraction) ->
-          Some (FromIndex (env_term_to_compose, rel_term_to_compose_from, i, extraction))
-        | None ->
-          begin match rel_term_to_compose_kind with
-          | App (rel_f,rel_args) ->
-            let (env_f,env_args) = decompose_app sigma env_term_to_compose in
-            let f_composition = find_term_composition_rec env sigma rel_f env_f in
-            begin match f_composition with
-            | Some f_composition ->
-              if Array.length env_args != Array.length rel_args then None
-              else
-                let args_compositions =
-                  let exception ArgNotComposable in
-                  let fold i () rel_arg =
-                    let arg_composition = find_term_composition_rec env sigma rel_arg env_args.(i) in
-                    match arg_composition with
-                    | Some arg_composition -> ((), (env_args.(i), arg_composition))
-                    | None -> raise ArgNotComposable
-                  in
-                  try
-                    let ((), args_compositions) = CArray.fold_left_map_i fold () rel_args in
-                    Some args_compositions
-                  with ArgNotComposable -> None
+        begin match EConstr.kind sigma rel_term_to_compose with
+        | App (rel_f,rel_args) ->
+          let (env_f,env_args) = decompose_app sigma env_term_to_compose in
+          let* f_composition = find_term_composition_rec env sigma rel_f env_f in
+            if Array.length env_args != Array.length rel_args then
+              None
+            else
+              let* args_compositions =
+                let exception ArgNotComposable in
+                let map i rel_arg =
+                  let arg_composition = find_term_composition_rec env sigma rel_arg env_args.(i) in
+                  match arg_composition with
+                  | Some arg_composition -> (env_args.(i), arg_composition)
+                  | None -> raise ArgNotComposable
                 in
-                begin match args_compositions with
-                | Some args_compositions -> Some (Composition ((env_f, f_composition), args_compositions))
-                | None -> None
-                end
-            | None -> None
-            end
-          | _ -> None
-        end
+                try Some (CArray.mapi map rel_args) with ArgNotComposable -> None
+              in
+              Some (Composition ((env_f, f_composition), args_compositions))
+        | _ -> None
       end
+    end
+
   (*finds the first argument from which a term can be extracted*)
   and find_arg env sigma term_to_extract terms_to_extract_from env_types_of_fields =
     let rec seq_find_map f xs =
@@ -148,15 +141,11 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
     | App (f, args) ->
       begin match EConstr.kind sigma f with
       | Construct c ->
-          let (_, env_args) = decompose_app sigma type_of_term_to_extract_from in
-          let first_arg_option =
-            find_arg env sigma term_to_extract args env_args
-          in
-          begin match first_arg_option with
-          | Some (i, arg_to_extract_from, extraction_result) ->
-            Some (Extraction (term_to_extract, arg_to_extract_from, c, type_of_term_to_extract_from, i, extraction_result))
-          | None -> None
-          end
+        let (_, env_args) = decompose_app sigma type_of_term_to_extract_from in
+        let* (i, arg_to_extract_from, extraction_result) =
+          find_arg env sigma term_to_extract args env_args
+        in
+        Some (Extraction (term_to_extract, arg_to_extract_from, c, type_of_term_to_extract_from, i, extraction_result))
       | _ -> None
       end
     | _ -> None
