@@ -49,7 +49,7 @@ let get_ith_arg sigma i term =
 let is_field_i_dependent env sigma cnstr i =
   let constructor_type = e_type_of_constructor env sigma cnstr in
   let ind_n_params = inductive_nparams env (fst (fst cnstr)) in
-  let (field_rel_context, (_, field_type), _) = get_ith_arg sigma (i + ind_n_params) constructor_type in
+  let (_, (_, field_type), _) = get_ith_arg sigma (i + ind_n_params) constructor_type in
   let rec is_field_i_dependent_rec i =
     if i <= 0 then false
     else if Termops.dependent sigma (mkRel i) field_type then true
@@ -73,7 +73,7 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
   (*first we need to get some information about the inductive type*)
   let env_ind_n_params = Array.length env_ind_params in
   let rel_type_of_constructor = type_of_constructor env cnstr in
-  let (rel_field_context, (rel_field_annot, rel_field_type), rel_field_rest) = get_ith_arg sigma (argindex+env_ind_n_params) rel_type_of_constructor in
+  let (_, (_, rel_field_type), rel_field_rest) = get_ith_arg sigma (argindex+env_ind_n_params) rel_type_of_constructor in
   let (rel_target_context, rel_target_type) = decompose_prod sigma rel_field_rest in
   let rel_field_type_lifted = Vars.lift (List.length rel_target_context + 1) rel_field_type in
   let (_, rel_args) = decompose_app sigma rel_target_type in
@@ -85,7 +85,7 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
     | Var _ | Const _ | Ind _ | Construct _ -> (sigma, Some (FromEnv rel_term_to_compose))
     | _ ->
       match find_arg env sigma rel_term_to_compose rel_ind_params env_ind_params with
-      | Some (i, rel_term_to_compose_from, extraction) ->
+      | Some (i, _, extraction) ->
         (sigma, Some (FromParameter (env_term_to_compose, env_ind_params.(i-1), i, extraction)))
       | None ->
         begin match find_arg env sigma rel_term_to_compose rel_ind_args env_ind_args with
@@ -174,9 +174,9 @@ let projectability_test env sigma cnstr argindex field_type ind ind_params ind_a
 let rec build_term_extraction env sigma default rel_term_to_extract_from env_term_to_extract_from extraction =
   match extraction with
   (* The term that is getting extracted *)
-  | Id term_getting_extracted -> rel_term_to_extract_from
+  | Id _ -> rel_term_to_extract_from
   (* The term that is getting extracted, the term from wich its getting extracted, The constructor from which zu extract, index (1 based without params) to extract from, further extraction *)
-  | Extraction (rel_term_getting_extracted, rel_next_term_to_extrect_from, (cnstr, u), env_next_term_to_extract_from, index, next_extraction) ->
+  | Extraction (_, _, (cnstr, _), env_next_term_to_extract_from, index, next_extraction) ->
     let cnstr_n_args = constructor_nrealargs env cnstr in
     let special = build_term_extraction env sigma default (mkRel (cnstr_n_args-(index-1))) env_next_term_to_extract_from next_extraction in
     let pos = snd cnstr in
@@ -193,11 +193,11 @@ let rec build_term_composition env sigma term_composition ind_params n_ind_param
     let type_to_extract_from = ind_params.(parameter_index-1) in
     build_term_extraction env sigma env_type_to_compose env_parameter_to_extract_from type_to_extract_from extraction
   (* type to compose, indec term to extract from, index (1 based) index to compose from, extraction for the given type *)
-  | FromIndex (env_type_to_compose, index_to_compose_from, index_index, extraction) ->
+  | FromIndex (env_type_to_compose, _, index_index, extraction) ->
     let type_to_extract_from = ind_args.(index_index-1) in
     build_term_extraction env sigma env_type_to_compose (mkRel (n_ind_args-(index_index-1))) type_to_extract_from extraction
   (* (f type to compose, composition for f), array of (arg type to compose, composition for arg)*)
-  | Composition ((f_to_compose , f_composition),  arg_compositions) ->
+  | Composition ((_ , f_composition),  arg_compositions) ->
     let f_extraction_term = build_term_composition env sigma f_composition ind_params n_ind_params ind_args n_ind_args in
     let arg_extraction_terms = Array.map (fun (_,arg_composition) -> build_term_composition env sigma arg_composition ind_params n_ind_params ind_args n_ind_args) arg_compositions in
     mkApp (f_extraction_term, arg_extraction_terms)
@@ -222,7 +222,7 @@ let make_selector_match_indices env sigma ~pos ~special c (ind_fam, ind_args) re
   let indt = IndType (ind_fam, ind_args) in
   let (ind, _),_ = dest_ind_family ind_fam in
   let () = Tacred.check_privacy env ind in
-  let (mib,mip) = Inductive.lookup_mind_specif env ind in
+  let (_, mip) = Inductive.lookup_mind_specif env ind in
   let deparsign = make_arity_signature env sigma true ind_fam in
   let p = it_mkLambda_or_LetIn return_type deparsign in
   let cstrs = get_constructors env ind_fam in
