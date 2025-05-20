@@ -94,7 +94,7 @@ let masking_absolute = CWarnings.create_warning
 
 let coq_id = Id.of_string "Coq"
 let stdlib_id = Id.of_string "Stdlib"
-let init_id = Id.of_string "Corelib"
+let corelib_id = Id.of_string "Corelib"
 
 let warn_deprecated_dirpath_Coq =
   CWarnings.create_with_quickfix ~name:"deprecated-dirpath-Coq"
@@ -299,7 +299,7 @@ let search ?loc id tree dir =
   let dirs = match List.rev dir with
     | last :: l when Id.equal last coq_id ->
       [ (Some stdlib_id, List.rev (stdlib_id :: l));
-        (Some init_id, List.rev (init_id :: l)) ]
+        (Some corelib_id, List.rev (corelib_id :: l)) ]
     | _ -> [ None, dir ]
   in
   let search_one (warn, dir) =
