@@ -48,12 +48,7 @@ let is_field_i_dependent env sigma cnstr i =
   let constructor_type = e_type_of_constructor env sigma cnstr in
   let ind_n_params = inductive_nparams env (fst (fst cnstr)) in
   let (_, (_, field_type), _) = get_ith_arg sigma (i + ind_n_params) constructor_type in
-  let rec is_field_i_dependent_rec i =
-    if i <= 0 then false
-    else if Termops.dependent sigma (mkRel i) field_type then true
-    else is_field_i_dependent_rec (i-1)
-  in
-  is_field_i_dependent_rec (i-1)
+  not (Vars.noccur_between sigma 1 (i - 1) field_type)
 
 (*this builds a projection in the simply typed case*)
 let build_simple_projection env sigma intype cnstr special default =
