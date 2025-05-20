@@ -55,15 +55,12 @@ let is_field_i_dependent env sigma cnstr i =
   in
   is_field_i_dependent_rec (i-1)
 
-let fresh_id env id =
-  Namegen.next_ident_away id (Environ.ids_of_named_context_val @@ Environ.named_context_val env)
-
 (*this builds a projection in the simply typed case*)
 let build_simple_projection env sigma intype cnstr special default =
   let open Context in
   let ci = (snd (fst cnstr)) in
   let body = Combinators.make_selector env sigma ~pos:ci ~special ~default (mkRel 1) intype in
-  let id = fresh_id env (Id.of_string "t") in
+  let id = Id.of_string "t" in
   mkLambda (make_annot (Name id) ERelevance.relevant, intype, body)
 
 let (let*) m f = match m with
