@@ -85,11 +85,11 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
     if isRef sigma rel_term_to_compose then
       Some (FromEnv rel_term_to_compose)
     else match find_arg env sigma rel_term_to_compose rel_ind_params env_ind_params with
-    | Some (i, _, extraction) ->
+    | Some (i, extraction) ->
       Some (FromParameter (env_term_to_compose, env_ind_params.(i-1), i, extraction))
     | None ->
       begin match find_arg env sigma rel_term_to_compose rel_ind_args env_ind_args with
-      | Some (i, _, extraction) ->
+      | Some (i, extraction) ->
         Some (FromIndex (env_term_to_compose, i, extraction))
       | None ->
         begin match EConstr.kind sigma rel_term_to_compose with
@@ -116,21 +116,19 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
 
   (*finds the first argument from which a term can be extracted*)
   and find_arg env sigma term_to_extract terms_to_extract_from env_types_of_fields =
-    let rec seq_find_map f xs =
-      match xs() with
-      | Seq.Nil -> None
-      | Seq.Cons(x,xs) ->
-        match f x with
-        | None -> seq_find_map f xs
-        | Some _ as result -> result
+    let find (i, term_to_extract_from) =
+      let* r = find_term_extraction env sigma term_to_extract term_to_extract_from env_types_of_fields.(i) in
+      Some (i + 1, r)
     in
-    seq_find_map
-      begin fun (i, term_to_extract_from) ->
-        Option.map
-          (fun r -> (i+1, term_to_extract_from, r))
-          (find_term_extraction env sigma term_to_extract term_to_extract_from env_types_of_fields.(i))
-      end
-      (Array.to_seqi terms_to_extract_from)
+    let rec seq_find_map xs = match xs() with
+    | Seq.Nil -> None
+    | Seq.Cons(x,xs) ->
+      match find x with
+      | None -> seq_find_map xs
+      | Some _ as result -> result
+    in
+    seq_find_map (Array.to_seqi terms_to_extract_from)
+
   (*finds the term_extraction for a given term*)
   and find_term_extraction env sigma term_to_extract term_to_extract_from type_of_term_to_extract_from =
     if eq_constr_nounivs sigma term_to_extract term_to_extract_from then
@@ -140,9 +138,7 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
       begin match EConstr.kind sigma f with
       | Construct c ->
         let (_, env_args) = decompose_app sigma type_of_term_to_extract_from in
-        let* (i, _, extraction_result) =
-          find_arg env sigma term_to_extract args env_args
-        in
+        let* (i, extraction_result) = find_arg env sigma term_to_extract args env_args in
         Some (Extraction (c, type_of_term_to_extract_from, i, extraction_result))
       | _ -> None
       end
