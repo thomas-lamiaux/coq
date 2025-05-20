@@ -82,42 +82,45 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
   let rec find_term_composition_rec env sigma rel_term_to_compose env_term_to_compose =
     let rel_term_to_compose_kind = EConstr.kind sigma rel_term_to_compose in
     match rel_term_to_compose_kind with
-    | Var _ | Const _ | Ind _ | Construct _ -> (sigma, Some (FromEnv rel_term_to_compose))
+    | Var _ | Const _ | Ind _ | Construct _ ->
+      Some (FromEnv rel_term_to_compose)
     | _ ->
       match find_arg env sigma rel_term_to_compose rel_ind_params env_ind_params with
       | Some (i, _, extraction) ->
-        (sigma, Some (FromParameter (env_term_to_compose, env_ind_params.(i-1), i, extraction)))
+        Some (FromParameter (env_term_to_compose, env_ind_params.(i-1), i, extraction))
       | None ->
         begin match find_arg env sigma rel_term_to_compose rel_ind_args env_ind_args with
-        | Some (i, rel_term_to_compose_from, extraction) -> (sigma, Some (FromIndex (env_term_to_compose, rel_term_to_compose_from, i, extraction)))
+        | Some (i, rel_term_to_compose_from, extraction) ->
+          Some (FromIndex (env_term_to_compose, rel_term_to_compose_from, i, extraction))
         | None ->
           begin match rel_term_to_compose_kind with
           | App (rel_f,rel_args) ->
             let (env_f,env_args) = decompose_app sigma env_term_to_compose in
-            let (sigma, f_composition) = find_term_composition_rec env sigma rel_f env_f in
+            let f_composition = find_term_composition_rec env sigma rel_f env_f in
             begin match f_composition with
             | Some f_composition ->
-              if Array.length env_args != Array.length rel_args then (sigma, None) else
-              let (sigma, args_compositions) =
-                  let exception ArgNotComposable of Evd.evar_map in
-                  let fold i sigma rel_arg =
-                    let (sigma, arg_composition) = find_term_composition_rec env sigma rel_arg env_args.(i) in
+              if Array.length env_args != Array.length rel_args then None
+              else
+                let args_compositions =
+                  let exception ArgNotComposable in
+                  let fold i () rel_arg =
+                    let arg_composition = find_term_composition_rec env sigma rel_arg env_args.(i) in
                     match arg_composition with
-                    | Some arg_composition -> (sigma, (env_args.(i), arg_composition))
-                    | None -> raise (ArgNotComposable sigma)
+                    | Some arg_composition -> ((), (env_args.(i), arg_composition))
+                    | None -> raise ArgNotComposable
                   in
                   try
-                    let (sigma, args_compositions) = CArray.fold_left_map_i fold sigma rel_args in
-                    (sigma, Some args_compositions)
-                  with ArgNotComposable sigma -> (sigma, None)
-              in
-              begin match args_compositions with
-              | Some args_compositions -> (sigma, Some (Composition ((env_f, f_composition), args_compositions)))
-              | None -> (sigma, None)
-              end
-            | None -> (sigma, None)
+                    let ((), args_compositions) = CArray.fold_left_map_i fold () rel_args in
+                    Some args_compositions
+                  with ArgNotComposable -> None
+                in
+                begin match args_compositions with
+                | Some args_compositions -> Some (Composition ((env_f, f_composition), args_compositions))
+                | None -> None
+                end
+            | None -> None
             end
-          | _ -> (sigma, None)
+          | _ -> None
         end
       end
   (*finds the first argument from which a term can be extracted*)
@@ -164,11 +167,11 @@ let find_term_composition env sigma cnstr argindex env_field_type ind env_ind_pa
 let projectability_test env sigma cnstr argindex field_type ind ind_params ind_args =
   let dependent = is_field_i_dependent env sigma cnstr argindex in
   if dependent then
-    let (sigma, composition) = find_term_composition env sigma cnstr argindex field_type ind ind_params ind_args in
+    let composition = find_term_composition env sigma cnstr argindex field_type ind ind_params ind_args in
     match composition with
-    | Some composition -> (sigma, Dependent_Extractable composition)
-    | None -> (sigma, NotProjectable)
-  else (sigma, Simple)
+    | Some composition -> Dependent_Extractable composition
+    | None -> NotProjectable
+  else Simple
 
 (*builds the term of a given term_extraction*)
 let rec build_term_extraction env sigma default rel_term_to_extract_from env_term_to_extract_from extraction =
@@ -272,7 +275,7 @@ let build_projection env sigma
                  dependent types.") in
   let (ind, ind_params) = dest_ind_family ind_family in
   let cnstr = (fst cnstr, EInstance.make (snd cnstr)) in
-  let (sigma, proj_result) = projectability_test env sigma cnstr argindex field_type ind (Array.of_list ind_params) (Array.of_list ind_args) in
+  let proj_result = projectability_test env sigma cnstr argindex field_type ind (Array.of_list ind_params) (Array.of_list ind_args) in
   match proj_result with
   | Simple | NotProjectable ->
     let p = build_simple_projection env sigma argty cnstr special default in
