@@ -2,12 +2,11 @@ Installing From Sources
 =======================
 
 To install and use Rocq, we recommend relying on [the Rocq
-platform](https://github.com/coq/platform/) or on a package manager
+platform](https://github.com/rocq-prover/platform) or on a package manager
 (e.g. opam or Nix). Opam 2.3 is known to work on Unix-like, macOS, and
 native Windows platforms.
 
-See https://rocq-prover.org/install and
-https://github.com/rocq-prover/rocq/wiki#coq-installation to learn more.
+See https://rocq-prover.org/install to learn more.
 
 If you need to build Rocq from sources manually (e.g. to
 contribute to Rocq or to write a Rocq package), the remainder of this
@@ -88,8 +87,8 @@ for more details.
 To build and install Rocq (and RocqIDE if desired) do:
 
     $ make dunestrap
-    $ dune build -p rocq-runtime,coq-core,rocq-core,coq,coqide-server,rocqide
-    $ dune install --prefix=<install_prefix> rocq-runtime coq-core rocq-core coq coqide-server rocqide
+    $ dune build -p rocq-runtime,rocq-core,coqide-server,rocqide
+    $ dune install --prefix=<install_prefix> rocq-runtime rocq-core coqide-server rocqide
 
 You can drop the `rocqide` packages if not needed.
 
