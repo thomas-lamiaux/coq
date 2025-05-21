@@ -722,10 +722,10 @@ let inh_coerce_to_fail ?(use_coercions=true) flags env sigma rigidonly v v_ty ta
 
 let rec inh_conv_coerce_to_fail ?loc ?use_coercions env sigma ?(flags=default_flags_of env) rigidonly v t c1 =
   try (unify_leq_delay ~flags env sigma t c1, v, IdCoe)
-  with UnableToUnify (best_failed_sigma,e) ->
+  with UnableToUnify (best_failed_sigma,e) as exn ->
+    let _, info = Exninfo.capture exn in
     try inh_coerce_to_fail ?use_coercions flags env sigma rigidonly v t c1
-    with NoCoercion as exn ->
-      let _, info = Exninfo.capture exn in
+    with NoCoercion ->
       match
       EConstr.kind sigma (whd_all env sigma t),
       EConstr.kind sigma (whd_all env sigma c1)
