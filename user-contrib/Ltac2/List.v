@@ -516,7 +516,7 @@ Ltac2 remove (eqb : 'a -> 'a -> bool) (x : 'a) (ls : 'a list) : 'a list :=
 Ltac2 count_occ (eqb : 'a -> 'a -> bool) (x : 'a) (ls : 'a list) : int :=
   length (filter (eqb x) ls).
 
-(** [list_power ls1 ls2) is [ls2]^[ls1], or the set of sequences of elements
+(** [list_power ls1 ls2] is [ls2]^[ls1], or the set of sequences of elements
     of [ls2] indexed by elements of [ls1], sorted in lexicographic order. *)
 Ltac2 rec list_power (ls1 : 'a list) (ls2 : 'b list) : ('a * 'b) list list :=
   match ls1 with
