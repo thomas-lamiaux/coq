@@ -94,7 +94,7 @@ let masking_absolute = CWarnings.create_warning
 
 let coq_id = Id.of_string "Coq"
 let stdlib_id = Id.of_string "Stdlib"
-let init_id = Id.of_string "Corelib"
+let corelib_id = Id.of_string "Corelib"
 
 let warn_deprecated_dirpath_Coq =
   CWarnings.create_with_quickfix ~name:"deprecated-dirpath-Coq"
@@ -287,26 +287,31 @@ let remove uname tab =
   try Id.Map.modify id modify tab
   with Not_found -> tab
 
-let rec search coq_repl tree = function
-  | [modid] when Id.equal modid coq_id ->
-     let _warn, p =
-       match Id.Map.find_opt coq_repl tree.map with
-       | None -> None, None
-       | Some modid -> search coq_repl modid [] in
-     Some coq_repl, p
+let rec search tree = function
   | modid :: path ->
      begin match Id.Map.find_opt modid tree.map with
-     | None -> None, None
-     | Some modid -> search coq_repl modid path end
-  | [] -> None, Some tree.path
+     | None -> None
+     | Some modid -> search modid path
+     end
+  | [] -> Some tree.path
 
 let search ?loc id tree dir =
-  let warn, p = search stdlib_id tree dir in
-  let warn, p =
-    match p with Some _ -> warn, p | None -> search init_id tree dir in
-  begin match warn with None -> () | Some coq_repl ->
-    warn_deprecated_dirpath_Coq ?loc (coq_repl, dir, id) end;
-  match p with Some p -> p | None -> raise Not_found
+  let dirs = match List.rev dir with
+    | last :: l when Id.equal last coq_id ->
+      [ (Some stdlib_id, List.rev (stdlib_id :: l));
+        (Some corelib_id, List.rev (corelib_id :: l)) ]
+    | _ -> [ None, dir ]
+  in
+  let search_one (warn, dir) =
+    match search tree dir with
+    | Some v -> Some (warn, v)
+    | None -> None
+  in
+  match List.find_map search_one dirs with
+  | Some (coq_repl, p) ->
+    Option.iter (fun coq_repl -> warn_deprecated_dirpath_Coq ?loc (coq_repl, dir, id)) coq_repl;
+    p
+  | None -> raise Not_found
 
 let find_node qid tab =
   let loc = qid.CAst.loc in
