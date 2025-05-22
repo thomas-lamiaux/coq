@@ -235,7 +235,6 @@ type t = {
   (* fields below are read-only *)
   modular : bool;
   library : bool;
-  extrcompute : bool;
   (*s Extraction modes: modular or monolithic, library or minimal ?
 
   Nota:
@@ -258,12 +257,11 @@ let make_state kw = {
   mpfiles_content = MPmap.empty;
 }
 
-let make ~modular ~library ~extrcompute ~keywords () = {
+let make ~modular ~library ~keywords () = {
   table = Table.make_table ();
   state = ref (make_state keywords);
   modular;
   library;
-  extrcompute;
   keywords;
   phase = Impl;
   visibility = [];
@@ -274,8 +272,6 @@ let get_table s = s.table
 let get_modular s = s.modular
 
 let get_library s = s.library
-
-let get_extrcompute s = s.extrcompute
 
 let get_keywords s = s.keywords
 
@@ -471,12 +467,16 @@ let ref_renaming_fun table (k,r) =
   let l = if lang () != Ocaml && not (State.get_modular table) then [""] else l in
   let s =
     let idg = safe_basename_of_global (State.get_table table) r in
+    let app_suf s = match InfvInst.encode r.inst with
+    | None -> s
+    | Some suf -> s ^ "__" ^ suf
+    in
     match l with
     | [""] -> (* this happens only at toplevel of the monolithic case *)
       let globs = State.get_global_ids table in
       let id = next_ident_away (kindcase_id k idg) globs in
-      Id.to_string id
-    | _ -> modular_rename table k idg
+      app_suf (Id.to_string id)
+    | _ -> app_suf (modular_rename table k idg)
   in
   let () = State.add_global_ids table (Id.of_string s) in
   s::l
@@ -705,7 +705,9 @@ let is_ascii_registered () =
   Rocqlib.has_ref ascii_type_name
   && Rocqlib.has_ref ascii_constructor_name
 
-let ascii_type_ref () = Rocqlib.lib_ref ascii_type_name
+let ascii_type_ref () =
+  (* FIXME: support sort poly? *)
+  { glob = Rocqlib.lib_ref ascii_type_name; inst = InfvInst.empty }
 
 let check_extract_ascii () =
   try
@@ -717,21 +719,27 @@ let check_extract_ascii () =
     String.equal (find_custom @@ ascii_type_ref ()) (char_type)
   with Not_found -> false
 
+let is_constructor r = match r.glob with GlobRef.ConstructRef _ -> true | _ -> false
+
 let is_list_cons l =
- List.for_all (function MLcons (_,GlobRef.ConstructRef(_,_),[]) -> true | _ -> false) l
+ List.for_all (function MLcons (_, r, []) -> is_constructor r | _ -> false) l
 
 let is_native_char = function
   | MLcons(_,gr,l) ->
     is_ascii_registered ()
-    && Rocqlib.check_ref ascii_constructor_name gr
+    && Rocqlib.check_ref ascii_constructor_name gr.glob
     && check_extract_ascii ()
     && is_list_cons l
   | _ -> false
 
+let get_constructor r = match r.glob with
+| GlobRef.ConstructRef(_, j) -> j
+| _ -> assert false
+
 let get_native_char c =
   let rec cumul = function
     | [] -> 0
-    | MLcons(_,GlobRef.ConstructRef(_,j),[])::l -> (2-j) + 2 * (cumul l)
+    | MLcons(_, r, [])::l -> (2 - get_constructor r) + 2 * (cumul l)
     | _ -> assert false
   in
   let l = match c with MLcons(_,_,l) -> l | _ -> assert false in
@@ -752,7 +760,9 @@ let is_string_registered () =
   && Rocqlib.has_ref empty_string_name
   && Rocqlib.has_ref string_constructor_name
 
-let string_type_ref () = Rocqlib.lib_ref string_type_name
+let string_type_ref () =
+  (* FIXME: support sort poly? *)
+  { glob = Rocqlib.lib_ref string_type_name; inst = InfvInst.empty }
 
 let check_extract_string () =
   try
@@ -770,10 +780,10 @@ let check_extract_string () =
 
 let rec is_native_string_rec empty_string_ref string_constructor_ref = function
   (* "EmptyString" constructor *)
-  | MLcons(_, gr, []) -> Rocqlib.check_ref empty_string_ref gr
+  | MLcons(_, gr, []) -> Rocqlib.check_ref empty_string_ref gr.glob
   (* "String" constructor *)
   | MLcons(_, gr, [hd; tl]) ->
-      Rocqlib.check_ref string_constructor_ref gr
+      Rocqlib.check_ref string_constructor_ref gr.glob
       && is_native_char hd
       && is_native_string_rec empty_string_ref string_constructor_ref tl
   (* others *)
@@ -784,11 +794,15 @@ let rec is_native_string_rec empty_string_ref string_constructor_ref = function
    requested.  Then we check every character via
    [is_native_string_rec]. *)
 
+let is_string_constructor = function
+| GlobRef.ConstructRef (ind, _) -> Rocqlib.check_ref string_type_name (GlobRef.IndRef ind)
+| _ -> false
+
 let is_native_string c =
   match c with
-  | MLcons(_, GlobRef.ConstructRef(ind, j), l) ->
+  | MLcons(_, gr, l) ->
       is_string_registered ()
-      && Rocqlib.check_ref string_type_name (GlobRef.IndRef ind)
+      && is_string_constructor gr.glob
       && check_extract_string ()
       && is_native_string_rec empty_string_name string_constructor_name c
   | _ -> false
@@ -799,10 +813,10 @@ let get_native_string c =
   let buf = Buffer.create 64 in
   let rec get = function
     (* "EmptyString" constructor *)
-    | MLcons(_, gr, []) when Rocqlib.check_ref empty_string_name gr ->
+    | MLcons(_, gr, []) when Rocqlib.check_ref empty_string_name gr.glob ->
         Buffer.contents buf
     (* "String" constructor *)
-    | MLcons(_, gr, [hd; tl]) when Rocqlib.check_ref string_constructor_name gr ->
+    | MLcons(_, gr, [hd; tl]) when Rocqlib.check_ref string_constructor_name gr.glob ->
         Buffer.add_char buf (get_native_char hd);
         get tl
     (* others *)

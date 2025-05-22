@@ -12,6 +12,66 @@
 
 open Names
 
+module InfvInst =
+struct
+  type t = bool array (* true if informative *)
+  let empty = [||]
+  let compare i1 i2 = CArray.compare Bool.compare i1 i2
+  let equal i1 i2 = Int.equal (compare i1 i2) 0
+
+  let generate actx =
+    let names = UVars.AbstractContext.names actx in
+    let quals = Array.length names.UVars.quals in
+    let init n =
+      let ans = Array.make quals true in
+      let n = ref n in
+      for i = 0 to quals - 1 do
+        let b = !n mod 2 = 0 in
+        ans.(i) <- b;
+        n := !n / 2
+      done;
+      ans
+    in
+    List.init (1 lsl quals) init
+
+  let default actx =
+    let names = UVars.AbstractContext.names actx in
+    let quals = Array.length names.UVars.quals in
+    Array.make quals true
+
+  let ground inst =
+    let qvars, _ = UVars.Instance.to_array inst in
+    let map q = match q with
+    | Sorts.Quality.QConstant (QProp | QSProp) -> false
+    | Sorts.Quality.QConstant QType -> true
+    | Sorts.Quality.QVar qv ->
+      match Sorts.QVar.repr qv with
+      | Var _ -> CErrors.anomaly (Pp.str "Non-ground instance")
+      | Unif _ | Global _ -> true (* informative by default *)
+    in
+    Array.map map qvars
+
+  let instantiate actx inst =
+    let u = UVars.make_abstract_instance actx in
+    let fl l = l in
+    let fq q = match Sorts.QVar.var_index q with
+    | None -> assert false
+    | Some i ->
+      if inst.(i) then Sorts.Quality.qtype
+      else Sorts.Quality.qsprop
+    in
+    UVars.Instance.subst_fn (fq, fl) u
+
+  let encode inst =
+    if Array.for_all (fun b -> b) inst then None
+    else
+      let len = Array.length inst in
+      Some (String.init len (fun i -> if inst.(i) then 'X' else 'O'))
+
+end
+
+type global = { glob : GlobRef.t; inst : InfvInst.t }
+
 (* The [signature] type is used to know how many arguments a CIC
    object expects, and what these arguments will become in the ML
    object. *)
@@ -25,10 +85,9 @@ open Names
 type kill_reason =
   | Ktype
   | Kprop
-  | Kimplicit of GlobRef.t * int  (* n-th arg of a cst or construct *)
+  | Kimplicit of global * int  (* n-th arg of a cst or construct *)
 
 type sign = Keep | Kill of kill_reason
-
 
 (* Convention: outmost lambda/product gives the head of the list. *)
 
@@ -38,7 +97,7 @@ type signature = sign list
 
 type ml_type =
   | Tarr    of ml_type * ml_type
-  | Tglob   of GlobRef.t * ml_type list
+  | Tglob   of global * ml_type list
   | Tvar    of int
   | Tvar'   of int (* same as Tvar, used to avoid clash *)
   | Tmeta   of ml_meta (* used during ML type reconstruction *)
@@ -59,7 +118,7 @@ type inductive_kind =
   | Singleton
   | Coinductive
   | Standard
-  | Record of GlobRef.t option list (* None for anonymous field *)
+  | Record of global option list (* None for anonymous field *)
 
 (* A [ml_ind_packet] is the miniml counterpart of a [one_inductive_body].
    If the inductive is logical ([ip_logical = false]), then all other fields
@@ -71,9 +130,9 @@ type inductive_kind =
 
 type ml_ind_packet = {
   ip_typename : Id.t;
-  ip_typename_ref : GlobRef.t;
+  ip_typename_ref : global;
   ip_consnames : Id.t array;
-  ip_consnames_ref : GlobRef.t array;
+  ip_consnames_ref : global array;
   ip_logical : bool;
   ip_sign : signature;
   ip_vars : Id.t list;
@@ -119,8 +178,8 @@ and ml_ast =
   | MLapp    of ml_ast * ml_ast list
   | MLlam    of ml_ident * ml_ast
   | MLletin  of ml_ident * ml_ast * ml_ast
-  | MLglob   of GlobRef.t
-  | MLcons   of ml_type * GlobRef.t * ml_ast list
+  | MLglob   of global
+  | MLcons   of ml_type * global * ml_ast list
   | MLtuple  of ml_ast list
   | MLcase   of ml_type * ml_ast * ml_branch array
   | MLfix    of int * Id.t array * ml_ast array
@@ -134,24 +193,24 @@ and ml_ast =
   | MLparray of ml_ast array * ml_ast
 
 and ml_pattern =
-  | Pcons   of GlobRef.t * ml_pattern list
+  | Pcons   of global * ml_pattern list
   | Ptuple  of ml_pattern list
   | Prel    of int (** Cf. the idents in the branch. [Prel 1] is the last one. *)
   | Pwild
-  | Pusual  of GlobRef.t (** Shortcut for Pcons (r,[Prel n;...;Prel 1]) **)
+  | Pusual  of global (** Shortcut for Pcons (r,[Prel n;...;Prel 1]) **)
 
 (*s ML declarations. *)
 
 type ml_decl =
   | Dind  of ml_ind
-  | Dtype of GlobRef.t * Id.t list * ml_type
-  | Dterm of GlobRef.t * ml_ast * ml_type
-  | Dfix  of GlobRef.t array * ml_ast array * ml_type array
+  | Dtype of global * Id.t list * ml_type
+  | Dterm of global * ml_ast * ml_type
+  | Dfix  of global array * ml_ast array * ml_type array
 
 type ml_spec =
   | Sind  of ml_ind
-  | Stype of GlobRef.t * Id.t list * ml_type option
-  | Sval  of GlobRef.t * ml_type
+  | Stype of global * Id.t list * ml_type option
+  | Sval  of global * ml_type
 
 type ml_specif =
   | Spec of ml_spec
@@ -165,7 +224,7 @@ and ml_module_type =
   | MTwith of ml_module_type * ml_with_declaration
 
 and ml_with_declaration =
-  | ML_With_type of Id.t list * Id.t list * ml_type
+  | ML_With_type of InfvInst.t * Id.t list * Id.t list * ml_type
   | ML_With_module of Id.t list * ModPath.t
 
 and ml_module_sig = (Label.t * ml_specif) list

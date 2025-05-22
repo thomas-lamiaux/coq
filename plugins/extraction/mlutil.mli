@@ -22,9 +22,9 @@ val type_subst_vect : ml_type array -> ml_type -> ml_type
 
 val instantiation : ml_schema -> ml_type
 
-val needs_magic : compute:bool -> ml_type * ml_type -> bool
+val needs_magic : ml_type * ml_type -> bool
 val put_magic_if : bool -> ml_ast -> ml_ast
-val put_magic : compute:bool -> ml_type * ml_type -> ml_ast -> ml_ast
+val put_magic : ml_type * ml_type -> ml_ast -> ml_ast
 
 val generalizable : ml_ast -> bool
 
@@ -58,7 +58,7 @@ val type_recomp : ml_type list * ml_type -> ml_type
 
 val var2var' : ml_type -> ml_type
 
-type abbrev_map = GlobRef.t -> ml_type option
+type abbrev_map = global -> ml_type option
 
 val type_expand : abbrev_map -> ml_type -> ml_type
 val type_simpl : ml_type -> ml_type
@@ -116,7 +116,7 @@ val dump_unused_vars : ml_ast -> ml_ast
 
 val normalize : ml_ast -> ml_ast
 val optimize_fix : ml_ast -> ml_ast
-val inline : Table.t -> GlobRef.t -> ml_ast -> bool
+val inline : Table.t -> global -> ml_ast -> bool
 
 val is_basic_pattern : ml_pattern -> bool
 val has_deep_pattern : ml_branch array -> bool

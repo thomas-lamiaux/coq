@@ -59,20 +59,29 @@ module type VISIT = sig
 
   (* Add reference / ... in the visit lists.
      These functions silently add the mp of their arg in the mp list *)
-  val add_ref : t -> GlobRef.t -> unit
-  val add_kn : t -> KerName.t -> unit
+  val add_ref : t -> global -> unit
+  val add_kn : t -> KerName.t -> InfvInst.t -> unit
   val add_decl_deps : t -> ml_decl -> unit
   val add_spec_deps : t -> ml_spec -> unit
 
   (* Test functions:
      is a particular object a needed dependency for the current extraction ? *)
-  val needed_ind : t -> MutInd.t -> bool
-  val needed_cst : t -> Constant.t -> bool
+  val needed_ind : t -> MutInd.t -> InfvInst.t -> bool
+  val needed_cst : t -> Constant.t -> InfvInst.t -> bool
   val needed_mp : t -> ModPath.t -> bool
   val needed_mp_all : t -> ModPath.t -> bool
 end
 
 module Visit : VISIT = struct
+  module KNOrd =
+  struct
+    type t = KerName.t * InfvInst.t
+    let compare (kn1, i1) (kn2, i2) =
+      let c = KerName.compare kn1 kn2 in
+      if Int.equal c 0 then InfvInst.compare i1 i2 else c
+  end
+  module KNset = Set.Make(KNOrd)
+
   type t =
       { mutable kn : KNset.t;
         mutable mp : MPset.t;
@@ -84,8 +93,8 @@ module Visit : VISIT = struct
     mp_all = MPset.empty;
   }
   (* the accessor functions *)
-  let needed_ind v i = KNset.mem (MutInd.user i) v.kn
-  let needed_cst v c = KNset.mem (Constant.user c) v.kn
+  let needed_ind v i inst = KNset.mem (MutInd.user i, inst) v.kn
+  let needed_cst v c inst = KNset.mem (Constant.user c, inst) v.kn
   let needed_mp v mp = MPset.mem mp v.mp || MPset.mem mp v.mp_all
   let needed_mp_all v mp = MPset.mem mp v.mp_all
   let add_mp v mp =
@@ -94,10 +103,10 @@ module Visit : VISIT = struct
     check_loaded_modfile mp;
     v.mp <- MPset.union (prefixes_mp mp) v.mp;
     v.mp_all <- MPset.add mp v.mp_all
-  let add_kn v kn = v.kn <- KNset.add kn v.kn; add_mp v (KerName.modpath kn)
-  let add_ref v = let open GlobRef in function
-    | ConstRef c -> add_kn v (Constant.user c)
-    | IndRef (ind,_) | ConstructRef ((ind,_),_) -> add_kn v (MutInd.user ind)
+  let add_kn v kn inst = v.kn <- KNset.add (kn, inst) v.kn; add_mp v (KerName.modpath kn)
+  let add_ref v r = let open GlobRef in match r.glob with
+    | ConstRef c -> add_kn v (Constant.user c) r.inst
+    | IndRef (ind,_) | ConstructRef ((ind,_),_) -> add_kn v (MutInd.user ind) r.inst
     | VarRef _ -> assert false
   let add_decl_deps v decl =
     decl_iter_references (fun kn -> add_ref v kn) (fun r -> add_ref v r) (fun r -> add_ref v r) decl
@@ -105,8 +114,20 @@ module Visit : VISIT = struct
     spec_iter_references (fun r -> add_ref v r) (fun r -> add_ref v r) (fun r -> add_ref v r) spec
 end
 
+let get_mono_inst_univs = function
+| Monomorphic -> [InfvInst.empty]
+| Polymorphic uctx -> InfvInst.generate uctx
+
+let get_mono_inst = function
+| SFBconst cb -> get_mono_inst_univs cb.const_universes
+| SFBmind mib -> get_mono_inst_univs mib.mind_universes
+| SFBrules _ -> [InfvInst.empty]
+| SFBmodule _ | SFBmodtype _ -> assert false
+
 let add_field_label venv mp = function
-  | (lab, (SFBconst _|SFBmind _ | SFBrules _)) -> Visit.add_kn venv (KerName.make mp lab)
+  | (lab, (SFBconst _|SFBmind _ | SFBrules _  as f)) ->
+    let insts = get_mono_inst f in
+    List.iter (fun inst -> Visit.add_kn venv (KerName.make mp lab) inst) insts
   | (lab, (SFBmodule _|SFBmodtype _)) -> Visit.add_mp_all venv (MPdot (mp,lab))
 
 let rec add_labels venv mp = function
@@ -209,18 +230,32 @@ let make_mind resolver mp l =
 
 let rec extract_structure_spec table venv env mp reso = function
   | [] -> []
-  | (l,SFBconst cb) :: msig ->
-      let c = make_cst reso mp l in
-      let s = extract_constant_spec table env c cb in
-      let specs = extract_structure_spec table venv env mp reso msig in
+  | (l, SFBconst cb) :: msig ->
+    let insts = get_mono_inst_univs cb.const_universes in
+    let c = make_cst reso mp l in
+    let map inst = extract_constant_spec table env c inst cb in
+    let consts = List.map map insts in
+    let specs = extract_structure_spec table venv env mp reso msig in
+    let fold s specs =
       if logical_spec s then specs
-      else begin Visit.add_spec_deps venv s; (l,Spec s) :: specs end
-  | (l,SFBmind _) :: msig ->
-      let mind = make_mind reso mp l in
-      let s = Sind (extract_inductive table env mind) in
-      let specs = extract_structure_spec table venv env mp reso msig in
+      else
+        let () = Visit.add_spec_deps venv s in
+        (l, Spec s) :: specs
+    in
+    List.fold_right fold consts specs
+  | (l, SFBmind mib) :: msig ->
+    let insts = get_mono_inst_univs mib.mind_universes in
+    let mind = make_mind reso mp l in
+    let map inst = Sind (extract_inductive table env mind inst) in
+    let minds = List.map map insts in
+    let specs = extract_structure_spec table venv env mp reso msig in
+    let fold s specs =
       if logical_spec s then specs
-      else begin Visit.add_spec_deps venv s; (l,Spec s) :: specs end
+      else
+        let () = Visit.add_spec_deps venv s in
+        (l, Spec s) :: specs
+    in
+    List.fold_right fold minds specs
   | (l, SFBrules _) :: msig ->
       let specs = extract_structure_spec table venv env mp reso msig in
       specs
@@ -246,6 +281,13 @@ and extract_mexpr_spec table venv env mp1 (me_struct_o,me_alg) = match me_alg wi
     let () = Visit.add_mp_all venv mp in
     MTident mp
   | MEwith(me',WithDef(idl,(c,ctx)))->
+      let () = match ctx with
+      | None -> ()
+      | Some auctx ->
+        (* XXX *)
+        if Array.is_empty (UVars.AbstractContext.names auctx).quals then ()
+        else user_err Pp.(str "Extraction of \"with Definition\" clauses not supported for sort polymorphic definitions.")
+      in
       let me_struct,delta = flatten_modtype env mp1 me' me_struct_o in
       let env' = env_for_mtb_with_def env mp1 me_struct delta idl in
       let mt = extract_mexpr_spec table venv env mp1 (None,me') in
@@ -255,7 +297,7 @@ and extract_mexpr_spec table venv env mp1 (me_struct_o,me_alg) = match me_alg wi
          | None -> mt
          | Some (vl,typ) ->
             let () = type_iter_references (fun r -> Visit.add_ref venv r) typ in
-            MTwith(mt,ML_With_type(idl,vl,typ)))
+            MTwith (mt, ML_With_type (InfvInst.empty, idl, vl, typ)))
   | MEwith(me',WithMod(idl,mp))->
       let () = Visit.add_mp_all venv mp in
       MTwith (extract_mexpr_spec table venv env mp1 (None, me'), ML_With_module(idl, mp))
@@ -300,47 +342,60 @@ and extract_mbody_spec : 'a. State.t -> _ -> _ -> _ -> 'a generic_module_body ->
 
 let rec extract_structure table access venv env mp reso ~all = function
   | [] -> []
-  | (l,SFBconst cb) :: struc ->
-      (try
-         let sg = Evd.from_env env in
-         let vl,recd,struc = factor_fix env sg l cb struc in
-         let vc = Array.map (make_cst reso mp) vl in
-         let ms = extract_structure table access venv env mp reso ~all struc in
-         let b = Array.exists (Visit.needed_cst venv) vc in
-         if all || b then
-           let d = extract_fixpoint table env sg vc recd in
-           if (not b) && (logical_decl d) then ms
-           else
-            let () = Visit.add_decl_deps venv d in
-            (l, SEdecl d) :: ms
-         else ms
-       with Impossible ->
-         let ms = extract_structure table access venv env mp reso ~all struc in
-         let c = make_cst reso mp l in
-         let b = Visit.needed_cst venv c in
-         if all || b then
-           let d = extract_constant table access env c cb in
-           if (not b) && (logical_decl d) then ms
-           else
-            let () = Visit.add_decl_deps venv d in
-            (l, SEdecl d) :: ms
-         else ms)
-  | (l,SFBmind mib) :: struc ->
-      let ms = extract_structure table access venv env mp reso ~all struc in
-      let mind = make_mind reso mp l in
-      let b = Visit.needed_ind venv mind in
+  | (l, SFBconst cb) :: struc ->
+    let sg = Evd.from_env env in
+    let fix, struc = match factor_fix env sg l cb struc with
+    | (vl, recd, struc) -> Some (vl, recd), struc
+    | exception Impossible -> None, struc
+    in
+    let ms = extract_structure table access venv env mp reso ~all struc in
+    let insts = get_mono_inst_univs cb.const_universes in
+    let c = make_cst reso mp l in
+    let map inst = match fix with
+    | None ->
+      let b = Visit.needed_cst venv c inst in
       if all || b then
-        let d = Dind (extract_inductive table env mind) in
-        if (not b) && (logical_decl d) then ms
+        let d = extract_constant table access env c inst cb in
+        if (not b) && (logical_decl d) then None
+        else
+        let () = Visit.add_decl_deps venv d in
+        Some (l, SEdecl d)
+      else None
+    | Some (vl, recd) ->
+      let vc = Array.map (make_cst reso mp) vl in
+      let b = Array.exists (fun vf -> Visit.needed_cst venv vf inst) vc in
+      if all || b then
+        let d = extract_fixpoint table env sg vc inst recd in
+        if (not b) && (logical_decl d) then None
         else
           let () = Visit.add_decl_deps venv d in
-          (l, SEdecl d) :: ms
-      else ms
+          Some (l, SEdecl d)
+      else None
+    in
+    let consts = List.map_filter map insts in
+    consts @ ms
+  | (l, SFBmind mib) :: struc ->
+    let ms = extract_structure table access venv env mp reso ~all struc in
+    let insts = get_mono_inst_univs mib.mind_universes in
+    let mind = make_mind reso mp l in
+    let map inst =
+      let b = Visit.needed_ind venv mind inst in
+      if all || b then
+        let d = Dind (extract_inductive table env mind inst) in
+        if (not b) && (logical_decl d) then None
+        else
+          let () = Visit.add_decl_deps venv d in
+          Some (l, SEdecl d)
+      else None
+    in
+    let inds = List.map_filter map insts in
+    inds @ ms
   | (l, SFBrules rrb) :: struc ->
-      let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst) rrb.rewrules_rules in
+      let inst = InfvInst.empty in (* FIXME ? *)
+      let b = List.exists (fun (cst, _) -> Visit.needed_cst venv cst inst) rrb.rewrules_rules in
       let ms = extract_structure table access venv env mp reso ~all struc in
       if all || b then begin
-        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) (ConstRef cst) l) rrb.rewrules_rules;
+        List.iter (fun (cst, _) -> Table.add_symbol_rule (State.get_table table) { glob = ConstRef cst; inst } l) rrb.rewrules_rules;
         ms
       end else ms
   | (l,SFBmodule mb) :: struc ->
@@ -361,7 +416,7 @@ let rec extract_structure table access venv env mp reso ~all = function
 
 and extract_mexpr table access venv env mp = function
   | MEwith _ -> assert false (* no 'with' syntax for modules *)
-  | me when lang () != Ocaml || State.get_extrcompute table ->
+  | me when lang () != Ocaml ->
       (* In Haskell/Scheme, we expand everything.
          For now, we also extract everything, dead code will be removed later
          (see [Modutil.optimize_struct]. *)
@@ -598,10 +653,10 @@ let print_structure_to_file table (fn,si,mo) dry struc =
 (*s Part III: the actual extraction commands *)
 (*********************************************)
 
-let init ?(compute=false) ?(inner=false) modular library =
+let init ?(inner=false) modular library =
   if not inner then check_inside_section ();
   let keywords = (descr ()).keywords in
-  let state = State.make ~modular ~library ~extrcompute:compute ~keywords () in
+  let state = State.make ~modular ~library ~keywords () in
   if modular && lang () == Scheme then error_scheme ();
   state
 
@@ -618,16 +673,20 @@ let rec locate_ref = function
   | qid::l ->
       let mpo = try Some (Nametab.locate_module qid) with Not_found -> None
       and ro =
-        try Some (Smartlocate.global_with_alias qid)
+        try
+          let gr = Smartlocate.global_with_alias qid in
+          let inst = Environ.universes_of_global (Global.env ()) gr in
+          Some (List.map (fun inst -> { glob = gr; inst }) (InfvInst.generate inst))
         with Nametab.GlobalizationError _ | UserError _ -> None
       in
       match mpo, ro with
         | None, None -> Nametab.error_global_not_found ~info:Exninfo.null qid
-        | None, Some r -> let refs,mps = locate_ref l in r::refs,mps
+        | None, Some r ->
+          let refs, mps = locate_ref l in r @ refs,mps
         | Some mp, None -> let refs,mps = locate_ref l in refs,mp::mps
         | Some mp, Some r ->
-           warning_ambiguous_name ?loc:qid.CAst.loc (qid,mp,r);
-           let refs,mps = locate_ref l in refs,mp::mps
+          let () = warning_ambiguous_name ?loc:qid.CAst.loc (qid, mp, (List.hd r).glob) in
+          let refs,mps = locate_ref l in refs,mp::mps
 
 (*s Recursive extraction in the Rocq toplevel. The vernacular command is
     \verb!Recursive Extraction! [qualid1] ... [qualidn]. Also used when
@@ -718,31 +777,6 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
   let () = List.iter print struc in
   ()
 
-(** For extraction compute, we flatten all the module structure,
-    getting rid of module types or unapplied functors *)
-
-let flatten_structure struc =
-  let rec flatten_elem (lab,elem) = match elem with
-    |SEdecl d -> [d]
-    |SEmodtype _ -> []
-    |SEmodule m -> match m.ml_mod_expr with
-      |MEfunctor _ -> []
-      |MEident _ | MEapply _ -> assert false (* should be expanded *)
-      |MEstruct (_,elems) -> flatten_elems elems
-  and flatten_elems l = List.flatten (List.map flatten_elem l)
-  in flatten_elems (List.flatten (List.map snd struc))
-
-let structure_for_compute ~opaque_access env sg c =
-  let table = init false false ~compute:true in
-  let ast, mlt = Extraction.extract_constr table env sg c in
-  let ast = Mlutil.normalize ast in
-  let refs = ref GlobRef.Set.empty in
-  let add_ref r = refs := GlobRef.Set.add r !refs in
-  let () = ast_iter_references add_ref add_ref add_ref ast in
-  let refs = GlobRef.Set.elements !refs in
-  let struc = optimize_struct table (refs,[]) (mono_environment table ~opaque_access refs []) in
-  table, (flatten_structure struc), ast, mlt
-
 (* For the test-suite :
    extraction to a temporary file + run ocamlc on it *)
 
@@ -787,10 +821,11 @@ let show_extraction ~pstate =
   let sigma, env = Declare.Proof.get_current_context pstate in
   let trms = Proof.partial_proof prf in
   let extr_term t =
+    (* FIXME: substitute relevances with ground ones *)
     let ast, ty = extract_constr table env sigma t in
     let mp = Lib.current_mp () in
     let l = Label.of_id (Declare.Proof.get_name pstate) in
-    let fake_ref = GlobRef.ConstRef (Constant.make2 mp l) in
+    let fake_ref = { glob = GlobRef.ConstRef (Constant.make2 mp l); inst = InfvInst.empty } in
     let decl = Dterm (fake_ref, ast, ty) in
     print_one_decl table [] mp decl
   in

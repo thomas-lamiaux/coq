@@ -117,7 +117,7 @@ let rec pp_type table par vl t =
        with Failure _ -> (str "a" ++ int i))
     | Tglob (r,[]) -> pp_global table Type r
     | Tglob (gr,l)
-        when not (keep_singleton ()) && Rocqlib.check_ref sig_type_name gr ->
+        when not (keep_singleton ()) && Rocqlib.check_ref sig_type_name gr.glob ->
           pp_type table true vl (List.hd l)
     | Tglob (r,l) ->
           pp_par par

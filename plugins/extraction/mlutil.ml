@@ -23,6 +23,8 @@ exception Impossible
 
 (*S Names operations. *)
 
+let eq_global g1 g2 = GlobRef.CanOrd.equal g1.glob g2.glob (* FIXME *)
+
 let anonymous_name = Id.of_string "x"
 let dummy_name = Id.of_string "_"
 
@@ -58,7 +60,7 @@ let rec eq_ml_type t1 t2 = match t1, t2 with
 | Tarr (tl1, tr1), Tarr (tl2, tr2) ->
   eq_ml_type tl1 tl2 && eq_ml_type tr1 tr2
 | Tglob (gr1, t1), Tglob (gr2, t2) ->
-  GlobRef.CanOrd.equal gr1 gr2 && List.equal eq_ml_type t1 t2
+  eq_global gr1 gr2 && List.equal eq_ml_type t1 t2
 | Tvar i1, Tvar i2 -> Int.equal i1 i2
 | Tvar' i1, Tvar' i2 -> Int.equal i1 i2
 | Tmeta m1, Tmeta m2 -> eq_ml_meta m1 m2
@@ -120,7 +122,7 @@ let rec mgu = function
       | None -> m.contents <- Some t)
   | Tarr(a, b), Tarr(a', b') ->
       mgu (a, a'); mgu (b, b')
-  | Tglob (r,l), Tglob (r',l') when GlobRef.CanOrd.equal r r' ->
+  | Tglob (r,l), Tglob (r',l') when eq_global r r' ->
        List.iter mgu (List.combine l l')
   | Tdummy _, Tdummy _ -> ()
   | Tvar i, Tvar j when Int.equal i j -> ()
@@ -129,15 +131,15 @@ let rec mgu = function
   | Taxiom, Taxiom -> ()
   | _ -> raise Impossible
 
-let skip_typing ~compute () = lang () == Scheme || compute
+let skip_typing () = lang () == Scheme
 
-let needs_magic ~compute p =
-  if skip_typing ~compute () then false
+let needs_magic p =
+  if skip_typing () then false
   else try mgu p; false with Impossible -> true
 
 let put_magic_if b a = if b then MLmagic a else a
 
-let put_magic ~compute p a = if needs_magic ~compute p then MLmagic a else a
+let put_magic p a = if needs_magic p then MLmagic a else a
 
 let generalizable a =
   lang () != Ocaml ||
@@ -270,7 +272,7 @@ let rec var2var' = function
   | Tglob (r,l) -> Tglob (r, List.map var2var' l)
   | a -> a
 
-type abbrev_map = GlobRef.t -> ml_type option
+type abbrev_map = global -> ml_type option
 
 (*s Delta-reduction of type constants everywhere in a ML type [t].
    [env] is a function of type [ml_type_env]. *)
@@ -384,9 +386,9 @@ let rec eq_ml_ast t1 t2 = match t1, t2 with
   eq_ml_ident na1 na2 && eq_ml_ast t1 t2
 | MLletin (na1, c1, t1), MLletin (na2, c2, t2) ->
   eq_ml_ident na1 na2 && eq_ml_ast c1 c2 && eq_ml_ast t1 t2
-| MLglob gr1, MLglob gr2 -> GlobRef.CanOrd.equal gr1 gr2
+| MLglob gr1, MLglob gr2 -> eq_global gr1 gr2
 | MLcons (t1, gr1, c1), MLcons (t2, gr2, c2) ->
-  eq_ml_type t1 t2 && GlobRef.CanOrd.equal gr1 gr2 && List.equal eq_ml_ast c1 c2
+  eq_ml_type t1 t2 && eq_global gr1 gr2 && List.equal eq_ml_ast c1 c2
 | MLtuple t1, MLtuple t2 ->
   List.equal eq_ml_ast t1 t2
 | MLcase (t1, c1, p1), MLcase (t2, c2, p2) ->
@@ -408,13 +410,13 @@ let rec eq_ml_ast t1 t2 = match t1, t2 with
 
 and eq_ml_pattern p1 p2 = match p1, p2 with
 | Pcons (gr1, p1), Pcons (gr2, p2) ->
-  GlobRef.CanOrd.equal gr1 gr2 && List.equal eq_ml_pattern p1 p2
+  eq_global gr1 gr2 && List.equal eq_ml_pattern p1 p2
 | Ptuple p1, Ptuple p2 ->
   List.equal eq_ml_pattern p1 p2
 | Prel i1, Prel i2 ->
   Int.equal i1 i2
 | Pwild, Pwild -> true
-| Pusual gr1, Pusual gr2 -> GlobRef.CanOrd.equal gr1 gr2
+| Pusual gr1, Pusual gr2 -> eq_global gr1 gr2
 | _ -> false
 
 and eq_ml_branch (id1, p1, t1) (id2, p2, t2) =
@@ -689,11 +691,11 @@ let is_regular_match br =
           | _ -> raise Impossible
       in
       let ind = match get_r br.(0) with
-        | GlobRef.ConstructRef (ind,_) -> ind
+        | { glob = GlobRef.ConstructRef (ind,_) } -> ind
         | _ -> raise Impossible
       in
       let is_ref i tr = match get_r tr with
-      | GlobRef.ConstructRef (ind', j) -> Ind.CanOrd.equal ind ind' && Int.equal j (i + 1)
+      | { glob = GlobRef.ConstructRef (ind', j) } -> Ind.CanOrd.equal ind ind' && Int.equal j (i + 1)
       | _ -> false
       in
       Array.for_all_i is_ref 0 br
@@ -839,12 +841,16 @@ let rec tmp_head_lams = function
   reduction (this helps the inlining of recursors).
 *)
 
+let is_constant g = match g.glob with
+| GlobRef.ConstRef _ -> true
+| _ -> false
+
 let rec ast_glob_subst s t = match t with
-  | MLapp ((MLglob ((GlobRef.ConstRef kn) as refe)) as f, a) ->
+  | MLapp ((MLglob refe) as f, a) when is_constant refe ->
       let a = List.map (fun e -> tmp_head_lams (ast_glob_subst s e)) a in
       (try linear_beta_red a (Refmap'.find refe s)
        with Not_found -> MLapp (f, a))
-  | MLglob ((GlobRef.ConstRef kn) as refe) ->
+  | MLglob refe when is_constant refe ->
       (try Refmap'.find refe s with Not_found -> t)
   | _ -> ast_map (ast_glob_subst s) t
 
@@ -1004,7 +1010,7 @@ let rec iota_red i lift br ((typ,r,a) as cons) =
   if i >= Array.length br then raise Impossible;
   let (ids,p,c) = br.(i) in
   match p with
-    | Pusual r' | Pcons (r',_) when not (GlobRef.CanOrd.equal r' r) -> iota_red (i+1) lift br cons
+    | Pusual r' | Pcons (r',_) when not (eq_global r' r) -> iota_red (i+1) lift br cons
     | Pusual r' ->
       let c = named_lams (List.rev ids) c in
       let c = ast_lift lift c
@@ -1523,7 +1529,7 @@ open Declareops
 let inline_test r t =
   if not (auto_inline ()) then false
   else
-    let c = match r with GlobRef.ConstRef c -> c | _ -> assert false in
+    let c = match r.glob with GlobRef.ConstRef c -> c | _ -> assert false in
     let has_body =
       Environ.mem_constant c (Global.env()) && constant_has_body (Global.lookup_constant c)
     in
@@ -1551,7 +1557,7 @@ let manual_inline_set =
     ]
     Cset_env.empty
 
-let manual_inline = function
+let manual_inline g = match g.glob with
   | GlobRef.ConstRef c -> Cset_env.mem c manual_inline_set
   | _ -> false
 
