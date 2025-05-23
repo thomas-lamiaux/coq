@@ -43,8 +43,11 @@ let rec fill_assumptions env sigma = function
     and [lemma] as the proof. *)
 let start_deriving ~atts bl suchthat name : Declare.Proof.t =
 
-  let scope, _local, poly, program_mode, user_warns, typing_flags, using, clearbody =
-    atts.scope, atts.locality, atts.poly,  atts.program, atts.user_warns, atts.typing_flags, atts.using, atts.clearbody in
+  let {
+    scope; poly; program=program_mode;
+    user_warns; typing_flags; using; clearbody;
+    } = atts
+  in
   if program_mode then CErrors.user_err (Pp.str "Program mode not supported.");
 
   let env = Global.env () in
