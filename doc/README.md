@@ -10,16 +10,16 @@ The documentation of the latest released version is available on the Coq
 web site at [rocq-prover.org/docs](https://rocq-prover.org/docs).
 
 Additionally, you can view the reference manual for the development version
-at <https://coq.github.io/doc/master/refman/>, and the documentation of the
+at <https://rocq-prover.org/doc/master/refman/>, and the documentation of the
 standard library for the development version at
-<https://coq.github.io/doc/master/stdlib/>.
+<https://rocq-prover.org/doc/master/stdlib/>.
 
 The reference manual is written in reStructuredText and compiled
 using Sphinx. See [`sphinx/README.rst`](sphinx/README.rst)
 to learn more about the format that is used.
 
 The documentation for the standard library is generated from
-the `.v` source files using coqdoc.
+the `.v` source files using `rocq doc`.
 
 Dependencies
 ------------
