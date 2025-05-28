@@ -115,7 +115,7 @@ echo "DEBUG: coq_native = $coq_native"
 # We put local binaries such as opam in .bin and extend PATH
 BIN=$(pwd)/.bin
 mkdir "$BIN"
-wget https://github.com/ocaml/opam/releases/download/2.1.3/opam-2.1.3-x86_64-linux -O "$BIN"/opam
+wget https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-x86_64-linux -O "$BIN"/opam
 chmod +x "$BIN"/opam
 
 export OPAMSKIPUPDATE=1 # stop opam from messing with our pin edits
