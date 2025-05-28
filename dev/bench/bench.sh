@@ -120,8 +120,6 @@ chmod +x "$BIN"/opam
 
 export OPAMSKIPUPDATE=1 # stop opam from messing with our pin edits
 
-export NJOBS=1 # used by the test suite through dune
-
 # generate per file info in test suite and coq_makefile devs
 export TIMED=1
 
