@@ -58,15 +58,10 @@ class CoqTop:
             self.args = (args or []) + ["-q"] + ["-color", "on"] * color
         else:
             rocqb = os.path.join(os.getenv("COQBIN", ""), "rocq")
-            if pexpect.utils.which(rocqb):
-                self.coqtop_bin = rocqb
-                self.args = ["top"] + args + ["-q"] + ["-color", "on"] * color
-            else:
-                self.args = (args or []) + ["-q"] + ["-color", "on"] * color
-                coqtopb = os.path.join(os.getenv("COQBIN", ""), "coqtop")
-                self.coqtop_bin = coqtopb
-                if not pexpect.utils.which(coqtopb):
-                    raise ValueError("coqtop binary not found: '{}'".format(self.coqtop_bin))
+            self.coqtop_bin = rocqb
+            self.args = ["top"] + args + ["-q"] + ["-color", "on"] * color
+            if not pexpect.utils.which(rocqb):
+                raise ValueError("rocq binary not found: '{}'".format(self.coqtop_bin))
         self.coqtop = None
         self.debugfile = None
 
