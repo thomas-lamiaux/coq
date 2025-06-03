@@ -199,8 +199,8 @@ end = struct
     dbg_dynlink Pp.(fun () ->
         str "for " ++ prlist_with_sep spc (fun {lib} -> str lib) plugins ++
         str ":" ++ fnl() ++
-        str "all deps " ++ prlist_with_sep spc str allplugins ++ fnl() ++
-        str "filtered " ++ prlist_with_sep spc (fun (_,{lib}) -> str lib) deps);
+        v 2 (str "all deps:" ++ spc() ++ prlist_with_sep spc str allplugins) ++ fnl() ++
+        v 2 (str "filtered deps:" ++ spc() ++ prlist_with_sep spc (fun (_,{lib}) -> str lib) deps));
     deps
 
   let digest s =
