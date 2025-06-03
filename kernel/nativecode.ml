@@ -1836,7 +1836,7 @@ let pp_mllam fmt l =
     | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile f)
     | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile s)
     | MLsetref (s, body) ->
-        Format.fprintf fmt "@[%s@ :=@\n %a@]" s pp_mllam body
+        Format.fprintf fmt "@[%s@ :=@\n Some (%a)@]" s pp_mllam body
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[%a;@\n%a@]" pp_mllam l1 pp_mllam l2
     | MLarray arr ->

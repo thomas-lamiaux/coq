@@ -505,6 +505,7 @@ let native_norm env sigma c ty =
     let profiler_pid = if profile then start_profiler () else None in
     let t0 = Unix.gettimeofday () in
     let (rt1, _) = Nativelib.execute_library ~prefix fn upd in
+    let rt1 = Option.get rt1 in
     let t1 = Unix.gettimeofday () in
     if profile then stop_profiler profiler_pid;
     let time_info = Format.sprintf "native_compute: Evaluation done in %.5f" (t1 -. t0) in

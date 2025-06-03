@@ -40,7 +40,7 @@ val compile_library : native_library -> string -> unit
     in [rt1] and [rt2] *)
 val execute_library :
   prefix:string -> string -> Nativecode.code_location_updates ->
-  Nativevalues.t * Nativevalues.t
+  Nativevalues.t option * Nativevalues.t option
 
 (** [enable_library] marks the given library for dynamic loading
     the next time [link_libraries] is called. *)
@@ -49,5 +49,5 @@ val enable_library : string -> Names.DirPath.t -> unit
 val link_libraries : unit -> unit
 
 (* used for communication with the loaded libraries *)
-val rt1 : Nativevalues.t ref
-val rt2 : Nativevalues.t ref
+val rt1 : Nativevalues.t option ref
+val rt2 : Nativevalues.t option ref

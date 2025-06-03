@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 open Util
-open Nativevalues
 open Nativecode
 open CErrors
 
@@ -75,8 +74,8 @@ let get_include_dirs () =
 (* Pointer to the function linking an ML object into Rocq's toplevel *)
 let load_obj = ref (fun _x -> () : string -> unit)
 
-let rt1 = ref (dummy_value ())
-let rt2 = ref (dummy_value ())
+let rt1 = ref None
+let rt2 = ref None
 
 let get_ml_filename () =
   let temp_dir = Lazy.force my_temp_dir in
@@ -178,8 +177,8 @@ let compile_library (code, symb) fn =
   delay_cleanup_file fn
 
 let execute_library ~prefix f upds =
-  rt1 := dummy_value ();
-  rt2 := dummy_value ();
+  rt1 := None;
+  rt2 := None;
   if not (Sys.file_exists f) then
     CErrors.user_err Pp.(str "Cannot find native compiler file " ++ str f);
   if Dynlink.is_native then Dynlink.loadfile f else !load_obj f;

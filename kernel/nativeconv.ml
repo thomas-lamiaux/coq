@@ -180,6 +180,7 @@ let native_conv_gen (type err) pb sigma env (state, check) t1 t2 =
   debug_native_compiler (fun () -> Pp.str "Running test...");
   let t0 = Sys.time () in
   let (rt1, rt2) = Nativelib.execute_library ~prefix fn upds in
+  let rt1 = Option.get rt1 and rt2 = Option.get rt2 in
   let t1 = Sys.time () in
   let time_info = Format.sprintf "Evaluation done in %.5f@." (t1 -. t0) in
   debug_native_compiler (fun () -> Pp.str time_info);
