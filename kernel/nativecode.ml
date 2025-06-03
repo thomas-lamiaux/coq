@@ -917,6 +917,9 @@ let empty_env univ get_const const_lazy get_mind =
     env_mind_prefix = get_mind;
   }
 
+let restart_env env =
+  empty_env env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix
+
 let push_rel env id =
   let local = fresh_lname id.binder_name in
   local, { env with
@@ -1294,14 +1297,14 @@ let compile_prim env decl cond paux =
           asw_finite = knd <> CoFinite;
           asw_prefix = env.env_mind_prefix (fst ci.ci_ind);
       } in
-      let env_p = empty_env env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix in
+      let env_p = restart_env env in
       let pn = fresh_gpred l in
       let mlp = ml_of_lam env_p l p in
       let mlp = generalize_fv env_p mlp in
       let (pfvn,pfvr) = !(env_p.env_named), !(env_p.env_urel) in
       let pn = push_global_let pn mlp in
       (* Compilation of the case *)
-      let env_c = empty_env env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix in
+      let env_c = restart_env env in
       let a_uid = fresh_lname Anonymous in
       let la_uid = MLlocal a_uid in
       (* compilation of branches *)
@@ -1355,7 +1358,7 @@ let compile_prim env decl cond paux =
            start
       *)
       (* Compilation of type *)
-      let env_t = empty_env env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix in
+      let env_t = restart_env env in
       let ml_t = Array.map (ml_of_lam env_t l) tt in
       let params_t = fv_params env_t in
       let args_t = fv_args env !(env_t.env_named) !(env_t.env_urel) in
@@ -1364,7 +1367,7 @@ let compile_prim env decl cond paux =
       let mk_type = MLapp(MLglobal gft, args_t) in
       (* Compilation of norm_i *)
       let ndef = Array.length ids in
-      let lf,env_n = push_rels (empty_env env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix) ids in
+      let lf,env_n = push_rels (restart_env env) ids in
       let t_params = Array.make ndef [||] in
       let t_norm_f = Array.make ndef (Gnorm (l,-1)) in
       let mk_let _envi (id,def) t = MLlet (id,def,t) in
@@ -1422,7 +1425,7 @@ let compile_prim env decl cond paux =
       MLletrec(Array.mapi mkrec lf, lf_args.(start))
   | Lcofix (start, (ids, tt, tb)) ->
       (* Compilation of type *)
-      let env_t = empty_env env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix in
+      let env_t = restart_env env in
       let ml_t = Array.map (ml_of_lam env_t l) tt in
       let params_t = fv_params env_t in
       let args_t = fv_args env !(env_t.env_named) !(env_t.env_urel) in
@@ -1431,7 +1434,7 @@ let compile_prim env decl cond paux =
       let mk_type = MLapp(MLglobal gft, args_t) in
       (* Compilation of norm_i *)
       let ndef = Array.length ids in
-      let lf,env_n = push_rels (empty_env env.env_univ env.env_const_prefix env.env_const_lazy env.env_mind_prefix) ids in
+      let lf,env_n = push_rels (restart_env env) ids in
       let t_params = Array.make ndef [||] in
       let t_norm_f = Array.make ndef (Gnorm (l,-1)) in
       let ml_of_fix i body =
