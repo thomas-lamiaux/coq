@@ -877,9 +877,10 @@ let with_no_bindings (c : delayed_open_constr) : delayed_open_constr_with_bindin
     let (sigma, c) = c env sigma in
     (sigma, (c, NoBindings))
 
-let apply_lemma l2r flags oc by loccs : strategy = { strategy =
-  fun ({ state = () ; env ; term1 = t ; evars = (sigma, cstrs) } as input) ->
-    let sigma, c = oc sigma in
+let apply_lemma l2r flags oc by loccs : strategy =
+  let oc = with_no_bindings oc in
+  let strategy ({ state = () ; env ; term1 = t ; evars = (sigma, cstrs) } as input) =
+    let sigma, c = oc env sigma in
     let sigma, rew = decompose_applied_relation env sigma c in
     let evars = (sigma, cstrs) in
     let unify env evars t =
@@ -888,12 +889,16 @@ let apply_lemma l2r flags oc by loccs : strategy = { strategy =
       | None -> None
       | Some rew -> Some rew
     in
-    let loccs, res = (apply_rule unify).strategy { input with
-                                                     state = initialize_occurrence_counter loccs ;
-                                                     evars } in
+    let loccs, res = (apply_rule unify).strategy {
+        input with
+        state = initialize_occurrence_counter loccs ;
+        evars
+      }
+    in
     check_used_occurrences loccs;
     (), res
-                                                   }
+
+  in {strategy}
 
 let e_app_poly env evars f args =
   let evars', c = app_poly_nocheck env !evars f args in
@@ -1407,15 +1412,12 @@ module Strategies =
       fix (fun out -> choice s (one_subterm out))
 
     let one_lemma c l2r by occs : strategy =
-      let strategy ({env} as input) =
-        let c sigma = with_no_bindings c env sigma in
-        let flags = general_rewrite_unif_flags () in
-        (apply_lemma l2r flags c by occs).strategy input
-      in {strategy}
+      apply_lemma l2r (general_rewrite_unif_flags ()) c by occs
 
     let lemmas cs : strategy =
-      List.fold_left (fun tac (l,l2r,by) -> choice tac (one_lemma l l2r by AllOccurrences))
-        fail cs
+      List.fold_left (fun tac (c, l2r, by) ->
+          choice tac (apply_lemma l2r rewrite_unif_flags c by AllOccurrences)
+        ) fail cs
 
     let inj_open hint = (); fun _env sigma ->
       let (ctx, lemma) = Autorewrite.RewRule.rew_lemma hint in
