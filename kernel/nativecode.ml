@@ -183,8 +183,6 @@ let fresh_gnormtbl l =
 
 (** Symbols (pre-computed values) **)
 
-let dummy_symb = SymbValue (dummy_value ())
-
 let eq_symbol sy1 sy2 =
   match sy1, sy2 with
   | SymbValue v1, SymbValue v2 -> (=) v1 v2 (** FIXME: how is this even valid? *)
@@ -287,8 +285,12 @@ let push_symbol x =
 let symbols_tbl_name = Ginternal "symbols_tbl"
 
 let get_symbols () =
-  let tbl = Array.make (HashtblSymbol.length symb_tbl) dummy_symb in
-  HashtblSymbol.iter (fun x i -> tbl.(i) <- x) symb_tbl; tbl
+  match HashtblSymbol.to_seq symb_tbl () with
+  | Nil -> [||]
+  | Cons ((x,_), rest) ->
+    let tbl = Array.make (HashtblSymbol.length symb_tbl) x in
+    Seq.iter (fun (x, i) -> tbl.(i) <- x) rest;
+    tbl
 
 (** Lambda to Mllambda **)
 
@@ -1837,7 +1839,7 @@ let pp_mllam fmt l =
     | MLfloat f -> Format.fprintf fmt "(%s)" (Float64.compile f)
     | MLstring s -> Format.fprintf fmt "(%s)" (Pstring.compile s)
     | MLsetref (s, body) ->
-        Format.fprintf fmt "@[%s@ :=@\n %a@]" s pp_mllam body
+        Format.fprintf fmt "@[%s@ :=@\n Some (%a)@]" s pp_mllam body
     | MLsequence(l1,l2) ->
         Format.fprintf fmt "@[%a;@\n%a@]" pp_mllam l1 pp_mllam l2
     | MLarray arr ->

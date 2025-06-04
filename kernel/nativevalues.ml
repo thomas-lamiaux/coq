@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Util
-open CErrors
 open Names
 open Values
 open Constr
@@ -249,11 +248,6 @@ let mk_block tag args =
     Obj.set_field r i (Obj.magic args.(i))
   done;
   (Obj.magic r : t)
-
-(* Two instances of dummy_value should not be pointer equal, otherwise
- comparing them as terms would succeed *)
-let dummy_value : unit -> t =
-  fun () -> of_fun (fun _ -> anomaly ~label:"native" (Pp.str "Evaluation failed."))
 
 let cast_accu v = (Obj.magic v:accumulator)
 [@@ocaml.inline always]
