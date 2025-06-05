@@ -26,9 +26,10 @@ let logical p = p.path_logical
 let physical p = p.path_physical
 
 let pp p =
+  let installed = Pp.str (if p.path_installed then "i" else " ") in
   let dir = DP.print p.path_logical in
   let path = Pp.str (CUnix.escaped_string_of_physical_path p.path_physical) in
-  Pp.(hov 2 (dir ++ spc () ++ path))
+  Pp.(hov 2 (installed ++ spc () ++ dir ++ spc () ++ path))
 
 let get_load_paths () = !load_paths
 
