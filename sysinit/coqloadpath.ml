@@ -12,7 +12,7 @@ open Util
 open Pp
 
 (* Recursively puts `.v` files in the LoadPath *)
-let build_stdlib_vo_path ~unix_path ~rocq_path =
+let build_corelib_vo_path ~unix_path ~rocq_path =
   let open Loadpath in
   { unix_path; coq_path = rocq_path; implicit = true; recursive = true }
 
@@ -44,7 +44,7 @@ let init_load_path ~coqenv =
     then [Boot.Env.Path.(to_string (relative core_dir ".."))]
     else []
   in
-  let stdlib = Boot.Env.stdlib coqenv |> Boot.Path.to_string in
+  let corelib = Boot.Env.corelib coqenv |> Boot.Path.to_string in
   let contrib_vo = build_userlib_path ~unix_path:user_contrib in
 
   let misc_vo =
@@ -60,7 +60,7 @@ let init_load_path ~coqenv =
       } ] @
 
     (* then standard library *)
-    [build_stdlib_vo_path ~unix_path:stdlib ~rocq_path] @
+    [build_corelib_vo_path ~unix_path:corelib ~rocq_path] @
 
     (* then user-contrib *)
     contrib_vo @
