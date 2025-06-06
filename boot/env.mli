@@ -125,7 +125,7 @@ val native_cmi : t -> string -> Path.t
 val revision : t -> Path.t
 
 (** rocq-runtime/lib directory, not sure if to keep this *)
-val corelib : t -> Path.t
+val runtimelib : t -> Path.t
 
 (** coq/lib directory, not sure if to keep this *)
 val coqlib : t -> Path.t

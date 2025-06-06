@@ -37,7 +37,7 @@ let init_load_path ~coqenv =
   let rocqpath = Envars.coqpath in
   let rocq_path = Names.DirPath.make [Libnames.rocq_init_root] in
   (* ML includes *)
-  let core_dir = Boot.Env.corelib coqenv in
+  let core_dir = Boot.Env.runtimelib coqenv in
 
   (* EJGA: this needs clenaup, we must be deterministic *)
   let meta_dir = if Boot.Env.Path.(exists (relative core_dir "META"))
