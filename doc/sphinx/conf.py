@@ -146,9 +146,7 @@ exclude_patterns = [
     '.DS_Store',
     'introduction.rst',
     'refman-preamble.rst',
-    'README.rst',
-    'README.gen.rst',
-    'README.template.rst'
+    'README.rst'
 ] + ["*.{}.rst".format(fmt) for fmt in SUPPORTED_FORMATS]
 
 # The reST default role (used for this markup: `text`) to use for all
