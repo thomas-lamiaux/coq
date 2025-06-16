@@ -762,10 +762,10 @@ class CoqtopBlocksTransform(Transform):
         ['A.\n', 'B.']
 
         >>> split_lines('A.\n\nB.''')
-        ['A.\n\n', 'B.']
+        ['A.\n', '\nB.']
 
         >>> split_lines('A.\n\nB.\n''')
-        ['A.\n\n', 'B.']
+        ['A.\n', '\nB.']
 
         >>> split_lines("SearchPattern (_ + _ = _ + _).\n"
         ...             "SearchPattern (nat -> bool).\n"
@@ -791,13 +791,13 @@ class CoqtopBlocksTransform(Transform):
         comment = r"\(\*.*\*\)"
         # the end of a chunk is marked by
         # a period (\.)
-        # optional blanks or comments (?:\s*|{comment})*
+        # optional blanks or comments (?:[ \t]*|{comment})*
         # followed by a newline \n
         # We capture everything starting from the '.' to recover it afterwards
-        end_of_chunk = fr"(\.(?:\s*|{comment})*\n)"
+        blank = r"[ \t]"
+        end_of_chunk = fr"(\.(?:{blank}*|{comment})*\n)"
         splits = re.split(end_of_chunk, source.strip())
-        chunks = [splits[i:i+2] for i in range(0, len(splits), 2)]
-        return list(map(lambda e : ''.join(e), chunks))
+        return [''.join(splits[i:i+2]) for i in range(0, len(splits), 2)]
 
     @staticmethod
     def parse_options(node):
