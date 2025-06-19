@@ -1804,18 +1804,18 @@ let pp_mllam fmt l =
     | MLlocal ln -> Format.fprintf fmt "@[%a@]" pp_lname ln
     | MLglobal g -> Format.fprintf fmt "@[%a@]" pp_gname g
     | MLprimitive (p, args) ->
-      Format.fprintf fmt "@[%a@ %a@]" pp_primitive p (pp_args true) args
+      Format.fprintf fmt "@[<2>%a@ %a@]" pp_primitive p (pp_args true) args
     | MLlam(ids,body) ->
-        Format.fprintf fmt "@[(fun%a@ ->@\n %a)@]"
+        Format.fprintf fmt "@[(fun%a ->@ %a)@]"
           pp_ldecls ids pp_mllam body
     | MLletrec(defs, body) ->
         Format.fprintf fmt "@[(%a@ in@\n%a)@]" pp_letrec defs
           pp_mllam body
     | MLlet(id,def,body) ->
-        Format.fprintf fmt "@[(let@ %a@ =@\n %a@ in@\n%a)@]"
+        Format.fprintf fmt "@[(@[let@ %a@ =@ %a@ in@]@\n%a)@]"
           pp_lname id pp_mllam def pp_mllam body
     | MLapp(f, args) ->
-        Format.fprintf fmt "@[%a@ %a@]" pp_mllam f (pp_args true) args
+        Format.fprintf fmt "@[<2>%a@ %a@]" pp_mllam f (pp_args true) args
     | MLif(t,l1,l2) ->
         Format.fprintf fmt "@[(if %a then@\n  %a@\nelse@\n  %a)@]"
           pp_mllam t pp_mllam l1 pp_mllam l2
@@ -1828,7 +1828,7 @@ let pp_mllam fmt l =
         pp_mllam c accu pp_mllam accu_br (pp_branches prefix ind) br
 
     | MLconstruct(prefix,ind,tag,args) ->
-        Format.fprintf fmt "@[(Obj.magic (%s%a) : Nativevalues.t)@]"
+        Format.fprintf fmt "@[<2>(Obj.magic@ @[<2>(%s%a)@] : Nativevalues.t)@]"
           (string_of_construct prefix ~constant:false ind tag) pp_cargs args
     | MLint i -> pp_int fmt i
     | MLuint i -> Format.fprintf fmt "(%s)" (Uint63.compile i)
@@ -1883,12 +1883,12 @@ let pp_mllam fmt l =
     | _ -> pp_mllam fmt l
 
   and pp_args sep fmt args =
-    let sep = if sep then " " else "," in
+    let sep = if sep then "" else "," in
     let len = Array.length args in
     if len > 0 then begin
       Format.fprintf fmt "%a" pp_blam args.(0);
       for i = 1 to len - 1 do
-        Format.fprintf fmt "%s%a" sep pp_blam args.(i)
+        Format.fprintf fmt "%s@ %a" sep pp_blam args.(i)
       done
     end
 
@@ -1896,8 +1896,8 @@ let pp_mllam fmt l =
     let len = Array.length args in
     match len with
     | 0 -> ()
-    | 1 -> Format.fprintf fmt " %a" pp_blam args.(0)
-    | _ -> Format.fprintf fmt "(%a)" (pp_args false) args
+    | 1 -> Format.fprintf fmt "@ %a" pp_blam args.(0)
+    | _ -> Format.fprintf fmt "@ @[<2>(%a)@]" (pp_args false) args
 
   and pp_cparam fmt param =
     match param with
@@ -1946,7 +1946,7 @@ let pp_mllam fmt l =
         let pp_rec_pos fmt rec_pos =
           Format.fprintf fmt "@[[| %i" rec_pos.(0);
           for i = 1 to Array.length rec_pos - 1 do
-            Format.fprintf fmt "; %i" rec_pos.(i)
+            Format.fprintf fmt ";@ %i" rec_pos.(i)
           done;
           Format.fprintf fmt " |]@]" in
         Format.fprintf fmt "mk_fix_accu %a %i" pp_rec_pos rec_pos start
@@ -1994,9 +1994,9 @@ let pp_mllam fmt l =
 
 let pp_array fmt t =
   let len = Array.length t in
-  Format.fprintf fmt "@[[|";
+  Format.fprintf fmt "@[<2>[|";
   for i = 0 to len - 2 do
-    Format.fprintf fmt "%a; " pp_mllam t.(i)
+    Format.fprintf fmt "%a;@ " pp_mllam t.(i)
   done;
   if len > 0 then
     Format.fprintf fmt "%a" pp_mllam t.(len - 1);
@@ -2009,7 +2009,7 @@ let pp_cofix fmt (gn, s) =
   in
   let pp_knot fmt n =
     for i = 0 to n - 1 do
-      Format.fprintf fmt "let () = (%a).(%i) <- Obj.magic (%a) in@\n" pp_gname gn i pp_mllam s.(i)
+      Format.fprintf fmt "@[<2>let () = (%a).(%i) <-@ Obj.magic @[<2>(%a)@] in@]@\n" pp_gname gn i pp_mllam s.(i)
     done
   in
   let len = Array.length s in
