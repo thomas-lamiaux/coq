@@ -2004,19 +2004,6 @@ let w_typed_unify_array ~metas env evd flags f1 l1 f2 l2 =
   metas, try_resolve_typeclasses env evd flags.resolve_evars
                           (mkApp(f1,l1)) (mkApp(f2,l2))
 
-(* takes a substitution s, an open term op and a closed term cl
-   try to find a subterm of cl which matches op, if op is just a Meta
-   FAIL because we cannot find a binding *)
-
-let iter_fail f a =
-  let n = Array.length a in
-  let rec ffail i =
-    if Int.equal i n then user_err Pp.(str "iter_fail")
-    else
-      try f a.(i)
-      with ex when precatchable_exception ex -> ffail (i+1)
-  in ffail 0
-
 (* make_abstraction: a variant of w_unify_to_subterm which works on
    contexts, with evars, and possibly with occurrences *)
 
@@ -2380,6 +2367,32 @@ and make_array sigma v =
 
 end
 
+type head_kind =
+| HeadSort
+| HeadProd
+| HeadInd
+| HeadOther
+
+let get_head_kind ~metas env sigma c =
+  match get_type_of_with_metas ~lax:true ~metas env sigma c with
+  | ty ->
+    let hd, _ = decompose_app sigma ty in
+    match EConstr.kind sigma hd with
+    | Prod _ -> HeadProd
+    | Sort _ -> HeadSort
+    | Ind _ -> HeadInd
+    | _ -> HeadOther
+  | exception (RetypeError _) -> HeadOther
+
+(* can c have a type of the same shape as knd? *)
+let fast_head_check sigma knd c = match EConstr.kind sigma c, knd with
+| Lambda _, (HeadInd | HeadSort) -> false
+| Sort _, (HeadInd | HeadProd) -> false
+| Construct _, (HeadProd | HeadSort) -> false
+| Prod _, (HeadInd | HeadProd) -> false
+| Ind _, HeadInd -> false
+| _ -> true
+
 (* Tries to find an instance of term [cl] in term [op].
    Unifies [cl] to every subterm of [op] until it finds a match.
    Fails if no match is found *)
@@ -2387,41 +2400,63 @@ let w_unify_to_subterm ~metas env evd ?(flags=default_unify_flags ()) (op,cl) =
   let bestexn = ref None in
   let kop = Keys.constr_key env (fun c -> EConstr.kind evd c) op in
   let opgnd = if occur_meta_or_undefined_evar evd op then NotGround else Ground in
+  let knd = get_head_kind ~metas env evd op in
   let rec matchrec cl =
     let rec strip_outer_cast c = match AConstr.kind c with
     | ACast c -> strip_outer_cast c
     | _ -> c
     in
     let cl = strip_outer_cast cl in
-    (try
+    let ans =
       let is_closed = AConstr.closed0 cl in
       let cl = AConstr.proj cl in
-       if is_closed && not (isEvar evd cl) && keyed_unify env evd kop cl then
-       (try
-         if is_keyed_unification () then
-           let f1, l1 = decompose_app evd op in
-           let f2, l2 = decompose_app evd cl in
-           w_typed_unify_array ~metas env evd flags f1 l1 f2 l2,cl
-         else w_typed_unify ~metas env evd CONV flags (op, opgnd) (cl, Unknown),cl
-       with ex when Pretype_errors.unsatisfiable_exception ex ->
-            bestexn := Some ex; user_err Pp.(str "Unsat"))
-       else user_err Pp.(str "Bound 1")
-     with ex when precatchable_exception ex ->
-       (match AConstr.kind cl with
-        | ACast _ -> assert false (* just got stripped *)
-        | AApp (f,args) ->
+      if is_closed && not (isEvar evd cl) && keyed_unify env evd kop cl && fast_head_check evd knd cl then
+        try
+          if is_keyed_unification () then
+            let f1, l1 = decompose_app evd op in
+            let f2, l2 = decompose_app evd cl in
+            Some (w_typed_unify_array ~metas env evd flags f1 l1 f2 l2, cl)
+          else
+            Some (w_typed_unify ~metas env evd CONV flags (op, opgnd) (cl, Unknown), cl)
+        with ex when precatchable_exception ex ->
+          let () = if Pretype_errors.unsatisfiable_exception ex then bestexn := Some ex in
+          None
+      else
+        None
+    in
+    match ans with
+    | Some _ as ans -> ans
+    | None ->
+      match AConstr.kind cl with
+      | ACast _ -> assert false (* just got stripped *)
+      | AApp (f, args) ->
+        begin match knd with
+        | HeadInd | HeadSort ->
+          (* If an application matches, then assuming well-typedness no longer application could match *)
+          begin match matchrec f with
+          | Some _ as ans -> ans
+          | None -> matchrec_array 0 args
+          end
+        | HeadProd | HeadOther ->
           let n = Array.length args in
-          assert (n>0);
+          let () = assert (n > 0) in
           let c1 = AConstr.mkApp (f,Array.sub args 0 (n-1)) in
           let c2 = args.(n-1) in
-          (try
-             matchrec c1
-           with ex when precatchable_exception ex ->
-             matchrec c2)
-        | AOther a -> iter_fail matchrec a))
+          begin match matchrec c1 with
+          | Some _ as ans -> ans
+          | None -> matchrec c2
+          end
+        end
+      | AOther a -> matchrec_array 0 a
+  and matchrec_array i args =
+    if Array.length args <= i then None
+    else match matchrec args.(i) with
+    | Some _ as ans -> ans
+    | None -> matchrec_array (i + 1) args
   in
-  try matchrec cl
-  with ex when precatchable_exception ex ->
+  match matchrec cl with
+  | Some ans -> ans
+  | None ->
     match !bestexn with
     | None -> raise (PretypeError (env,evd,NoOccurrenceFound (op, None)))
     | Some e -> raise e
