@@ -67,6 +67,14 @@ be defined using :cmd:`Variant`.
       Variant option (A : Type) : Type := None : option A | Some : A -> option A.
       Variant sum (A B : Type) : Type := inl : A -> sum A B | inr : B -> sum A B.
 
+.. note::
+   The standard library commonly uses :cmd:`Inductive` in
+   place of :cmd:`Variant` even for non-recursive types in order to
+   automatically derive the schemes
+   :n:`@ident`\ ``_rect``, :n:`@ident`\ ``_ind``, :n:`@ident`\
+   ``_rec`` and :n:`@ident`\ ``_sind``.  (These schemes are also created
+   for :cmd:`Variant` if the :flag:`Nonrecursive Elimination Schemes` flag is set.)
+
 .. example:: :cmd:`Variant` won't define recursive types
 
    .. rocqtop:: all
@@ -100,14 +108,6 @@ be defined using :cmd:`Variant`.
      End FreshNameSpace.
 
   :term:`Leibniz equality` is another example of variant type.
-
-.. note::
-   The standard library commonly uses :cmd:`Inductive` in
-   place of :cmd:`Variant` even for non-recursive types in order to
-   automatically derive the schemes
-   :n:`@ident`\ ``_rect``, :n:`@ident`\ ``_ind``, :n:`@ident`\
-   ``_rec`` and :n:`@ident`\ ``_sind``.  (These schemes are also created
-   for :cmd:`Variant` if the :flag:`Nonrecursive Elimination Schemes` flag is set.)
 
 Private (matching) inductive types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
