@@ -170,11 +170,10 @@ let rec check_with_mod (cst, ustate) env struc (idl,new_mp) mp reso =
     if List.is_empty idl then
       (* Toplevel module definition *)
       let new_mb = lookup_module new_mp env in
-      let new_mtb = module_type_of_module new_mb in
       let cst = match Mod_declarations.mod_expr old with
         | Abstract ->
           let mtb_old = module_type_of_module old in
-          let cst = Subtyping.check_subtypes (cst, ustate) env' new_mp new_mtb (MPdot (mp, lab)) mtb_old in
+          let cst = Subtyping.check_subtypes (cst, ustate) env' new_mp (MPdot (mp, lab)) mtb_old in
           cst
         | Algebraic (MENoFunctor (MEident(mp'))) ->
           check_modpath_equiv env' new_mp mp';
@@ -251,7 +250,7 @@ let rec translate_apply ustate env inl mp subst (sign, reso, cst) args = match a
     else subst_modtype subst_codom subst (MPbound farg_id) farg_b
   in
   let mtb = module_type_of_module (lookup_module mp1 env) in
-  let cst = Subtyping.check_subtypes (cst, ustate) env mp1 mtb (MPbound farg_id) farg_b in
+  let cst = Subtyping.check_subtypes (cst, ustate) env mp1 (MPbound farg_id) farg_b in
   let mp_delta = discr_resolver mp1 mtb in
   let mp_delta = inline_delta_resolver env inl mp1 farg_id farg_b mp_delta in
   let nsubst = map_mbid farg_id mp1 mp_delta in
@@ -325,7 +324,8 @@ let finalize_module_alg (cst, ustate) (vm, vmstate) env mp (sign,alg,reso) resty
   | Some (params_mte,inl) ->
     let res_mtb, cst, vm = translate_modtype (cst, ustate) (vm, vmstate) env mp inl params_mte in
     let auto_mtb = mk_modtype sign reso in
-    let cst = Subtyping.check_subtypes (cst, ustate) env mp auto_mtb mp res_mtb in
+    let env = Modops.add_module mp (module_body_of_type auto_mtb) env in
+    let cst = Subtyping.check_subtypes (cst, ustate) env mp mp res_mtb in
     let impl = match alg with
     | Some e -> Algebraic e
     | None ->
