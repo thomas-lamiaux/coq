@@ -2080,10 +2080,6 @@ ltac2_expr5: [
 | DELETE simple_tactic
 ]
 
-goal_match_list: [
-| EDIT ADD_OPT "|" LIST1 gmatch_rule SEP "|"      (* Ltac2 plugin *)
-]
-
 ltac2_quotations: [
 
 ]
