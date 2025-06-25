@@ -52,4 +52,4 @@ val trim_quotation : string -> char option * string
     eg [GRAMMAR EXTEND ..... [ IDENT "x" -> .... ] END]
     is a pattern (PIDENT (Some "x"))
 *)
-val match_pattern : 'c p -> t -> 'c
+val match_pattern : 'c p -> t -> 'c option

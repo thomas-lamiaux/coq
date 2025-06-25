@@ -1021,10 +1021,6 @@ let top_tree : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> (s, tr, a) ty_tr
       Node (NoRec3, {node = top_symb entry s; brother = bro; son = son})
   | LocAct (_, _) -> raise Stream.Failure | DeadEnd -> raise Stream.Failure
 
-let token_ematch tok =
-  let tematch = L.tok_match tok in
-  fun tok -> tematch tok
-
 let empty_entry ename levn strm =
   raise (Error ("entry [" ^ ename ^ "] is empty"))
 
@@ -1154,11 +1150,10 @@ and parser_of_token_list : type s tr lt r.
   let rec loop : type tr lt r. int -> lt pattern -> (s, tr, r) ty_tree -> GState.t -> lt -> r parser_t =
     fun n last_tok tree -> match tree with
     | Node (_, {node = Stoken tok; son = son; brother = bro}) ->
-       let tematch = token_ematch tok in
        let p2 = loop n last_tok bro in
        let p1 = loop (n+1) tok son in
        fun gstate last_a strm ->
-        (match (try Some (tematch (LStream.peek_nth gstate.kwstate n strm)) with Stream.Failure -> None) with
+        (match (try L.tok_match tok (LStream.peek_nth gstate.kwstate n strm) with Stream.Failure -> None) with
          | Some a ->
            (match try Some (p1 gstate a strm) with Stream.Failure -> None with
             | Some act -> act a
@@ -1182,17 +1177,17 @@ and parser_of_token_list : type s tr lt r.
          | None -> raise (TokenListFailed (entry, last_a, (Stoken last_tok), tree))
   in
   let ps = loop 1 tok tree in
-  let tematch = token_ematch tok in
   fun gstate strm ->
     match LStream.peek gstate.kwstate strm with
     | Some tok' ->
-      let a = tematch tok' in
-      begin
-        try let act = ps gstate a strm in act a
-        with
-        | TokenListFailed (entry, a, tok, tree) ->
-          raise (Error (tree_failed entry a tok tree))
-      end
+      (match L.tok_match tok tok' with
+       | Some a ->
+         begin
+           try let act = ps gstate a strm in act a
+           with TokenListFailed (entry, a, tok, tree) ->
+             raise (Error (tree_failed entry a tok tree))
+         end
+       | None -> raise Stream.Failure)
     | None -> raise Stream.Failure
 and parser_of_symbol : type s tr a.
   s ty_entry -> int -> (s, tr, a) ty_symbol -> GState.t -> a parser_t =
@@ -1325,7 +1320,10 @@ and parser_of_token : type s a.
   let f = L.tok_match tok in
   fun kwstate strm ->
     match LStream.peek kwstate strm with
-      Some tok -> let r = f tok in LStream.junk kwstate strm; r
+    | Some tok ->
+      (match f tok with
+       | Some r -> LStream.junk kwstate strm; r
+       | None -> raise Stream.Failure)
     | None -> raise Stream.Failure
 and parser_of_tokens : type s.
   s ty_entry -> ty_pattern list -> L.keyword_state -> unit parser_t =
@@ -1333,9 +1331,11 @@ and parser_of_tokens : type s.
   let rec loop n = function
   | [] -> fun kwstate strm -> for _i = 1 to n do LStream.junk kwstate strm done; ()
   | TPattern tok :: tokl ->
-     let tematch = token_ematch tok in
      fun kwstate strm ->
-     ignore (tematch (LStream.peek_nth kwstate n strm)); loop (n+1) tokl kwstate strm
+       let tok' = LStream.peek_nth kwstate n strm in
+       match L.tok_match tok tok' with
+       | Some _ -> loop (n+1) tokl kwstate strm
+       | None -> raise Stream.Failure
   in
   loop 0 tokl
 and parse_top_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> GState.t -> a parser_t =
