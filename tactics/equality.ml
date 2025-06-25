@@ -714,8 +714,12 @@ let replace_in_clause_maybe_by dir_opt c1 c2 cl tac_opt =
 
  *)
 
+type discriminator =
+| DConstruct of constructor * constructor
+| DString of Pstring.t * Pstring.t
+
 exception DiscrFound of
-  (constructor * int) list * constructor * constructor
+  (constructor * int) list * discriminator
 
 let keep_proof_equalities_for_injection = ref false
 
@@ -802,11 +806,14 @@ let find_positions env sigma ~keep_proofs ~no_discr t1 t2 =
                 0 rargs1 rargs2)
           else if List.mem_f UnivGen.QualityOrSet.equal (UnivGen.QualityOrSet.qtype) sorts' && not no_discr
           then (* see build_discriminator *)
-            raise (DiscrFound (List.rev posn,sp1,sp2))
+            raise (DiscrFound (List.rev posn, DConstruct (sp1, sp2)))
           else
           (* if we cannot eliminate to Type, we cannot discriminate but we
              may still try to project *)
           project env sorts posn (applist (hd1,args1)) (applist (hd2,args2))
+      | String s1, String s2 ->
+        if Pstring.equal s1 s2 then []
+        else raise (DiscrFound (List.rev posn, DString (s1, s2)))
       | _ ->
           let t1_0 = applist (hd1,args1)
           and t2_0 = applist (hd2,args2) in
@@ -820,8 +827,8 @@ let find_positions env sigma ~keep_proofs ~no_discr t1 t2 =
                 then UnivGen.QualityOrSet.[prop;set;qtype]
                 else UnivGen.QualityOrSet.[set;qtype] in
     Inr (findrec sorts [] t1 t2)
-  with DiscrFound (path,c1,c2) ->
-    Inl (path,c1,c2)
+  with DiscrFound (path, d) ->
+    Inl (path, d)
 
 let use_keep_proofs = function
   | None -> !keep_proof_equalities_for_injection
@@ -939,8 +946,17 @@ let build_rocq_I () = pf_constr_of_global (lib_ref "core.True.I")
 
 let rec build_discriminator env sigma true_0 false_0 pos c = function
   | [] ->
-      let cty = get_type_of env sigma c in
-      make_selector env sigma ~pos ~special:true_0 ~default:(fst false_0) c cty
+      begin match pos with
+      | DConstruct ((_, dirn), _) ->
+        let cty = get_type_of env sigma c in
+        make_selector env sigma ~pos:dirn ~special:true_0 ~default:(fst false_0) c cty
+      | DString (s, _) ->
+        let streq = Rocqlib.lib_ref "strings.pstring.eqb" in
+        let streq = mkRef (streq, EInstance.empty) in (* strings ought to be monomorphic *)
+        let c = mkApp (streq, [|mkString s; c|]) in
+        let cty = get_type_of env sigma c in
+        make_selector env sigma ~pos:1 ~special:true_0 ~default:(fst false_0) c cty
+      end
   | ((sp,cnum),argnum)::l ->
       let (cnum_nlams,cnum_env,kont) = descend_then env sigma c cnum in
       let newc = mkRel(cnum_nlams-argnum) in
@@ -1035,8 +1051,8 @@ let discrEq eq =
     | Inr _ ->
       let info = Exninfo.reify () in
       tclZEROMSG ~info (str"Not a discriminable equality.")
-    | Inl (cpath, (_,dirn), _) ->
-      discr_positions env sigma eq cpath dirn
+    | Inl (cpath, discr) ->
+      discr_positions env sigma eq cpath discr
   end
 
 let make_clause with_evars env sigma t lbindc =
@@ -1357,8 +1373,8 @@ let decompEqThen keep_proofs ntac eq =
     let sigma = Proofview.Goal.sigma gl in
     let ido = try Some (destVar sigma eq.eq_term) with DestKO -> None in
     match find_positions env sigma ~keep_proofs ~no_discr:false t1 t2 with
-    | Inl (cpath, (_,dirn), _) ->
-      discr_positions env sigma eq cpath dirn
+    | Inl (cpath, discr) ->
+      discr_positions env sigma eq cpath discr
     | Inr [] -> (* Change: do not fail, simplify clear this trivial hyp *)
       ntac ido 0
     | Inr posns ->

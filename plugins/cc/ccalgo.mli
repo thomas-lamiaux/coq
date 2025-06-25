@@ -16,8 +16,12 @@ type pa_constructor =
       arity : int;
       args  : int list}
 
+type constructor =
+| Construct of pconstructor
+| String of Pstring.t
+
 type cinfo =
-    {ci_constr: pconstructor; (* inductive type *)
+    {ci_constr: constructor; (* inductive type *)
      ci_arity: int;     (* # args *)
      ci_nhyps: int}     (* # projectable args *)
 

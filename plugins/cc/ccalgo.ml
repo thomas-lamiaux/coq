@@ -111,8 +111,12 @@ end
 module PacMap=Map.Make(PacOrd)
 module PafMap=Map.Make(PafOrd)
 
+type constructor =
+| Construct of pconstructor
+| String of Pstring.t
+
 type cinfo=
-    {ci_constr: pconstructor; (* inductive type *)
+    {ci_constr: constructor; (* inductive type *)
      ci_arity: int;     (* # args *)
      ci_nhyps: int}     (* # projectable args *)
 
@@ -154,20 +158,30 @@ struct
 
   let proj t = t.term
 
+  let eq_constructor c1 c2 = match c1, c2 with
+  | Construct (c1, u1), Construct (c2, u2) ->
+    Construct.UserOrd.equal c1 c2
+  | String s1, String s2 -> Pstring.equal s1 s2
+  | (Construct _ | String _), _ -> false
+
+  open Hashset.Combine
+
+  let hash_constructor = function
+  | Construct (c, u) -> combine 1 (Construct.UserOrd.hash c)
+  | String s -> combine 2 (Pstring.hash s)
+
   let rec term_equal t1 t2 =
     match t1, t2 with
       | Symb (c1,_), Symb (c2,_) -> eq_constr_nounivs c1 c2
       | Product (s1, t1), Product (s2, t2) -> family_eq s1 s2 && family_eq t1 t2
       | Eps i1, Eps i2 -> Id.equal i1 i2
       | Appli (t1', u1'), Appli (t2', u2') -> term_equal t1'.term t2'.term && term_equal u1'.term u2'.term
-      | Constructor {ci_constr=(c1,u1); ci_arity=i1; ci_nhyps=j1},
-        Constructor {ci_constr=(c2,u2); ci_arity=i2; ci_nhyps=j2} ->
-          Int.equal i1 i2 && Int.equal j1 j2 && Construct.UserOrd.equal c1 c2
+      | Constructor {ci_constr=c1; ci_arity=i1; ci_nhyps=j1},
+        Constructor {ci_constr=c2; ci_arity=i2; ci_nhyps=j2} ->
+          Int.equal i1 i2 && Int.equal j1 j2 && eq_constructor c1 c2
       | _ -> false
 
   let equal t1 t2 = term_equal t1.term t2.term
-
-  open Hashset.Combine
 
   let hash_term t =
     match t with
@@ -175,7 +189,7 @@ struct
     | Product (s1, s2) -> combine3 2 (Sorts.hash s1) (Sorts.hash s2)
     | Eps i -> combine 3 (Id.hash i)
     | Appli (t1', t2') -> combine3 4 (t1'.hash) (t2'.hash)
-    | Constructor {ci_constr=(c,u); ci_arity=i; ci_nhyps=j} -> combine4 5 (Construct.UserOrd.hash c) i j
+    | Constructor {ci_constr=c; ci_arity=i; ci_nhyps=j} -> combine4 5 (hash_constructor c) i j
 
   let hash t = t.hash
 
@@ -193,7 +207,8 @@ struct
       Symb (s,_) -> s
     | Product(s1,s2) -> cc_product s1 s2
     | Eps id -> mkVar id
-    | Constructor cinfo -> mkConstructU cinfo.ci_constr
+    | Constructor { ci_constr = Construct c } -> mkConstructU c
+    | Constructor { ci_constr = String s } -> mkString s
     | Appli (s1',s2') -> make_app [force s2'.constr] s1'
   and make_app l t' =
     match t'.term with
@@ -225,7 +240,11 @@ struct
 
   let mkConstructor env info =
     let canon i = Environ.QConstruct.canonize env i in
-    let info = { info with ci_constr = on_fst canon info.ci_constr } in
+    let ci_constr = match info.ci_constr with
+    | Construct (c, u) -> Construct (canon c, u)
+    | String s -> String s
+    in
+    let info = { info with ci_constr } in
     make (Constructor info)
 
   let rec nth_arg t n =
@@ -1036,8 +1055,13 @@ let build_term_to_complete uf pac =
   let open EConstr in
   let cinfo = get_constructor_info uf pac.cnode in
   let real_args = List.rev_map (fun i -> EConstr.of_constr (ATerm.constr (aterm uf i))) pac.args in
-  let (kn, u) = cinfo.ci_constr in
-  (applist (mkConstructU (kn, EInstance.make u), real_args), pac.arity)
+  match cinfo.ci_constr with
+  | Construct (kn, u) ->
+    (applist (mkConstructU (kn, EInstance.make u), real_args), pac.arity)
+  | String s ->
+    let () = assert (List.is_empty real_args) in
+    let () = assert (Int.equal pac.arity 0) in
+    mkString s, 0
 
 let terms_to_complete state =
   let uf = forest state in

@@ -70,7 +70,7 @@ let rec decompose_term env sigma t =
         let u = EInstance.kind sigma u in
         let oib = Environ.lookup_mind (fst ind) env in
         let nargs = constructor_nallargs env cstr in
-        ATerm.mkConstructor env {ci_constr = (cstr, u);
+        ATerm.mkConstructor env {ci_constr = Construct (cstr, u);
                        ci_arity=nargs;
                        ci_nhyps=nargs-oib.mind_nparams}
     | Ind c ->
@@ -87,6 +87,8 @@ let rec decompose_term env sigma t =
         let p' = Projection.map canon_mind p in
         let c = Retyping.expand_projection env sigma p' c [] in
         decompose_term env sigma c
+    | String s ->
+        ATerm.mkConstructor env { ci_constr = String s; ci_arity = 0; ci_nhyps = 0 }
     | _ ->
        let t = Termops.strip_outer_cast sigma t in
        if closed0 sigma t then ATerm.mkSymb (EConstr.to_constr ~abort_on_undefined_evars:false sigma t) else raise Not_found
