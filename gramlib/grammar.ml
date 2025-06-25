@@ -1021,10 +1021,6 @@ let top_tree : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> (s, tr, a) ty_tr
       Node (NoRec3, {node = top_symb entry s; brother = bro; son = son})
   | LocAct (_, _) -> raise Stream.Failure | DeadEnd -> raise Stream.Failure
 
-let skip_if_empty bp p strm =
-  if LStream.count strm == bp then fun a -> p strm
-  else raise Stream.Failure
-
 let token_ematch tok =
   let tematch = L.tok_match tok in
   fun tok -> tematch tok
@@ -1115,15 +1111,13 @@ and parser_cont : type s tr tr' a r.
       parser_of_tree entry nlevn alevn (top_tree entry son) gstate strm__
     with
       Stream.Failure ->
-      try
-        (* Discard the rule if what has been consumed before failing is
-           the empty sequence (due to some OPT or LIST0); example:
-           « OPT "!"; ident » fails to see an ident and the OPT was resolved
-           into the empty sequence, with application e.g. to being able to
-           safely write « LIST1 [ OPT "!"; id = ident -> id] ». *)
-        skip_if_empty bp (fun (strm__ : _ LStream.t) -> raise Stream.Failure)
-          strm__
-      with Stream.Failure ->
+      (* Discard the rule if what has been consumed before failing is
+         the empty sequence (due to some OPT or LIST0); example:
+         « OPT "!"; ident » fails to see an ident and the OPT was resolved
+         into the empty sequence, with application e.g. to being able to
+         safely write « LIST1 [ OPT "!"; id = ident -> id] ». *)
+      if LStream.count strm__ == bp then fun a -> raise Stream.Failure
+      else
         (* In case of success on just SELF, NEXT or an explicit call to
            a subentry followed by a failure on the rest (son), retry
            parsing as if this entry had been called at its toplevel;
