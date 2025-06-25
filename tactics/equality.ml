@@ -717,6 +717,7 @@ let replace_in_clause_maybe_by dir_opt c1 c2 cl tac_opt =
 type discriminator =
 | DConstruct of constructor * constructor
 | DInt of Uint63.t * Uint63.t
+| DFloat of Float64.t * Float64.t
 | DString of Pstring.t * Pstring.t
 
 exception DiscrFound of
@@ -815,6 +816,9 @@ let find_positions env sigma ~keep_proofs ~no_discr t1 t2 =
       | Int i1, Int i2 ->
         if Uint63.equal i1 i2 then []
         else raise (DiscrFound (List.rev posn, DInt (i1, i2)))
+      | Float f1, Float f2 ->
+        if Float64.equal f1 f2 then []
+        else raise (DiscrFound (List.rev posn, DFloat (f1, f2)))
       | String s1, String s2 ->
         if Pstring.equal s1 s2 then []
         else raise (DiscrFound (List.rev posn, DString (s1, s2)))
@@ -958,6 +962,12 @@ let rec build_discriminator env sigma true_0 false_0 pos c = function
         let inteq = Rocqlib.lib_ref "num.int63.eqb" in
         let inteq = mkRef (inteq, EInstance.empty) in (* ints ought to be monomorphic *)
         let c = mkApp (inteq, [|mkInt i; c|]) in
+        let cty = get_type_of env sigma c in
+        make_selector env sigma ~pos:1 ~special:true_0 ~default:(fst false_0) c cty
+      | DFloat (f, _) ->
+        let floateq = Rocqlib.lib_ref "num.float.leibniz.eqb" in
+        let floateq = mkRef (floateq, EInstance.empty) in (* ints ought to be monomorphic *)
+        let c = mkApp (floateq, [|mkFloat f; c|]) in
         let cty = get_type_of env sigma c in
         make_selector env sigma ~pos:1 ~special:true_0 ~default:(fst false_0) c cty
       | DString (s, _) ->

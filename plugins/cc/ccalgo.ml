@@ -114,6 +114,7 @@ module PafMap=Map.Make(PafOrd)
 type constructor =
 | Construct of pconstructor
 | Int of Uint63.t
+| Float of Float64.t
 | String of Pstring.t
 
 type cinfo=
@@ -164,14 +165,16 @@ struct
     Construct.UserOrd.equal c1 c2
   | Int i1, Int i2 -> Uint63.equal i1 i2
   | String s1, String s2 -> Pstring.equal s1 s2
-  | (Construct _ | String _ | Int _), _ -> false
+  | Float f1, Float f2 -> Float64.equal f1 f2
+  | (Construct _ | String _ | Int _ | Float _), _ -> false
 
   open Hashset.Combine
 
   let hash_constructor = function
   | Construct (c, u) -> combine 1 (Construct.UserOrd.hash c)
   | Int i -> combine 2 (Uint63.hash i)
-  | String s -> combine 3 (Pstring.hash s)
+  | Float f -> combine 3 (Float64.hash f)
+  | String s -> combine 4 (Pstring.hash s)
 
   let rec term_equal t1 t2 =
     match t1, t2 with
@@ -212,6 +215,7 @@ struct
     | Eps id -> mkVar id
     | Constructor { ci_constr = Construct c } -> mkConstructU c
     | Constructor { ci_constr = Int i } -> mkInt i
+    | Constructor { ci_constr = Float f } -> mkFloat f
     | Constructor { ci_constr = String s } -> mkString s
     | Appli (s1',s2') -> make_app [force s2'.constr] s1'
   and make_app l t' =
@@ -247,6 +251,7 @@ struct
     let ci_constr = match info.ci_constr with
     | Construct (c, u) -> Construct (canon c, u)
     | Int i -> Int i
+    | Float f -> Float f
     | String s -> String s
     in
     let info = { info with ci_constr } in
@@ -1067,6 +1072,10 @@ let build_term_to_complete uf pac =
     let () = assert (List.is_empty real_args) in
     let () = assert (Int.equal pac.arity 0) in
     mkInt i, 0
+  | Float f ->
+    let () = assert (List.is_empty real_args) in
+    let () = assert (Int.equal pac.arity 0) in
+    mkFloat f, 0
   | String s ->
     let () = assert (List.is_empty real_args) in
     let () = assert (Int.equal pac.arity 0) in

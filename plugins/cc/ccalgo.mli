@@ -19,6 +19,7 @@ type pa_constructor =
 type constructor =
 | Construct of pconstructor
 | Int of Uint63.t
+| Float of Float64.t
 | String of Pstring.t
 
 type cinfo =

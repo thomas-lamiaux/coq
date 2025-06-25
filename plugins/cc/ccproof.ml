@@ -113,7 +113,7 @@ and edge_proof env sigma uf ((i,j),eq)=
       let cinfo= get_constructor_info uf ipac.cnode in
       let cstr = match cinfo.ci_constr with
       | Construct c -> c
-      | Int _ | String _ -> assert false
+      | Int _ | Float _ | String _ -> assert false
       in
       pinject p cstr cinfo.ci_nhyps k in
   ptrans (ptrans pi pij) pj
