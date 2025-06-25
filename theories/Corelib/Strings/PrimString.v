@@ -18,6 +18,13 @@ Primitive cat : string -> string -> string := #string_cat.
 
 Primitive compare : string -> string -> comparison := #string_compare.
 
+Definition eqb (s1 s2 : string) := match compare s1 s2 with
+| Eq => true
+| Lt | Gt => false
+end.
+
+Register eqb as strings.pstring.eqb.
+
 Module Export PStringNotations.
   Record string_wrapper := wrap_string {string_wrap : string}.
   Definition id_string (s : string) : string := s.
