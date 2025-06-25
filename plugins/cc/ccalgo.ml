@@ -113,6 +113,7 @@ module PafMap=Map.Make(PafOrd)
 
 type constructor =
 | Construct of pconstructor
+| Int of Uint63.t
 | String of Pstring.t
 
 type cinfo=
@@ -161,14 +162,16 @@ struct
   let eq_constructor c1 c2 = match c1, c2 with
   | Construct (c1, u1), Construct (c2, u2) ->
     Construct.UserOrd.equal c1 c2
+  | Int i1, Int i2 -> Uint63.equal i1 i2
   | String s1, String s2 -> Pstring.equal s1 s2
-  | (Construct _ | String _), _ -> false
+  | (Construct _ | String _ | Int _), _ -> false
 
   open Hashset.Combine
 
   let hash_constructor = function
   | Construct (c, u) -> combine 1 (Construct.UserOrd.hash c)
-  | String s -> combine 2 (Pstring.hash s)
+  | Int i -> combine 2 (Uint63.hash i)
+  | String s -> combine 3 (Pstring.hash s)
 
   let rec term_equal t1 t2 =
     match t1, t2 with
@@ -208,6 +211,7 @@ struct
     | Product(s1,s2) -> cc_product s1 s2
     | Eps id -> mkVar id
     | Constructor { ci_constr = Construct c } -> mkConstructU c
+    | Constructor { ci_constr = Int i } -> mkInt i
     | Constructor { ci_constr = String s } -> mkString s
     | Appli (s1',s2') -> make_app [force s2'.constr] s1'
   and make_app l t' =
@@ -242,6 +246,7 @@ struct
     let canon i = Environ.QConstruct.canonize env i in
     let ci_constr = match info.ci_constr with
     | Construct (c, u) -> Construct (canon c, u)
+    | Int i -> Int i
     | String s -> String s
     in
     let info = { info with ci_constr } in
@@ -1058,6 +1063,10 @@ let build_term_to_complete uf pac =
   match cinfo.ci_constr with
   | Construct (kn, u) ->
     (applist (mkConstructU (kn, EInstance.make u), real_args), pac.arity)
+  | Int i ->
+    let () = assert (List.is_empty real_args) in
+    let () = assert (Int.equal pac.arity 0) in
+    mkInt i, 0
   | String s ->
     let () = assert (List.is_empty real_args) in
     let () = assert (Int.equal pac.arity 0) in

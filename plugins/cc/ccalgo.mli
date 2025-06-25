@@ -18,6 +18,7 @@ type pa_constructor =
 
 type constructor =
 | Construct of pconstructor
+| Int of Uint63.t
 | String of Pstring.t
 
 type cinfo =

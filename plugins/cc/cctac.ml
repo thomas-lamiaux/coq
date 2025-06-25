@@ -89,6 +89,8 @@ let rec decompose_term env sigma t =
         decompose_term env sigma c
     | String s ->
         ATerm.mkConstructor env { ci_constr = String s; ci_arity = 0; ci_nhyps = 0 }
+    | Int i ->
+        ATerm.mkConstructor env { ci_constr = Int i; ci_arity = 0; ci_nhyps = 0 }
     | _ ->
        let t = Termops.strip_outer_cast sigma t in
        if closed0 sigma t then ATerm.mkSymb (EConstr.to_constr ~abort_on_undefined_evars:false sigma t) else raise Not_found

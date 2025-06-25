@@ -716,6 +716,7 @@ let replace_in_clause_maybe_by dir_opt c1 c2 cl tac_opt =
 
 type discriminator =
 | DConstruct of constructor * constructor
+| DInt of Uint63.t * Uint63.t
 | DString of Pstring.t * Pstring.t
 
 exception DiscrFound of
@@ -811,6 +812,9 @@ let find_positions env sigma ~keep_proofs ~no_discr t1 t2 =
           (* if we cannot eliminate to Type, we cannot discriminate but we
              may still try to project *)
           project env sorts posn (applist (hd1,args1)) (applist (hd2,args2))
+      | Int i1, Int i2 ->
+        if Uint63.equal i1 i2 then []
+        else raise (DiscrFound (List.rev posn, DInt (i1, i2)))
       | String s1, String s2 ->
         if Pstring.equal s1 s2 then []
         else raise (DiscrFound (List.rev posn, DString (s1, s2)))
@@ -950,6 +954,12 @@ let rec build_discriminator env sigma true_0 false_0 pos c = function
       | DConstruct ((_, dirn), _) ->
         let cty = get_type_of env sigma c in
         make_selector env sigma ~pos:dirn ~special:true_0 ~default:(fst false_0) c cty
+      | DInt (i, _) ->
+        let inteq = Rocqlib.lib_ref "num.int63.eqb" in
+        let inteq = mkRef (inteq, EInstance.empty) in (* ints ought to be monomorphic *)
+        let c = mkApp (inteq, [|mkInt i; c|]) in
+        let cty = get_type_of env sigma c in
+        make_selector env sigma ~pos:1 ~special:true_0 ~default:(fst false_0) c cty
       | DString (s, _) ->
         let streq = Rocqlib.lib_ref "strings.pstring.eqb" in
         let streq = mkRef (streq, EInstance.empty) in (* strings ought to be monomorphic *)
