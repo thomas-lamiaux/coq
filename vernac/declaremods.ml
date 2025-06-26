@@ -962,13 +962,13 @@ module Interp = struct
 
 (** {6 Auxiliary functions concerning subtyping checks} *)
 
-let check_sub mp mtb sub_mtb_l =
+let check_sub env mp sub_mtb_l =
   let fold sub_mtb (cst, env) =
     let state = ((Environ.universes env, cst), Reductionops.inferred_universes) in
-    let graph, cst = Subtyping.check_subtypes state env mp mtb mp sub_mtb in
+    let graph, cst = Subtyping.check_subtypes state env mp mp sub_mtb in
     (cst, Environ.set_universes graph env)
   in
-  let cst, _ = List.fold_right fold sub_mtb_l (Univ.Constraints.empty, Global.env ()) in
+  let cst, _ = List.fold_right fold sub_mtb_l (Univ.Constraints.empty, env) in
   Global.add_constraints cst
 
 (** This function checks if the type calculated for the module [mp] is
@@ -976,11 +976,7 @@ let check_sub mp mtb sub_mtb_l =
     the global environment. *)
 
 let check_subtypes mp sub_mtb_l =
-  let mb =
-    try Global.lookup_module mp with Not_found -> assert false
-  in
-  let mtb = Modops.module_type_of_module mb in
-  check_sub mp mtb sub_mtb_l
+  check_sub (Global.env ()) mp sub_mtb_l
 
 (** Same for module type [mp] *)
 
@@ -988,7 +984,8 @@ let check_subtypes_mt mp sub_mtb_l =
   let mtb =
     try Global.lookup_modtype mp with Not_found -> assert false
   in
-  check_sub mp mtb sub_mtb_l
+  let env = Modops.add_module mp (module_body_of_type mtb) (Global.env ()) in
+  check_sub env mp sub_mtb_l
 
 let current_modresolver () =
   Safe_typing.delta_of_senv @@ Global.safe_env ()
@@ -1433,7 +1430,8 @@ let declare_one_include_core (me,base,kind,inl) =
     match sign with
     | MoreFunctor(mbid,mtb,str) ->
       let state = ((Global.universes (), Univ.Constraints.empty), Reductionops.inferred_universes) in
-      let (_, cst) = Subtyping.check_subtypes state (Global.env ()) cur_mp mb (MPbound mbid) mtb in
+      let env = Modops.add_module cur_mp (module_body_of_type mb) (Global.env ()) in
+      let (_, cst) = Subtyping.check_subtypes state env cur_mp (MPbound mbid) mtb in
       let () = Global.add_constraints cst in
       let mpsup_delta = match mod_global_delta mb with
       | None -> assert false (* mb is guaranteed not to be a functor here *)

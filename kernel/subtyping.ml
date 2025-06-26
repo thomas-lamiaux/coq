@@ -343,8 +343,11 @@ and check_modtypes (cst, ustate) trace env mp1 mtb1 mp2 mtb2 subst1 subst2 equiv
     in
     check_structure cst ~nargs:0 env (mod_type mtb1) (mod_type mtb2) equiv subst1 subst2
 
-let check_subtypes state env mp_sup sup mp_super super =
-  let env = add_module mp_sup (module_body_of_type sup) env in
+let check_subtypes state env mp_sup mp_super super =
+  let sup = match Environ.lookup_module mp_sup env with
+  | mb -> module_type_of_module mb
+  | exception Not_found -> assert false
+  in
   check_modtypes state [] env
     mp_sup (strengthen sup mp_sup) mp_super super empty_subst
     (map_mp mp_super mp_sup (mod_delta sup)) false
