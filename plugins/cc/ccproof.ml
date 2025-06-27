@@ -11,7 +11,6 @@
 (* This file uses the (non-compressed) union-find structure to generate *)
 (* proof-trees that will be transformed into proof-terms in cctac.mlg   *)
 
-open Constr
 open Ccalgo
 open Pp
 
@@ -21,7 +20,7 @@ type rule=
   | Refl of ATerm.t
   | Trans of proof*proof
   | Congr of proof*proof
-  | Inject of proof*pconstructor*int*int
+  | Inject of proof*Constr.pconstructor*int*int
 and proof =
     {p_lhs:ATerm.t;p_rhs:ATerm.t;p_rule:rule}
 
@@ -112,7 +111,11 @@ and edge_proof env sigma uf ((i,j),eq)=
     | Injection (ti,ipac,tj,jpac,k) -> (* pi_k ipac = p_k jpac *)
       let p=ind_proof env sigma uf ti ipac tj jpac in
       let cinfo= get_constructor_info uf ipac.cnode in
-      pinject p cinfo.ci_constr cinfo.ci_nhyps k in
+      let cstr = match cinfo.ci_constr with
+      | Construct c -> c
+      | Int _ | Float _ | String _ -> assert false
+      in
+      pinject p cstr cinfo.ci_nhyps k in
   ptrans (ptrans pi pij) pj
 
 and constr_proof env sigma uf i ipac=

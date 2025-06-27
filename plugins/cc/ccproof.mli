@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Ccalgo
-open Constr
 
 type rule =
 | Ax of axiom
@@ -22,7 +21,7 @@ type rule =
 | Congr of proof * proof
   (** ⊢ f = g :: forall x : A, B -> ⊢ t = u :: A -> f t = g u :: B{t}
       Assumes that B{t} ≡ B{u} for this to make sense! *)
-| Inject of proof * pconstructor * int * int
+| Inject of proof * Constr.pconstructor * int * int
   (** ⊢ ci v = ci w :: Ind(args) -> ⊢ v = w :: T
       where T is the type of the n-th argument of ci, assuming they coincide *)
 and proof =

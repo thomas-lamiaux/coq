@@ -63,8 +63,9 @@ Primitive compare := #float64_compare.
 (** Boolean Leibniz equality *)
 Module Leibniz.
 Primitive eqb := #float64_equal.
-Register eqb as num.float.leibniz.eqb.
 End Leibniz.
+
+Register Leibniz.eqb as num.float.leibniz.eqb.
 
 Primitive mul := #float64_mul.
 
