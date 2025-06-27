@@ -2333,7 +2333,7 @@ goal_selector: [
 
 range_selector: [
 | natural
-| "[" ident "]"
+| "[" qualid "]"
 | natural "-" natural
 ]
 
