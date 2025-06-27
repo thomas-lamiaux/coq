@@ -119,24 +119,26 @@ let trim_quotation txt =
         aux 0
     else None, txt
 
-let match_pattern (type c) (p : c p) : t -> c =
-  let err () = raise Gramlib.Stream.Failure in
+let match_pattern (type c) (p : c p) : t -> c option =
   let seq = string_equal in
   match p with
-  | PKEYWORD s -> (function KEYWORD s' when seq s s' -> s'
-                          | NUMBER n when seq s (NumTok.Unsigned.sprint n) -> s
-                          | STRING s' when seq s (CString.quote_coq_string s') -> s
-                          | _ -> err ())
-  | PIDENT None -> (function IDENT s' -> s' | _ -> err ())
-  | PIDENT (Some s) -> (function (IDENT s' | KEYWORD s') when seq s s' -> s' | _ -> err ())
-  | PFIELD None -> (function FIELD s -> s | _ -> err ())
-  | PFIELD (Some s) -> (function FIELD s' when seq s s' -> s' | _ -> err ())
-  | PNUMBER None -> (function NUMBER s -> s | _ -> err ())
-  | PNUMBER (Some n) -> let s = NumTok.Unsigned.sprint n in (function NUMBER n' when s = NumTok.Unsigned.sprint n' -> n' | _ -> err ())
-  | PSTRING None -> (function STRING s -> s | _ -> err ())
-  | PSTRING (Some s) -> (function STRING s' when seq s s' -> s' | _ -> err ())
-  | PLEFTQMARK -> (function LEFTQMARK -> () | _ -> err ())
-  | PBULLET None -> (function BULLET s -> s | _ -> err ())
-  | PBULLET (Some s) -> (function BULLET s' when seq s s' -> s' | _ -> err ())
-  | PQUOTATION lbl -> (function QUOTATION(lbl',s') when string_equal lbl lbl' -> s' | _ -> err ())
-  | PEOI -> (function EOI -> () | _ -> err ())
+  | PKEYWORD s ->
+    (function KEYWORD s' when seq s s' -> Some s'
+            | NUMBER n when seq s (NumTok.Unsigned.sprint n) -> Some s
+            | STRING s' when seq s (CString.quote_coq_string s') -> Some s
+            | _ -> None)
+  | PIDENT None -> (function IDENT s' -> Some s' | _ -> None)
+  | PIDENT (Some s) -> (function (IDENT s' | KEYWORD s') when seq s s' -> Some s' | _ -> None)
+  | PFIELD None -> (function FIELD s -> Some s| _ -> None)
+  | PFIELD (Some s) -> (function FIELD s' when seq s s' -> Some s' | _ -> None)
+  | PNUMBER None -> (function NUMBER s -> Some s| _ -> None)
+  | PNUMBER (Some n) ->
+    let s = NumTok.Unsigned.sprint n in
+    (function NUMBER n' when s = NumTok.Unsigned.sprint n' -> Some n' | _ -> None)
+  | PSTRING None -> (function STRING s -> Some s | _ -> None)
+  | PSTRING (Some s) -> (function STRING s' when seq s s' -> Some s' | _ -> None)
+  | PLEFTQMARK -> (function LEFTQMARK -> Some () | _ -> None)
+  | PBULLET None -> (function BULLET s -> Some s | _ -> None)
+  | PBULLET (Some s) -> (function BULLET s' when seq s s' -> Some s' | _ -> None)
+  | PQUOTATION lbl -> (function QUOTATION(lbl',s') when string_equal lbl lbl' -> Some s' | _ -> None)
+  | PEOI -> (function EOI -> Some () | _ -> None)

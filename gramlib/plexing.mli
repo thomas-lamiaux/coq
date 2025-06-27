@@ -20,7 +20,7 @@ module type S = sig
   (** Returning a stream equipped with a location function *)
   val tok_func : ?loc:Loc.t -> (unit,char) Stream.t -> (keyword_state,te) LStream.t
 
-  val tok_match : 'c pattern -> te -> 'c
+  val tok_match : 'c pattern -> te -> 'c option
   val tok_text : 'c pattern -> string
 
   (* State for the comments, at some point we should make it functional *)
