@@ -84,25 +84,25 @@ module Visit : VISIT = struct
 
   type t =
       { mutable kn : KNset.t;
-        mutable mp : MPset.t;
-        mutable mp_all : MPset.t }
+        mutable mp : ModPath.Set.t;
+        mutable mp_all : ModPath.Set.t }
   (* the imperative internal visit lists *)
   let make () = {
     kn = KNset.empty;
-    mp = MPset.empty;
-    mp_all = MPset.empty;
+    mp = ModPath.Set.empty;
+    mp_all = ModPath.Set.empty;
   }
   (* the accessor functions *)
   let needed_ind v i inst = KNset.mem (MutInd.user i, inst) v.kn
   let needed_cst v c inst = KNset.mem (Constant.user c, inst) v.kn
-  let needed_mp v mp = MPset.mem mp v.mp || MPset.mem mp v.mp_all
-  let needed_mp_all v mp = MPset.mem mp v.mp_all
+  let needed_mp v mp = ModPath.Set.mem mp v.mp || ModPath.Set.mem mp v.mp_all
+  let needed_mp_all v mp = ModPath.Set.mem mp v.mp_all
   let add_mp v mp =
-    check_loaded_modfile mp; v.mp <- MPset.union (prefixes_mp mp) v.mp
+    check_loaded_modfile mp; v.mp <- ModPath.Set.union (prefixes_mp mp) v.mp
   let add_mp_all v mp =
     check_loaded_modfile mp;
-    v.mp <- MPset.union (prefixes_mp mp) v.mp;
-    v.mp_all <- MPset.add mp v.mp_all
+    v.mp <- ModPath.Set.union (prefixes_mp mp) v.mp;
+    v.mp_all <- ModPath.Set.add mp v.mp_all
   let add_kn v kn inst = v.kn <- KNset.add (kn, inst) v.kn; add_mp v (KerName.modpath kn)
   let add_ref v r = let open GlobRef in match r.glob with
     | ConstRef c -> add_kn v (Constant.user c) r.inst

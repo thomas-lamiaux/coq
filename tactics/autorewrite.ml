@@ -314,13 +314,13 @@ end
 
 type rewrite_db = {
   rdb_hintdn : HintDN.t;
-  rdb_order : int KNmap.t;
+  rdb_order : int KerName.Map.t;
   rdb_maxuid : int;
 }
 
 let empty_rewrite_db = {
   rdb_hintdn = HintDN.empty;
-  rdb_order = KNmap.empty;
+  rdb_order = KerName.Map.empty;
   rdb_maxuid = 0;
 }
 
@@ -338,13 +338,13 @@ let find_base bas =
 
 let find_rewrites bas =
   let db = find_base bas in
-  let sort r1 r2 = Int.compare (KNmap.find r2.rew_id db.rdb_order) (KNmap.find r1.rew_id db.rdb_order) in
+  let sort r1 r2 = Int.compare (KerName.Map.find r2.rew_id db.rdb_order) (KerName.Map.find r1.rew_id db.rdb_order) in
   List.sort sort (HintDN.find_all db.rdb_hintdn)
 
 let find_matches env bas pat =
   let base = find_base bas in
   let res = HintDN.search_pattern env base.rdb_hintdn pat in
-  let sort r1 r2 = Int.compare (KNmap.find r2.rew_id base.rdb_order) (KNmap.find r1.rew_id base.rdb_order) in
+  let sort r1 r2 = Int.compare (KerName.Map.find r2.rew_id base.rdb_order) (KerName.Map.find r1.rew_id base.rdb_order) in
   List.sort sort res
 
 let print_rewrite_hintdb bas =
@@ -469,7 +469,7 @@ let cache_hintrewrite (rbase,lrl) =
   let base = try raw_find_base rbase with Not_found -> empty_rewrite_db in
   let fold accu r = {
     rdb_hintdn = HintDN.add (Global.env ()) r.rew_pat r accu.rdb_hintdn;
-    rdb_order = KNmap.add r.rew_id accu.rdb_maxuid accu.rdb_order;
+    rdb_order = KerName.Map.add r.rew_id accu.rdb_maxuid accu.rdb_order;
     rdb_maxuid = accu.rdb_maxuid + 1;
   } in
   let base = List.fold_left fold base lrl in

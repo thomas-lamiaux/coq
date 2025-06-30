@@ -321,7 +321,7 @@ let base_r r = let open GlobRef in match r.glob with
   | _ -> assert false
 
 type needed = {
-  needed_mp : MPset.t;
+  needed_mp : ModPath.Set.t;
   needed_rf : Refset'.t;
 }
 
@@ -329,14 +329,14 @@ let add_needed nd r =
   nd := { !nd with needed_rf = Refset'.add (base_r r) !nd.needed_rf }
 
 let add_needed_mp nd mp =
-  nd := { !nd with needed_mp = MPset.add mp !nd.needed_mp }
+  nd := { !nd with needed_mp = ModPath.Set.add mp !nd.needed_mp }
 
 let found_needed nd r =
   nd := { !nd with needed_rf = Refset'.remove (base_r r) !nd.needed_rf }
 
 let is_needed nd r =
   let r = base_r r in
-  Refset'.mem r nd.needed_rf || MPset.mem (modpath_of_r r) nd.needed_mp
+  Refset'.mem r nd.needed_rf || ModPath.Set.mem (modpath_of_r r) nd.needed_mp
 
 let declared_refs = function
   | Dind p -> [p.ind_packets.(0).ip_typename_ref]
@@ -429,7 +429,7 @@ let optimize_struct table to_appear struc =
     if Common.State.get_library table then
       List.filter (fun (_,lse) -> not (List.is_empty lse)) opt_struc
     else
-      let nd = ref { needed_mp = MPset.empty; needed_rf = Refset'.empty } in
+      let nd = ref { needed_mp = ModPath.Set.empty; needed_rf = Refset'.empty } in
       let () = List.iter (fun r -> add_needed nd r) (fst to_appear) in
       let () = List.iter (fun mp -> add_needed_mp nd mp) (snd to_appear) in
       depcheck_struct (Common.State.get_table table) nd opt_struc

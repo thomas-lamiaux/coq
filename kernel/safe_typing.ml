@@ -127,13 +127,13 @@ end =
 struct
   type t = {
     root : DirPath.t;
-    data : Mod_subst.delta_resolver MPmap.t;
+    data : Mod_subst.delta_resolver ModPath.Map.t;
     (** Invariant: No [MPdot] in data *)
   }
 
   let empty root = {
     root = root;
-    data = MPmap.empty;
+    data = ModPath.Map.empty;
   }
 
   let rec head mp = match mp with
@@ -144,25 +144,25 @@ struct
     let self = MPfile preso.root in
     let data =
       if ModPath.subpath self mp then
-        match MPmap.find_opt self preso.data with
+        match ModPath.Map.find_opt self preso.data with
         | None ->
           (* we were at toplevel *)
-          MPmap.add self delta preso.data
+          ModPath.Map.add self delta preso.data
         | Some reso ->
-          MPmap.add self (Mod_subst.add_delta_resolver delta reso) preso.data
+          ModPath.Map.add self (Mod_subst.add_delta_resolver delta reso) preso.data
       else
         let () = match mp with
         | MPfile _ | MPbound _ -> ()
         | MPdot _ -> assert false
         in
-        let () = assert (not (MPmap.mem mp preso.data)) in
-        MPmap.add mp delta preso.data
+        let () = assert (not (ModPath.Map.mem mp preso.data)) in
+        ModPath.Map.add mp delta preso.data
     in
     { preso with data }
 
   let kn_of_delta preso kn =
     let head = head (KerName.modpath kn) in
-    match MPmap.find_opt head preso.data with
+    match ModPath.Map.find_opt head preso.data with
     | None -> kn
     | Some delta -> Mod_subst.kn_of_delta delta kn
 
@@ -230,7 +230,7 @@ type safe_environment =
     univ : Univ.ContextSet.t;
     qualities : Sorts.QVar.Set.t ;
     future_cst : (Constant_typing.typing_context * safe_environment * Nonce.t) HandleMap.t;
-    required : required_lib DPmap.t;
+    required : required_lib DirPath.Map.t;
     loads : (ModPath.t * module_body) list;
     local_retroknowledge : Retroknowledge.action list;
     opaquetab : Opaqueproof.opaquetab;
@@ -261,7 +261,7 @@ let empty_environment =
     future_cst = HandleMap.empty;
     univ = Univ.ContextSet.empty;
     qualities = Sorts.QVar.Set.empty ;
-    required = DPmap.empty;
+    required = DirPath.Map.empty;
     loads = [];
     local_retroknowledge = [];
     opaquetab = Opaqueproof.empty_opaquetab;
@@ -592,7 +592,7 @@ let check_empty_struct senv =
     with the correct digests. *)
 
 let check_required current_libs needed =
-  let check current (id, required) = match DPmap.find_opt id current with
+  let check current (id, required) = match DirPath.Map.find_opt id current with
   | None ->
     CErrors.user_err Pp.(pr_sequence str ["Reference to unknown module"; DirPath.to_string id; "."])
   | Some { req_root; req_digest = actual } ->
@@ -601,7 +601,7 @@ let check_required current_libs needed =
         ["Inconsistent assumptions over module"; DirPath.to_string id; "."])
     else if req_root then
       (* the library is being transitively required, not a root anymore *)
-      DPmap.set id { req_root = false; req_digest = actual } current
+      DirPath.Map.set id { req_root = false; req_digest = actual } current
     else
       (* nothing to do *)
       current
@@ -1511,7 +1511,7 @@ let export ~output_native_objects senv dir =
   let filter_dep (dp, { req_root; req_digest }) =
     if req_root then Some (dp, req_digest) else None
   in
-  let comp_deps = List.map_filter filter_dep (DPmap.bindings senv.required) in
+  let comp_deps = List.map_filter filter_dep (DirPath.Map.bindings senv.required) in
   let lib = {
     comp_name = dir;
     comp_mod = mb;
@@ -1545,10 +1545,10 @@ let import lib vmtab vodigest senv =
       senv.sections
   in
   let required =
-    if DPmap.mem lib.comp_name required then
+    if DirPath.Map.mem lib.comp_name required then
       (* should probably be an error, we are requiring the same library twice *)
       required
-    else DPmap.add lib.comp_name { req_root = true; req_digest = vodigest } required
+    else DirPath.Map.add lib.comp_name { req_root = true; req_digest = vodigest } required
   in
   mp,
   { senv with

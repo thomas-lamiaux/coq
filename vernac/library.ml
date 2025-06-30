@@ -106,24 +106,24 @@ type library_t = {
 }
 
 (* This is a map from names to loaded libraries *)
-let libraries_table : library_t DPmap.t ref =
-  Summary.ref DPmap.empty ~stage:Summary.Stage.Synterp ~name:"LIBRARY"
+let libraries_table : library_t DirPath.Map.t ref =
+  Summary.ref DirPath.Map.empty ~stage:Summary.Stage.Synterp ~name:"LIBRARY"
 
 (* This is the map of loaded libraries filename *)
 (* (not synchronized so as not to be caught in the states on disk) *)
-let libraries_filename_table = ref DPmap.empty
+let libraries_filename_table = ref DirPath.Map.empty
 
 (* These are the _ordered_ sets of loaded, imported and exported libraries *)
 let libraries_loaded_list = Summary.ref [] ~stage:Summary.Stage.Synterp ~name:"LIBRARY-LOAD"
 
-let loaded_native_libraries = Summary.ref DPset.empty ~stage:Summary.Stage.Interp ~name:"NATIVE-LIBRARY-LOAD"
+let loaded_native_libraries = Summary.ref DirPath.Set.empty ~stage:Summary.Stage.Interp ~name:"NATIVE-LIBRARY-LOAD"
 
 (* Opaque proof tables *)
 
 (* various requests to the tables *)
 
 let find_library dir =
-  DPmap.find_opt dir !libraries_table
+  DirPath.Map.find_opt dir !libraries_table
 
 let try_find_library dir =
   match find_library dir with
@@ -140,10 +140,10 @@ let register_library_filename dir f =
   (* Not synchronized: overwrite the previous binding if one existed *)
   (* from a previous play of the session *)
   libraries_filename_table :=
-    DPmap.add dir f !libraries_filename_table
+    DirPath.Map.add dir f !libraries_filename_table
 
 let library_full_filename dir =
-  try DPmap.find dir !libraries_filename_table
+  try DirPath.Map.find dir !libraries_filename_table
   with Not_found -> "<unavailable filename>"
 
 let library_is_loaded dir =
@@ -160,13 +160,13 @@ let register_loaded_library ~root m =
     | (_, m') ::_ as l when DirPath.equal m' libname -> l
     | m'::l' -> m' :: aux l' in
   libraries_loaded_list := aux !libraries_loaded_list;
-  libraries_table := DPmap.add libname m !libraries_table
+  libraries_table := DirPath.Map.add libname m !libraries_table
 
 let register_native_library libname =
   if (Global.typing_flags ()).enable_native_compiler
-    && not (DPset.mem libname !loaded_native_libraries) then begin
+    && not (DirPath.Set.mem libname !loaded_native_libraries) then begin
       let dirname = Filename.dirname (library_full_filename libname) in
-      loaded_native_libraries := DPset.add libname !loaded_native_libraries;
+      loaded_native_libraries := DirPath.Set.add libname !loaded_native_libraries;
       Nativelib.enable_library dirname libname
   end
 
@@ -179,13 +179,13 @@ type table_status =
   | Fetched of Opaques.opaque_disk
 
 let opaque_tables =
-  ref (DPmap.empty : table_status DPmap.t)
+  ref (DirPath.Map.empty : table_status DirPath.Map.t)
 
 let add_opaque_table dp st =
-  opaque_tables := DPmap.add dp st !opaque_tables
+  opaque_tables := DirPath.Map.add dp st !opaque_tables
 
 let access_table what tables dp i =
-  let t = match DPmap.find dp !tables with
+  let t = match DirPath.Map.find dp !tables with
     | Fetched t -> t
     | ToFetch f ->
       let dir_path = Names.DirPath.to_string dp in
@@ -198,7 +198,7 @@ let access_table what tables dp i =
              str ") is corrupted,\ncannot load some " ++
              str what ++ str " in it.\n")
       in
-      tables := DPmap.add dp (Fetched t) !tables;
+      tables := DirPath.Map.add dp (Fetched t) !tables;
       t
   in
   Opaques.get_opaque_disk i t
@@ -308,7 +308,7 @@ let rec intern_library ~root ~intern (needed, contents as acc) dir =
   | Some loaded_lib -> loaded_lib, acc
   | None ->
     (* Look if already listed in the accumulator *)
-    match DPmap.find_opt dir contents with
+    match DirPath.Map.find_opt dir contents with
     | Some interned_lib ->
       interned_lib, acc
     | None ->
@@ -324,7 +324,7 @@ and intern_library_deps ~root ~intern libs dir m =
   let needed, contents =
     Array.fold_left (intern_mandatory_library ~intern dir)
       libs m.library_deps in
-  ((root, dir) :: needed, DPmap.add dir m contents )
+  ((root, dir) :: needed, DirPath.Map.add dir m contents )
 
 and intern_mandatory_library ~intern caller libs (dir,d) =
   let m, libs = intern_library ~root:false ~intern libs dir in
@@ -445,8 +445,8 @@ let require_library_from_dirpath needed =
   Lib.add_leaf (in_require needed)
 
 let require_library_syntax_from_dirpath ~intern modrefl =
-  let needed, contents = List.fold_left (rec_intern_library ~intern) ([], DPmap.empty) modrefl in
-  let needed = List.rev_map (fun (root, dir) -> root, DPmap.find dir contents) needed in
+  let needed, contents = List.fold_left (rec_intern_library ~intern) ([], DirPath.Map.empty) modrefl in
+  let needed = List.rev_map (fun (root, dir) -> root, DirPath.Map.find dir contents) needed in
   Lib.add_leaf (in_require_syntax needed);
   List.map snd needed
 

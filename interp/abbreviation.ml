@@ -28,17 +28,17 @@ type abbreviation =
   }
 
 let abbrev_table =
-  Summary.ref (KNmap.empty : (full_path * abbreviation) KNmap.t)
+  Summary.ref (KerName.Map.empty : (full_path * abbreviation) KerName.Map.t)
     ~name:"ABBREVIATIONS"
 
 let add_abbreviation kn sp abbrev =
-  abbrev_table := KNmap.add kn (sp,abbrev) !abbrev_table
+  abbrev_table := KerName.Map.add kn (sp,abbrev) !abbrev_table
 
 let toggle_abbreviation ~on ~use kn =
-  let sp, data = KNmap.find kn !abbrev_table in
+  let sp, data = KerName.Map.find kn !abbrev_table in
   if data.abbrev_activated != on then
     begin
-      abbrev_table := KNmap.add kn (sp, {data with abbrev_activated = on}) !abbrev_table;
+      abbrev_table := KerName.Map.add kn (sp, {data with abbrev_activated = on}) !abbrev_table;
       match use with
       | OnlyPrinting -> ()
       | OnlyParsing | ParsingAndPrinting ->
@@ -52,7 +52,7 @@ let toggle_abbreviation ~on ~use kn =
     end
 
 let toggle_abbreviations ~on ~use filter =
-  KNmap.fold (fun kn (sp,abbrev) () ->
+  KerName.Map.fold (fun kn (sp,abbrev) () ->
       if abbrev.abbrev_activated != on && filter sp abbrev.abbrev_pattern then toggle_abbreviation ~on ~use kn)
   !abbrev_table ()
 
@@ -82,7 +82,7 @@ let open_abbreviation i ((sp,kn),(_local,abbrev)) =
   end
 
 let import_abbreviation i sp kn =
-  let _,abbrev = KNmap.get kn !abbrev_table in
+  let _,abbrev = KerName.Map.get kn !abbrev_table in
   open_abbreviation i ((sp,kn),(false,abbrev))
 
 let cache_abbreviation d =
@@ -117,10 +117,10 @@ let declare_abbreviation ~local user_warns id ~onlyparsing pat =
 
 (* Remark: do not check for activation (if not activated, it is already not supposed to be located) *)
 let search_abbreviation kn =
-  let _,abbrev = KNmap.find kn !abbrev_table in
+  let _,abbrev = KerName.Map.find kn !abbrev_table in
   abbrev.abbrev_pattern
 
 let search_filtered_abbreviation filter kn =
-  let _,abbrev = KNmap.find kn !abbrev_table in
+  let _,abbrev = KerName.Map.find kn !abbrev_table in
   let res = filter abbrev.abbrev_pattern in
   res

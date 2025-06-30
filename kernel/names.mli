@@ -158,10 +158,13 @@ sig
   (** Print non-empty directory paths as ["root.module.submodule"] *)
 
   val print : t -> Pp.t
+
+  module Set : Set.ExtS with type elt = t
+  module Map : Map.ExtS with type key = t and module Set := Set
 end
 
-module DPset : Set.ExtS with type elt = DirPath.t
-module DPmap : Map.ExtS with type key = DirPath.t and module Set := DPset
+module DPset = DirPath.Set [@@deprecated "Use DirPath.Set"]
+module DPmap = DirPath.Map [@@deprecated "Use DirPath.Map"]
 
 (** {6 Names of structure elements } *)
 
@@ -234,10 +237,13 @@ sig
   val debug_to_string : t -> string
   (** Same as [to_string], but outputs extra information related to debug. *)
 
+  module Set : Set.ExtS with type elt = t
+  module Map : Map.ExtS with type key = t and module Set := Set
+
 end
 
-module MBIset : Set.ExtS with type elt = MBId.t
-module MBImap : Map.ExtS with type key = MBId.t and module Set := MBIset
+module MBIset = MBId.Set [@@deprecated "Use MBId.Set"]
+module MBImap = MBId.Map [@@deprecated "Use MBId.Map"]
 
 (** {6 The module part of the kernel name } *)
 
@@ -271,10 +277,13 @@ sig
   val debug_to_string : t -> string
   (** Same as [to_string], but outputs extra information related to debug. *)
 
+  module Set : Set.ExtS with type elt = t
+  module Map : Map.ExtS with type key = t and module Set := Set
+
 end
 
-module MPset : Set.ExtS with type elt = ModPath.t
-module MPmap : Map.ExtS with type key = ModPath.t and module Set := MPset
+module MPset = ModPath.Set [@@deprecated "Use ModPath.Set"]
+module MPmap = ModPath.Map [@@deprecated "Use ModPath.Map"]
 
 (** {6 The absolute names of objects seen by kernel } *)
 
@@ -306,11 +315,16 @@ sig
   val compare : t -> t -> int
   val equal : t -> t -> bool
   val hash : t -> int
+
+  module Set : CSig.USetS with type elt = t
+  module Map : Map.UExtS with type key = t and module Set := Set
+  module Pred : Predicate.S with type elt = t
+
 end
 
-module KNset  : CSig.USetS with type elt = KerName.t
-module KNpred : Predicate.S with type elt = KerName.t
-module KNmap  : Map.UExtS with type key = KerName.t and module Set := KNset
+module KNset = KerName.Set [@@deprecated "Use KerName.Set"]
+module KNpred = KerName.Pred [@@deprecated "Use KerName.Pred"]
+module KNmap = KerName.Map [@@deprecated "Use KerName.Map"]
 
 (** {6 Signature for quotiented names} *)
 

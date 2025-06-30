@@ -79,7 +79,7 @@ type ltac_entry = {
   (** Deprecation notice to be printed when the tactic is used *)
 }
 
-val ltac_entries : unit -> ltac_entry KNmap.t
+val ltac_entries : unit -> ltac_entry KerName.Map.t
 (** Low-level access to all Ltac entries currently defined. *)
 
 (** {5 ML tactic extensions} *)

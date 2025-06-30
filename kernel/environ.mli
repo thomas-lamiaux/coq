@@ -453,8 +453,8 @@ module Internal : sig
     type t = {
       env_constants : constant_key Cmap_env.t;
       env_inductives : mind_key Mindmap_env.t;
-      env_modules : module_body MPmap.t;
-      env_modtypes : module_type_body MPmap.t;
+      env_modules : module_body ModPath.Map.t;
+      env_modtypes : module_type_body ModPath.Map.t;
       env_named_context : named_context_val;
       env_rel_context   : rel_context_val;
       env_universes : UGraph.t;

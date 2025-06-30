@@ -59,7 +59,7 @@ val file_of_modfile : t -> ModPath.t -> string
 val is_toplevel : ModPath.t -> bool
 val at_toplevel : ModPath.t -> bool
 val mp_length : ModPath.t -> int
-val prefixes_mp : ModPath.t -> MPset.t
+val prefixes_mp : ModPath.t -> ModPath.Set.t
 val common_prefix_from_list :
   ModPath.t -> ModPath.t list -> ModPath.t option
 val get_nth_label_mp : int -> ModPath.t -> Label.t

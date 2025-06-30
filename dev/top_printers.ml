@@ -129,12 +129,12 @@ let ppintmapgen l = pp (printmapgen l)
 let ppmpmapgen l =
   pp (prmapgen
         (fun mp -> str (ModPath.debug_to_string mp))
-        (MPset.elements (MPmap.domain l)))
+        (ModPath.Set.elements (ModPath.Map.domain l)))
 
 let ppdpmapgen l =
   pp (prmapgen
         (fun mp -> str (DirPath.to_string mp))
-        (DPset.elements (DPmap.domain l)))
+        (DirPath.Set.elements (DirPath.Map.domain l)))
 
 let ppconmapenvgen l =
   pp (prmapgen

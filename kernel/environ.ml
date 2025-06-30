@@ -64,8 +64,8 @@ type rel_context_val = {
 type env = {
   env_constants : constant_key Cmap_env.t;
   env_inductives : mind_key Mindmap_env.t;
-  env_modules : module_body MPmap.t;
-  env_modtypes : module_type_body MPmap.t;
+  env_modules : module_body ModPath.Map.t;
+  env_modtypes : module_type_body ModPath.Map.t;
   env_named_context : named_context_val; (* section variables *)
   env_rel_context   : rel_context_val;
   env_universes : UGraph.t;
@@ -101,8 +101,8 @@ let empty_rel_context_val = {
 let empty_env = {
   env_constants = Cmap_env.empty;
   env_inductives = Mindmap_env.empty;
-  env_modules = MPmap.empty;
-  env_modtypes = MPmap.empty;
+  env_modules = ModPath.Map.empty;
+  env_modtypes = ModPath.Map.empty;
   constant_hyps = Cmap_env.empty;
   inductive_hyps = Mindmap_env.empty;
   env_named_context = empty_named_context_val;
@@ -850,19 +850,19 @@ let keep_hyps env needed =
 (* Modules *)
 
 let add_modtype mp mtb env =
-  let new_modtypes = MPmap.add mp mtb env.env_modtypes in
+  let new_modtypes = ModPath.Map.add mp mtb env.env_modtypes in
   { env with env_modtypes = new_modtypes }
 
 let shallow_add_module mp mb env =
-  let new_mods = MPmap.add mp mb env.env_modules in
+  let new_mods = ModPath.Map.add mp mb env.env_modules in
   { env with env_modules = new_mods }
 
 let lookup_module mp env =
-    MPmap.find mp env.env_modules
+    ModPath.Map.find mp env.env_modules
 
 
 let lookup_modtype mp env =
-  MPmap.find mp env.env_modtypes
+  ModPath.Map.find mp env.env_modtypes
 
 (*s Judgments. *)
 
@@ -1052,8 +1052,8 @@ module Internal = struct
     type t = {
       env_constants : constant_key Cmap_env.t;
       env_inductives : mind_key Mindmap_env.t;
-      env_modules : module_body MPmap.t;
-      env_modtypes : module_type_body MPmap.t;
+      env_modules : module_body ModPath.Map.t;
+      env_modtypes : module_type_body ModPath.Map.t;
       env_named_context : named_context_val;
       env_rel_context   : rel_context_val;
       env_universes : UGraph.t;

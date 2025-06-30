@@ -185,7 +185,7 @@ and interp_case ist e cse0 cse1 =
 
 and interp_with ist e cse def =
   let (kn, args) = Tac2ffi.to_open e in
-  let br = try Some (KNmap.find kn cse) with Not_found -> None in
+  let br = try Some (KerName.Map.find kn cse) with Not_found -> None in
   begin match br with
   | None ->
     let (self, def) = def in

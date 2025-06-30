@@ -89,8 +89,8 @@ let mp_length mp =
   in len mp
 
 let rec prefixes_mp mp = match mp with
-  | MPdot (mp',_) -> MPset.add mp (prefixes_mp mp')
-  | _ -> MPset.singleton mp
+  | MPdot (mp',_) -> ModPath.Set.add mp (prefixes_mp mp')
+  | _ -> ModPath.Set.singleton mp
 
 let rec get_nth_label_mp n = function
   | MPdot (mp,l) -> if Int.equal n 1 then l else get_nth_label_mp (n-1) mp
@@ -100,7 +100,7 @@ let common_prefix_from_list mp0 mpl =
   let prefixes = prefixes_mp mp0 in
   let rec f = function
     | [] -> None
-    | mp :: l -> if MPset.mem mp prefixes then Some mp else f l
+    | mp :: l -> if ModPath.Set.mem mp prefixes then Some mp else f l
   in f mpl
 
 let rec parse_labels2 ll = function
@@ -127,7 +127,7 @@ type table = {
   cst_types : (constant_body * ml_schema) InfvMap.t Cmap_env.t;
   inductives : (mutual_inductive_body * ml_ind) InfvMap.t Mindmap_env.t;
   inductive_kinds : inductive_kind InfvMap.t Mindmap_env.t;
-  recursors : KNset.t;
+  recursors : KerName.Set.t;
   (* recursors: we can use the equivalence between canonical and user constant names. *)
   projs : (inductive * int) GlobRef.Map.t;
   (* projs: working modulo name equivalence is ok *)
@@ -136,7 +136,7 @@ type table = {
   symbols : Label.t list Refmap'.t;
   opaques:  Refset'.t;
   modfile_ids : Id.Set.t;
-  modfile_mps : pp_tag MPmap.t;
+  modfile_mps : pp_tag ModPath.Map.t;
 }
 
 type t = table ref
@@ -146,14 +146,14 @@ let empty_table = {
   cst_types = Cmap_env.empty;
   inductives = Mindmap_env.empty;
   inductive_kinds = Mindmap_env.empty;
-  recursors = KNset.empty;
+  recursors = KerName.Set.empty;
   projs = GlobRef.Map.empty;
   info_axioms = Refset'.empty;
   log_axioms = Refset'.empty;
   symbols = Refmap'.empty;
   opaques = Refset'.empty;
   modfile_ids = Id.Set.empty;
-  modfile_mps = MPmap.empty;
+  modfile_mps = ModPath.Map.empty;
 }
 
 let make_table () = ref { empty_table with modfile_ids = !blacklist_table }
@@ -244,11 +244,11 @@ let add_recursors table env ind =
        let id = mip.mind_typename in
        let kn_rec = mk_kn (Nameops.add_suffix id "_rec")
        and kn_rect = mk_kn (Nameops.add_suffix id "_rect") in
-       table := { !table with recursors = KNset.add kn_rec (KNset.add kn_rect !table.recursors) })
+       table := { !table with recursors = KerName.Set.add kn_rec (KerName.Set.add kn_rect !table.recursors) })
     mib.mind_packets
 
 let is_recursor table r = match r.glob with
-  | GlobRef.ConstRef c -> KNset.mem (Constant.canonical c) !table.recursors
+  | GlobRef.ConstRef c -> KerName.Set.mem (Constant.canonical c) !table.recursors
   | _ -> false
 
 let add_projection table n kn ip = table := { !table with projs = GlobRef.Map.add (GlobRef.ConstRef kn) (ip,n) !table.projs }
@@ -857,14 +857,14 @@ let extraction_implicit r l =
   List.iter (fun r -> Lib.add_leaf (implicit_extraction (r, l))) r
 
 let string_of_modfile table mp =
-  try MPmap.find mp !table.modfile_mps
+  try ModPath.Map.find mp !table.modfile_mps
   with Not_found ->
     let id = Id.of_string (raw_string_of_modfile mp) in
     let id' = next_ident_away id !table.modfile_ids in
     let s' = Id.to_string id' in
     table := { !table with
       modfile_ids = Id.Set.add id' !table.modfile_ids;
-      modfile_mps = MPmap.add mp s' !table.modfile_mps;
+      modfile_mps = ModPath.Map.add mp s' !table.modfile_mps;
     };
     s'
 

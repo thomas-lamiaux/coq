@@ -528,7 +528,7 @@ let register_ltac atts = function
 (** Queries *)
 
 let print_ltacs () =
-  let entries = KNmap.bindings (Tacenv.ltac_entries ()) in
+  let entries = KerName.Map.bindings (Tacenv.ltac_entries ()) in
   let sort (kn1, _) (kn2, _) = KerName.compare kn1 kn2 in
   let entries = List.sort sort entries in
   let map (kn, entry) =
@@ -588,7 +588,7 @@ let () =
   let name (qid,kn) = str "Ltac" ++ spc () ++ pr_path (Tacenv.path_of_tactic kn) in
   let print (qid,kn) =
     let entries = Tacenv.ltac_entries () in
-    let tac = KNmap.find kn entries in
+    let tac = KerName.Map.find kn entries in
     print_ltac_body qid tac in
   let about = name in
   register_locatable locatable_ltac {
@@ -607,7 +607,7 @@ let print_ltac id =
  try
   let kn = Tacenv.locate_tactic id in
   let entries = Tacenv.ltac_entries () in
-  let tac = KNmap.find kn entries in
+  let tac = KerName.Map.find kn entries in
   print_ltac_body id tac
  with
   Not_found ->

@@ -37,7 +37,7 @@ type compile_info = {
 val set_compiled_global : ltac_constant -> compile_info -> valexpr -> unit
 val get_compiled_global : ltac_constant -> (compile_info * valexpr) option
 
-val globals : unit -> global_data KNmap.t
+val globals : unit -> global_data KerName.Map.t
 
 (** {5 Toplevel definition of types} *)
 
@@ -63,7 +63,7 @@ type constructor_data = {
 val define_constructor : ltac_constructor -> constructor_data -> unit
 val interp_constructor : ltac_constructor -> constructor_data
 
-val find_all_constructors_in_type : type_constant -> constructor_data KNmap.t
+val find_all_constructors_in_type : type_constant -> constructor_data KerName.Map.t
 (** Useful for printing info about currently defined constructors of open types. *)
 
 (** {5 Toplevel definition of projections} *)

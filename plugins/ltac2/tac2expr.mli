@@ -123,7 +123,7 @@ type case_info = type_constant or_tuple
 
 type 'a open_match = {
   opn_match : 'a;
-  opn_branch : (Name.t * Name.t array * 'a) KNmap.t;
+  opn_branch : (Name.t * Name.t array * 'a) KerName.Map.t;
   (** Invariant: should not be empty *)
   opn_default : Name.t * 'a;
 }

@@ -35,34 +35,34 @@ module Deltamap = struct
   type t = {
     root : ModPath.t;
     (** Common root of all keys in the deltamap *)
-    mmap : ModPath.t MPmap.t;
+    mmap : ModPath.t ModPath.Map.t;
     (** All bindings [mp ↦ _] must satisfy [mp ⊆ root] *)
-    kmap : delta_hint KNmap.t;
+    kmap : delta_hint KerName.Map.t;
     (** All bindings [kn ↦ _] must satisfy [modpath(kn) ⊆ root] *)
   }
 
   let empty root = {
     root;
-    mmap = MPmap.empty;
-    kmap = KNmap.empty;
+    mmap = ModPath.Map.empty;
+    kmap = KerName.Map.empty;
   }
 
   let root reso = reso.root
 
   let add_kn kn hint reso =
     let () = assert (ModPath.subpath reso.root (KerName.modpath kn)) in
-    { reso with kmap = KNmap.add kn hint reso.kmap }
+    { reso with kmap = KerName.Map.add kn hint reso.kmap }
 
   let add_mp mp mp' reso =
     let () = assert (ModPath.subpath reso.root mp) in
-    { reso with mmap = MPmap.add mp mp' reso.mmap }
+    { reso with mmap = ModPath.Map.add mp mp' reso.mmap }
 
-  let find_mp mp reso = MPmap.find mp reso.mmap
-  let find_kn kn reso = KNmap.find kn reso.kmap
-  let mem_mp mp reso = MPmap.mem mp reso.mmap
-  let fold_kn f reso i = KNmap.fold f reso.kmap i
+  let find_mp mp reso = ModPath.Map.find mp reso.mmap
+  let find_kn kn reso = KerName.Map.find kn reso.kmap
+  let mem_mp mp reso = ModPath.Map.mem mp reso.mmap
+  let fold_kn f reso i = KerName.Map.fold f reso.kmap i
   let fold fmp fkn reso accu =
-    MPmap.fold fmp reso.mmap (KNmap.fold fkn reso.kmap accu)
+    ModPath.Map.fold fmp reso.mmap (KerName.Map.fold fkn reso.kmap accu)
   let join map1 map2 = fold add_mp add_kn map1 map2
 
   (** if mp0 ⊆ root, we can see a resolver on root as a resolver on mp *)
@@ -79,7 +79,7 @@ module Deltamap = struct
     let fold_mp mp data (glb, accu) =
       if ModPath.subpath root mp then
         (* root ⊆ mp, keep it *)
-        glb, MPmap.add mp data accu
+        glb, ModPath.Map.add mp data accu
       else if ModPath.subpath mp root then
         (* This is a subpath of the root. It may be relevant due to find_prefix,
            but only when 1. root is not in mm, and 2. this is the most precise
@@ -94,11 +94,11 @@ module Deltamap = struct
         (* path that is incomparable, skip it *)
         glb, accu
     in
-    let glb, mm' = MPmap.fold fold_mp mm (None, MPmap.empty) in
+    let glb, mm' = ModPath.Map.fold fold_mp mm (None, ModPath.Map.empty) in
     let mm' = match glb with
     | None -> mm'
     | Some glb ->
-      if MPmap.mem root mm then mm'
+      if ModPath.Map.mem root mm then mm'
       else
         (* Add root to the resolver and map it to what find_prefix would have
            returned on root *)
@@ -109,13 +109,13 @@ module Deltamap = struct
           | MPbound _ | MPfile _ -> assert false
         in
         let diff = diff [] root in
-        let data = MPmap.get glb mm in
+        let data = ModPath.Map.get glb mm in
         let data' = List.fold_left (fun accu l -> MPdot (accu, l)) data diff in
-        MPmap.add root data' mm'
+        ModPath.Map.add root data' mm'
     in
     (* filter the kernames *)
     let filter_kn kn _ = ModPath.subpath root (KerName.modpath kn) in
-    let km' = KNmap.filter filter_kn km in
+    let km' = KerName.Map.filter filter_kn km in
     { kmap = km'; mmap = mm'; root = root }
 
 end
@@ -142,13 +142,13 @@ module Umap :
     val join : 'a t -> 'a t -> 'a t
     val fold : (ModPath.t -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
   end = struct
-  type 'a t = 'a MPmap.t
-  let empty = MPmap.empty
-  let is_empty m = MPmap.is_empty m
-  let add_mbi mbi x m = MPmap.add (MPbound mbi) x m
-  let add_mp mp x m = MPmap.add mp x m
-  let find = MPmap.find
-  let fold = MPmap.fold
+  type 'a t = 'a ModPath.Map.t
+  let empty = ModPath.Map.empty
+  let is_empty m = ModPath.Map.is_empty m
+  let add_mbi mbi x m = ModPath.Map.add (MPbound mbi) x m
+  let add_mp mp x m = ModPath.Map.add mp x m
+  let find = ModPath.Map.find
+  let fold = ModPath.Map.fold
   let join map1 map2 = fold add_mp map1 map2
 end
 

@@ -688,7 +688,7 @@ module Quality = EasyNoWarn(QualityV)()
 module ModTypeV = struct
   include ModPath
   let is_var _ = None
-  module Map = MPmap
+  module Map = ModPath.Map
   let stage = Summary.Stage.Synterp
   let summary_name = "modtypetab"
 end
@@ -697,7 +697,7 @@ module ModTypes = EasyNoWarn(ModTypeV)()
 module ModuleV = struct
   include ModPath
   let is_var _ = None
-  module Map = MPmap
+  module Map = ModPath.Map
   let stage = Summary.Stage.Synterp
   let summary_name = "moduletab"
 end

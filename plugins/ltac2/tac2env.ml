@@ -43,19 +43,19 @@ type alias_data = {
 }
 
 type ltac_state = {
-  ltac_tactics : global_data KNmap.t;
-  ltac_constructors : constructor_data KNmap.t;
-  ltac_projections : projection_data KNmap.t;
-  ltac_types : glb_quant_typedef KNmap.t;
-  ltac_aliases : alias_data KNmap.t;
+  ltac_tactics : global_data KerName.Map.t;
+  ltac_constructors : constructor_data KerName.Map.t;
+  ltac_projections : projection_data KerName.Map.t;
+  ltac_types : glb_quant_typedef KerName.Map.t;
+  ltac_aliases : alias_data KerName.Map.t;
 }
 
 let empty_state = {
-  ltac_tactics = KNmap.empty;
-  ltac_constructors = KNmap.empty;
-  ltac_projections = KNmap.empty;
-  ltac_types = KNmap.empty;
-  ltac_aliases = KNmap.empty;
+  ltac_tactics = KerName.Map.empty;
+  ltac_constructors = KerName.Map.empty;
+  ltac_projections = KerName.Map.empty;
+  ltac_types = KerName.Map.empty;
+  ltac_aliases = KerName.Map.empty;
 }
 
 type compile_info = {
@@ -64,7 +64,7 @@ type compile_info = {
 
 let ltac_state = Summary.ref empty_state ~name:"ltac2-state"
 
-let compiled_tacs = Summary.ref ~local:true ~name:"ltac2-compiled-state" KNmap.empty
+let compiled_tacs = Summary.ref ~local:true ~name:"ltac2-compiled-state" KerName.Map.empty
 
 type notation_data =
   | UntypedNota of raw_tacexpr
@@ -75,21 +75,21 @@ type notation_data =
       nota_body : glb_tacexpr;
     }
 
-let ltac_notations = Summary.ref KNmap.empty ~name:"ltac2-notations"
+let ltac_notations = Summary.ref KerName.Map.empty ~name:"ltac2-notations"
 
 let define_global kn e =
   let state = !ltac_state in
-  ltac_state := { state with ltac_tactics = KNmap.add kn e state.ltac_tactics }
+  ltac_state := { state with ltac_tactics = KerName.Map.add kn e state.ltac_tactics }
 
 let interp_global kn =
-  let data = KNmap.find kn ltac_state.contents.ltac_tactics in
+  let data = KerName.Map.find kn ltac_state.contents.ltac_tactics in
   data
 
 let set_compiled_global kn info v =
   assert (not (interp_global kn).gdata_mutable);
-  compiled_tacs := KNmap.add kn (info,v) !compiled_tacs
+  compiled_tacs := KerName.Map.add kn (info,v) !compiled_tacs
 
-let get_compiled_global kn = KNmap.find_opt kn !compiled_tacs
+let get_compiled_global kn = KerName.Map.find_opt kn !compiled_tacs
 
 let globals () = (!ltac_state).ltac_tactics
 
@@ -97,37 +97,37 @@ let define_constructor kn t =
   let state = !ltac_state in
   ltac_state := {
     state with
-    ltac_constructors = KNmap.add kn t state.ltac_constructors;
+    ltac_constructors = KerName.Map.add kn t state.ltac_constructors;
   }
 
-let interp_constructor kn = KNmap.find kn ltac_state.contents.ltac_constructors
+let interp_constructor kn = KerName.Map.find kn ltac_state.contents.ltac_constructors
 
 let find_all_constructors_in_type kn =
-  KNmap.filter (fun _ data -> KerName.equal kn data.cdata_type) (!ltac_state).ltac_constructors
+  KerName.Map.filter (fun _ data -> KerName.equal kn data.cdata_type) (!ltac_state).ltac_constructors
 
 let define_projection kn t =
   let state = !ltac_state in
-  ltac_state := { state with ltac_projections = KNmap.add kn t state.ltac_projections }
+  ltac_state := { state with ltac_projections = KerName.Map.add kn t state.ltac_projections }
 
-let interp_projection kn = KNmap.find kn ltac_state.contents.ltac_projections
+let interp_projection kn = KerName.Map.find kn ltac_state.contents.ltac_projections
 
 let define_type kn e =
   let state = !ltac_state in
-  ltac_state := { state with ltac_types = KNmap.add kn e state.ltac_types }
+  ltac_state := { state with ltac_types = KerName.Map.add kn e state.ltac_types }
 
-let interp_type kn = KNmap.find kn ltac_state.contents.ltac_types
+let interp_type kn = KerName.Map.find kn ltac_state.contents.ltac_types
 
 let define_alias ?deprecation kn tac =
   let state = !ltac_state in
   let data = { alias_body = tac; alias_depr = deprecation } in
-  ltac_state := { state with ltac_aliases = KNmap.add kn data state.ltac_aliases }
+  ltac_state := { state with ltac_aliases = KerName.Map.add kn data state.ltac_aliases }
 
-let interp_alias kn = KNmap.find kn ltac_state.contents.ltac_aliases
+let interp_alias kn = KerName.Map.find kn ltac_state.contents.ltac_aliases
 
 let define_notation kn tac =
-  ltac_notations := KNmap.add kn tac !ltac_notations
+  ltac_notations := KerName.Map.add kn tac !ltac_notations
 
-let interp_notation kn = KNmap.find kn !ltac_notations
+let interp_notation kn = KerName.Map.find kn !ltac_notations
 
 module ML =
 struct
@@ -180,7 +180,7 @@ module DefTab = Nametab.EasyNoWarn(DefV)()
 module CtorV = struct
   include KerName
   let is_var _ = None
-  module Map = KNmap
+  module Map = KerName.Map
   let stage = Summary.Stage.Interp
   let summary_name = "ltac2-ctortab"
   let object_name = "Ltac2 constructor"
@@ -193,7 +193,7 @@ module TypV = struct
   let is_var _ = None
   let stage = Summary.Stage.Interp
   let summary_name = "ltac2-typtab"
-  module Map = KNmap
+  module Map = KerName.Map
 end
 module TypTab = Nametab.EasyNoWarn(TypV)()
 
@@ -202,7 +202,7 @@ module ProjV = struct
   let is_var _ = None
   let stage = Summary.Stage.Interp
   let summary_name = "ltac2-projtab"
-  module Map = KNmap
+  module Map = KerName.Map
 end
 module ProjTab = Nametab.EasyNoWarn(ProjV)()
 

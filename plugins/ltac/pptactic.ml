@@ -62,10 +62,10 @@ type pp_tactic = {
 }
 
 (* Tactic notations *)
-let prnotation_tab = Summary.ref ~name:"pptactic-notation" KNmap.empty
+let prnotation_tab = Summary.ref ~name:"pptactic-notation" KerName.Map.empty
 
 let declare_notation_tactic_pprule kn pt =
-  prnotation_tab := KNmap.add kn pt !prnotation_tab
+  prnotation_tab := KerName.Map.add kn pt !prnotation_tab
 
 type 'a raw_extra_genarg_printer =
   Environ.env -> Evd.evar_map ->
@@ -259,7 +259,7 @@ let string_of_genarg_arg (ArgumentType arg) =
 
   let pr_alias_key key =
     try
-      let prods = (KNmap.find key !prnotation_tab).pptac_prods in
+      let prods = (KerName.Map.find key !prnotation_tab).pptac_prods in
       let pr = function
       | TacTerm s -> primitive s
       | TacNonTerm (_, (symb, _)) -> str (Printf.sprintf "(%s)" (pr_user_symbol symb))
@@ -272,7 +272,7 @@ let string_of_genarg_arg (ArgumentType arg) =
 
   let pr_alias_gen pr_gen lev key l =
     try
-      let pp = KNmap.find key !prnotation_tab in
+      let pp = KerName.Map.find key !prnotation_tab in
       let rec pack prods args = match prods, args with
       | [], [] -> []
       | TacTerm s :: prods, args -> TacTerm s :: pack prods args

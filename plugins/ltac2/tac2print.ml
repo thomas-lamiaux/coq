@@ -17,7 +17,7 @@ open Pputils
 
 let pr_tacref avoid kn =
   try Libnames.pr_qualid (Tac2env.shortest_qualid_of_ltac avoid (TacConstant kn))
-  with Not_found when !Flags.in_debugger || KNmap.mem kn (Tac2env.globals()) ->
+  with Not_found when !Flags.in_debugger || KerName.Map.mem kn (Tac2env.globals()) ->
     str (ModPath.to_string (KerName.modpath kn))
     ++ str"." ++ Label.print (KerName.label kn)
     ++ if !Flags.in_debugger then mt() else str " (* local *)"
@@ -372,7 +372,7 @@ let pr_glbexpr_gen lvl ~avoid c =
       in
       pr_pattern cstr self vars avoid p
     in
-    let br = prlist pr_branch (KNmap.bindings wth.opn_branch) in
+    let br = prlist pr_branch (KerName.Map.bindings wth.opn_branch) in
     let (def_as, def_p) = wth.opn_default in
     let def = pr_pattern (str "_") def_as (mt ()) avoid def_p in
     let br = br ++ def in
@@ -848,17 +848,17 @@ let rec kind t = match t with
 type val_printer =
   { val_printer : 'a. Environ.env -> Evd.evar_map -> Tac2val.valexpr -> 'a glb_typexpr list -> Pp.t }
 
-let printers = ref KNmap.empty
+let printers = ref KerName.Map.empty
 
 let register_val_printer kn pr =
-  printers := KNmap.add kn pr !printers
+  printers := KerName.Map.add kn pr !printers
 
 open Tac2ffi
 
 let rec pr_valexpr_gen env sigma lvl v t = match kind t with
 | GTypVar _ -> str "<poly>"
 | GTypRef (Other kn, params) ->
-  let pr = try Some (KNmap.find kn !printers) with Not_found -> None in
+  let pr = try Some (KerName.Map.find kn !printers) with Not_found -> None in
   begin match pr with
   | Some pr ->
     (* for now assume all printers produce atomic expressions so no need to pass [lvl] *)
