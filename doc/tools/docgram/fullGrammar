@@ -564,7 +564,7 @@ command: [
 | "Debug" "On"
 | "Debug" "Off"
 | "Declare" "Reduction" IDENT; ":=" red_expr
-| "Declare" "Custom" "Entry" IDENT
+| "Declare" "Custom" "Entry" ident
 | "Obligation" natural "of" identref withtac
 | "Obligation" natural withtac
 | "Next" "Obligation" "of" identref withtac
@@ -1393,12 +1393,12 @@ printable: [
 | "All"
 | "Section" global
 | "Grammar" LIST0 IDENT
-| "Custom" "Grammar" IDENT
+| "Custom" "Grammar" qualid
 | "Keywords"
 | "LoadPath" OPT dirpath
 | "Libraries"
 | "Notation" string
-| "Notation" string "in" "custom" IDENT
+| "Notation" string "in" "custom" qualid
 | "ML" "Path"
 | "ML" "Modules"
 | "Debug" "GC"
@@ -1583,7 +1583,7 @@ enable_notation_flag: [
 | "all"
 | "only" "parsing"
 | "only" "printing"
-| "in" "custom" identref
+| "in" "custom" qualid
 | "in" "constr"
 ]
 
@@ -1600,8 +1600,8 @@ level: [
 
 syntax_modifier: [
 | "at" "level" natural
-| "in" "custom" IDENT
-| "in" "custom" IDENT; "at" "level" natural
+| "in" "custom" qualid
+| "in" "custom" qualid "at" "level" natural
 | "left" "associativity"
 | "right" "associativity"
 | "no" "associativity"
@@ -1633,7 +1633,7 @@ explicit_subentry: [
 | "strict" "pattern"
 | "strict" "pattern" "at" "level" natural
 | "closed" "binder"
-| "custom" IDENT at_level_opt OPT binder_interp
+| "custom" qualid at_level_opt OPT binder_interp
 ]
 
 at_level_opt: [

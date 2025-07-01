@@ -195,9 +195,9 @@ let string_of_logical_kind = let open Decls in function
     | IsPrimitive -> "Primitive"
     | IsSymbol -> "Symbol"
 
-let pr_notation_entry = function
+let pr_notation_entry prcustom = function
   | InConstrEntry -> keyword "constr"
-  | InCustomEntry s -> keyword "custom" ++ spc () ++ str s
+  | InCustomEntry s -> keyword "custom" ++ spc () ++ prcustom s
 
 let pr_abbreviation pr (ids, c) =
   pr c ++ spc () ++ prlist_with_sep spc pr_id ids
@@ -217,18 +217,18 @@ let pr_constr_as_binder_kind = let open Notation_term in function
 
 let pr_strict b = if b then str "strict " else mt ()
 
-let pr_set_entry_type pr = function
+let pr_set_entry_type prcustom pr = function
   | ETIdent -> str"ident"
   | ETName -> str"name"
   | ETGlobal -> str"global"
   | ETPattern (b,n) -> pr_strict b ++ str"pattern" ++ pr_at_level (level_of_pattern_level n)
-  | ETConstr (s,bko,lev) -> pr_notation_entry s ++ pr lev ++ pr_opt pr_constr_as_binder_kind bko
+  | ETConstr (s,bko,lev) -> pr_notation_entry prcustom s ++ pr lev ++ pr_opt pr_constr_as_binder_kind bko
   | ETBigint -> str "bigint"
   | ETBinder true -> str "binder"
   | ETBinder false -> str "closed binder"
 
 let pr_set_simple_entry_type =
-  pr_set_entry_type pr_at_level
+  pr_set_entry_type pr_qualid pr_at_level
 
 let pr_comment pr_c = function
   | CommentConstr c -> pr_c c
@@ -496,7 +496,7 @@ let pr_syntax_modifier = let open Gramlib.Gramext in CAst.with_val (function
     | SetItemScope (l,s) ->
       prlist_with_sep sep_v2 str l ++ spc () ++ str"in scope" ++ str s
     | SetLevel n -> pr_at_level (NumLevel n)
-    | SetCustomEntry (s,n) -> keyword "in" ++ spc() ++ keyword "custom" ++ spc() ++ str s ++ (match n with None -> mt () | Some n -> pr_at_level (NumLevel n))
+    | SetCustomEntry (s,n) -> keyword "in" ++ spc() ++ keyword "custom" ++ spc() ++ pr_qualid s ++ (match n with None -> mt () | Some n -> pr_at_level (NumLevel n))
     | SetAssoc LeftA -> keyword "left associativity"
     | SetAssoc RightA -> keyword "right associativity"
     | SetAssoc NonA -> keyword "no associativity"
@@ -603,7 +603,7 @@ let pr_printable = function
     keyword "Print Grammar" ++ spc() ++
     prlist_with_sep spc str ent
   | PrintCustomGrammar ent ->
-    keyword "Print Custom Grammar" ++ spc() ++ str ent
+    keyword "Print Custom Grammar" ++ spc() ++ pr_qualid ent
   | PrintKeywords ->
     keyword "Print Keywords"
   | PrintLoadPath dir ->
@@ -702,7 +702,7 @@ let pr_printable = function
   | PrintNotation (Constrexpr.InConstrEntry, ntn_key) ->
     keyword "Print Notation" ++ spc() ++ str ntn_key
   | PrintNotation (Constrexpr.InCustomEntry ent, ntn_key) ->
-    keyword "Print Notation" ++ spc() ++ str ent ++ str ntn_key
+    keyword "Print Notation" ++ spc() ++ pr_qualid ent ++ str ntn_key
 
 let pr_using e =
   let rec aux = function
@@ -811,8 +811,8 @@ let pr_synpure_vernac_expr v =
     )
   | VernacEnableNotation (on,rule,interp,flags,scope) ->
     let pr_flag = function
-      | EnableNotationEntry CAst.{v=InConstrEntry} -> str "in constr"
-      | EnableNotationEntry CAst.{v=InCustomEntry s} -> str "in custom " ++ str s
+      | EnableNotationEntry InConstrEntry -> str "in constr"
+      | EnableNotationEntry InCustomEntry s -> str "in custom " ++ pr_qualid s
       | EnableNotationOnly OnlyParsing -> str "only parsing"
       | EnableNotationOnly OnlyPrinting -> str "only printing"
       | EnableNotationOnly ParsingAndPrinting -> assert false
@@ -1346,7 +1346,7 @@ let pr_synterp_vernac_expr v =
     )
   | VernacDeclareCustomEntry s ->
     return (
-      keyword "Declare Custom Entry " ++ str s
+      keyword "Declare Custom Entry " ++ Id.print s
     )
   | VernacRequire (from, exp, l) ->
     let from = match from with

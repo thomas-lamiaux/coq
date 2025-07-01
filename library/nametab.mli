@@ -180,6 +180,10 @@ module Modules : NAMETAB with type elt = ModPath.t
 
 module OpenMods : NAMETAB with type elt = GlobDirRef.t
 
+module CustomEntries : NAMETAB with type elt = Globnames.CustomName.t
+(** Do not directly use [locate] with this, instead use the compat
+    layer [Metasyntax.intern_custom_name]. *)
+
 (** {6 Specializations for extended references } *)
 
 (** These functions operate on [XRefs] but are about a subset of

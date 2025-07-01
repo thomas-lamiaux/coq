@@ -712,6 +712,14 @@ module OpenModV = struct
 end
 module OpenMods = EasyNoWarn(OpenModV)()
 
+module CustomEntriesV = struct
+  include CustomName
+  let is_var _ = None
+  let stage = Summary.Stage.Synterp
+  let summary_name = "customentrytab"
+end
+module CustomEntries = EasyNoWarn(CustomEntriesV)()
+
 (* Push functions *********************************************************)
 
 let push_abbreviation ?user_warns visibility sp kn =

@@ -1026,11 +1026,11 @@ exception PrintNotationNotFound of Constrexpr.notation_entry * string
 let () = CErrors.register_handler @@ function
   | PrintNotationNotFound (entry, ntn_str) ->
       let entry_string = match entry with
-      | Constrexpr.InConstrEntry -> "."
-      | Constrexpr.InCustomEntry e -> " in " ^ e ^ " entry."
+      | Constrexpr.InConstrEntry -> str "."
+      | Constrexpr.InCustomEntry e -> str " in " ++ Nametab.CustomEntries.pr e ++ str " entry."
       in
       Some Pp.(str "\"" ++ str ntn_str ++ str "\"" ++ spc ()
-        ++ str "cannot be interpreted as a known notation" ++ str entry_string ++ spc ()
+        ++ str "cannot be interpreted as a known notation" ++ entry_string ++ spc ()
         ++ strbrk "Make sure that symbols are surrounded by spaces and that holes are explicitly denoted by \"_\".")
   | _ -> None
 
@@ -1039,18 +1039,14 @@ let error_print_notation_not_found e s =
 
 let print_notation env sigma entry raw_ntn =
   (* make sure entry exists *)
-  let () =
-    match entry with
-    | Constrexpr.InConstrEntry -> ()
-    | Constrexpr.InCustomEntry e -> Metasyntax.check_custom_entry e
-  in
+  let entry = Metasyntax.intern_notation_entry entry in
   (* convert notation string to key. eg. "x + y" to "_ + _" *)
   let interp_ntn = Notation.interpret_notation_string raw_ntn in
   let ntn = (entry, interp_ntn) in
   try
     let lvl = Notation.level_of_notation ntn in
     let args = Notgram_ops.non_terminals_of_notation ntn in
-    let pplvl = Metasyntax.pr_level ntn lvl args in
+    let pplvl = Metasyntax.pr_level lvl args in
     Pp.(str "Notation \"" ++ str interp_ntn ++ str "\"" ++ spc ()
       ++ pplvl ++ pr_comma () ++ print_notation_grammar env sigma ntn
       ++ str ".")

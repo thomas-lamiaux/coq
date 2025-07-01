@@ -252,10 +252,10 @@ Notation "{{ _ }}" in Foo at level 0 with arguments custom Foo,
 no associativity.
 Notation "{{ _ }}" in Foo at level 0 with arguments custom Foo,
 no associativity.
-File "./output/PrintNotation.v", line 156, characters 2-46:
+File "./output/PrintNotation.v", line 156, characters 42-45:
 The command has indeed failed with message:
 Unknown custom entry: Bar.
-File "./output/PrintNotation.v", line 157, characters 2-46:
+File "./output/PrintNotation.v", line 157, characters 42-45:
 The command has indeed failed with message:
 Unknown custom entry: Bar.
 File "./output/PrintNotation.v", line 158, characters 2-46:

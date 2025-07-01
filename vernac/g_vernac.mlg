@@ -1136,7 +1136,7 @@ GRAMMAR EXTEND Gram
       | IDENT "Grammar"; ents = LIST0 IDENT ->
           (* This should be in "syntax" section but is here for factorization*)
           { PrintGrammar ents }
-      | IDENT "Custom"; IDENT "Grammar"; ent = IDENT ->
+      | IDENT "Custom"; IDENT "Grammar"; ent = qualid ->
           (* Should also be in "syntax" section *)
           { PrintCustomGrammar ent }
       | IDENT "Keywords" ->
@@ -1146,7 +1146,7 @@ GRAMMAR EXTEND Gram
 
       | IDENT "Notation"; ntn = string ->
         { PrintNotation (Constrexpr.InConstrEntry, ntn) }
-      | IDENT "Notation"; ntn = string; IDENT "in"; IDENT "custom"; ent = IDENT ->
+      | IDENT "Notation"; ntn = string; IDENT "in"; IDENT "custom"; ent = qualid ->
         { PrintNotation (Constrexpr.InCustomEntry ent, ntn) }
 
       | IDENT "ML"; IDENT "Path" -> { PrintMLLoadPath }
@@ -1321,7 +1321,7 @@ GRAMMAR EXTEND Gram
 
 (* factorized here, though relevant for syntax extensions *)
 
-      | IDENT "Declare"; IDENT "Custom"; IDENT "Entry"; s = IDENT ->
+      | IDENT "Declare"; IDENT "Custom"; IDENT "Entry"; s = ident ->
            { VernacSynterp (VernacDeclareCustomEntry s) }
 
  ] ];
@@ -1390,8 +1390,8 @@ GRAMMAR EXTEND Gram
     [ [ IDENT "all" -> { EnableNotationAll }
       | IDENT "only"; IDENT "parsing" -> { EnableNotationOnly Notationextern.OnlyParsing }
       | IDENT "only"; IDENT "printing" -> { EnableNotationOnly Notationextern.OnlyPrinting }
-      | "in"; IDENT "custom"; x = identref -> { EnableNotationEntry CAst.(make ?loc:x.loc (InCustomEntry (Id.to_string x.v))) }
-      | "in"; IDENT "constr" -> { EnableNotationEntry (CAst.make ~loc InConstrEntry) } ] ]
+      | "in"; IDENT "custom"; x = qualid -> { EnableNotationEntry (InCustomEntry x) }
+      | "in"; IDENT "constr" -> { EnableNotationEntry InConstrEntry } ] ]
   ;
   opt_scope:
     [ [ ":"; sc = IDENT -> { Some (NotationInScope sc) }
@@ -1404,8 +1404,8 @@ GRAMMAR EXTEND Gram
   ;
   syntax_modifier:
     [ [ "at"; IDENT "level"; n = natural -> { SetLevel n }
-      | "in"; IDENT "custom"; x = IDENT -> { SetCustomEntry (x,None) }
-      | "in"; IDENT "custom"; x = IDENT; "at"; IDENT "level"; n = natural ->
+      | "in"; IDENT "custom"; x = qualid -> { SetCustomEntry (x,None) }
+      | "in"; IDENT "custom"; x = qualid; "at"; IDENT "level"; n = natural ->
          { SetCustomEntry (x,Some n) }
       | IDENT "left"; IDENT "associativity" -> { SetAssoc Gramlib.Gramext.LeftA }
       | IDENT "right"; IDENT "associativity" -> { SetAssoc Gramlib.Gramext.RightA }
@@ -1441,7 +1441,7 @@ GRAMMAR EXTEND Gram
       | IDENT "strict"; IDENT "pattern" -> { ETPattern (true,None) }
       | IDENT "strict"; IDENT "pattern"; "at"; IDENT "level"; n = natural -> { ETPattern (true,Some n) }
       | IDENT "closed"; IDENT "binder" -> { ETBinder false }
-      | IDENT "custom"; x = IDENT; n = at_level_opt; b = OPT binder_interp ->
+      | IDENT "custom"; x = qualid; n = at_level_opt; b = OPT binder_interp ->
            { ETConstr (InCustomEntry x,b,n) }
     ] ]
   ;

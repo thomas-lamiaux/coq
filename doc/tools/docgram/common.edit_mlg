@@ -1222,8 +1222,8 @@ printable: [
 | DELETE "Hint" smart_global
 | DELETE "Hint" "*"
 | DELETE "Notation" string
-| REPLACE "Notation" string "in" "custom" IDENT
-| WITH "Notation" string OPT [ "in" "custom" IDENT ]
+| REPLACE "Notation" string "in" "custom" qualid
+| WITH "Notation" string OPT [ "in" "custom" qualid ]
 
 | INSERTALL "Print"
 ]
@@ -1421,9 +1421,9 @@ opt_scope: [
 ]
 
 syntax_modifier: [
-| DELETE "in" "custom" IDENT
-| REPLACE "in" "custom" IDENT; "at" "level" natural
-| WITH "in" "custom" IDENT OPT ( "at" "level" natural )
+| DELETE "in" "custom" qualid
+| REPLACE "in" "custom" qualid; "at" "level" natural
+| WITH "in" "custom" qualid OPT ( "at" "level" natural )
 | DELETE IDENT; "in" "scope" IDENT
 | REPLACE IDENT; "," LIST1 IDENT SEP "," [ "at" level | "in" "scope" IDENT ]
 | WITH LIST1 IDENT SEP "," [ "at" level | "in" "scope" IDENT ]

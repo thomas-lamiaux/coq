@@ -58,7 +58,8 @@ type entry_level = int
 type entry_relative_level = LevelLt of entry_level | LevelLe of entry_level | LevelSome
 
 (* The entry in which a notation is declared *)
-type notation_entry = InConstrEntry | InCustomEntry of string
+type 'name notation_entry_gen = InConstrEntry | InCustomEntry of 'name
+type notation_entry = Globnames.CustomName.t notation_entry_gen
 
 (* A notation entry with the level where the notation lives *)
 type notation_entry_level = {

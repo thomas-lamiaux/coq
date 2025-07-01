@@ -32,7 +32,7 @@ val strictly_finer_notation_constr : Id.t list * Id.t list -> notation_constr ->
 val strictly_finer_interpretation_than : interpretation -> interpretation -> bool
 (** Tell if a notation interpretation is strictly included in another one *)
 
-val finer_interpretation_than : interpretation -> interpretation -> bool
+val finer_interpretation_than : _ interpretation_gen -> _ interpretation_gen -> bool
 (** Tell if a notation interpretation is included in another one *)
 
 (** Substitution of kernel names in interpretation data                *)
