@@ -89,7 +89,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
 - impacted coqchk versions: none (no VM in coqchk)
 - fixed in: NONE
 - found by: Dolan, Roux, Melquiond
-- GH issue number: ocaml/ocaml#6385, coq/coq#13439
+- GH issue number: ocaml/ocaml#6385, rocq-prover/rocq#13439
 - exploit: ??
 - risk: requires very large number of arguments, fix block size or nested letins
 
@@ -101,7 +101,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
 - impacted coqchk versions: none (no VM or native in coqchk)
 - fixed in: NONE
 - found by: Gaëtan Gilbert, Andres Erbsen
-- GH issue number: coq/coq#16891
+- GH issue number: rocq-prover/rocq#16891
 - exploit: requires a memory corruption to craft something that doesn't just SIGSEV
 - risk: could be activated by chance but unlikely to produce anything
         other than SIGSEV outside a deliberate attack
@@ -114,7 +114,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
 - impacted coqchk versions: same
 - fixed in: NONE
 - found by: Pierre-Marie Pédrot
-- GH issue number: coq/coq#7609
+- GH issue number: rocq-prover/rocq#7609
 - exploit: see issue (requires a plugin or hand crafted .vo file)
 - risk: low
 
@@ -126,18 +126,18 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
 - impacted coqchk versions: V8.10-NOW
 - fixed in: NONE
 - found by: Gaëtan Gilbert
-- GH issue number: coq/coq#12439
+- GH issue number: rocq-prover/rocq#12439
 - exploit: not fully worked out, requires crafted .vo file
 - risk: none (requires crafted .vo file)
 
 #### Print Assumptions + Parameter Inline fails to report some inconsistent flags
 
 - component: module functors
-- introduced: coq/coq#79
+- introduced: rocq-prover/rocq#79
 - impacted versions: V8.6-NOW
 - impacted coqchk versions: none
 - found by: Jason Gross
-- GH issue number: coq/coq#12155
+- GH issue number: rocq-prover/rocq#12155
 - exploit: see issue
 - risk: moderate if not using coqchk, none if using coqchk (coqchk rejects the produced file)
 
@@ -148,7 +148,7 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
 - impacted versions: V8.11-NOW
 - impacted coqchk versions: none
 - found by: Gaëtan Gilbert
-- GH issue number: coq/coq#16646
+- GH issue number: rocq-prover/rocq#16646
 - exploit: see issue
 - risk: moderate if not using coqchk, none if using coqchk (coqchk rejects the produced file)
 
@@ -204,8 +204,8 @@ This file recollects knowledge about critical bugs found in Coq since version 8.
 - impacted coqchk versions: ?
 - fixed in: master ([8a01c3685](https://github.com/rocq-prover/rocq/commit/8a01c36850353c1875383cbc788cec9c42590b57), 24 Jan 2014, Dénès), v8.4 ([8a01c3685](https://github.com/rocq-prover/rocq/commit/8a01c36850353c1875383cbc788cec9c42590b57), 25 Feb 2014, Dénès), v8.3 ([2b3cc4f85](https://github.com/rocq-prover/rocq/commit/2b3cc4f85cc134fe58c21d720851e275e6a77ea0), 25 Feb 2014, Dénès), v8.2 ([459888488](https://github.com/rocq-prover/rocq/commit/4598884884d6db00c485189e3a3b793b05814928), 25 Feb 2014, Dénès), v8.1 ([79aa20872](https://github.com/rocq-prover/rocq/commit/79aa208728420747a933f38b3aa101c92f4dcde0), 25 Feb 2014, Dénès)
 - found by: Dénès
-- exploit: see coq/coq#3211
-- GH issue number: coq/coq#3211
+- exploit: see rocq-prover/rocq#3211
+- GH issue number: rocq-prover/rocq#3211
 - risk: ?
 
 #### bug in Prop<=Set conversion which made Set identifiable with Prop, preventing a proof-irrelevant interpretation of Prop
@@ -279,7 +279,7 @@ and lack of checking of relevance marks on constants in coqchk
 - fixed in: master/trunk ([d4869e059](https://github.com/rocq-prover/rocq/commit/d4869e059bfb73d99e1f5ef1b0a1f0906fa27056), 2 Oct 2015, Sozeau), v8.4 ([40350ef3b](https://github.com/rocq-prover/rocq/commit/40350ef3b34b0be9d5ceddde772218c2f2dafe32), 9 Sep 2015, Sozeau)
 - found by: Dénès
 - exploit: test-suite/bugs/bug_4294.v
-- GH issue number: coq/coq#4294
+- GH issue number: rocq-prover/rocq#4294
 - risk: ?
 
 #### universe constraints for module subtyping not stored in vo files
@@ -292,7 +292,7 @@ and lack of checking of relevance marks on constants in coqchk
 - fixed in: v8.2 ([c1d9889](https://github.com/rocq-prover/rocq/commit/c1d988904483eb1f3a8917ea08fced1240e3844b)), v8.3 (8056d02), v8.4 ([a07deb4](https://github.com/rocq-prover/rocq/commit/a07deb4eac1d5f886159784ef5d8d006892be547)), trunk ([0cd0a3e](https://github.com/rocq-prover/rocq/commit/0cd0a3ecdc7f942da153c59369ca3572bd18dd10)) Mar 5, 2014, Tassi
 - found by: Tassi by running coqchk on the mathematical components library
 - exploit: requires multiple files, no test provided
-- GH issue number: coq/coq#3243
+- GH issue number: rocq-prover/rocq#3243
 - risk: could be exploited by mistake
 
 #### module subtyping disrespected squashing status of inductives
@@ -304,7 +304,7 @@ and lack of checking of relevance marks on constants in coqchk
 - fixed in: 8.15.1, 8.16
 - found by: Pédrot
 - exploit: see GitHub issue
-- GH issue number: coq/coq#15838
+- GH issue number: rocq-prover/rocq#15838
 - risk: unlikely (caught by coqchk, needs Unset Elimination Schemes in the module type)
 
 #### Functor inlining drops universe substitution
@@ -315,7 +315,7 @@ and lack of checking of relevance marks on constants in coqchk
 - impacted coqchk versions: same? not sure if coqchk has a this bug
 - fixed in: V8.8.1, V8.9.0 (#7616)
 - found by: Pierre-Marie Pédrot
-- GH issue number: coq/coq#7615
+- GH issue number: rocq-prover/rocq#7615
 - exploit: see issue
 - risk: medium
 
@@ -327,7 +327,7 @@ and lack of checking of relevance marks on constants in coqchk
 - impacted coqchk versions: same
 - fixed in: V8.19.0
 - found by: Gaëtan Gilbert
-- GH issue number: coq/coq#18503
+- GH issue number: rocq-prover/rocq#18503
 - exploit: see issue
 - risk: high if there is a Primitive in a Module Type, otherwise low
 
@@ -354,7 +354,7 @@ and lack of checking of relevance marks on constants in coqchk
 - fixed in: [ec4aa4971f](https://github.com/rocq-prover/rocq/commit/ec4aa4971f7789eeccec2f38f2bb7ec976f87ede) ([58e1d0f200](https://github.com/rocq-prover/rocq/commit/58e1d0f2006f3243cbf7b57a9858f5119ffea666) for the checker)
 - found by: Gaëtan Gilbert
 - exploit: test-suite/misc/poly-capture-global-univs
-- GH issue number: coq/coq#8341
+- GH issue number: rocq-prover/rocq#8341
 - risk: unlikely to be activated by chance (requires a plugin)
 
 #### template polymorphism not collecting side constraints on the universe level of a parameter
@@ -372,10 +372,10 @@ polymorphism exploiting other ways to generate untracked constraints
   level is in principle possible though)
 - impacted development branches: all from 8.4 to 8.9 at the time of writing and suspectingly also all from 8.1 to 8.4 if a way to create untracked constraints can be found
 - impacted coqchk versions: a priori all (tested with V8.4 and V8.9 which accept the exploit)
-- fixed in: V8.10.0 ([eb3f8225a2](https://github.com/rocq-prover/rocq/commit/eb3f8225a286aef3a57ad876584b4a927241ff69), PR coq/coq#9918, Aug 2019, Dénès and Sozeau)
+- fixed in: V8.10.0 ([eb3f8225a2](https://github.com/rocq-prover/rocq/commit/eb3f8225a286aef3a57ad876584b4a927241ff69), PR rocq-prover/rocq#9918, Aug 2019, Dénès and Sozeau)
 - found by: Gilbert using explicit sharing of universes, exploit found for 8.5-8.9 by Pédrot, other variants generating sharing using sections, or using ltac tricks by Sozeau, exploit in 8.4 by Herbelin and Jason Gross by adding new tricks to Sozeau's variants
 - exploit: test-suite/failure/Template.v
-- GH issue number: coq/coq#9294
+- GH issue number: rocq-prover/rocq#9294
 - risk: moderate risk to be activated by chance
 
 #### more template polymorphism missing constraints
@@ -394,8 +394,8 @@ fix.
 - fixed in: expected in 8.10.2, 8.11+beta, master (#11128, Nov 2019, Gilbert)
 - found by: Gilbert
 - exploit: test-suite/bugs/bug_11039.v
-- GH issue number: coq/coq#11039
-- risk: moderate risk (found by investigating coq/coq#10504)
+- GH issue number: rocq-prover/rocq#11039
+- risk: moderate risk (found by investigating rocq-prover/rocq#10504)
 
 #### universe constraints erroneously discarded when forcing an asynchronous proof containing delayed monomorphic constraints inside a universe polymorphic section
 
@@ -404,7 +404,7 @@ fix.
 - impacted released versions: V8.5-V8.10
 - impacted development branches: none
 - impacted coqchk versions: immune
-- fixed in: coq/coq#10664
+- fixed in: rocq-prover/rocq#10664
 - found by: Pédrot
 - exploit: no test
 - GH issue number: none
@@ -416,7 +416,7 @@ fix.
 - introduced: V8.10 (with the SProp commit [7550876976](https://github.com/rocq-prover/rocq/commit/75508769762372043387c67a9abe94e8f940e80a))
 - impacted released versions: V8.10.0 V8.10.1 V8.10.2
 - impacted coqchk versions: same
-- fixed in: coq/coq#11422
+- fixed in: rocq-prover/rocq#11422
 - found by: Gilbert
 - exploit: see PR (custom application of Hurkens to get around the refreshing at elaboration)
 - GH issue number: see PR
@@ -430,9 +430,9 @@ fix.
 - introduced: V8.12 ([73c3b87463](https://github.com/rocq-prover/rocq/commit/73c3b874633d6f6f8af831d4a37d0c1ae52575bc))
 - impacted released versions: V8.12 to V8.15 including patch releases
 - impacted coqchk versions: none
-- fixed in: V8.16 coq/coq#15950 ([118ffbc010](https://github.com/rocq-prover/rocq/commit/118ffbc010ce53ebd45baa42edd28335301ca9a5))
+- fixed in: V8.16 rocq-prover/rocq#15950 ([118ffbc010](https://github.com/rocq-prover/rocq/commit/118ffbc010ce53ebd45baa42edd28335301ca9a5))
 - found by: Gilbert and Pédrot
-- exploit: see coq/coq#15916
+- exploit: see rocq-prover/rocq#15916
 - risk: could be used inadvertently in developments with complex universe usage, only when using cumulative inductives declared in sections. coqchk still works.
 
 ### Primitive projections
@@ -445,9 +445,9 @@ fix.
 - impacted development branches: none
 - impacted coqchk versions: ?
 - fixed in: trunk/master/v8.5 ([ba00867d5](https://github.com/rocq-prover/rocq/commit/ba00867d515624aee734d998bfbe3880f559d907), 25 Jul 2016, Sozeau)
-- found by: Sozeau, by analyzing bug report coq/coq#4876
+- found by: Sozeau, by analyzing bug report rocq-prover/rocq#4876
 - exploit: to be done (?)
-- GH issue number: coq/coq#4876
+- GH issue number: rocq-prover/rocq#4876
 - risk: consequence of bug found by chance, unlikely to be exploited by chance (MS?)
 
 #### records based on primitive projections became possibly recursive without the guard condition being updated
@@ -458,9 +458,9 @@ fix.
 - impacted development branches: none
 - impacted coqchk versions: ?
 - fixed in: trunk/master/v8.5 ([120053a50](https://github.com/rocq-prover/rocq/commit/120053a50f87bd53398eedc887fa5e979f56f112), 4 Mar 2016, Dénès)
-- found by: Dénès exploiting bug coq/coq#4588
+- found by: Dénès exploiting bug rocq-prover/rocq#4588
 - exploit: test-suite/bugs/bug_4588.v
-- GH issue number: coq/coq#4588
+- GH issue number: rocq-prover/rocq#4588
 - risk: ?
 
 #### incorrect checking of subtyping with algebraic universes
@@ -471,7 +471,7 @@ fix.
 - impacted coqchk versions: same
 - fixed in: V8.8.1, V8.9.0 (#7798)
 - found by: Gaëtan Gilbert
-- GH issue number: coq/coq#7695
+- GH issue number: rocq-prover/rocq#7695
 - exploit: see issue
 - risk: needs usage of explicit algebraic universe annotations, coqchk
         may catch through defunctorialization
@@ -501,7 +501,7 @@ fix.
 - fixed in: master/trunk/v8.5 ([00894adf6](https://github.com/rocq-prover/rocq/commit/00894adf6fc11f4336a3ece0c347676bbf0b4c11) / [596a4a525](https://github.com/rocq-prover/rocq/commit/596a4a5251cc50f50bd6d25e36c81341bf65cfed), 26-39 Mar 2015, Grégoire), v8.4 ([cd2101a39](https://github.com/rocq-prover/rocq/commit/cd2101a39b3b8d58ce569761c905a5baf1dcdc86), 1 Apr 2015, Grégoire), v8.3 ([a0c7fc05b](https://github.com/rocq-prover/rocq/commit/a0c7fc05b302e38a2869c20f6db1dc376cdb59da), 1 Apr 2015, Grégoire), v8.2 ([2c6189f61](https://github.com/rocq-prover/rocq/commit/2c6189f61b85bbe1a2a56754c9effc2d7a72f16d), 1 Apr 2015, Grégoire), v8.1 ([bb877e5b5](https://github.com/rocq-prover/rocq/commit/bb877e5b54678bc34e4362fcf0315224e7c4f4cc), 29 Nov 2015, Herbelin, backport)
 - found by: Dénès, Pédrot
 - exploit: test-suite/bugs/bug_4157.v
-- GH issue number: coq/coq#4157
+- GH issue number: rocq-prover/rocq#4157
 - risk:
 
 #### wrong universe constraints
@@ -511,10 +511,10 @@ fix.
 - impacted released versions: V8.1-V8.4pl5 unknown, V8.5-V8.5pl3, V8.6-V8.6.1, V8.7.0-V8.7.1
 - impacted development branches: unknown for v8.1-v8.4, none from v8.5
 - impacted coqchk versions: none (no virtual machine in coqchk)
-- fixed in: master ([c9f3a6cbe](https://github.com/rocq-prover/rocq/commit/c9f3a6cbe5c410256fe88580019f5c7183bab097), 12 Feb 2018, coq/coq#6713, Dénès), v8.7 ([c058a4182](https://github.com/rocq-prover/rocq/commit/c058a4182b39460ba2b256c479a1389216c25ca9), 15 Feb 2018, Zimmermann, backport), v8.6 ([a2cc54c64](https://github.com/rocq-prover/rocq/commit/a2cc54c649c0b13190268cc5d490342d5f0cec10), 21 Feb 2018, Herbelin, backport), v8.5 ([d4d550d0f](https://github.com/rocq-prover/rocq/commit/d4d550d0f1ae5f4a8d29bbcdf991a2526ab555a6), 21 Feb 2018, Herbelin, backport)
+- fixed in: master ([c9f3a6cbe](https://github.com/rocq-prover/rocq/commit/c9f3a6cbe5c410256fe88580019f5c7183bab097), 12 Feb 2018, rocq-prover/rocq#6713, Dénès), v8.7 ([c058a4182](https://github.com/rocq-prover/rocq/commit/c058a4182b39460ba2b256c479a1389216c25ca9), 15 Feb 2018, Zimmermann, backport), v8.6 ([a2cc54c64](https://github.com/rocq-prover/rocq/commit/a2cc54c649c0b13190268cc5d490342d5f0cec10), 21 Feb 2018, Herbelin, backport), v8.5 ([d4d550d0f](https://github.com/rocq-prover/rocq/commit/d4d550d0f1ae5f4a8d29bbcdf991a2526ab555a6), 21 Feb 2018, Herbelin, backport)
 - found by: Dénès
 - exploit: test-suite/bugs/bug_6677.v
-- GH issue number: coq/coq#6677
+- GH issue number: rocq-prover/rocq#6677
 - risk:
 
 #### missing pops in executing 31bit arithmetic
@@ -533,14 +533,14 @@ fix.
 #### primitive integer emulation layer on 32 bits not robust to garbage collection
 
 - component: "virtual machine" (compilation to bytecode ran by a C-interpreter)
-- introduced: master (before v8.10 in GH pull request coq/coq#6914)
+- introduced: master (before v8.10 in GH pull request rocq-prover/rocq#6914)
 - impacted released versions: none
 - impacted development branches: v8.10
 - impacted coqchk versions: none (no virtual machine in coqchk)
 - fixed in: [5914313](https://github.com/rocq-prover/rocq/commit/591431312465291e85fb352a69e947eedeb2e199) (v8.10)
 - found by: Roux, Melquiond
 - exploit:
-- GH issue number: coq/coq#9925
+- GH issue number: rocq-prover/rocq#9925
 - risk:
 
 #### broken long multiplication primitive integer emulation layer on 32 bits
@@ -553,7 +553,7 @@ fix.
 - fixed in: [4e176a7](https://github.com/rocq-prover/rocq/commit/4e176a7ee4660d505321ca55c5ce70a6c3d50d3b)
 - found by: Soegtrop, Melquiond
 - exploit: test-suite/bugs/bug_11321.v
-- GH issue number: coq/coq#11321
+- GH issue number: rocq-prover/rocq#11321
 - risk: critical, as any BigN computation on 32-bit architectures is wrong
 
 #### broken addmuldiv operation for large shifts
@@ -564,7 +564,7 @@ fix.
 - impacted coqchk versions: none (no virtual machine in coqchk)
 - fixed in: [bc0adb4](https://github.com/rocq-prover/rocq/commit/bc0adb41a7c311f8d8305839c19e4812ff602720)
 - found by: Martin Karup Jensen
-- GH issue number: coq/coq#19402
+- GH issue number: rocq-prover/rocq#19402
 - risk: could be exploited by chance (though not in BigNums)
 
 #### translation of identifier from Coq to OCaml was not bijective, leading to identify True and False
@@ -588,10 +588,10 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - introduced: 1 Jun 2018, [e1e7888a](https://github.com/rocq-prover/rocq/commit/e1e7888ac4519f4b7470cc8469f9fd924514e352), ppedrot
 - impacted released versions: 8.9.0
 - impacted coqchk versions: none
-- fixed in: 8.9.1 coq/coq#9900
-- found by: maximedenes exploiting bug coq/coq#9684
+- fixed in: 8.9.1 rocq-prover/rocq#9900
+- found by: maximedenes exploiting bug rocq-prover/rocq#9684
 - exploit: test-suite/bugs/bug_9684.v
-- GH issue number: coq/coq#9684
+- GH issue number: rocq-prover/rocq#9684
 
 #### incorrect De Bruijn handling when inferring the relevance mark for a lambda
 
@@ -599,10 +599,10 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - introduced: 2019-03-15, [23f84f37c6](https://github.com/rocq-prover/rocq/commit/23f84f37c674a07e925925b7e0d50d7ee8414093) and [71b9ad8526](https://github.com/rocq-prover/rocq/commit/71b9ad8526155020c8451dd326a52e391a9a8585), SkySkimmer
 - impacted released versions: 8.10.0
 - impacted coqchk versions: 8.10.0
-- fixed in: 8.10.1 coq/coq#10904
+- fixed in: 8.10.1 rocq-prover/rocq#10904
 - found by: ppedrot investigating unexpected conversion failures with SProp
 - exploit: test-suite/bugs/bug_10904.v
-- GH issue number: coq/coq#10904
+- GH issue number: rocq-prover/rocq#10904
 - risk: none without using -allow-sprop (off by default in 8.10.0),
         otherwise could be exploited by mistake
 
@@ -614,7 +614,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no virtual machine in coqchk)
 - fixed in: 8.13.0 (#13431)
 - found by: Dolan, Roux, Melquiond
-- GH issue number: ocaml/ocaml#6385, coq/coq#11170
+- GH issue number: ocaml/ocaml#6385, rocq-prover/rocq#11170
 - risk: medium, as it can happen for large irreducible applications
 
 #### buffer overflow, arbitrary code execution on floating-point operations
@@ -625,7 +625,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no virtual machine in coqchk)
 - fixed in: 8.13.1
 - found by: Melquiond
-- GH issue number: coq/coq#13867
+- GH issue number: rocq-prover/rocq#13867
 - risk: none, unless using floating-point operations; high otherwise;
         noticeable if activated by chance, since it usually breaks
         control-flow integrity
@@ -638,7 +638,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no virtual machine in coqchk)
 - fixed in: 8.13.2
 - found by: Melquiond
-- GH issue number: coq/coq#13998
+- GH issue number: rocq-prover/rocq#13998
 - risk: none, unless using primitive array operations; systematic otherwise
 
 #### arbitrary code execution on arrays of floating point numbers
@@ -649,7 +649,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no VM / native computation in coqchk)
 - fixed in: 8.14.1
 - found by: Melquiond
-- GH issue number: coq/coq#15070
+- GH issue number: rocq-prover/rocq#15070
 - risk: none, unless mixing open terms and primitive floats inside primitive
 - arrays; critical otherwise
 
@@ -661,7 +661,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no native computation in coqchk)
 - fixed in: 8.16.1
 - found by: Melquiond
-- GH issue number: coq/coq#16645
+- GH issue number: rocq-prover/rocq#16645
 - risk: systematic
 
 #### η-expansion of cofixpoints was performed in the wrong environment
@@ -672,7 +672,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no VM / native computation in coqchk)
 - fixed in: 8.16.1
 - found by: Gaëtan Gilbert and Pierre-Marie Pédrot
-- GH issue number: coq/coq#16831
+- GH issue number: rocq-prover/rocq#16831
 - risk: low, as it requires carefully crafted cofixpoints
 
 #### conversion would compare the mutated version of primitive arrays instead of undoing mutation where needed
@@ -684,7 +684,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - fixed in: V8.16.1, V8.17
 - found by: Maxime Buyse and Andres Erbsen
 - exploit: Andres Erbsen
-- GH issue number: coq/coq#16829
+- GH issue number: rocq-prover/rocq#16829
 - risk: some if using primitive arrays
 
 #### tactic code could mutate a global cache of values for section variables
@@ -695,7 +695,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no tactics in coqchk, VM only sees checked terms)
 - fixed in: V8.17.0
 - found by: Gaëtan Gilbert with hint from Pierre-Marie Pédrot
-- GH issue number: coq/coq#16957
+- GH issue number: rocq-prover/rocq#16957
 - risk: the full exploitation seems to require "Definition := ltac:()"
         with change_no_check on a section variable in the ltac
 
@@ -707,7 +707,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no VM in coqchk)
 - fixed in: V8.8.1, V8.9.0
 - found by: Jason Gross
-- GH issue number: coq/coq#7723
+- GH issue number: rocq-prover/rocq#7723
 - exploit: see issue
 - risk: ??
 
@@ -719,10 +719,10 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - introduced: ?
 - impacted released versions: at least from 8.6 to 8.12.0
 - impacted coqchk versions: none (no side-effects in the checker)
-- fixed in: V8.12.1 (coq/coq#13331)
+- fixed in: V8.12.1 (rocq-prover/rocq#13331)
 - found by: ppedrot
 - exploit: test-suite/bugs/bug_13330.v
-- GH issue number: coq/coq#13330
+- GH issue number: rocq-prover/rocq#13330
 - risk: unlikely to be exploited by mistake, requires the use of unsafe tactics
 
 #### Section variables used in side effects not checked by Proof using
@@ -731,10 +731,10 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - introduced: 8.11
 - impacted released versions: from 8.11.0 to 8.20.0
 - impacted coqchk versions: none (no side-effects in the checker)
-- fixed in: V9.0 (coq/coq#19476)
+- fixed in: V9.0 (rocq-prover/rocq#19476)
 - found by: Pierre Courtieu
 - exploit: test-suite/output/bug_19861.v
-- GH issue number: coq/coq#19861
+- GH issue number: rocq-prover/rocq#19861
 - risk: requires incorrect `Proof using` and no use of coqchk
 
 ### Forgetting unsafe flags
@@ -744,9 +744,9 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - component: sections
 - introduced: [abab878b8d](https://github.com/rocq-prover/rocq/commit/abab878b8d8b5ca85a4da688abed68518f0b17bd) (#10291, 8.11), technically available earlier through plugins
 - impacted coqchk versions: none (coqchk rejects affected files)
-- fixed in: 8.14 coq/coq#14395
+- fixed in: 8.14 rocq-prover/rocq#14395
 - found by: Anton Trunov
-- GH issue number: coq/coq#14317
+- GH issue number: rocq-prover/rocq#14317
 - risk: low as it needs the use of explicit unsafe flags
 
 ### Conflicts with axioms in library
@@ -792,10 +792,10 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - component: primitive floating-points
 - introduced: 8.11
 - impacted released versions: 8.11.0, 8.11.1, 8.11.2
-- fixed by fixing the spec: coq/coq#12484
+- fixed by fixing the spec: rocq-prover/rocq#12484
 - found by: Pierre Roux
 - exploit: test-suite/bugs/bug_12483.v
-- GH issue number: coq/coq#12483
+- GH issue number: rocq-prover/rocq#12483
 - risk: proof of false when using the incorrect axiom
 
 #### Incorrect implementation of SFclassify.
@@ -803,10 +803,10 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - component: floating-point library
 - introduced: 8.11
 - impacted released versions: 8.11.0-8.15.1
-- fixed by fixing the implementation: coq/coq#16101
+- fixed by fixing the implementation: rocq-prover/rocq#16101
 - found by: François Bobot
 - exploit: test-suite/bugs/bug_16096.v
-- GH_issue_number: coq/coq#16096
+- GH_issue_number: rocq-prover/rocq#16096
 - risk: proof of false when using the axioms in Floats.Axioms.
 
 #### nativenorm reading back closures as arbitrary floating-point values
@@ -817,7 +817,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: none (no native computation in coqchk)
 - fixed in: 8.18.0
 - found by: Jason Gross
-- GH issue number: coq/coq#17871
+- GH issue number: rocq-prover/rocq#17871
 - risk: proof of false when using primitive floats and native_compute
 
 ### Deserialization
@@ -830,7 +830,7 @@ For instance `α` and `__U03b1_` were the same in the native compiler.
 - impacted coqchk versions: same
 - fixed in: 8.19
 - found by: Mario Carneiro
-- GH issue number: N/A (fix pull requests: coq/coq#18403, coq/coq#18406)
+- GH issue number: N/A (fix pull requests: rocq-prover/rocq#18403, rocq-prover/rocq#18406)
 - risk: can lead to segfaults or arbitrary code execution on crafted .vo files
     (files produced by coqc are fine)
 
@@ -841,7 +841,7 @@ There were otherwise several bugs in beta-releases, from memory, bugs with beta 
 There were otherwise maybe unexploitable kernel bugs, e.g. 2df88d83
 (Require overloading), 0adf0838 ("Univs: uncovered bug in
 strengthening of opaque polymorphic definitions."), 5122a398 (#3746
-about functors), coq/coq#4346 (casts in VM), a14bef4 (guard condition in
+about functors), rocq-prover/rocq#4346 (casts in VM), a14bef4 (guard condition in
 8.1), 6ed40a8 ("Georges' bug" with ill-typed lazy machine), and
 various other bugs in 8.0 or 8.1 without knowing if they are critical.
 
