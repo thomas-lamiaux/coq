@@ -1,0 +1,9 @@
+Non-discriminated database
+Unfoldable variable definitions: all
+Unfoldable constant definitions: all
+Unfoldable projection definitions: all
+Cut: emp
+For any goal ->   
+For and ->   simple apply x (cost 0, pattern ?n = 1 /\
+                                             (forall n : nat, n = ?m), id 0)
+
