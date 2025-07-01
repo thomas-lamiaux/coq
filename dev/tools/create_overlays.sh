@@ -26,8 +26,8 @@ setup_contrib_git() {
         printf 'Adapt to rocq-prover/rocq#%s (short decription here)\n' "$PR_NUMBER" > "$template_file"
 
         # don't override config if already set, maybe the user prefers something else
-        if ! git config get --local commit.template; then
-          git config set --local commit.template "$template_file"
+        if ! git config --get --local commit.template; then
+          git config --local commit.template "$template_file"
         fi
       fi
     )
