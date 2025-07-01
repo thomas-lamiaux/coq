@@ -57,7 +57,7 @@ let pr_notation (from,ntn) = qstring ntn ++ match from with InConstrEntry -> mt 
 module NotationOrd =
   struct
     type t = notation
-    let compare = Stdlib.compare
+    let compare = Notationextern.notation_compare
   end
 
 module NotationSet = Set.Make(NotationOrd)
@@ -66,7 +66,7 @@ module NotationMap = CMap.Make(NotationOrd)
 module SpecificNotationOrd =
   struct
     type t = specific_notation
-    let compare = Stdlib.compare
+    let compare = Notationextern.specific_notation_compare
   end
 
 module SpecificNotationSet = Set.Make(SpecificNotationOrd)
@@ -1607,7 +1607,10 @@ type entry_coercion = (notation_with_optional_scope * notation) list
 module EntryCoercionOrd =
  struct
   type t = notation_entry * notation_entry
-   let compare = Stdlib.compare
+  let compare (e1,e2) (e1',e2') =
+    let c = Notationextern.notation_entry_compare e1 e1' in
+    if c <> 0 then c
+    else Notationextern.notation_entry_compare e2 e2'
  end
 
 module EntryCoercionMap = Map.Make(EntryCoercionOrd)

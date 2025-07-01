@@ -19,10 +19,16 @@ open Notation_term
 val notation_entry_eq : notation_entry -> notation_entry -> bool
 (** Equality on [notation_entry]. *)
 
+val notation_entry_compare : notation_entry -> notation_entry -> int
+
 val notation_with_optional_scope_eq : notation_with_optional_scope -> notation_with_optional_scope -> bool
 
 val notation_eq : notation -> notation -> bool
 (** Equality on [notation]. *)
+
+val notation_compare : notation -> notation -> int
+
+val specific_notation_compare : specific_notation -> specific_notation -> int
 
 val notation_binder_kind_eq : notation_binder_kind -> notation_binder_kind -> bool
 (** Equality on [notation_binder_kind]. *)
