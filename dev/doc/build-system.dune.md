@@ -214,7 +214,7 @@ dune exec -- dev/dune-dbg checker foo.vo
 (ocd) source db
 ```
 
-More info in the [wiki](https://github.com/coq/coq/wiki/OCamldebug).
+More info in the [wiki](https://github.com/rocq-prover/rocq/wiki/OCamldebug).
 
 Unfortunately, dependency handling is not fully refined / automated,
 you may find the occasional hiccup due to libraries being renamed,
