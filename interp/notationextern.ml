@@ -25,6 +25,12 @@ let notation_with_optional_scope_eq inscope1 inscope2 = match (inscope1,inscope2
   | NotationInScope s1, NotationInScope s2 -> String.equal s1 s2
   | (LastLonelyNotation | NotationInScope _), _ -> false
 
+let notation_with_optional_scope_compare inscope1 inscope2 = match inscope1, inscope2 with
+  | LastLonelyNotation, LastLonelyNotation -> 0
+  | LastLonelyNotation, _ -> -1
+  | _, LastLonelyNotation -> 1
+  | NotationInScope s1, NotationInScope s2 -> String.compare s1 s2
+
 let entry_relative_level_eq t1 t2 = match t1, t2 with
   | LevelLt n1, LevelLt n2 -> Int.equal n1 n2
   | LevelLe n1, LevelLe n2 -> Int.equal n1 n2
@@ -35,6 +41,12 @@ let notation_entry_eq s1 s2 = match (s1,s2) with
   | InConstrEntry, InConstrEntry -> true
   | InCustomEntry s1, InCustomEntry s2 -> String.equal s1 s2
   | (InConstrEntry | InCustomEntry _), _ -> false
+
+let notation_entry_compare s1 s2 = match s1, s2 with
+  | InConstrEntry, InConstrEntry -> 0
+  | InConstrEntry, _ -> -1
+  | _, InConstrEntry -> 1
+  | InCustomEntry s1, InCustomEntry s2 -> String.compare s1 s2
 
 let notation_entry_level_eq
     { notation_entry = e1; notation_level = n1 }
@@ -48,6 +60,15 @@ let notation_entry_relative_level_eq
 
 let notation_eq (from1,ntn1) (from2,ntn2) =
   notation_entry_eq from1 from2 && String.equal ntn1 ntn2
+
+let notation_compare (from1,ntn1) (from2,ntn2) =
+  let c = notation_entry_compare from1 from2 in
+  if c <> 0 then c else String.compare ntn1 ntn2
+
+let specific_notation_compare (scope1,ntn1) (scope2,ntn2) =
+  let c = notation_with_optional_scope_compare scope1 scope2 in
+  if c <> 0 then c
+  else notation_compare ntn1 ntn2
 
 let pair_eq f g (x1, y1) (x2, y2) = f x1 x2 && g y1 y2
 
