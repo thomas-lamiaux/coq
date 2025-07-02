@@ -342,16 +342,16 @@ struct
 
 type t = {
   data : StoredSet.t;
-  set : KNset.t;
+  set : KerName.Set.t;
 }
 
-let empty = { data = StoredSet.empty; set = KNset.empty }
+let empty = { data = StoredSet.empty; set = KerName.Set.empty }
 
-let mem kn sd = KNset.mem kn sd.set
+let mem kn sd = KerName.Set.mem kn sd.set
 
 let add t sd = {
   data = StoredSet.add t sd.data;
-  set = KNset.add (snd t).code.uid sd.set;
+  set = KerName.Set.add (snd t).code.uid sd.set;
 }
 
 let remove grs sd =
@@ -360,7 +360,7 @@ let remove grs sd =
     | Some gr -> not (GlobRef.Set.mem gr grs)
     | None -> true
     in
-    if keep then (accu, StoredSet.add v ans) else (KNset.remove h.code.uid accu, ans)
+    if keep then (accu, StoredSet.add v ans) else (KerName.Set.remove h.code.uid accu, ans)
   in
   let set, data = StoredSet.fold fold sd.data (sd.set, StoredSet.empty) in
   if set == sd.set then sd
@@ -858,7 +858,7 @@ module Hintdbmap = String.Map
 type hint_db = Hint_db.t
 
 let searchtable = Summary.ref ~name:"searchtable" Hintdbmap.empty
-let statustable = Summary.ref ~name:"statustable" KNmap.empty
+let statustable = Summary.ref ~name:"statustable" KerName.Map.empty
 
 let searchtable_map name =
   Hintdbmap.find name !searchtable
@@ -1067,11 +1067,11 @@ let get_db dbname =
 
 let add_hint dbname hintlist =
   let check (_, h) =
-    let () = if KNmap.mem h.code.uid !statustable then
+    let () = if KerName.Map.mem h.code.uid !statustable then
       user_err Pp.(str "Conflicting hint keys. This can happen when including \
       twice the same module.")
     in
-    statustable := KNmap.add h.code.uid false !statustable
+    statustable := KerName.Map.add h.code.uid false !statustable
   in
   let () = List.iter check hintlist in
   let db = get_db dbname in
@@ -1215,10 +1215,10 @@ let open_autohint h =
     let () =
       if not superglobal then
         (* Import-bound hints must be declared when not imported yet *)
-        let filter (_, h) = not @@ KNmap.mem h.code.uid !statustable in
+        let filter (_, h) = not @@ KerName.Map.mem h.code.uid !statustable in
         add_hint h.hint_name (List.filter filter hints)
     in
-    let add (_, hint) = statustable := KNmap.add hint.code.uid true !statustable in
+    let add (_, hint) = statustable := KerName.Map.add hint.code.uid true !statustable in
     List.iter add hints
   | AddCut paths ->
     if not superglobal then add_cut h.hint_name paths
@@ -1805,7 +1805,7 @@ let print_mp mp =
     str " from "  ++ pr_qualid qid
   with Not_found -> mt ()
 
-let is_imported h = try KNmap.find h.uid !statustable with Not_found -> true
+let is_imported h = try KerName.Map.find h.uid !statustable with Not_found -> true
 
 let hint_trace = Evd.Store.field "hint_trace"
 
@@ -1818,7 +1818,7 @@ let log_hint h =
     (* All calls to hint logging should be well-scoped *)
     assert false
   | Some trace ->
-    let trace = KNmap.add h.uid h trace in
+    let trace = KerName.Map.add h.uid h trace in
     let store = Store.set store hint_trace trace in
     Proofview.Unsafe.tclEVARS (set_extra_data store sigma)
 
@@ -1837,7 +1837,7 @@ let wrap_hint_warning t =
   Proofview.tclEVARMAP >>= fun sigma ->
   let store = get_extra_data sigma in
   let old = Store.get store hint_trace in
-  let store = Store.set store hint_trace KNmap.empty in
+  let store = Store.set store hint_trace KerName.Map.empty in
   Proofview.Unsafe.tclEVARS (set_extra_data store sigma) >>= fun () ->
   t >>= fun ans ->
   Proofview.tclENV >>= fun env ->
@@ -1847,7 +1847,7 @@ let wrap_hint_warning t =
   | None -> assert false
   | Some hints -> hints
   in
-  let () = KNmap.iter (fun _ h -> warn env sigma h) hints in
+  let () = KerName.Map.iter (fun _ h -> warn env sigma h) hints in
   let store = match old with
   | None -> Store.remove store hint_trace
   | Some v -> Store.set store hint_trace v
@@ -1858,14 +1858,14 @@ let wrap_hint_warning t =
 let wrap_hint_warning_fun env sigma t =
   let store = get_extra_data sigma in
   let old = Store.get store hint_trace in
-  let store = Store.set store hint_trace KNmap.empty in
+  let store = Store.set store hint_trace KerName.Map.empty in
   let (ans, sigma) = t (set_extra_data store sigma) in
   let store = get_extra_data sigma in
   let hints = match Store.get store hint_trace with
   | None -> assert false
   | Some hints -> hints
   in
-  let () = KNmap.iter (fun _ h -> warn env sigma h) hints in
+  let () = KerName.Map.iter (fun _ h -> warn env sigma h) hints in
   let store = match old with
   | None -> Store.remove store hint_trace
   | Some v -> Store.set store hint_trace v

@@ -149,10 +149,13 @@ let dummy_module_name = "If you see this, it's a bug"
 
 module DirPath =
 struct
+  module Self = struct
   type t = Id.t list
 
   let compare = List.compare Id.compare
   let equal = List.equal Id.equal
+  end
+  include Self
 
   let rec hash accu = function
   | [] -> accu
@@ -181,7 +184,13 @@ struct
 
   let hcons = Hashcons.simple_hcons Hdir.generate Hdir.hcons ()
 
+  module Set = Set.Make(Self)
+  module Map = Map.Make(Self)
+
 end
+
+module DPset = DirPath.Set
+module DPmap = DirPath.Map
 
 (** {6 Unique names for bound modules } *)
 
@@ -245,10 +254,18 @@ struct
 
   let hcons = Hashcons.simple_hcons HashMBId.generate HashMBId.hcons ()
 
+  module Self = struct
+    type nonrec t = t
+    let compare = compare
+  end
+
+  module Set = Set.Make(Self)
+  module Map = CMap.Make(Self)
+
 end
 
-module MBImap = CMap.Make(MBId)
-module MBIset = Set.Make(MBId)
+module MBImap = MBId.Map
+module MBIset = MBId.Set
 
 (** {6 Names of structure elements } *)
 
@@ -358,13 +375,18 @@ module ModPath = struct
 
   let hcons = Hashcons.simple_hcons HashMP.generate HashMP.hcons ()
 
+  module Self = struct
+    type nonrec t = t
+    let compare = compare
+  end
+
+  module Set = Set.Make(Self)
+  module Map = CMap.Make(Self)
+
 end
 
-module DPset = Set.Make(DirPath)
-module DPmap = Map.Make(DirPath)
-
-module MPset = Set.Make(ModPath)
-module MPmap = CMap.Make(ModPath)
+module MPset = ModPath.Set
+module MPmap = ModPath.Map
 
 (** {6 Kernel names } *)
 
@@ -434,11 +456,22 @@ module KerName = struct
   module HashKN = Hashcons.Make(Self_Hashcons)
 
   let hcons = Hashcons.simple_hcons HashKN.generate HashKN.hcons ()
+
+  module Self = struct
+    type nonrec t = t
+    let compare = compare
+    let hash = hash
+  end
+
+  module Map = HMap.Make(Self)
+  module Set = Map.Set
+  module Pred = Predicate.Make(Self)
+
 end
 
-module KNmap = HMap.Make(KerName)
-module KNpred = Predicate.Make(KerName)
-module KNset = KNmap.Set
+module KNmap = KerName.Map
+module KNpred = KerName.Pred
+module KNset = KerName.Set
 
 (** {6 Kernel pairs } *)
 

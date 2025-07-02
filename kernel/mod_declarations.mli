@@ -127,4 +127,4 @@ val hcons_module_type : module_type_body -> module_type_body
        functor(X:T)->struct module M:=<content of T> end)
 *)
 
-val clean_structure : Names.MBIset.t -> structure_body -> structure_body
+val clean_structure : Names.MBId.Set.t -> structure_body -> structure_body

@@ -237,7 +237,7 @@ module type StagedModS = sig
   val get_applications : typexpr module_alg_expr -> ModPath.t * ModPath.t list
   val debug_print_modtab : unit -> Pp.t
 
-  module ModObjs : sig val all : unit -> module_objects MPmap.t end
+  module ModObjs : sig val all : unit -> module_objects ModPath.Map.t end
 
   val close_section : unit -> unit
 
@@ -319,13 +319,13 @@ module ModSubstObjs :
  end =
  struct
    let table =
-     Summary.ref ~stage:Actions.stage (MPmap.empty : substitutive_objects MPmap.t)
+     Summary.ref ~stage:Actions.stage (ModPath.Map.empty : substitutive_objects ModPath.Map.t)
        ~name:Actions.substobjs_table_name
    let missing_handler = ref (fun mp -> assert false)
    let set_missing_handler f = (missing_handler := f)
-   let set mp objs = (table := MPmap.add mp objs !table)
+   let set mp objs = (table := ModPath.Map.add mp objs !table)
    let get mp =
-     try MPmap.find mp !table with Not_found -> !missing_handler mp
+     try ModPath.Map.find mp !table with Not_found -> !missing_handler mp
  end
 
 let expand_aobjs = function
@@ -402,14 +402,14 @@ module ModObjs :
  sig
    val set : ModPath.t -> module_objects -> unit
    val get : ModPath.t -> module_objects (* may raise Not_found *)
-   val all : unit -> module_objects MPmap.t
+   val all : unit -> module_objects ModPath.Map.t
  end =
  struct
    let table =
-     Summary.ref ~stage:Actions.stage (MPmap.empty : module_objects MPmap.t)
+     Summary.ref ~stage:Actions.stage (ModPath.Map.empty : module_objects ModPath.Map.t)
        ~name:Actions.modobjs_table_name
-   let set mp objs = (table := MPmap.add mp objs !table)
-   let get mp = MPmap.find mp !table
+   let set mp objs = (table := ModPath.Map.add mp objs !table)
+   let get mp = ModPath.Map.find mp !table
    let all () = !table
  end
 
@@ -537,7 +537,7 @@ and collect_export f (f',mp) (exports,objs as acc) =
   match filter_and f f' with
   | None -> acc
   | Some f ->
-    let exports' = MPmap.update mp (function
+    let exports' = ModPath.Map.update mp (function
         | None -> Some f
         | Some f0 ->
           let f' = filter_or f f0 in
@@ -556,7 +556,7 @@ and collect_exports f i mpl acc =
   else acc
 
 let collect_modules mpl =
-  List.fold_left (fun acc fmp -> collect_module fmp acc)  (MPmap.empty, []) (List.rev mpl)
+  List.fold_left (fun acc fmp -> collect_module fmp acc)  (ModPath.Map.empty, []) (List.rev mpl)
 
 let open_modtype i ((sp,kn),_) =
   let mp = mp_of_kn kn in
@@ -603,7 +603,7 @@ and open_include f i (prefix, aobjs) =
   open_objects exp_substituted_view f i prefix aobjs.exp_algebraic_objects
 
 and open_export f i mpl =
-  let _,objs = collect_exports f i mpl (MPmap.empty, []) in
+  let _,objs = collect_exports f i mpl (ModPath.Map.empty, []) in
   List.iter (fun (f,o) -> open_object (fun x -> x) f 1 o) objs
 
 and open_keep f i ((sp,kn),kobjs) =
@@ -752,7 +752,7 @@ let debug_print_modtab () =
     let objs = List.length modobjs.module_substituted_objects + List.length modobjs.module_keep_objects.keep_objects in
     s ++ str (ModPath.to_string mp) ++ spc () ++ pr_seg objs
   in
-  let modules = MPmap.fold pr_modinfo (ModObjs.all ()) (mt ()) in
+  let modules = ModPath.Map.fold pr_modinfo (ModObjs.all ()) (mt ()) in
   hov 0 modules
 
 let add_discharged_item : Lib.discharged_item -> unit = function
@@ -1689,7 +1689,7 @@ let iter_all_interp_segments f =
     List.iter (fun obj -> apply_obj prefix obj) modobjs.module_keep_objects.keep_objects
   in
   let apply_nodes (node, os) = List.iter (fun o -> apply_obj (Lib.node_prefix node) o) os in
-  MPmap.iter apply_mod_obj (InterpVisitor.ModObjs.all ());
+  ModPath.Map.iter apply_mod_obj (InterpVisitor.ModObjs.all ());
   List.iter apply_nodes (Lib.contents ())
 
 

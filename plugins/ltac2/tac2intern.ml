@@ -1042,14 +1042,14 @@ let to_simple_case env ?loc (e,t) pl =
         in
         let ids = List.map get args in
         let map =
-          if KNmap.mem knc map then
+          if KerName.Map.mem knc map then
             map
           else
-            KNmap.add knc (Anonymous, Array.of_list ids, br) map
+            KerName.Map.add knc (Anonymous, Array.of_list ids, br) map
         in
         intern_branch map rem
     in
-    let (map, def) = intern_branch KNmap.empty pl in
+    let (map, def) = intern_branch KerName.Map.empty pl in
     GTacWth { opn_match = e; opn_branch = map; opn_default = def }
 
 let check ?loc env tycon (e,t as et) =
@@ -1872,9 +1872,9 @@ let rec subst_expr subst e = match e with
     let kn' = subst_kn subst kn in
     let p' = subst_expr subst p in
     if kn' == kn && p' == p then accu
-    else KNmap.add kn' (self, vars, p') (KNmap.remove kn accu)
+    else KerName.Map.add kn' (self, vars, p') (KerName.Map.remove kn accu)
   in
-  let br' = KNmap.fold fold br br in
+  let br' = KerName.Map.fold fold br br in
   if e' == e && br' == br && def' == def then e0
   else GTacWth { opn_match = e'; opn_default = (na, def'); opn_branch = br' }
 | GTacFullMatch (e,brs) as e0 ->

@@ -396,7 +396,7 @@ and subst_signature skind subst mp =
 type 'a mod_expr = ('a, module_implementation) when_mod_body
 
 let rec is_bounded_expr l = function
-  | MEident (MPbound mbid) -> MBIset.mem mbid l
+  | MEident (MPbound mbid) -> MBId.Set.mem mbid l
   | MEapply (fexpr,mp) ->
       is_bounded_expr l (MEident mp) || is_bounded_expr l fexpr
   | _ -> false

@@ -398,14 +398,14 @@ let subst_modtype_signature_and_resolver mp_from mp_to sign reso =
 
 let rec collect_mbid l sign =  match sign with
   | MoreFunctor (mbid,ty,m) ->
-    let m' = collect_mbid (MBIset.add mbid l) m in
+    let m' = collect_mbid (MBId.Set.add mbid l) m in
     if m==m' then sign else MoreFunctor (mbid,ty,m')
   | NoFunctor struc ->
     let struc' = clean_structure l struc in
     if struc==struc' then sign else NoFunctor struc'
 
 let clean_bounded_mod_expr sign =
-  if is_functor sign then collect_mbid MBIset.empty sign else sign
+  if is_functor sign then collect_mbid MBId.Set.empty sign else sign
 
 (** {6 Building map of constants to inline } *)
 

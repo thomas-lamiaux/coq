@@ -117,7 +117,7 @@ let inject lib =
 
 type t = {
   local : VmTable.t;
-  foreign : compiled_library Delayed.t DPmap.t;
+  foreign : compiled_library Delayed.t DirPath.Map.t;
 }
 
 type index = VmTable.index
@@ -126,7 +126,7 @@ type indirect_code = VmTable.index pbody_code
 
 let empty = {
   local = VmTable.empty;
-  foreign = DPmap.empty;
+  foreign = DirPath.Map.empty;
 }
 
 let set_path dp lib =
@@ -144,8 +144,8 @@ let load dp ~file ch =
   (dp, Delayed.make ~file ~segment:vm_segment ch : on_disk)
 
 let link (dp, m) libs =
-  let () = assert (not @@ DPmap.mem dp libs.foreign) in
-  { libs with foreign = DPmap.add dp m libs.foreign }
+  let () = assert (not @@ DirPath.Map.mem dp libs.foreign) in
+  { libs with foreign = DirPath.Map.add dp m libs.foreign }
 
 let missing_index dp i =
   CErrors.anomaly Pp.(str "Missing VM index " ++ int i ++
@@ -156,7 +156,7 @@ let resolve (dp, i) libs =
     match Int.Map.find i libs.local.VmTable.table_val with
     | v -> v
     | exception Not_found -> missing_index dp i
-  else match DPmap.find dp libs.foreign with
+  else match DirPath.Map.find dp libs.foreign with
   | tab ->
     let tab = Delayed.eval tab in
     tab.lib_data.(i)

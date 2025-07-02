@@ -28,7 +28,7 @@ module NamedDecl = Context.Named.Declaration
     without body. We fix this by looking in the implementation
     of the module *)
 
-let modcache = ref (MPmap.empty : structure_body MPmap.t)
+let modcache = ref (ModPath.Map.empty : structure_body ModPath.Map.t)
 
 let rec search_mod_label lab = function
   | [] -> raise Not_found
@@ -75,10 +75,10 @@ let rec lookup_module_in_impl mp =
          search_mod_label lab' fields
 
 and memoize_fields_of_mp mp =
-  try MPmap.find mp !modcache
+  try ModPath.Map.find mp !modcache
   with Not_found ->
     let l = fields_of_mp mp in
-    modcache := MPmap.add mp l !modcache;
+    modcache := ModPath.Map.add mp l !modcache;
     l
 
 and fields_of_mp mp =
@@ -333,7 +333,7 @@ and traverse_context access current ctx accu ctxt =
            ctx, accu) ctxt ~init:(ctx, accu))
 
 let traverse access current t =
-  let () = modcache := MPmap.empty in
+  let () = modcache := ModPath.Map.empty in
   traverse access current Context.Rel.empty (GlobRef.Set_env.empty, GlobRef.Map_env.empty, GlobRef.Map_env.empty) t
 
 (** Hopefully bullet-proof function to recover the type of a constant. It just

@@ -1078,7 +1078,7 @@ let print_type ~print_def qid kn =
         in
         hv 2 (str "{ " ++ prlist_with_sep spc pr_field fields ++ str " }")
       | GTydOpn ->
-        let ctors = KNmap.bindings (Tac2env.find_all_constructors_in_type kn) in
+        let ctors = KerName.Map.bindings (Tac2env.find_all_constructors_in_type kn) in
         if CList.is_empty ctors then str "[ .. ]"
         else
           let pr_ctor (ckn, cdata) =
@@ -1194,7 +1194,7 @@ let print_ltac2_type qid =
     Feedback.msg_notice (print_type ~print_def:true qid kn)
 
 let print_signatures () =
-  let entries = KNmap.bindings (Tac2env.globals ()) in
+  let entries = KerName.Map.bindings (Tac2env.globals ()) in
   let sort (kn1, _) (kn2, _) = KerName.compare kn1 kn2 in
   let entries = List.sort sort entries in
   let map (kn, entry) =
