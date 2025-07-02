@@ -654,7 +654,7 @@ COMMON_MODULE_DEPENDENCIES := modules/plik.v
 # We exclude plik.v.log because this log file does not
 # depend on having the corresponding .vo file built first, and we end
 # up with pseudo-cyclic build rules if we don't exclude it (See
-# COQBUG(https://github.com/coq/coq/issues/12582)).
+# COQBUG(https://github.com/rocq-prover/rocq/issues/12582)).
 $(addsuffix .log,$(filter-out $(COMMON_MODULE_DEPENDENCIES),$(wildcard modules/*.v))): %.v.log: $(COMMON_MODULE_DEPENDENCIES:.v=.v.log)
 
 #######################################################################
