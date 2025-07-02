@@ -307,6 +307,17 @@ and check_modtypes (cst, ustate) trace env mp1 mtb1 mp2 mtb2 subst1 subst2 equiv
       match struc1,struc2 with
       | NoFunctor list1,
         NoFunctor list2 ->
+        let env =
+          if Int.equal nargs 0 then
+            (* Not a functor, so the body and all its subcomponents should
+               already be in the environment *)
+            env
+          else
+            (* We only add the subcomponents, the functor per se is already
+               part of the environment but the subtyping check will never access
+               it directly *)
+            Modops.add_structure mp1 (subst_structure subst1 mp1 list1) (mod_delta mtb1) env
+        in
         let delta_mtb1 = mod_delta mtb1 in
         let delta_mtb2 = mod_delta mtb2 in
         if equiv then
@@ -332,12 +343,6 @@ and check_modtypes (cst, ustate) trace env mp1 mtb1 mp2 mtb2 subst1 subst2 equiv
         let env = add_module_parameter arg_id2 arg_t2 env in
         let cst = check_modtypes (cst, ustate) (FunctorArgument (nargs+1) :: trace) env mparg2 arg_t2 mparg1 arg_t1 subst2 subst1 equiv in
         (* contravariant *)
-        let env =
-          if Modops.is_functor body_t1 then env
-          else
-            let mtb = make_module_type (subst_signature subst1 mp1 body_t1) (mod_delta mtb1) in
-            add_module mp1 (module_body_of_type mtb) env
-        in
         check_structure cst ~nargs:(nargs + 1) env body_t1 body_t2 equiv subst1 subst2
       | _ , _ -> error_incompatible_modtypes mtb1 mtb2
     in
