@@ -59,16 +59,11 @@ let mk_fake_top =
 let def s = tag_definition (str s)
 let keyword s = tag_keyword (str s)
 
-let get_new_id locals id =
-  let rec get_id l id =
-    let dir = Libnames.make_path DirPath.empty id in
-      if not (Nametab.exists_module dir || Nametab.exists_dir dir) then
-        id
-      else
-        get_id (Id.Set.add id l) (Namegen.next_ident_away id l)
-  in
-  let avoid = List.fold_left (fun accu (_, id) -> Id.Set.add id accu) Id.Set.empty locals in
-    get_id avoid id
+let get_new_id avoid id =
+  Namegen.next_ident_away_from id (fun id ->
+      Id.Set.mem id avoid ||
+      let dir = Libnames.make_path DirPath.empty id in
+      Nametab.exists_module dir || Nametab.exists_dir dir)
 
 (** Inductive declarations *)
 
@@ -257,8 +252,7 @@ let nametab_register_modparam used mbid mtb =
     with e when CErrors.noncritical e ->
       (* Otherwise, we try to play with the nametab ourselves *)
       let mp = MPbound mbid in
-      let check id = Id.Set.mem id used || Nametab.exists_module (Libnames.make_path DirPath.empty id) in
-      let id = Namegen.next_ident_away_from id check in
+      let id = get_new_id used id in
       let dir = DirPath.make [id] in
       nametab_register_dir mp;
       List.iter (nametab_register_body mp dir) struc;
@@ -363,7 +357,8 @@ let rec print_functor fty fatom is_type extent env mp used locals = function
       let mp1 = MPbound mbid in
       let pr_mtb1 = fty extent env mp1 used locals mtb1 in
       let env' = Modops.add_module_parameter mbid mtb1 env in
-      let locals' = (mbid, get_new_id locals (MBId.to_id mbid))::locals in
+      let avoid = List.fold_left (fun accu (_, id) -> Id.Set.add id accu) Id.Set.empty locals in
+      let locals' = (mbid, get_new_id avoid (MBId.to_id mbid))::locals in
       let kwd = if is_type then "Funsig" else "Functor" in
       hov 2
         (keyword kwd ++ spc () ++
