@@ -487,6 +487,9 @@ vernac_toplevel: [
 | "BackTo" natural "."
 | test_show_goal "Show" "Goal" natural "at" natural "."
 | "Show" "Proof" "Diffs" OPT "removed" "."
+| "Show" "."
+| test_show_natural "Show" natural "."
+| "Show" "Diffs" ident "."
 | Pvernac.Vernac_.main_entry
 ]
 

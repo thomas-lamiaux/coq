@@ -21,7 +21,8 @@ type vernac_toplevel =
   | VernacDrop
   | VernacQuit
   | VernacControl of vernac_control
-  | VernacShowGoal of { gid : int; sid: int }
+  | VernacShowGoalAt of { gid : int; sid: int }
+  | VernacShowGoal of Vernacexpr.goal_reference
   | VernacShowProofDiffs of Proof_diffs.diffOpt
 
 let vernac_toplevel = Entry.make "toplevel:vernac_toplevel"
@@ -30,6 +31,12 @@ let test_show_goal =
   let open Procq.Lookahead in
   to_entry "test_show_goal" begin
    lk_kw "Show" >> lk_kw "Goal" >> lk_nat
+  end
+
+let test_show_natural =
+  let open Procq.Lookahead in
+  to_entry "test_show_natural" begin
+   lk_kw "Show" >> lk_nat
   end
 
 }
@@ -43,10 +50,13 @@ GRAMMAR EXTEND Gram
         { Some (VernacBackTo n) }
       (* show a goal for the specified proof state *)
       | test_show_goal; IDENT "Show"; IDENT "Goal"; gid = natural; IDENT "at"; sid = natural; "." ->
-          { Some (VernacShowGoal {gid; sid}) }
+        { Some (VernacShowGoalAt {gid; sid}) }
       | IDENT "Show"; IDENT "Proof"; IDENT "Diffs"; removed = OPT [ IDENT "removed" -> { () } ]; "." ->
         { Some (VernacShowProofDiffs
           (if removed = None then Proof_diffs.DiffOn else Proof_diffs.DiffRemoved)) }
+      | IDENT "Show"; "."-> { Some (VernacShowGoal OpenSubgoals) }
+      | test_show_natural; IDENT "Show"; n = natural; "." -> { Some (VernacShowGoal (NthGoal n)) }
+      | IDENT "Show"; IDENT "Diffs"; id = ident; "." -> { Some (VernacShowGoal (GoalId id)) }
       | cmd = Pvernac.Vernac_.main_entry ->
               { match cmd with
               | None -> None

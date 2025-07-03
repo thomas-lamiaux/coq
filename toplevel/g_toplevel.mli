@@ -4,7 +4,8 @@ type vernac_toplevel =
   | VernacDrop
   | VernacQuit
   | VernacControl of Vernacexpr.vernac_control
-  | VernacShowGoal of { gid : int; sid : int; }
+  | VernacShowGoalAt of { gid : int; sid : int; }
+  | VernacShowGoal of Vernacexpr.goal_reference
   | VernacShowProofDiffs of Proof_diffs.diffOpt
 
 val test_show_goal : unit Procq.Entry.t

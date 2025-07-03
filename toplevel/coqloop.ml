@@ -383,7 +383,7 @@ let print_anyway c =
 let print_and_diff oldp proof =
   let output =
     if Proof_diffs.show_diffs () then
-      try Printer.pr_open_subgoals ~diffs:oldp proof
+      try Printer.pr_open_subgoals ~oldp proof
       with Pp_diff.Diff_Failure msg -> begin
         (* todo: print the unparsable string (if we know it) *)
         Feedback.msg_warning Pp.(str ("Diff failure: " ^ msg) ++ cut()
@@ -407,7 +407,7 @@ let top_goal_print ~doc c oldp newp =
                       print_anyway c in
     if not !Flags.quiet && print_goals then begin
       let dproof = Stm.get_prev_proof ~doc (Stm.get_current_state ~doc) in
-      print_and_diff dproof newp
+      print_and_diff (Some dproof) newp
     end
   with
   | exn ->
@@ -484,10 +484,20 @@ let process_toplevel_command ~state stm =
     in
     true, nstate
 
-  | VernacShowGoal { gid; sid } ->
+  | VernacShowGoalAt { gid; sid } ->
     let proof = Stm.get_proof ~doc:state.doc (Stateid.of_int sid) in
     let goal = Printer.pr_goal_emacs ~proof gid sid in
     let () = Feedback.msg_notice goal in
+    true, state
+
+  | VernacShowGoal goalref ->
+    let open Vernac.State in
+    begin match state.proof with
+    | None -> CErrors.user_err (str "This command requires an open proof.")
+    | Some proof ->
+      let oldp = Stm.get_prev_proof ~doc:state.doc state.sid in
+      Feedback.msg_notice @@ Vernacentries.show_goal goalref proof (Some oldp);
+    end;
     true, state
 
   | VernacShowProofDiffs diff_opt ->
