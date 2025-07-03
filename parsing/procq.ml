@@ -12,9 +12,6 @@ open Util
 open Genarg
 open Gramlib
 
-module CustomName = Globnames.CustomName
-module CustomMap = CustomName.Map
-
 (** The parser of Rocq *)
 include Grammar.GMake(CLexer.Lexer)
 
@@ -26,12 +23,9 @@ module GramState = Store.Make ()
 
 type grammar_entry =
 | GramExt of GrammarCommand.t
-| EntryExt : 'a EntryCommand.tag * string * CustomName.t -> grammar_entry
+| EntryExt : ('a * 'b) EntryCommand.tag * 'a -> grammar_entry
 
 (** State handling (non marshallable!) *)
-
-module EntryData = struct type _ t = Ex : 'a Entry.t CustomMap.t -> 'a t end
-module EntryDataMap = EntryCommand.Map(EntryData)
 
 type full_state = {
   (* the state used for parsing *)
@@ -44,8 +38,6 @@ type full_state = {
   current_sync_extensions : grammar_entry list;
   (* some user data tied to the grammar state, typically contains info on declared levels *)
   user_state : GramState.t;
-  (* map to find custom entries *)
-  custom_entries : EntryDataMap.t;
 }
 
 let empty_full_state =
@@ -55,11 +47,12 @@ let empty_full_state =
     base_state = empty_gstate;
     current_sync_extensions = [];
     user_state = GramState.empty;
-    custom_entries = EntryDataMap.empty;
   }
 
 (** Not marshallable! *)
 let state = ref empty_full_state
+
+let gramstate () = (!state).user_state
 
 let gstate () = (!state).current_state
 
@@ -72,7 +65,6 @@ let reset_to_base state = {
   current_state = state.base_state;
   current_sync_extensions = [];
   user_state = GramState.empty;
-  custom_entries = EntryDataMap.empty;
 }
 
 let modify_state_unsync f state =
@@ -139,29 +131,33 @@ let grammar_extend_sync user_state entry rules state =
 
 let grammar_extend_sync st e r () = state := grammar_extend_sync st e r !state
 
-let extend_entry_sync (type a) (tag : a EntryCommand.tag) prefix (name : CustomName.t) state : _ * a Entry.t =
-  let current_estate, e = Entry.make (prefix^CustomName.to_string name) state.current_state.estate in
+type ('a,'b) entry_extension = {
+  eext_fun : 'a -> 'b Entry.t -> GramState.t -> GramState.t;
+  eext_name : 'a -> string;
+  eext_eq : 'a -> 'a -> bool;
+}
+
+let extend_entry_sync (type a b)
+    (tag : (a * b) EntryCommand.tag)
+    (interp:(a,b) entry_extension)
+    (data:a)
+    state
+  : _ * b Entry.t =
+  let name = interp.eext_name data in
+  let current_estate, e = Entry.make name state.current_state.estate in
   let current_state = { state.current_state with estate = current_estate } in
-  let custom_entries =
-    let EntryData.Ex old =
-      try EntryDataMap.find tag state.custom_entries
-      with Not_found -> EntryData.Ex CustomMap.empty
-    in
-    let () = assert (not @@ CustomMap.mem name old) in
-    let entries = CustomMap.add name e old in
-    EntryDataMap.add tag (EntryData.Ex entries) state.custom_entries
-  in
+  let user_state = interp.eext_fun data e state.user_state in
   let state = {
     state with
     current_state;
-    current_sync_extensions = EntryExt (tag,prefix,name) :: state.current_sync_extensions;
-    custom_entries;
+    current_sync_extensions = EntryExt (tag,data) :: state.current_sync_extensions;
+    user_state;
   }
   in
   state, e
 
-let extend_entry_command tag prefix name =
-  let statev, e = extend_entry_sync tag prefix name !state in
+let extend_entry_sync tag interp data () =
+  let statev, e = extend_entry_sync tag interp data !state in
   state := statev;
   e
 
@@ -388,15 +384,11 @@ module GrammarInterpMap = GrammarCommand.Map(GrammarInterp)
 let grammar_interp = ref GrammarInterpMap.empty
 
 type 'a grammar_command = 'a GrammarCommand.tag
-type 'a entry_command = 'a EntryCommand.tag
 
 let create_grammar_command name interp : _ grammar_command =
   let obj = GrammarCommand.create name in
   let () = grammar_interp := GrammarInterpMap.add obj interp !grammar_interp in
   obj
-
-let create_entry_command name : 'a entry_command =
-  EntryCommand.create name
 
 let extend_grammar_command tag g =
   let modify = GrammarInterpMap.find tag !grammar_interp in
@@ -404,9 +396,21 @@ let extend_grammar_command tag g =
   let (rules, st) = modify.gext_fun g grammar_state in
   grammar_extend_sync st (Dyn (tag,g)) rules ()
 
-let find_custom_entry tag name =
-  let EntryData.Ex map = EntryDataMap.find tag (!state).custom_entries in
-  CustomMap.find name map
+module EntryInterp = struct type _ t = EExt : ('a,'b) entry_extension -> ('a * 'b) t end
+module EntryInterpMap = EntryCommand.Map(EntryInterp)
+
+let entry_interp = ref EntryInterpMap.empty
+
+type ('a,'b) entry_command = ('a * 'b) EntryCommand.tag
+
+let create_entry_command name interp : _ entry_command =
+  let obj = EntryCommand.create name in
+  let () = entry_interp := EntryInterpMap.add obj (EExt interp) !entry_interp in
+  obj
+
+let extend_entry_command tag data =
+  let EExt interp = EntryInterpMap.find tag !entry_interp in
+  extend_entry_sync tag interp data ()
 
 (** Registering extra grammar *)
 
@@ -449,10 +453,12 @@ let eq_grams g1 g2 = match g1, g2 with
     let data = GrammarInterpMap.find t1 !grammar_interp in
     data.gext_eq v1 v2
   end
-| EntryExt (t1, p1, v1), EntryExt (t2, p2, v2) ->
+| EntryExt (t1, d1), EntryExt (t2, d2) ->
   begin match EntryCommand.eq t1 t2 with
   | None -> false
-  | Some Refl -> String.equal p1 p2 && CustomName.equal v1 v2
+  | Some Refl ->
+    let EExt interp = EntryInterpMap.find t1 !entry_interp in
+    interp.eext_eq d1 d2
   end
 | (GramExt _, EntryExt _) | (EntryExt _, GramExt _) -> false
 
@@ -463,7 +469,7 @@ let factorize_grams l1 l2 =
 
 let replay_sync_extension = function
   | GramExt (Dyn (tag,g)) -> extend_grammar_command tag g
-  | EntryExt (tag,prefix,name) -> ignore (extend_entry_command tag prefix name : _ Entry.t)
+  | EntryExt (tag,data) -> ignore (extend_entry_command tag data : _ Entry.t)
 
 let unfreeze = function
   | {frozen_sync;} as frozen ->

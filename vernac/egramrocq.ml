@@ -17,6 +17,7 @@ open Extend
 open Notationextern
 open Notation_gram
 open Procq
+open Globnames
 
 (**********************************************************************)
 (* This determines (depending on the associativity of the current
@@ -270,19 +271,37 @@ type (_, _) entry =
 
 type _ any_entry = TTAny : ('s, 'r) entry -> 's any_entry
 
-let constr_custom_entry : Constrexpr.constr_expr entry_command =
-  create_entry_command "constr"
-let pattern_custom_entry : Constrexpr.cases_pattern_expr entry_command =
-  create_entry_command "pattern"
+let constr_custom_map : Constrexpr.constr_expr Entry.t CustomName.Map.t GramState.field =
+  GramState.field "constr_custom_map"
+
+let pattern_custom_map : Constrexpr.cases_pattern_expr Entry.t CustomName.Map.t GramState.field =
+  GramState.field "pattern_custom_map"
+
+let make_custom_interp field prefix = {
+  eext_fun = (fun kn e state ->
+      let map = Option.default CustomName.Map.empty (GramState.get state field) in
+      let map = CustomName.Map.add kn e map in
+      GramState.set state field map);
+  eext_name = (fun kn -> prefix^CustomName.to_string kn);
+  eext_eq = CustomName.equal;
+}
+
+let constr_custom_entry : (CustomName.t, Constrexpr.constr_expr) entry_command =
+  create_entry_command "constr" (make_custom_interp constr_custom_map "custom:")
+let pattern_custom_entry : (CustomName.t, Constrexpr.cases_pattern_expr) entry_command =
+  create_entry_command "pattern" (make_custom_interp pattern_custom_map "pattern:")
 
 let create_custom_entry s =
-  let _ = extend_entry_command constr_custom_entry "custom:" s in
-  let _ = extend_entry_command pattern_custom_entry "custom_pattern:" s in
+  let _ : _ Entry.t = extend_entry_command constr_custom_entry s in
+  let _ : _ Entry.t = extend_entry_command pattern_custom_entry s in
   ()
 
 let find_custom_entry s =
-  try (find_custom_entry constr_custom_entry s, find_custom_entry pattern_custom_entry s)
-  with Not_found -> anomaly Pp.(str "Undeclared custom entry: " ++ CustomName.print s ++ str ".")
+  let state = gramstate() in
+  let find_aux field = CustomName.Map.find s (Option.get @@ GramState.get state field) in
+  try (find_aux constr_custom_map, find_aux pattern_custom_map)
+  with Not_found | Option.IsNone ->
+    anomaly Pp.(str "Undeclared custom entry: " ++ CustomName.print s ++ str ".")
 
 (** This computes the name of the level where to add a new rule *)
 let interp_constr_entry_key : type r. _ -> r target -> r Entry.t * int option =
