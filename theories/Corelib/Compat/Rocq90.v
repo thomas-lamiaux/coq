@@ -10,7 +10,4 @@
 
 (** Compatibility file for making Rocq act similar to Coq v9.0 *)
 
-(** When removing this file, please cleanup the "-compat" option code
-    in sysinit/coqargs.ml *)
-
 #[export] Set Warnings "-deprecated-since-9.1".
