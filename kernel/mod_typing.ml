@@ -324,7 +324,10 @@ let finalize_module_alg (cst, ustate) (vm, vmstate) env mp (sign,alg,reso) resty
   | Some (params_mte,inl) ->
     let res_mtb, cst, vm = translate_modtype (cst, ustate) (vm, vmstate) env mp inl params_mte in
     let auto_mtb = mk_modtype sign reso in
-    let env = Modops.add_module mp (module_body_of_type auto_mtb) env in
+    (* This function is supposed to be called in a state where the current module
+       is about to be closed, so all subcomponents of the module are already
+       part of the environment. We only need to add the toplevel module entry. *)
+    let env = Environ.shallow_add_module mp (module_body_of_type auto_mtb) env in
     let cst = Subtyping.check_subtypes (cst, ustate) env mp mp res_mtb in
     let impl = match alg with
     | Some e -> Algebraic e
@@ -352,6 +355,11 @@ let translate_module (cst, ustate) (vm, vmstate) env mp inl = function
   | MExpr (params,mse,oty) ->
     let (sg,alg,reso,cst,vm) = translate_mse_funct (cst, ustate) (vm, vmstate) env ~is_mod:true mp inl mse params in
     let restype = Option.map (fun ty -> ((params,ty),inl)) oty in
+    (* finalize_module_alg expects the subcomponents to be part of the environment *)
+    let env = match sg with
+    | NoFunctor struc -> Modops.add_structure mp struc reso env
+    | MoreFunctor _ -> env
+    in
     finalize_module_alg (cst, ustate) (vm, vmstate) env mp (sg,Some alg,reso) restype
 
 (** We now forbid any Include of functors with restricted signatures.
