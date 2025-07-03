@@ -22,6 +22,8 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y -qq \
         python3-pip python3-setuptools python3-pexpect python3-bs4 fonts-freefont-otf \
         # pipeline-stats
         python3-gitlab python3-tabulate \
+        # Dependency of stdlib-doc
+        graphviz \
         # Dependencies of source-doc and coq-makefile
         texlive-latex-extra texlive-science tipa \
         # Dependencies of HB (test suite)
@@ -59,10 +61,12 @@ ENV COMPILER="4.14.2" \
 
 # EDGE+flambda switch, we install CI_OPAM as to be able to use
 # `ci-template-flambda` with everything.
-RUN opam init -a --disable-sandboxing --bare && eval $(opam env) && opam update && \
+RUN opam init -a --disable-sandboxing --bare && eval $(opam env) && \
     opam switch create "${COMPILER}+flambda" \
       --repositories default,ocaml-beta=git+https://github.com/ocaml/ocaml-beta-repository.git,coq-core-dev=https://coq.inria.fr/opam/core-dev \
       --packages="ocaml-variants.${COMPILER}+options,ocaml-option-flambda" && eval $(opam env) && \
+    opam repo add archive git+https://github.com/ocaml/opam-repository-archive && \
+    opam update && \
     opam install $BASE_OPAM $BASE_OPAM_EDGE $COQIDE_OPAM_EDGE $CI_OPAM $CI_OPAM_EDGE && \
     opam clean -a -c
 

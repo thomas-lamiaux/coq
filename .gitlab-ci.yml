@@ -41,7 +41,7 @@ variables:
   # echo $(md5sum dev/ci/docker/old_ubuntu_lts/Dockerfile | head -c 10)
   # echo $(md5sum dev/ci/docker/edge_ubuntu/Dockerfile | head -c 10)
   BASE_CACHEKEY: "old_ubuntu_lts-V2025-04-29-b90c41d539"
-  EDGE_CACHEKEY: "edge_ubuntu-V2025-04-07-dee2054641"
+  EDGE_CACHEKEY: "edge_ubuntu-V2025-07-03-1b94c46b8f"
   BASE_IMAGE: "$CI_REGISTRY_IMAGE:$BASE_CACHEKEY"
   EDGE_IMAGE: "$CI_REGISTRY_IMAGE:$EDGE_CACHEKEY"
 
@@ -1001,10 +1001,10 @@ library:ci-stdlib_test:
   stage: build-2
 
 library:ci-stdlib_doc:
-  extends: .ci-template
+  extends: .ci-template-flambda
   needs:
-  - build:base
-  - library:ci-stdlib
+  - build:edge+flambda
+  - library:ci-stdlib+flambda
   stage: build-2
   variables:
     SAVE_BUILD_CI: "1" # for doc:refman:deploy
