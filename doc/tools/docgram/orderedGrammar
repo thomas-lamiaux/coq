@@ -746,7 +746,7 @@ command: [
 | "Print" "All"
 | "Print" "Section" qualid
 | "Print" "Grammar" LIST0 ident
-| "Print" "Custom" "Grammar" ident
+| "Print" "Custom" "Grammar" qualid
 | "Print" "Keywords"
 | "Print" "LoadPath" OPT dirpath
 | "Print" "Libraries"
@@ -758,7 +758,7 @@ command: [
 | "Print" "Typeclasses"
 | "Print" "Instances" reference
 | "Print" "Coercions"
-| "Print" "Notation" string OPT [ "in" "custom" ident ]
+| "Print" "Notation" string OPT [ "in" "custom" qualid ]
 | "Print" "Coercion" "Paths" coercion_class coercion_class
 | "Print" "Canonical" "Projections" LIST0 reference
 | "Print" "Typing" "Flags"
@@ -1079,7 +1079,7 @@ enable_notation_flag: [
 | "all"
 | "only" "parsing"
 | "only" "printing"
-| "in" "custom" ident
+| "in" "custom" qualid
 | "in" "constr"
 ]
 
@@ -1307,7 +1307,7 @@ coercion_class: [
 
 syntax_modifier: [
 | "at" "level" natural
-| "in" "custom" ident OPT ( "at" "level" natural )
+| "in" "custom" qualid OPT ( "at" "level" natural )
 | LIST1 ident SEP "," [ "at" level | "in" "scope" ident ]
 | ident "at" level OPT binder_interp
 | ident explicit_subentry
@@ -1329,7 +1329,7 @@ explicit_subentry: [
 | "binder"
 | "closed" "binder"
 | "constr" OPT ( "at" level ) OPT binder_interp
-| "custom" ident OPT ( "at" level ) OPT binder_interp
+| "custom" qualid OPT ( "at" level ) OPT binder_interp
 | "pattern" OPT ( "at" "level" natural )
 ]
 

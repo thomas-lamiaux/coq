@@ -69,18 +69,21 @@ val add_abbreviation : local:bool -> Globnames.extended_global_reference UserWar
 (** Print the Camlp5 state of a grammar *)
 
 val pr_grammar : string list -> Pp.t
-val pr_custom_grammar : string -> Pp.t
+val pr_custom_grammar : Libnames.qualid -> Pp.t
 val pr_keywords : unit -> Pp.t
 
 val with_syntax_protection : ('a -> 'b) -> 'a -> 'b
 
 val declare_notation_toggle : locality_flag -> on:bool -> all:bool -> Notation.notation_query_pattern -> unit
 
-val declare_custom_entry : locality_flag -> string -> unit
+val declare_custom_entry : locality_flag -> Id.t -> unit
 (** Declare given string as a custom grammar entry *)
 
-val check_custom_entry : string -> unit
-(** Check that the given string is a valid custom entry that has been declared *)
+val intern_custom_name : Libnames.qualid -> Globnames.CustomName.t
+(** Intern custom entry name using compat layer if needed. *)
 
-val pr_level : Constrexpr.notation -> Notationextern.level -> Extend.constr_entry_key list -> Pp.t
+val intern_notation_entry : Libnames.qualid notation_entry_gen -> notation_entry
+(** Intern notation entry name using compat layer for custom entries if needed. *)
+
+val pr_level : notation_entry_level * entry_relative_level list -> Extend.constr_entry_key list -> Pp.t
 (** Pretty print level information of a notation and all of its arguments *)

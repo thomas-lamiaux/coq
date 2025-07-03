@@ -52,7 +52,7 @@ let notation_cat = Libobject.create_category "notations"
     expression, set this scope to be the current scope
 *)
 
-let pr_notation (from,ntn) = qstring ntn ++ match from with InConstrEntry -> mt () | InCustomEntry s -> str " in custom " ++ str s
+let pr_notation (from,ntn) = qstring ntn ++ match from with InConstrEntry -> mt () | InCustomEntry s -> str " in custom " ++ Nametab.CustomEntries.pr s
 
 module NotationOrd =
   struct
@@ -276,10 +276,8 @@ let entry_relative_level_le child = function
 let notation_level_map = Summary.ref ~stage:Summary.Stage.Synterp ~name:"notation_level_map" NotationMap.empty
 
 let declare_notation_level ntn level =
-  try
-    let _ = NotationMap.find ntn !notation_level_map in
-    anomaly (str "Notation " ++ pr_notation ntn ++ str " is already assigned a level.")
-  with Not_found ->
+  if NotationMap.mem ntn !notation_level_map then
+    anomaly (str "Notation " ++ pr_notation ntn ++ str " is already assigned a level.");
   notation_level_map := NotationMap.add ntn level !notation_level_map
 
 (**********************************************************************)
@@ -1697,37 +1695,37 @@ let declare_entry_coercion ntn entry_level entry_relative_level' =
 (* Hard-wired coercion in constr corresponding to "( x )" *)
 let _ = entry_coercion_map := (EntryCoercionMap.add (InConstrEntry,InConstrEntry) [(0,LevelSome),[]] !entry_coercion_map)
 
-let entry_has_global_map = ref String.Map.empty
+let entry_has_global_map = ref CustomName.Map.empty
 
 let declare_custom_entry_has_global s n =
   try
-    let p = String.Map.find s !entry_has_global_map in
-    user_err (str "Custom entry " ++ str s ++
+    let p = CustomName.Map.find s !entry_has_global_map in
+    user_err (str "Custom entry " ++ Nametab.CustomEntries.pr s ++
               str " has already a rule for global references at level " ++ int p ++ str ".")
   with Not_found ->
-    entry_has_global_map := String.Map.add s n !entry_has_global_map
+    entry_has_global_map := CustomName.Map.add s n !entry_has_global_map
 
 let entry_has_global { notation_subentry = entry; notation_relative_level = n } =
   match entry with
   | InConstrEntry -> true
   | InCustomEntry s ->
-     try entry_relative_level_le (String.Map.find s !entry_has_global_map) n with Not_found -> false
+     try entry_relative_level_le (CustomName.Map.find s !entry_has_global_map) n with Not_found -> false
 
-let entry_has_ident_map = ref String.Map.empty
+let entry_has_ident_map = ref CustomName.Map.empty
 
 let declare_custom_entry_has_ident s n =
   try
-    let p = String.Map.find s !entry_has_ident_map in
-    user_err (str "Custom entry " ++ str s ++
+    let p = CustomName.Map.find s !entry_has_ident_map in
+    user_err (str "Custom entry " ++ Nametab.CustomEntries.pr s ++
               str " has already a rule for global references at level " ++ int p ++ str ".")
   with Not_found ->
-    entry_has_ident_map := String.Map.add s n !entry_has_ident_map
+    entry_has_ident_map := CustomName.Map.add s n !entry_has_ident_map
 
 let entry_has_ident { notation_subentry = entry; notation_relative_level = n } =
   match entry with
   | InConstrEntry -> true
   | InCustomEntry s ->
-     try entry_relative_level_le (String.Map.find s !entry_has_ident_map) n with Not_found -> false
+     try entry_relative_level_le (CustomName.Map.find s !entry_has_ident_map) n with Not_found -> false
 
 let app_level = 10
 
@@ -1743,8 +1741,8 @@ let may_capture_cont_after child parent =
 
 type entry_coercion_kind =
   | IsEntryCoercion of notation_entry_level * notation_entry_relative_level
-  | IsEntryGlobal of string * int
-  | IsEntryIdent of string * int
+  | IsEntryGlobal of CustomName.t * int
+  | IsEntryIdent of CustomName.t * int
 
 let declare_notation (scopt,ntn) pat df ~use coe user_warns =
   (* Register the interpretation *)
@@ -2674,7 +2672,7 @@ let match_notation_interpretation notation_interpretation pat =
 
 let match_notation_entry notation_entry_pattern notation_entry =
   List.is_empty notation_entry_pattern ||
-  List.exists (notation_entry_eq notation_entry) notation_entry_pattern
+  List.mem_f notation_entry_eq notation_entry notation_entry_pattern
 
 let match_notation_rule interp_rule_key_pattern notation_key =
   match interp_rule_key_pattern with
@@ -2782,9 +2780,13 @@ let toggle_notations ~on ~all ?(verbose=true) prglob ntn_pattern =
             | Inl (l, (sc, (entry, _))) ->
               let sc = match sc with NotationInScope sc -> sc | LastLonelyNotation -> default_scope in
               let data = { not_interp = i; not_location = l; not_user_warns = None } in
-              hov 0 (str "Notation " ++ pr_notation_data prglob (Some true,Some true,data) ++
-              (match entry with InCustomEntry s -> str " (in custom " ++ str s ++ str ")" | _ -> mt ()) ++
-              (if String.equal sc default_scope then mt () else (brk (1,2) ++ str ": " ++ str sc)))
+              hov 0
+                (str "Notation " ++ pr_notation_data prglob (Some true,Some true,data) ++
+                 (match entry with
+                  | InCustomEntry s ->
+                    str " (in custom " ++ Nametab.CustomEntries.pr s ++ str ")"
+                  | InConstrEntry -> mt ()) ++
+                 (if String.equal sc default_scope then mt () else (brk (1,2) ++ str ": " ++ str sc)))
             | Inr sp ->
               hov 0 (str "Notation " ++ Libnames.pr_path sp ++ prlist (fun (a,_) -> spc () ++ Id.print a) vars ++
               spc () ++ str ":=" ++ spc () ++ prglob (Notation_ops.glob_constr_of_notation_constr a)))

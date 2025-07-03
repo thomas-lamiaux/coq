@@ -107,9 +107,8 @@ type notation_var_internalization_type =
 type notation_var_binders = Id.Set.t
 
 (** This characterizes to what a notation is interpreted to *)
-type interpretation =
-    (Id.t * (extended_subscopes * notation_var_binders * notation_var_instance_type)) list *
-    notation_constr
+type 'a interpretation_gen = (Id.t * 'a) list * notation_constr
+type interpretation = (extended_subscopes * notation_var_binders * notation_var_instance_type) interpretation_gen
 
 type forgetfulness = { forget_ltac : bool; forget_volatile_cast : bool }
 

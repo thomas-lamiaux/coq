@@ -43,7 +43,7 @@ type printable =
   | PrintSectionContext of qualid
   | PrintInspect of int
   | PrintGrammar of string list
-  | PrintCustomGrammar of string
+  | PrintCustomGrammar of qualid
   | PrintKeywords
   | PrintLoadPath of DirPath.t option
   | PrintLibraries
@@ -76,7 +76,7 @@ type printable =
   | PrintStrategy of qualid or_by_notation option
   | PrintRegistered
   | PrintRegisteredSchemes
-  | PrintNotation of Constrexpr.notation_entry * string
+  | PrintNotation of qualid Constrexpr.notation_entry_gen * string
 
 type glob_search_where = InHyp | InConcl | Anywhere
 
@@ -162,15 +162,15 @@ type syntax_modifier =
   | SetItemLevel of string list * Notation_term.notation_binder_kind option * Extend.production_level
   | SetItemScope of string list * scope_name
   | SetLevel of int
-  | SetCustomEntry of string * int option
+  | SetCustomEntry of qualid * int option
   | SetAssoc of Gramlib.Gramext.g_assoc
-  | SetEntryType of string * Extend.simple_constr_prod_entry_key
+  | SetEntryType of string * qualid Extend.simple_constr_prod_entry_key
   | SetOnlyParsing
   | SetOnlyPrinting
   | SetFormat of notation_format
 
 type notation_enable_modifier =
-  | EnableNotationEntry of notation_entry CAst.t
+  | EnableNotationEntry of qualid notation_entry_gen
   | EnableNotationOnly of Notationextern.notation_use
   | EnableNotationAll
 
@@ -371,7 +371,7 @@ type synterp_vernac_expr =
   | VernacReservedNotation of infix_flag * (lstring * syntax_modifier CAst.t list)
   | VernacNotation of
       infix_flag * notation_declaration
-  | VernacDeclareCustomEntry of string
+  | VernacDeclareCustomEntry of Id.t
   | VernacBeginSection of lident
   | VernacEndSegment of lident
   | VernacRequire of

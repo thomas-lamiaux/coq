@@ -98,3 +98,5 @@ module ExtRefSet = ExtRefMap.Set
 let subst_extended_reference sub = function
   | Abbrev kn -> Abbrev (Mod_subst.subst_kn sub kn)
   | TrueGlobal gr -> TrueGlobal (subst_global_reference sub gr)
+
+module CustomName = KerName

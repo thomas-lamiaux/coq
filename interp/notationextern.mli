@@ -52,11 +52,9 @@ val entry_relative_level_eq : entry_relative_level -> entry_relative_level -> bo
 (** Equality on [entry_relative_level]. *)
 
 (** Binds a notation in a given scope to an interpretation *)
-type 'a interp_rule_gen =
+type interp_rule =
   | NotationRule of Constrexpr.specific_notation
-  | AbbrevRule of 'a
-
-type interp_rule = KerName.t interp_rule_gen
+  | AbbrevRule of Globnames.abbreviation
 
 val remove_uninterpretation : interp_rule -> interpretation -> unit
 val declare_uninterpretation : interp_rule -> interpretation -> unit

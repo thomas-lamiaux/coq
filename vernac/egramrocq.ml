@@ -17,6 +17,7 @@ open Extend
 open Notationextern
 open Notation_gram
 open Procq
+open Globnames
 
 (**********************************************************************)
 (* This determines (depending on the associativity of the current
@@ -32,7 +33,10 @@ open Procq
 
 let constr_level = string_of_int
 
-let default_levels =
+type one_level_info = int * Gramlib.Gramext.g_assoc * bool
+type entry_level_info = one_level_info list
+
+let default_constr_levels : entry_level_info =
   [200,Gramlib.Gramext.RightA,true;
    100,Gramlib.Gramext.RightA,false;
    99,Gramlib.Gramext.RightA,true;
@@ -43,7 +47,7 @@ let default_levels =
    1,Gramlib.Gramext.LeftA,false;
    0,Gramlib.Gramext.RightA,false]
 
-let default_pattern_levels =
+let default_pattern_levels : entry_level_info =
   [200,Gramlib.Gramext.RightA,true;
    100,Gramlib.Gramext.RightA,false;
    99,Gramlib.Gramext.RightA,true;
@@ -52,18 +56,24 @@ let default_pattern_levels =
    1,Gramlib.Gramext.LeftA,false;
    0,Gramlib.Gramext.RightA,false]
 
-let default_constr_levels = (default_levels, default_pattern_levels)
+module ConstrEntryOrd = struct
+  type t = notation_entry
+  let compare = notation_entry_compare
+end
 
-let find_levels levels = function
-  | InConstrEntry -> levels, String.Map.find "constr" levels
-  | InCustomEntry s ->
-     try levels, String.Map.find s levels
-     with Not_found ->
-     String.Map.add s ([],[]) levels, ([],[])
+module ConstrEntryMap = Map.Make(ConstrEntryOrd)
+
+let default_levels =
+  ConstrEntryMap.singleton InConstrEntry (default_constr_levels, default_pattern_levels)
+
+let find_levels levels entry =
+  try levels, ConstrEntryMap.find entry levels
+  with Not_found ->
+    let info = [], [] in
+    ConstrEntryMap.add entry info levels, info
 
 let save_levels levels custom lev =
-  let s = match custom with InConstrEntry -> "constr" | InCustomEntry s -> s in
-  String.Map.add s lev levels
+  ConstrEntryMap.add custom lev levels
 
 (* At a same level, LeftA takes precedence over RightA and NoneA *)
 (* In case, several associativity exists for a level, we make two levels, *)
@@ -261,35 +271,37 @@ type (_, _) entry =
 
 type _ any_entry = TTAny : ('s, 'r) entry -> 's any_entry
 
-let constr_custom_entry : Constrexpr.constr_expr entry_command =
-  create_entry_command "constr"
-let pattern_custom_entry : Constrexpr.cases_pattern_expr entry_command =
-  create_entry_command "pattern"
+let constr_custom_map : Constrexpr.constr_expr Entry.t CustomName.Map.t GramState.field =
+  GramState.field "constr_custom_map"
 
-let custom_entry_locality = Summary.ref ~name:"LOCAL-CUSTOM-ENTRY" String.Set.empty
-(** If the entry is present then local *)
+let pattern_custom_map : Constrexpr.cases_pattern_expr Entry.t CustomName.Map.t GramState.field =
+  GramState.field "pattern_custom_map"
 
-let create_custom_entry ~local s =
-  if List.mem s ["constr";"pattern";"ident";"global";"binder";"bigint"] then
-    user_err Pp.(quote (str s) ++ str " is a reserved entry name.");
-  let sc = "custom:"^s in
-  let sp = "custom_pattern:"^s in
-  let _ = extend_entry_command constr_custom_entry sc in
-  let _ = extend_entry_command pattern_custom_entry sp in
-  let () = if local then custom_entry_locality := String.Set.add s !custom_entry_locality in
+let make_custom_interp field prefix = {
+  eext_fun = (fun kn e state ->
+      let map = Option.default CustomName.Map.empty (GramState.get state field) in
+      let map = CustomName.Map.add kn e map in
+      GramState.set state field map);
+  eext_name = (fun kn -> prefix^CustomName.to_string kn);
+  eext_eq = CustomName.equal;
+}
+
+let constr_custom_entry : (CustomName.t, Constrexpr.constr_expr) entry_command =
+  create_entry_command "constr" (make_custom_interp constr_custom_map "custom:")
+let pattern_custom_entry : (CustomName.t, Constrexpr.cases_pattern_expr) entry_command =
+  create_entry_command "pattern" (make_custom_interp pattern_custom_map "pattern:")
+
+let create_custom_entry s =
+  let _ : _ Entry.t = extend_entry_command constr_custom_entry s in
+  let _ : _ Entry.t = extend_entry_command pattern_custom_entry s in
   ()
 
 let find_custom_entry s =
-  let sc = "custom:"^s in
-  let sp = "custom_pattern:"^s in
-  try (find_custom_entry constr_custom_entry sc, find_custom_entry pattern_custom_entry sp)
-  with Not_found -> user_err Pp.(str "Undeclared custom entry: " ++ str s ++ str ".")
-
-let exists_custom_entry s = match find_custom_entry s with
-| _ -> true
-| exception e when CErrors.noncritical e -> false
-
-let locality_of_custom_entry s = String.Set.mem s !custom_entry_locality
+  let state = gramstate() in
+  let find_aux field = CustomName.Map.find s (Option.get @@ GramState.get state field) in
+  try (find_aux constr_custom_map, find_aux pattern_custom_map)
+  with Not_found | Option.IsNone ->
+    anomaly Pp.(str "Undeclared custom entry: " ++ CustomName.print s ++ str ".")
 
 (** This computes the name of the level where to add a new rule *)
 let interp_constr_entry_key : type r. _ -> r target -> r Entry.t * int option =
@@ -613,7 +625,7 @@ let warn_disj_pattern_notation =
 
 let extend_constr_notation ng state =
   let levels = match GramState.get state constr_levels with
-  | None -> String.Map.add "constr" default_constr_levels String.Map.empty
+  | None -> default_levels
   | Some lev -> lev
   in
   (* Add the notation in constr *)

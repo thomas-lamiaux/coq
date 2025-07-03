@@ -14,6 +14,7 @@ open Constrexpr
 open Glob_term
 open Notation_term
 open Notationextern
+open Globnames
 
 (** Notations *)
 
@@ -236,8 +237,8 @@ val warning_overridden_name : string
 
 type entry_coercion_kind =
   | IsEntryCoercion of notation_entry_level * notation_entry_relative_level
-  | IsEntryGlobal of string * int
-  | IsEntryIdent of string * int
+  | IsEntryGlobal of CustomName.t * int
+  | IsEntryIdent of CustomName.t * int
 
 val declare_notation : notation_with_optional_scope * notation ->
   interpretation -> notation_location -> use:notation_use ->
@@ -338,8 +339,7 @@ type notation_symbols = {
   symbols : symbol list; (* the decomposition of the notation into terminals and nonterminals *)
 }
 
-val is_prim_token_constant_in_constr :
-  notation_entry * symbol list -> bool
+val is_prim_token_constant_in_constr : notation_entry * symbol list -> bool
 
 (** Decompose a notation of the form "a 'U' b" together with the lists
     of pairs of recursive variables and the list of all variables
@@ -371,8 +371,8 @@ val availability_of_entry_coercion : ?non_included:bool -> notation_entry_relati
 
 (** Special properties of entries *)
 
-val declare_custom_entry_has_global : string -> int -> unit
-val declare_custom_entry_has_ident : string -> int -> unit
+val declare_custom_entry_has_global : CustomName.t -> int -> unit
+val declare_custom_entry_has_ident : CustomName.t -> int -> unit
 
 val entry_has_global : notation_entry_relative_level -> bool
 val entry_has_ident : notation_entry_relative_level -> bool

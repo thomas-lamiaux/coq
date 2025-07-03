@@ -44,7 +44,7 @@ val print_name : Global.indirect_accessor -> env -> Evd.evar_map
   -> UnivNames.full_name_list option
   -> Pp.t
 val print_notation : env -> Evd.evar_map
-  -> Constrexpr.notation_entry
+  -> qualid Constrexpr.notation_entry_gen
   -> string
   -> Pp.t
 

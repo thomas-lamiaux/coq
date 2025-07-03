@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open Globnames
+
 (** Entry keys for constr notations *)
 
 type production_position =
@@ -23,19 +25,19 @@ val production_level_eq : production_level -> production_level -> bool
 
 (** User-level types used to tell how to parse or interpret of the non-terminal *)
 
-type 'a constr_entry_key_gen =
+type ('custom,'a) constr_entry_key_gen =
   | ETIdent
   | ETName
   | ETGlobal
   | ETBigint
   | ETBinder of bool  (* open list of binders if true, closed list of binders otherwise *)
-  | ETConstr of Constrexpr.notation_entry * Notation_term.notation_binder_kind option * 'a
+  | ETConstr of 'custom Constrexpr.notation_entry_gen * Notation_term.notation_binder_kind option * 'a
   | ETPattern of bool * int option (* true = strict pattern, i.e. not a single variable *)
 
 (** Entries level (left-hand side of grammar rules) *)
 
 type constr_entry_key =
-    (production_level * production_position) constr_entry_key_gen
+    (CustomName.t, production_level * production_position) constr_entry_key_gen
 
 val constr_entry_key_eq : constr_entry_key -> constr_entry_key -> bool
 
@@ -43,8 +45,8 @@ val constr_entry_key_eq_ignore_binder_kind : constr_entry_key -> constr_entry_ke
 
 (** Entries used in productions, vernac side (e.g. "x bigint" or "x ident") *)
 
-type simple_constr_prod_entry_key =
-    production_level constr_entry_key_gen
+type 'custom simple_constr_prod_entry_key =
+    ('custom, production_level) constr_entry_key_gen
 
 (** Entries used in productions (in right-hand-side of grammar rules), to parse non-terminals *)
 

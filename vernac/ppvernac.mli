@@ -11,7 +11,7 @@
 (** This module implements pretty-printers for vernac_expr syntactic
     objects and their subcomponents. *)
 
-val pr_set_entry_type : ('a -> Pp.t) -> 'a Extend.constr_entry_key_gen -> Pp.t
+val pr_set_entry_type : ('custom -> Pp.t) -> ('a -> Pp.t) -> ('custom,'a) Extend.constr_entry_key_gen -> Pp.t
 
 val pr_syntax_modifier : Vernacexpr.syntax_modifier CAst.t -> Pp.t
 

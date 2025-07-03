@@ -39,14 +39,14 @@ let entry_relative_level_eq t1 t2 = match t1, t2 with
 
 let notation_entry_eq s1 s2 = match (s1,s2) with
   | InConstrEntry, InConstrEntry -> true
-  | InCustomEntry s1, InCustomEntry s2 -> String.equal s1 s2
+  | InCustomEntry s1, InCustomEntry s2 -> CustomName.equal s1 s2
   | (InConstrEntry | InCustomEntry _), _ -> false
 
 let notation_entry_compare s1 s2 = match s1, s2 with
   | InConstrEntry, InConstrEntry -> 0
   | InConstrEntry, _ -> -1
   | _, InConstrEntry -> 1
-  | InCustomEntry s1, InCustomEntry s2 -> String.compare s1 s2
+  | InCustomEntry s1, InCustomEntry s2 -> CustomName.compare s1 s2
 
 let notation_entry_level_eq
     { notation_entry = e1; notation_level = n1 }
@@ -110,11 +110,9 @@ let level_eq ({ notation_entry = s1; notation_level = l1}, t1) ({ notation_entry
 
 (** Uninterpretation tables *)
 
-type 'a interp_rule_gen =
+type interp_rule =
   | NotationRule of Constrexpr.specific_notation
-  | AbbrevRule of 'a
-
-type interp_rule = KerName.t interp_rule_gen
+  | AbbrevRule of Globnames.abbreviation
 
 let specific_notation_eq (sc1, (e1, s1)) (sc2, (e2, s2)) =
   notation_with_optional_scope_eq sc1 sc2 &&

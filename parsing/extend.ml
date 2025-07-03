@@ -28,13 +28,13 @@ let production_level_eq lev1 lev2 =
 
 (** User-level types used to tell how to parse or interpret of the non-terminal *)
 
-type 'a constr_entry_key_gen =
+type ('custom,'a) constr_entry_key_gen =
   | ETIdent
   | ETName
   | ETGlobal
   | ETBigint
   | ETBinder of bool  (* open list of binders if true, closed list of binders otherwise *)
-  | ETConstr of Constrexpr.notation_entry * Notation_term.notation_binder_kind option * 'a
+  | ETConstr of 'custom Constrexpr.notation_entry_gen * Notation_term.notation_binder_kind option * 'a
   | ETPattern of bool * int option (* true = strict pattern, i.e. not a single variable *)
 
 let constr_entry_key_eq_gen binder_kind_eq v1 v2 = match v1, v2 with
@@ -55,12 +55,12 @@ let constr_entry_key_eq_ignore_binder_kind = constr_entry_key_eq_gen (fun _ _ ->
 (** Entries level (left-hand side of grammar rules) *)
 
 type constr_entry_key =
-    (production_level * production_position) constr_entry_key_gen
+  (Globnames.CustomName.t, production_level * production_position) constr_entry_key_gen
 
 (** Entries used in productions, vernac side (e.g. "x bigint" or "x ident") *)
 
-type simple_constr_prod_entry_key =
-    production_level constr_entry_key_gen
+type 'custom simple_constr_prod_entry_key =
+    ('custom, production_level) constr_entry_key_gen
 
 (** Entries used in productions (in right-hand-side of grammar rules), to parse non-terminals *)
 
