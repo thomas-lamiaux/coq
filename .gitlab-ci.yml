@@ -635,7 +635,7 @@ library:ci-bbv:
   - build:base
   - library:ci-stdlib
 
-library:ci-bedrock2:
+.library:ci-bedrock2:
   extends: .ci-template-flambda
   variables:
     NJOBS: "1"
@@ -648,7 +648,7 @@ library:ci-bedrock2:
   - library:ci-riscv_coq
   stage: build-3+
 
-library:ci-bedrock2_examples:
+.library:ci-bedrock2_examples:
   extends: .ci-template-flambda
   variables:
     NJOBS: "1"
@@ -752,7 +752,7 @@ library:ci-fcsl_pcm:
   - library:ci-mathcomp
   stage: build-2
 
-library:ci-fiat_crypto:
+.library:ci-fiat_crypto:
   extends: .ci-template-flambda
   variables:
     COQEXTRAFLAGS: "-async-proofs-tac-j 0"
@@ -780,7 +780,7 @@ library:ci-fiat_crypto_legacy:
 # We cannot use flambda due to
 # https://github.com/ocaml/ocaml/issues/7842, see
 # https://github.com/rocq-prover/rocq/pull/11916#issuecomment-609977375
-library:ci-fiat_crypto_ocaml:
+.library:ci-fiat_crypto_ocaml:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
@@ -803,7 +803,7 @@ library:ci-flocq:
   - build:edge+flambda
   - library:ci-stdlib+flambda
 
-library:ci-kami:
+.library:ci-kami:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
@@ -1287,7 +1287,7 @@ library:ci-riscv_coq:
   - library:ci-coqutil
   stage: build-2
 
-library:ci-rupicola:
+.library:ci-rupicola:
   extends: .ci-template-flambda
   needs:
   - build:edge+flambda
