@@ -21,6 +21,12 @@ Fixes / closes #????
 <!-- If this breaks external libraries or plugins in CI: -->
 - [ ] Opened **overlay** pull requests.
 
+<!--
+# Turn this off if you don't want coq-bot suggestions to run the minimizer
+# (you can always call the minimizer with @coqbot minimize anyway)
+offer-minimizer: on
+-->
+
 <!-- Pointers to relevant developer documentation:
 
 Contributing guide: https://github.com/rocq-prover/rocq/blob/master/CONTRIBUTING.md
