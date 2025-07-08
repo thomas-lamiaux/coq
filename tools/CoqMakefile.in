@@ -272,8 +272,7 @@ COQDOCLIBS?=$(COQLIBS_NOML)
 
 # The version of Coq being run and the version of rocq makefile that
 # generated this makefile
-# NB --print-version is not in the rocq shim
-COQ_VERSION:=$(shell $(ROCQ) c --print-version | cut -d " " -f 1)
+COQ_VERSION:=$(shell $(ROCQ) --print-version | cut -d " " -f 1)
 COQMAKEFILE_VERSION:=@COQ_VERSION@
 
 # COQ_SRC_SUBDIRS is for user-overriding, usually to add
