@@ -193,3 +193,29 @@ Module Depth.
   Import Inner.
   Ltac2 Eval assert_eq_int (x()) 1.
 End Depth.
+
+Module Locality.
+  Ltac2 mutable x () := 0.
+
+  Module Inner.
+    #[local] Ltac2 Set x := fun () => Control.throw Assertion_failure.
+  End Inner.
+
+  Ltac2 Eval x().
+
+  Module Inner2.
+    #[export] Ltac2 Set x := fun () => Control.throw Assertion_failure.
+  End Inner2.
+
+  Ltac2 Eval x().
+  Section testS.
+    Import Inner2.
+    Fail Ltac2 Eval x().
+  End testS.
+
+  Module Inner3.
+    (* might be supported someday? *)
+    Fail #[global] Ltac2 Set x := fun () => Control.throw Assertion_failure.
+  End Inner3.
+
+End Locality.

@@ -850,6 +850,7 @@ let register_notation_interpretation = function
     Lib.add_leaf (inTac2NotationInterp (local,kn,data))
 
 type redefinition = {
+  redef_local : bool (* false = Export *);
   redef_kn : ltac_constant;
   redef_body : glb_tacexpr;
   redef_old : Id.t option;
@@ -877,9 +878,13 @@ let subst_redefinition (subst, redef) =
   let kn = Mod_subst.subst_kn subst redef.redef_kn in
   let body = Tac2intern.subst_expr subst redef.redef_body in
   if kn == redef.redef_kn && body == redef.redef_body then redef
-  else { redef_kn = kn; redef_body = body; redef_old = redef.redef_old }
+  else { redef_local = redef.redef_local;
+         redef_kn = kn;
+         redef_body = body;
+         redef_old = redef.redef_old;
+       }
 
-let classify_redefinition o = Substitute
+let classify_redefinition o = if o.redef_local then Dispose else Substitute
 
 let inTac2Redefinition : redefinition -> obj =
   declare_named_object_gen
@@ -890,7 +895,16 @@ let inTac2Redefinition : redefinition -> obj =
      classify_function = classify_redefinition;
     }
 
-let register_redefinition qid old ({loc=eloc} as e) =
+let register_redefinition ~local qid old ({loc=eloc} as e) =
+  let local = match local with
+    | None -> Lib.sections_are_opened()
+    | Some Local -> true
+    | Some Export ->
+      if Lib.sections_are_opened() then
+        CErrors.user_err Pp.(str "This command does not support \"export\" in sections.")
+      else false
+    | Some SuperGlobal -> CErrors.user_err Pp.(str "This command does not support \"global\".")
+  in
   let kn =
     try Tac2env.locate_ltac qid
     with Not_found -> user_err ?loc:qid.CAst.loc (str "Unknown tactic " ++ pr_qualid qid)
@@ -919,6 +933,7 @@ let register_redefinition qid old ({loc=eloc} as e) =
   in
   let old = Option.map (fun { CAst.v = id } -> id) old in
   let def = {
+    redef_local = local;
     redef_kn = kn;
     redef_body = e;
     redef_old = old;
@@ -971,8 +986,8 @@ let register_struct atts str = match str with
   let deprecation, local = Attributes.(parse Notations.(deprecation ++ locality)) atts in
   register_primitive ?deprecation ?local id t ml
 | StrMut (qid, old, e) ->
-  let () = Attributes.unsupported_attributes atts in
-  register_redefinition qid old e
+  let local = Attributes.(parse explicit_hint_locality) atts in
+  register_redefinition ~local qid old e
 
 (** Toplevel exception *)
 
