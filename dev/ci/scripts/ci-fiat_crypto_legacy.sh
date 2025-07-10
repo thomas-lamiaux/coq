@@ -24,8 +24,11 @@ targets2=(
     selected-specific-display
 )
 
+# Use external dependencies to avoid building coqprime from scratch
+make_args=(EXTERNAL_DEPENDENCIES=1)
+
 export COQEXTRAFLAGS='-native-compiler no'
 ( cd "${CI_BUILD_DIR}/fiat_crypto_legacy"
-  make "${targets1[@]}"
-  make -j 1 "${targets2[@]}"
+  make "${make_args[@]}" "${targets1[@]}"
+  make -j 1 "${make_args[@]}" "${targets2[@]}"
 )

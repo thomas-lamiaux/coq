@@ -777,6 +777,8 @@ library:ci-fiat_crypto_legacy:
   needs:
   - build:edge+flambda
   - library:ci-stdlib+flambda
+  - library:ci-coqprime
+  stage: build-3+
   timeout: 1h 30min
 
 # We cannot use flambda due to
