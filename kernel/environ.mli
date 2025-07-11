@@ -467,4 +467,18 @@ module Internal : sig
   end
   (** View type only used by Serlib. Do not use otherwise. *)
 
+  val shallow_overwrite_module : ModPath.t -> module_body -> env -> env
+  (** Same as [shallow_add_module] but tolerates that the module is already
+      in the environment. Only used to bypass a dubious implementation in
+      extraction, do not use. *)
+
+  val overwrite_module : ModPath.t -> module_body -> env -> env
+  (** Overwriting variant of Modops.add_module, see above. *)
+
+  val overwrite_module_parameter : MBId.t -> module_type_body -> env -> env
+  (** Overwriting variant of Modops.add_module_parameter, see above. *)
+
+  val overwrite_structure : ModPath.t -> structure_body -> Mod_subst.delta_resolver -> env -> env
+  (** Overwriting variant of Modops.add_structure, see above. *)
+
 end

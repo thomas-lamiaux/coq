@@ -225,6 +225,12 @@ let make_cst resolver mp l =
 let make_mind resolver mp l =
   Mod_subst.mind_of_delta_kn resolver (KerName.make mp l)
 
+(* The overwrite functions below are basically a hack to work around the fact
+   that extraction breaks all kinds of reasonable invariants regarding modules.
+   Due to the way signatures are handled, modules can be overwritten in the
+   environment to replace a concrete body by its interface. Needless to say
+   that this is probably wildly unsound, but it works good enough (TM). *)
+
 (* From a [structure_body] (i.e. a list of [structure_field_body])
    to specifications. *)
 
@@ -313,18 +319,18 @@ and extract_mexpression_spec table venv env mp1 (me_struct,me_alg) = match me_al
       | _ -> assert false
       in
       let mp = MPbound mbid in
-      let env' = Modops.add_module_parameter mbid mtb env in
+      let env' = Environ.Internal.overwrite_module_parameter mbid mtb env in
       MTfunsig (mbid, extract_mbody_spec table venv env mp mtb,
                 extract_mexpression_spec table venv env' mp1 (me_struct', me_alg'))
   | MENoFunctor m -> extract_mexpr_spec table venv env mp1 (Some me_struct, m)
 
 and extract_msignature_spec table venv env mp1 reso = function
   | NoFunctor struc ->
-      let env' = Modops.add_structure mp1 struc reso env in
+      let env' = Environ.Internal.overwrite_structure mp1 struc reso env in
       MTsig (mp1, extract_structure_spec table venv env' mp1 reso struc)
   | MoreFunctor (mbid, mtb, me) ->
       let mp = MPbound mbid in
-      let env' = Modops.add_module_parameter mbid mtb env in
+      let env' = Environ.Internal.overwrite_module_parameter mbid mtb env in
       MTfunsig (mbid, extract_mbody_spec table venv env mp mtb,
                 extract_msignature_spec table venv env' mp1 reso me)
 
@@ -437,7 +443,7 @@ and extract_mexpression table access venv env mp mty = function
       | NoFunctor _ -> assert false
       in
       let mp1 = MPbound mbid in
-      let env' = Modops.add_module_parameter mbid mtb env in
+      let env' = Environ.Internal.overwrite_module_parameter mbid mtb env in
       Miniml.MEfunctor
         (mbid,
          extract_mbody_spec table venv env mp1 mtb,
@@ -445,11 +451,11 @@ and extract_mexpression table access venv env mp mty = function
 
 and extract_msignature table access venv env mp reso ~all = function
   | NoFunctor struc ->
-      let env' = Modops.add_structure mp struc reso env in
-      Miniml.MEstruct (mp,extract_structure table access venv env' mp reso ~all struc)
+    let env' = Environ.Internal.overwrite_structure mp struc reso env in
+    Miniml.MEstruct (mp, extract_structure table access venv env' mp reso ~all struc)
   | MoreFunctor (mbid, mtb, me) ->
       let mp1 = MPbound mbid in
-      let env' = Modops.add_module_parameter mbid mtb env in
+      let env' = Environ.Internal.overwrite_module_parameter mbid mtb env in
       Miniml.MEfunctor
         (mbid,
          extract_mbody_spec table venv env mp1 mtb,
