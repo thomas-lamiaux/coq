@@ -117,7 +117,7 @@ val interp_open_constr : ?expected_type:typing_constraint -> env -> evar_map -> 
 val interp_constr_evars : ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr -> evar_map * constr
 
-val interp_casted_constr_evars : ?program_mode:bool -> env -> evar_map ->
+val interp_casted_constr_evars : ?flags:Pretyping.inference_flags -> ?program_mode:bool -> env -> evar_map ->
   ?impls:internalization_env -> constr_expr -> types -> evar_map * constr
 
 val interp_type_evars : ?program_mode:bool -> env -> evar_map ->

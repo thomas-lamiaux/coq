@@ -2760,16 +2760,16 @@ let interp_type_evars_impls ?(flags=Pretyping.all_no_fail_flags) env sigma ?(imp
 
 (* Not all evars expected to be resolved, with side-effect on evars *)
 
-let interp_constr_evars_gen ?(program_mode=false) env sigma ?(impls=empty_internalization_env) expected_type c =
+let interp_constr_evars_gen ?flags ?(program_mode=false) env sigma ?(impls=empty_internalization_env) expected_type c =
   let c = intern_gen expected_type ~impls env sigma c in
-  let flags = { Pretyping.all_no_fail_flags with program_mode } in
+  let flags = Option.default { Pretyping.all_no_fail_flags with program_mode } flags in
   understand_tcc ~flags env sigma ~expected_type c
 
 let interp_constr_evars ?program_mode env evdref ?(impls=empty_internalization_env) c =
   interp_constr_evars_gen ?program_mode env evdref WithoutTypeConstraint ~impls c
 
-let interp_casted_constr_evars ?program_mode env sigma ?(impls=empty_internalization_env) c typ =
-  interp_constr_evars_gen ?program_mode env sigma ~impls (OfType typ) c
+let interp_casted_constr_evars ?flags ?program_mode env sigma ?(impls=empty_internalization_env) c typ =
+  interp_constr_evars_gen ?flags ?program_mode env sigma ~impls (OfType typ) c
 
 let interp_type_evars ?program_mode env sigma ?(impls=empty_internalization_env) c =
   interp_constr_evars_gen ?program_mode env sigma IsType ~impls c
