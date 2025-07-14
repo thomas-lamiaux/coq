@@ -138,7 +138,8 @@ described elsewhere
    Searched objects can be filtered by patterns, by the constants they
    contain (identified by their name or a notation) and by their
    names.
-   The location of the pattern or constant within a term
+   The location of the pattern or constant within a term can also be a
+   filter condition.
 
    :n:`@one_pattern`
       Search for objects whose type contains a subterm matching the
@@ -902,7 +903,7 @@ Quitting and debugging
 
    Executes :n:`@sentence` and displays the number of CPU instructions needed
    to execute it. This command is currently only supported on Linux systems,
-   but does not fail on unsupported sustems, where it instead prints an error
+   but does not fail on unsupported systems, where it instead prints an error
    message in the place of the instruction count.
 
 
