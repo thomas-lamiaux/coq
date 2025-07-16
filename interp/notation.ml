@@ -1268,11 +1268,12 @@ let hashtbl_check_and_set allow_overwrite uid f h eq =
        (str "Unique identifier " ++ str uid ++
         str " already used to register a number or string (un)interpreter.")
 
-let register_gen_interpretation allow_overwrite uid (interp, uninterp) =
+let register_gen_interpretation allow_overwrite (uid:string) (interp, uninterp) : prim_token_uid =
   hashtbl_check_and_set
     allow_overwrite uid interp prim_token_interpreters InnerPrimToken.interp_eq;
   hashtbl_check_and_set
-    allow_overwrite uid uninterp prim_token_uninterpreters InnerPrimToken.uninterp_eq
+    allow_overwrite uid uninterp prim_token_uninterpreters InnerPrimToken.uninterp_eq;
+  uid
 
 let register_rawnumeral_interpretation ?(allow_overwrite=false) uid (interp, uninterp) =
   register_gen_interpretation allow_overwrite uid

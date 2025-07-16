@@ -93,7 +93,7 @@ type rawnum = NumTok.Signed.t
     If at most one interpretation of prim token is used per scope,
     then the scope name could be used as unique id. *)
 
-type prim_token_uid = string
+type prim_token_uid = private string
 
 type 'a prim_token_interpreter = ?loc:Loc.t -> 'a -> glob_constr
 type 'a prim_token_uninterpreter = any_glob_constr -> 'a option
@@ -102,13 +102,13 @@ type 'a prim_token_interpretation =
   'a prim_token_interpreter * 'a prim_token_uninterpreter
 
 val register_rawnumeral_interpretation :
-  ?allow_overwrite:bool -> prim_token_uid -> rawnum prim_token_interpretation -> unit
+  ?allow_overwrite:bool -> string -> rawnum prim_token_interpretation -> prim_token_uid
 
 val register_bignumeral_interpretation :
-  ?allow_overwrite:bool -> prim_token_uid -> Z.t prim_token_interpretation -> unit
+  ?allow_overwrite:bool -> string -> Z.t prim_token_interpretation -> prim_token_uid
 
 val register_string_interpretation :
-  ?allow_overwrite:bool -> prim_token_uid -> string prim_token_interpretation -> unit
+  ?allow_overwrite:bool -> string -> string prim_token_interpretation -> prim_token_uid
 
 (** * Number notation *)
 
@@ -189,7 +189,7 @@ type number_notation_obj = (target_kind, numnot_option) prim_token_notation_obj
 type string_notation_obj = (string_target_kind, unit) prim_token_notation_obj
 
 type prim_token_interp_info =
-    Uid of prim_token_uid
+  | Uid of prim_token_uid
   | NumberNotation of number_notation_obj
   | StringNotation of string_notation_obj
 
