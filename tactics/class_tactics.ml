@@ -224,6 +224,14 @@ let hintmap_of env sigma hdc secvars concl =
   | Some hdc ->
     fun db -> Hint_db.map_eauto env sigma ~secvars hdc concl db
 
+type hint_v = {
+  hint_tac : unit Proofview.tactic;
+  hint_prio : int;
+  hint_extern : bool;
+  hint_name : Names.GlobRef.t option;
+  hint_pp : Pp.t lazy_t;
+}
+
 (** Hack to properly solve dependent evars that are typeclasses *)
 let rec e_trivial_fail_db db_list local_db secvars =
   let open Tacticals in
@@ -243,7 +251,7 @@ let rec e_trivial_fail_db db_list local_db secvars =
     begin fun gl ->
     let tacs = e_trivial_resolve db_list local_db secvars
                                  (pf_env gl) (project gl) (pf_concl gl) in
-      tclFIRST (List.map (fun (x,_,_,_,_) -> x) tacs)
+      tclFIRST (List.map (fun h -> h.hint_tac) tacs)
     end
   in
   let tacl =
@@ -270,38 +278,42 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
       end
     | _ -> all
   in
-  let tac_of_hint =
-    fun (flags, h) ->
-      let name = FullHint.name h in
-      let tac = function
-        | Res_pf h ->
-          let tac =
-            with_prods nprods h (unify_resolve ~with_evars:false flags h) in
-            Proofview.tclBIND (Proofview.with_shelf tac)
-              (fun (gls, ()) -> shelve_dependencies gls)
-        | ERes_pf h ->
-          let tac =
-            with_prods nprods h (unify_resolve ~with_evars:true flags h) in
-            Proofview.tclBIND (Proofview.with_shelf tac)
-              (fun (gls, ()) -> shelve_dependencies gls)
-        | Give_exact h ->
-          e_give_exact flags h
+  let tac_of_hint (flags,h) =
+    let name = FullHint.name h in
+    let tac = function
+      | Res_pf h ->
+        let tac =
+          with_prods nprods h (unify_resolve ~with_evars:false flags h) in
+        Proofview.tclBIND (Proofview.with_shelf tac)
+          (fun (gls, ()) -> shelve_dependencies gls)
+      | ERes_pf h ->
+        let tac =
+          with_prods nprods h (unify_resolve ~with_evars:true flags h) in
+        Proofview.tclBIND (Proofview.with_shelf tac)
+          (fun (gls, ()) -> shelve_dependencies gls)
+      | Give_exact h ->
+        e_give_exact flags h
       | Res_pf_THEN_trivial_fail h ->
-         let fst = with_prods nprods h (unify_resolve ~with_evars:true flags h) in
-         let snd = if complete then Tacticals.tclIDTAC
-                   else e_trivial_fail_db db_list local_db secvars in
-         Tacticals.tclTHEN fst snd
+        let fst = with_prods nprods h (unify_resolve ~with_evars:true flags h) in
+        let snd = if complete then Tacticals.tclIDTAC
+          else e_trivial_fail_db db_list local_db secvars in
+        Tacticals.tclTHEN fst snd
       | Unfold_nth c ->
-         Proofview.tclPROGRESS (unfold_in_concl [AllOccurrences,c])
+        Proofview.tclPROGRESS (unfold_in_concl [AllOccurrences,c])
       | Extern (p, tacast) -> conclPattern concl0 p tacast
-      in
-      let tac = FullHint.run h tac in
-      let tac = if complete then Tacticals.tclCOMPLETE tac else tac in
-      let extern = match FullHint.repr h with
-        | Extern _ -> true
-        | _ -> false
-      in
-      (tac, FullHint.priority h, extern, name, lazy (FullHint.print env sigma h))
+    in
+    let tac = FullHint.run h tac in
+    let tac = if complete then Tacticals.tclCOMPLETE tac else tac in
+    let extern = match FullHint.repr h with
+      | Extern _ -> true
+      | _ -> false
+    in
+    { hint_tac = tac;
+      hint_prio = FullHint.priority h;
+      hint_extern = extern;
+      hint_name = name;
+      hint_pp = lazy (FullHint.print env sigma h);
+    }
   in
   let hint_of_db = hintmap_of env sigma hdc secvars concl in
   let hintl = List.map_filter (fun db -> match hint_of_db db with
@@ -329,14 +341,14 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
       | _ ->
         let hintl = List.flatten hintl in
         let hintl = List.stable_sort
-            (fun (_, pri1, _, _, _) (_, pri2, _, _, _) -> Int.compare pri1 pri2)
+            (fun h1 h2 -> Int.compare h1.hint_prio h2.hint_prio)
             hintl
         in
         hintl
     in
     Some (all_mode_match, hintl)
 
-and e_trivial_resolve db_list local_db secvars env sigma concl =
+and e_trivial_resolve db_list local_db secvars env sigma concl : hint_v list =
   let hd = try Some (decompose_app_bound sigma concl) with Bound -> None in
   try
     (match e_my_find_search db_list local_db secvars hd true env sigma concl with
@@ -720,7 +732,7 @@ module Search = struct
     let ortac = if backtrack then Proofview.tclOR else Proofview.tclORELSE in
     let idx = ref 1 in
     let foundone = ref false in
-    let rec onetac e (tac, pat, b, name, pp) tl =
+    let rec onetac e { hint_tac = tac; hint_extern; hint_name = name; hint_pp = pp } tl =
       let derivs = path_derivate env info.search_cut name in
       let pr_error ie =
         ppdebug 1 (fun () ->
@@ -742,7 +754,7 @@ module Search = struct
         in
         let eq c1 c2 = EConstr.eq_constr sigma' c1 c2 in
         let hints' =
-          if b && not (Context.Named.equal (ERelevance.equal sigma) eq (Goal.hyps gl') (Goal.hyps gl))
+          if hint_extern && not (Context.Named.equal (ERelevance.equal sigma) eq (Goal.hyps gl') (Goal.hyps gl))
           then
             let st = Hint_db.transparent_state info.search_hints in
             let modes = Hint_db.modes info.search_hints in
