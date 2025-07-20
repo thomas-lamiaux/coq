@@ -287,7 +287,14 @@ let compile senv ~in_file =
   (* Extract the native code and compile it *)
   let modl = Mod_declarations.mod_type (Safe_typing.module_of_library lib.Library.library_data) in
   let out_vo = Filename.(remove_extension in_file) ^ ".vo" in
-  Library.save_library_to (Safe_typing.env_of_safe_env senv) dir out_vo modl
+  (* Replay locally the module being extracted *)
+  let env = match modl with
+  | NoFunctor struc ->
+    let reso = Mod_declarations.mod_delta (Safe_typing.module_of_library lib.Library.library_data) in
+    Modops.add_structure (MPfile dir) struc reso (Safe_typing.env_of_safe_env senv)
+  | MoreFunctor _ -> assert false
+  in
+  Library.save_library_to env dir out_vo modl
 
 module Usage :
 sig
