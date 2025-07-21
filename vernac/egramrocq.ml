@@ -381,20 +381,20 @@ let rec symbol_of_entry : type s r. _ -> _ -> (s, r) entry -> (s, r) mayrec_symb
   | MayRecMay s -> MayRecMay (Procq.Symbol.list1 s) end
 | TTConstrList (s, typ', tkl, forpat) ->
   begin match symbol_of_target s typ' assoc from forpat with
-  | MayRecNo s -> MayRecNo (Procq.Symbol.list1sep s (make_sep_rules tkl) false)
-  | MayRecMay s -> MayRecMay (Procq.Symbol.list1sep s (make_sep_rules tkl) false) end
+  | MayRecNo s -> MayRecNo (Procq.Symbol.list1sep s (make_sep_rules tkl))
+  | MayRecMay s -> MayRecMay (Procq.Symbol.list1sep s (make_sep_rules tkl)) end
 | TTPattern p -> MayRecNo (Procq.Symbol.nterml Constr.pattern (string_of_int p))
 | TTOpenBinderList -> MayRecNo (Procq.Symbol.nterm Constr.open_binders)
 | TTClosedBinderListPure [] -> MayRecNo (Procq.Symbol.list1 (Procq.Symbol.nterm Constr.binder))
-| TTClosedBinderListPure tkl -> MayRecNo (Procq.Symbol.list1sep (Procq.Symbol.nterm Constr.binder) (make_sep_rules tkl) false)
+| TTClosedBinderListPure tkl -> MayRecNo (Procq.Symbol.list1sep (Procq.Symbol.nterm Constr.binder) (make_sep_rules tkl))
 | TTClosedBinderListOther (typ,[]) ->
   begin match symbol_of_entry assoc from typ with
   | MayRecNo s -> MayRecNo (Procq.Symbol.list1 s)
   | MayRecMay s -> MayRecMay (Procq.Symbol.list1 s) end
 | TTClosedBinderListOther (typ,tkl) ->
   begin match symbol_of_entry assoc from typ with
-  | MayRecNo s -> MayRecNo (Procq.Symbol.list1sep s (make_sep_rules tkl) false)
-  | MayRecMay s -> MayRecMay (Procq.Symbol.list1sep s (make_sep_rules tkl) false) end
+  | MayRecNo s -> MayRecNo (Procq.Symbol.list1sep s (make_sep_rules tkl))
+  | MayRecMay s -> MayRecMay (Procq.Symbol.list1sep s (make_sep_rules tkl)) end
 | TTIdent -> MayRecNo (Procq.Symbol.nterm Prim.identref)
 | TTName -> MayRecNo (Procq.Symbol.nterm Prim.name)
 | TTBinder true -> MayRecNo (Procq.Symbol.nterm Constr.one_open_binder)

@@ -289,11 +289,11 @@ and print_symbol fmt tkn = match tkn with
 | SymbList0 (s, None) ->
   fprintf fmt "(Procq.Symbol.list0 %a)" print_symbol s
 | SymbList0 (s, Some sep) ->
-  fprintf fmt "(Procq.Symbol.list0sep (%a) (%a) false)" print_symbol s print_anonymized_symbol sep
+  fprintf fmt "(Procq.Symbol.list0sep (%a) (%a))" print_symbol s print_anonymized_symbol sep
 | SymbList1 (s, None) ->
   fprintf fmt "(Procq.Symbol.list1 (%a))" print_symbol s
 | SymbList1 (s, Some sep) ->
-  fprintf fmt "(Procq.Symbol.list1sep (%a) (%a) false)" print_symbol s print_anonymized_symbol sep
+  fprintf fmt "(Procq.Symbol.list1sep (%a) (%a))" print_symbol s print_anonymized_symbol sep
 | SymbOpt s ->
   fprintf fmt "(Procq.Symbol.opt %a)" print_symbol s
 | SymbRules rules ->
