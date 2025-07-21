@@ -77,11 +77,11 @@ module type S = sig
     val nterml : 'a Entry.t -> string -> ('self, norec, 'a) t
     val list0 : ('self, 'trec, 'a) t -> ('self, 'trec, 'a list) t
     val list0sep :
-      ('self, 'trec, 'a) t -> ('self, norec, unit) t -> bool ->
+      ('self, 'trec, 'a) t -> ('self, norec, unit) t ->
       ('self, 'trec, 'a list) t
     val list1 : ('self, 'trec, 'a) t -> ('self, 'trec, 'a list) t
     val list1sep :
-      ('self, 'trec, 'a) t -> ('self, norec, unit) t -> bool ->
+      ('self, 'trec, 'a) t -> ('self, norec, unit) t ->
       ('self, 'trec, 'a list) t
     val opt : ('self, 'trec, 'a) t -> ('self, 'trec, 'a option) t
     val self : ('self, mayrec, 'self) t
@@ -198,9 +198,9 @@ and ('self, 'trec, 'a) ty_symbol =
 | Stoken : 'c pattern -> ('self, norec, 'c) ty_symbol
 | Stokens : ty_pattern list -> ('self, norec, unit) ty_symbol
 | Slist1 : ('self, 'trec, 'a) ty_symbol -> ('self, 'trec, 'a list) ty_symbol
-| Slist1sep : ('self, 'trec, 'a) ty_symbol * ('self, norec, unit) ty_symbol * bool -> ('self, 'trec, 'a list) ty_symbol
+| Slist1sep : ('self, 'trec, 'a) ty_symbol * ('self, norec, unit) ty_symbol -> ('self, 'trec, 'a list) ty_symbol
 | Slist0 : ('self, 'trec, 'a) ty_symbol -> ('self, 'trec, 'a list) ty_symbol
-| Slist0sep : ('self, 'trec, 'a) ty_symbol * ('self, norec, unit) ty_symbol * bool -> ('self, 'trec, 'a list) ty_symbol
+| Slist0sep : ('self, 'trec, 'a) ty_symbol * ('self, norec, unit) ty_symbol -> ('self, 'trec, 'a list) ty_symbol
 | Sopt : ('self, 'trec, 'a) ty_symbol -> ('self, 'trec, 'a option) ty_symbol
 | Sself : ('self, mayrec, 'self) ty_symbol
 | Snext : ('self, mayrec, 'self) ty_symbol
@@ -284,11 +284,11 @@ type 'a ty_production =
 let rec derive_eps : type s r a. (s, r, a) ty_symbol -> bool =
   function
     Slist0 _ -> true
-  | Slist0sep (_, _, _) -> true
+  | Slist0sep (_, _) -> true
   | Sopt _ -> true
   | Stree t -> tree_derive_eps t
   | Slist1 _ -> false
-  | Slist1sep (_, _, _) -> false
+  | Slist1sep (_, _) -> false
   | Snterm _ -> false | Snterml (_, _) -> false
   | Snext -> false
   | Sself -> false
@@ -315,24 +315,24 @@ let rec eq_symbol : type s r1 r2 a1 a2. (s, r1, a1) ty_symbol -> (s, r2, a2) ty_
     if String.equal l1 l2 then eq_entry e1 e2 else None
   | Slist0 s1, Slist0 s2 ->
     begin match eq_symbol s1 s2 with None -> None | Some Refl -> Some Refl end
-  | Slist0sep (s1, sep1, b1), Slist0sep (s2, sep2, b2) ->
-    if b1 = b2 then match eq_symbol s1 s2 with
+  | Slist0sep (s1, sep1), Slist0sep (s2, sep2) ->
+    begin match eq_symbol s1 s2 with
     | None -> None
     | Some Refl ->
       match eq_symbol sep1 sep2 with
       | None -> None
       | Some Refl -> Some Refl
-    else None
+    end
   | Slist1 s1, Slist1 s2 ->
     begin match eq_symbol s1 s2 with None -> None | Some Refl -> Some Refl end
-  | Slist1sep (s1, sep1, b1), Slist1sep (s2, sep2, b2) ->
-    if b1 = b2 then match eq_symbol s1 s2 with
+  | Slist1sep (s1, sep1), Slist1sep (s2, sep2) ->
+    begin match eq_symbol s1 s2 with
     | None -> None
     | Some Refl ->
       match eq_symbol sep1 sep2 with
       | None -> None
       | Some Refl -> Some Refl
-    else None
+    end
   | Sopt s1, Sopt s2 ->
     begin match eq_symbol s1 s2 with None -> None | Some Refl -> Some Refl end
   | Stree _, Stree _ -> None
@@ -552,9 +552,9 @@ let srules (type self a) (rl : a ty_rules list) : (self, norec, a) ty_symbol =
     | Stoken p -> Stoken p
     | Stokens l -> Stokens l
     | Slist1 s -> Slist1 (retype_symbol s)
-    | Slist1sep (s, sep, b) -> Slist1sep (retype_symbol s, retype_symbol sep, b)
+    | Slist1sep (s, sep) -> Slist1sep (retype_symbol s, retype_symbol sep)
     | Slist0 s -> Slist0 (retype_symbol s)
-    | Slist0sep (s, sep, b) -> Slist0sep (retype_symbol s, retype_symbol sep, b)
+    | Slist0sep (s, sep) -> Slist0sep (retype_symbol s, retype_symbol sep)
     | Sopt s -> Sopt (retype_symbol s)
     | Snterm e -> Snterm e
     | Snterml (e, l) -> Snterml (e, l)
@@ -677,8 +677,8 @@ let insert_tokens {add_kw} lstate symbols =
     fun lstate -> function
     | Slist0 s -> insert lstate s
     | Slist1 s -> insert lstate s
-    | Slist0sep (s, t, _) -> let lstate = insert lstate s in insert lstate t
-    | Slist1sep (s, t, _) -> let lstate = insert lstate s in insert lstate t
+    | Slist0sep (s, t) -> let lstate = insert lstate s in insert lstate t
+    | Slist1sep (s, t) -> let lstate = insert lstate s in insert lstate t
     | Sopt s -> insert lstate s
     | Stree t -> tinsert lstate t
     | Stoken tok -> add_kw lstate tok
@@ -793,13 +793,11 @@ let rec print_symbol : type s tr r. formatter -> (s, tr, r) ty_symbol -> unit =
   fun ppf ->
   function
   | Slist0 s -> fprintf ppf "LIST0 %a" print_symbol1 s
-  | Slist0sep (s, t, osep) ->
-      fprintf ppf "LIST0 %a SEP %a%s" print_symbol1 s print_symbol1 t
-        (if osep then " OPT_SEP" else "")
+  | Slist0sep (s, t) ->
+      fprintf ppf "LIST0 %a SEP %a" print_symbol1 s print_symbol1 t
   | Slist1 s -> fprintf ppf "LIST1 %a" print_symbol1 s
-  | Slist1sep (s, t, osep) ->
-      fprintf ppf "LIST1 %a SEP %a%s" print_symbol1 s print_symbol1 t
-        (if osep then " OPT_SEP" else "")
+  | Slist1sep (s, t) ->
+      fprintf ppf "LIST1 %a SEP %a" print_symbol1 s print_symbol1 t
   | Sopt s -> fprintf ppf "OPT %a" print_symbol1 s
   | Stoken p -> print_token true ppf p
   | Stokens [TPattern p] -> print_token true ppf p
@@ -909,9 +907,9 @@ let rec name_of_symbol_failed : type s tr a. s ty_entry -> (s, tr, a) ty_symbol 
   fun entry ->
   function
   | Slist0 s -> name_of_symbol_failed entry s
-  | Slist0sep (s, _, _) -> name_of_symbol_failed entry s
+  | Slist0sep (s, _) -> name_of_symbol_failed entry s
   | Slist1 s -> name_of_symbol_failed entry s
-  | Slist1sep (s, _, _) -> name_of_symbol_failed entry s
+  | Slist1sep (s, _) -> name_of_symbol_failed entry s
   | Sopt s -> name_of_symbol_failed entry s
   | Stree t -> name_of_tree_failed entry t
   | s -> name_of_symbol entry s
@@ -958,7 +956,7 @@ let tree_failed (type s tr a) (entry : s ty_entry) (prev_symb_result : a) (prev_
     | Slist1 s ->
         let txt1 = name_of_symbol_failed entry s in
         txt1 ^ " or " ^ txt ^ " expected"
-    | Slist0sep (s, sep, _) ->
+    | Slist0sep (s, sep) ->
         begin match prev_symb_result with
           [] ->
             let txt1 = name_of_symbol_failed entry s in
@@ -967,7 +965,7 @@ let tree_failed (type s tr a) (entry : s ty_entry) (prev_symb_result : a) (prev_
             let txt1 = name_of_symbol_failed entry sep in
             txt1 ^ " or " ^ txt ^ " expected"
         end
-    | Slist1sep (s, sep, _) ->
+    | Slist1sep (s, sep) ->
         begin match prev_symb_result with
           [] ->
             let txt1 = name_of_symbol_failed entry s in
@@ -1006,7 +1004,7 @@ let rec top_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> (s, norec,
     Sself -> Snterm entry
   | Snext -> Snterm entry
   | Snterml (e, _) -> Snterm e
-  | Slist1sep (s, sep, b) -> Slist1sep (top_symb entry s, sep, b)
+  | Slist1sep (s, sep) -> Slist1sep (top_symb entry s, sep)
   | _ -> raise Stream.Failure
 
 let entry_of_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> a ty_entry =
@@ -1056,7 +1054,7 @@ let warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__ =
       | Sself -> let levs = (get_entry gstate.estate entry).edesc in find_lev alevn levs, find_lev 0 levs
       | Snext -> let levs = (get_entry gstate.estate entry).edesc in find_lev nlevn levs, find_lev 0 levs
       | Snterml (e, levn) -> Some levn, find_lev 0 (get_entry gstate.estate e).edesc
-      | Slist1sep (s, sep, b) -> find_symb entry s
+      | Slist1sep (s, sep) -> find_symb entry s
       | _ -> assert false in
     let cur_lev, top_lev = try find_symb entry s with Failure _ -> None, None in
     warn_tolerance ~loc (cur_lev,top_lev)
@@ -1265,7 +1263,7 @@ and parser_of_symbol : type s tr a.
       in
       (fun gstate (strm__ : _ LStream.t) ->
          let a = loop gstate [] strm__ in List.rev a)
-  | Slist0sep (symb, sep, false) ->
+  | Slist0sep (symb, sep) ->
       let ps = parser_of_symbol entry nlevn symb in
       let pt = parser_of_symbol entry nlevn sep in
       let rec kont gstate al (strm__ : _ LStream.t) =
@@ -1283,24 +1281,6 @@ and parser_of_symbol : type s tr a.
          match try Some (ps gstate strm__ :: []) with Stream.Failure -> None with
            Some al -> let a = kont gstate al strm__ in List.rev a
          | _ -> [])
-  | Slist0sep (symb, sep, true) ->
-      let ps = parser_of_symbol entry nlevn symb in
-      let pt = parser_of_symbol entry nlevn sep in
-      let rec kont gstate al (strm__ : _ LStream.t) =
-        match try Some (pt gstate strm__) with Stream.Failure -> None with
-          Some v ->
-            begin match
-              (try Some (ps gstate strm__ :: al) with Stream.Failure -> None)
-            with
-              Some al -> kont gstate al strm__
-            | _ -> al
-            end
-        | _ -> al
-      in
-      (fun gstate (strm__ : _ LStream.t) ->
-         match try Some (ps gstate strm__ :: []) with Stream.Failure -> None with
-           Some al -> let a = kont gstate al strm__ in List.rev a
-         | _ -> [])
   | Slist1 s ->
       let ps = parser_of_symbol entry nlevn s in
       let rec loop gstate al (strm__ : _ LStream.t) =
@@ -1311,7 +1291,7 @@ and parser_of_symbol : type s tr a.
       (fun gstate (strm__ : _ LStream.t) ->
          let al = ps gstate strm__ :: [] in
          let a = loop gstate al strm__ in List.rev a)
-  | Slist1sep (symb, sep, false) ->
+  | Slist1sep (symb, sep) ->
       let ps = parser_of_symbol entry nlevn symb in
       let pt = parser_of_symbol entry nlevn sep in
       let rec kont gstate al (strm__ : _ LStream.t) =
@@ -1332,34 +1312,6 @@ and parser_of_symbol : type s tr a.
                   a :: al
             in
             kont gstate al strm__
-        | _ -> al
-      in
-      (fun gstate (strm__ : _ LStream.t) ->
-         let al = ps gstate strm__ :: [] in
-         let a = kont gstate al strm__ in List.rev a)
-  | Slist1sep (symb, sep, true) ->
-      let ps = parser_of_symbol entry nlevn symb in
-      let pt = parser_of_symbol entry nlevn sep in
-      let rec kont gstate al (strm__ : _ LStream.t) =
-        match try Some (pt gstate strm__) with Stream.Failure -> None with
-          Some v ->
-            begin match
-              (try Some (ps gstate strm__ :: al) with Stream.Failure -> None)
-            with
-              Some al -> kont gstate al strm__
-            | _ ->
-              if not gstate.recover then al else
-                let bp = LStream.count strm__ in
-                match
-                  try Some (parse_top_symb entry symb gstate strm__) with
-                    Stream.Failure -> None
-                with
-                  Some a ->
-                   let ep = LStream.count strm__ in
-                   let () = warn_recover_continuation bp ep strm__ in
-                   kont gstate (a :: al) strm__
-                | _ -> al
-            end
         | _ -> al
       in
       (fun gstate (strm__ : _ LStream.t) ->
@@ -1704,9 +1656,9 @@ module Entry = struct
     function
     | Snterml (e, _) | Snterm e -> f (Any e)
     | Slist0 s -> iter_in_symbol f s
-    | Slist0sep (s, t, _) -> iter_in_symbol f s; iter_in_symbol f t
+    | Slist0sep (s, t) -> iter_in_symbol f s; iter_in_symbol f t
     | Slist1 s -> iter_in_symbol f s
-    | Slist1sep (s, t, _) -> iter_in_symbol f s; iter_in_symbol f t
+    | Slist1sep (s, t) -> iter_in_symbol f s; iter_in_symbol f t
     | Sopt s -> iter_in_symbol f s
     | Stoken _ | Stokens _ -> ()
     | Sself | Snext -> ()
@@ -1766,11 +1718,11 @@ module rec Symbol : sig
   val nterml : 'a Entry.t -> string -> ('self, norec, 'a) t
   val list0 : ('self, 'trec, 'a) t -> ('self, 'trec, 'a list) t
   val list0sep :
-    ('self, 'trec, 'a) t -> ('self, norec, unit) t -> bool ->
+    ('self, 'trec, 'a) t -> ('self, norec, unit) t ->
     ('self, 'trec, 'a list) t
   val list1 : ('self, 'trec, 'a) t -> ('self, 'trec, 'a list) t
   val list1sep :
-    ('self, 'trec, 'a) t -> ('self, norec, unit) t -> bool ->
+    ('self, 'trec, 'a) t -> ('self, norec, unit) t ->
     ('self, 'trec, 'a list) t
   val opt : ('self, 'trec, 'a) t -> ('self, 'trec, 'a option) t
   val self : ('self, mayrec, 'self) t
@@ -1785,9 +1737,9 @@ end = struct
   let nterm e = Snterm e
   let nterml e l = Snterml (e, l)
   let list0 s = Slist0 s
-  let list0sep s sep b = Slist0sep (s, sep, b)
+  let list0sep s sep = Slist0sep (s, sep)
   let list1 s = Slist1 s
-  let list1sep s sep b = Slist1sep (s, sep, b)
+  let list1sep s sep = Slist1sep (s, sep)
   let opt s = Sopt s
   let self = Sself
   let next = Snext
@@ -1859,16 +1811,16 @@ let rec generalize_symbol :
     Stokens tokl
   | Slist1 e ->
     Slist1 (generalize_symbol e)
-  | Slist1sep (e, sep, b) ->
+  | Slist1sep (e, sep) ->
     let e = generalize_symbol e in
     let sep = generalize_symbol sep in
-    Slist1sep (e, sep, b)
+    Slist1sep (e, sep)
   | Slist0 e ->
     Slist0 (generalize_symbol e)
-  | Slist0sep (e, sep, b) ->
+  | Slist0sep (e, sep) ->
     let e = generalize_symbol e in
     let sep = generalize_symbol sep in
-    Slist0sep (e, sep, b)
+    Slist0sep (e, sep)
   | Sopt e ->
     Sopt (generalize_symbol e)
   | Sself ->

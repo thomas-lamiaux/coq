@@ -453,7 +453,7 @@ let () = add_syntax_class "list0" begin function
 | [tok; SexprStr {v=str}] ->
   let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.parse_syntax_class tok in
   let sep = Procq.Symbol.tokens [Procq.TPattern (Procq.terminal str)] in
-  let syntax_class = Procq.Symbol.list0sep syntax_class sep false in
+  let syntax_class = Procq.Symbol.list0sep syntax_class sep in
   let act l = Tac2quote.of_list act l in
   Tac2entries.SyntaxRule (syntax_class, act)
 | arg -> syntax_class_fail "list0" arg
@@ -468,7 +468,7 @@ let () = add_syntax_class "list1" begin function
 | [tok; SexprStr {v=str}] ->
   let Tac2entries.SyntaxRule (syntax_class, act) = Tac2entries.parse_syntax_class tok in
   let sep = Procq.Symbol.tokens [Procq.TPattern (Procq.terminal str)] in
-  let syntax_class = Procq.Symbol.list1sep syntax_class sep false in
+  let syntax_class = Procq.Symbol.list1sep syntax_class sep in
   let act l = Tac2quote.of_list act l in
   Tac2entries.SyntaxRule (syntax_class, act)
 | arg -> syntax_class_fail "list1" arg
