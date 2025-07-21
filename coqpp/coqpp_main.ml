@@ -595,7 +595,7 @@ let print_rules fmt (name, rules) =
        form [ entry(x) ] -> [ x ] so as not to generate a proxy entry and
        reuse the same entry directly. *)
     fprintf fmt "@[Vernacextend.Arg_alias@ @[<2>(%s)@]@]" e
-  | _ -> fprintf fmt "@[Vernacextend.Arg_rules@ @[<2>(%a)@]@]" pr rules
+  | _ -> fprintf fmt "@[Vernacextend.Arg_rules@ %a@]" pr rules
 
 let print_printer fmt = function
 | None -> fprintf fmt "@[fun _ -> Pp.str \"missing printer\"@]"
@@ -689,20 +689,20 @@ let print_ast fmt arg =
   | None -> default_printer
   in
   let pr fmt () =
-    fprintf fmt "Tacentries.argument_extend ~plugin:\"%s\" ~name:%a @[{@\n\
-      Tacentries.arg_parsing = %a;@\n\
+    fprintf fmt "Tacentries.argument_extend ~plugin:\"%s\" ~name:%a@ @[{@\n\
+      Tacentries.arg_parsing =@ %a;@\n\
       Tacentries.arg_tag = @[%a@];@\n\
       Tacentries.arg_intern = @[%a@];@\n\
       Tacentries.arg_subst = @[%a@];@\n\
       Tacentries.arg_interp = @[%a@];@\n\
-                 Tacentries.arg_printer = @[((fun env sigma -> %a), (fun env sigma -> %a), (fun env sigma -> %a))@];@\n}@]"
+      Tacentries.arg_printer = @[((fun env sigma -> %a), (fun env sigma -> %a), (fun env sigma -> %a))@];@\n}@]"
       (force_is_plugin ~what:"ARGUMENT EXTEND" ())
       print_string name
       VernacArgumentExt.print_rules (name, arg.argext_rules)
       pr_tag arg.argext_type
       intern () subst () interp () print_code rpr print_code gpr print_code tpr
   in
-  fprintf fmt "let (wit_%s, %s) = @[%a@]@\nlet _ = (wit_%s, %s)@\n"
+  fprintf fmt "@[<2>let (wit_%s, %s) =@ @[%a@]@]@\nlet _ = (wit_%s, %s)@\n"
     name name pr () name name
 
 end
