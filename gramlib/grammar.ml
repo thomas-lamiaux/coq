@@ -1606,7 +1606,7 @@ module Entry = struct
     eentry = e;
     edesc = Dlevels [];
     estart = empty_entry e.ename;
-    econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> raise Stream.Failure);
+    econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> assert false);
   }
 
   let make n estate =
