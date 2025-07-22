@@ -99,9 +99,12 @@ described elsewhere
 
    This command can be used to filter the goal and the global context
    to retrieve objects whose name or type satisfies a number of
-   conditions.  Library files that were not loaded with :cmd:`Require`
-   are not considered.  The :table:`Search Blacklist` table can also
-   be used to exclude some things from all calls to :cmd:`Search`.
+   conditions.  Searched objects can be filtered by patterns, by the
+   constants they contain (identified by their name or a notation), by
+   their names and by their location (e.g. :n:`head`).  Library files
+   that were not loaded with :cmd:`Require` are not considered.  The
+   :table:`Search Blacklist` table can also be used to exclude some
+   things from all calls to :cmd:`Search`.
 
    The output of the command is a list of qualified identifiers and
    their types.  If the :flag:`Search Output Name Only` flag is on,
@@ -134,10 +137,6 @@ described elsewhere
       search_item ::= {? {| head | hyp | concl | headhyp | headconcl } : } @string {? % @scope_key }
       | {? {| head | hyp | concl | headhyp | headconcl } : } @one_pattern
       | is : @logical_kind
-
-   Searched objects can be filtered by patterns, by the constants they
-   contain (identified by their name or a notation), by their
-   names and by their location (e.g. :n:'head`).
 
    :n:`@one_pattern`
       Search for objects whose type contains a subterm matching the
