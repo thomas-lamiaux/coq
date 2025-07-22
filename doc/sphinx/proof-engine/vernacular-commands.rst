@@ -136,10 +136,8 @@ described elsewhere
       | is : @logical_kind
 
    Searched objects can be filtered by patterns, by the constants they
-   contain (identified by their name or a notation) and by their
-   names.
-   The location of the pattern or constant within a term can also be a
-   filter condition.
+   contain (identified by their name or a notation), by their
+   names and by their location (e.g. :n:'head`).
 
    :n:`@one_pattern`
       Search for objects whose type contains a subterm matching the
