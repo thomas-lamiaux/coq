@@ -1625,7 +1625,7 @@ module Entry = struct
   let of_parser_val e { parser_fun = p } = {
     eentry = e;
     estart = (fun gstate _ (strm:_ LStream.t) -> p gstate.kwstate strm);
-    econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> raise Stream.Failure);
+    econtinue = (fun _ _ _ _ _ (strm__ : _ LStream.t) -> assert false);
     edesc = Dparser p;
   }
   let of_parser n p estate =
