@@ -248,7 +248,7 @@ match annotations; the full syntax is
 where the second :token:`pattern` and the second :token:`term` are *types*.
 
 When the ``as`` and ``return`` keywords are both present, then :token:`ident` is bound
-in both the second :token:`pattern` and the second :token:`term`; variables
+in both the second :token:`term` and the third :token:`term`; variables
 in the optional type :token:`pattern` are bound only in the second term, and
 other variables in the first  :token:`pattern` are bound only in the third
 :token:`term`, however.
