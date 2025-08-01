@@ -1353,7 +1353,7 @@ Generation of inversion principles with ``Derive`` ``Inversion``
    :token:`qualid` or :n:`(forall {+ @binder }, @qualid {+ @one_term })` where
    :token:`qualid` is the name of an inductive
    predicate and :n:`{+ @binder }` binds the variables occurring in
-   :n:`{+ @term }`. The lemma is generated for the sort
+   :n:`{+ @one_term }`. The lemma is generated for the sort
    :token:`sort_quality_or_set` corresponding to :token:`one_term`.
    Applying the lemma is equivalent to inverting the instance with the
    :tacn:`inversion` tactic.
