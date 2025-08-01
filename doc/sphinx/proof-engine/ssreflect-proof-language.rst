@@ -245,7 +245,6 @@ match annotations; the full syntax is
 .. prodn::
    term += let: @pattern {? as @ident} {? in @pattern} := @term {? return @term} in @term
 
-where the second :token:`pattern` and the second :token:`term` are *types*.
 
 When the ``as`` and ``return`` keywords are both present, then :token:`ident` is bound
 in both the second :token:`term` and the third :token:`term`; variables
