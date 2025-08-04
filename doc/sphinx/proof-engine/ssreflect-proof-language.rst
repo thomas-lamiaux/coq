@@ -245,7 +245,7 @@ match annotations; the full syntax is
 .. prodn::
    term += let: @pattern {? as @ident} {? in @pattern__ind} := @term {? return @term__ret} in @term__body
 
-Similarly, this dependent ``let:`` construct is just notation for :n:`match
+This dependent ``let:`` construct is just notation for :n:`match
 @term {? as @ident } {? in @pattern__ind } {? return @term__ret } with @pattern
 {? as @ident } => @term__body end`. In particular, :n:`@ident` is used both for
 dependent pattern matching and for aliasing the pattern (see
@@ -345,7 +345,7 @@ Another variant allows to treat the ``else`` case first:
 .. prodn::
    term += if @term isn't @pattern then @term__then else @term__else
 
-Note that :token:`pattern` eventually binds variables in
+Note that :token:`pattern` binds variables in
 :n:`@term__else` and not in :n:`@term__then`.
 
 .. _parametric_polymorphism_ssr:
