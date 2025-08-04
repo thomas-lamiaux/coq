@@ -59,7 +59,7 @@ let keywords =
 (* Note: do not shorten [str "foo" ++ fnl ()] into [str "foo\n"],
    the '\n' character interacts badly with the Format boxing mechanism *)
 
-let pp_open table dp = str ("open "^ string_of_modfile (State.get_table table) (MPfile dp)) ++ fnl ()
+let pp_open table dp = str ("open "^ string_of_modfile (State.get_table table) dp) ++ fnl ()
 
 let pp_comment s = str "(* " ++ hov 0 s ++ str " *)"
 

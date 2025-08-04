@@ -265,7 +265,7 @@ type 's language_descr = {
 
   (* Concerning the source file *)
   file_suffix : string;
-  file_naming : 's -> ModPath.t -> string;
+  file_naming : 's -> DirPath.t -> string;
   (* the second argument is a comment to add to the preamble *)
   preamble :
     's -> Id.t -> Pp.t option -> DirPath.Set.t -> unsafe_needs ->

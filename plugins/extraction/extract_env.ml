@@ -721,8 +721,8 @@ let separate_extraction ~opaque_access lr =
   in
   let () = warns table in
   let print = function
-    | (MPfile dir as mp, sel) as e ->
-        print_structure_to_file table (module_filename table mp) false [e]
+    | (MPfile dir, sel) as e ->
+        print_structure_to_file table (module_filename table dir) false [e]
     | (MPdot _ | MPbound _), _ -> assert false
   in
   let () = List.iter print struc in
@@ -772,9 +772,9 @@ let extraction_library ~opaque_access is_rec CAst.{loc;v=m} =
   let struc = optimize_struct table ([],[]) struc in
   let () = warns table in
   let print = function
-    | (MPfile dir as mp, sel) as e ->
+    | (MPfile dir, sel) as e ->
         let dry = not is_rec && not (DirPath.equal dir dir_m) in
-        print_structure_to_file table (module_filename table mp) dry [e]
+        print_structure_to_file table (module_filename table dir) dry [e]
     | _ -> assert false
   in
   let () = List.iter print struc in

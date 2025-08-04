@@ -452,7 +452,7 @@ let rec mp_renaming_fun table mp = match mp with
       assert (State.get_phase table == Pre);
       let current_mpfile = (List.last (State.get_visible table)).mp in
       if not (ModPath.equal mp current_mpfile) then State.add_mpfiles table f;
-      [string_of_modfile (State.get_table table) mp]
+      [string_of_modfile (State.get_table table) f]
 
 (* ... and its version using a cache *)
 
@@ -551,7 +551,7 @@ let opened_libraries table =
   if not (State.get_modular table) then DirPath.Set.empty
   else
     let used_files = DirPath.Set.elements (State.get_mpfiles table) in
-    let used_ks = List.map (fun dp -> Mod, string_of_modfile (State.get_table table) (MPfile dp)) used_files in
+    let used_ks = List.map (fun dp -> Mod, string_of_modfile (State.get_table table) dp) used_files in
     (* By default, we open all used files. Ambiguities will be resolved later
        by using qualified names. Nonetheless, we don't open any file A that
        contains an immediate submodule A.B hiding another file B : otherwise,
