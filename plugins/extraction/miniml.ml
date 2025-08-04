@@ -268,7 +268,7 @@ type 's language_descr = {
   file_naming : 's -> ModPath.t -> string;
   (* the second argument is a comment to add to the preamble *)
   preamble :
-    's -> Id.t -> Pp.t option -> ModPath.t list -> unsafe_needs ->
+    's -> Id.t -> Pp.t option -> DirPath.Set.t -> unsafe_needs ->
     Pp.t;
   pp_struct : 's -> ml_structure -> Pp.t;
 
@@ -276,7 +276,7 @@ type 's language_descr = {
   sig_suffix : string option;
   (* the second argument is a comment to add to the preamble *)
   sig_preamble :
-    's -> Id.t -> Pp.t option -> ModPath.t list -> unsafe_needs ->
+    's -> Id.t -> Pp.t option -> DirPath.Set.t -> unsafe_needs ->
     Pp.t;
   pp_sig : 's -> ml_signature -> Pp.t;
 

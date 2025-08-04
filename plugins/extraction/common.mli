@@ -78,7 +78,7 @@ val rename_tvars: Id.Set.t -> Id.t list -> Id.t list
 val push_vars : Id.t list -> env -> Id.t list * env
 val get_db_name : int -> env -> Id.t
 
-val opened_libraries : State.t -> ModPath.t list
+val opened_libraries : State.t -> DirPath.Set.t
 
 type kind = Term | Type | Cons | Mod
 

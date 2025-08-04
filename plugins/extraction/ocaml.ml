@@ -59,7 +59,7 @@ let keywords =
 (* Note: do not shorten [str "foo" ++ fnl ()] into [str "foo\n"],
    the '\n' character interacts badly with the Format boxing mechanism *)
 
-let pp_open table mp = str ("open "^ string_of_modfile (State.get_table table) mp) ++ fnl ()
+let pp_open table dp = str ("open "^ string_of_modfile (State.get_table table) (MPfile dp)) ++ fnl ()
 
 let pp_comment s = str "(* " ++ hov 0 s ++ str " *)"
 
@@ -79,12 +79,12 @@ let pp_mldummy usf =
 
 let preamble table _ comment used_modules usf =
   pp_header_comment comment ++
-  then_nl (prlist (fun o -> pp_open table o) used_modules) ++
+  then_nl (prlist (fun o -> pp_open table o) (DirPath.Set.elements used_modules)) ++
   then_nl (pp_tdummy usf ++ pp_mldummy usf)
 
 let sig_preamble table _ comment used_modules usf =
   pp_header_comment comment ++
-  then_nl (prlist (fun o -> pp_open table o) used_modules) ++
+  then_nl (prlist (fun o -> pp_open table o) (DirPath.Set.elements used_modules)) ++
   then_nl (pp_tdummy usf)
 
 (*s The pretty-printer for Ocaml syntax*)
