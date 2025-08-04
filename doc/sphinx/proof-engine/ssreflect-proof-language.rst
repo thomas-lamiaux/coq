@@ -245,9 +245,9 @@ match annotations; the full syntax is
 .. prodn::
    term += let: @pattern {? as @ident} {? in @pattern__ind} := @term {? return @term__ret} in @term__body
 
-This dependent ``let:`` construct is just notation for :n:`match
-@term {? as @ident } {? in @pattern__ind } {? return @term__ret } with @pattern
-{? as @ident } => @term__body end`. In particular, :n:`@ident` is used both for
+This dependent ``let:`` construct is just notation for
+:n:`match @term {? as @ident } {? in @pattern__ind } {? return @term__ret } with @pattern {? as @ident } => term__body end`.
+In particular, :n:`@ident` is used both for
 dependent pattern matching and for aliasing the pattern (see
 :ref:`aliasing-subpatterns`).
 
@@ -334,9 +334,9 @@ the dependent match annotations:
 .. prodn::
    term += if @term is @pattern as @ident in @pattern__ind return @term__ret then @term__then else @term__else
 
-Similarly, this dependent ``if-is-then-else`` construct is just notation for
-:n:`match @term as @ident in @pattern__ind return @term__ret with @pattern as
-@ident => @term__then | _ => @term__else end`. In particular, :n:`@ident` is
+This dependent ``if-is-then-else`` construct is just notation for
+:n:`match @term as @ident in @pattern__ind return @term__ret with @pattern as @ident => @term__then | _ => term__else end`.
+In particular, :n:`@ident` is
 used both for dependent pattern matching and for aliasing the pattern (see
 :ref:`aliasing-subpatterns`).
 
