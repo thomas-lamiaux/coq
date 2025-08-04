@@ -136,7 +136,7 @@ type table = {
   symbols : Label.t list Refmap'.t;
   opaques:  Refset'.t;
   modfile_ids : Id.Set.t;
-  modfile_mps : pp_tag ModPath.Map.t;
+  modfile_mps : string ModPath.Map.t;
 }
 
 type t = table ref

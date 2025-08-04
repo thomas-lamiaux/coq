@@ -220,8 +220,8 @@ struct
 type state = {
   global_ids : Id.Set.t;
   mod_index : int Id.Map.t;
-  ref_renaming : pp_tag list Refmap'.t;
-  mp_renaming : pp_tag list ModPath.Map.t;
+  ref_renaming : string list Refmap'.t;
+  mp_renaming : string list ModPath.Map.t;
   params_ren : MBId.Set.t; (* List of module parameters that we should alpha-rename *)
   mpfiles : ModPath.Set.t; (* List of external modules that will be opened initially *)
   duplicates : int * string DupMap.t; (* table of local module wrappers used to provide non-ambiguous names *)
