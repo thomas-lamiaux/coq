@@ -225,15 +225,22 @@ type state = {
   params_ren : MBId.Set.t; (* List of module parameters that we should alpha-rename *)
   mpfiles : DirPath.Set.t; (* List of external modules that will be opened initially *)
   duplicates : int * string DupMap.t; (* table of local module wrappers used to provide non-ambiguous names *)
-  mpfiles_content : Label.t KMap.t DirPath.Map.t; (* table recording objects in the first level of all MPfile *)
+}
+
+type modular = {
+  mutable mpfiles_content : Label.t KMap.t DirPath.Map.t; (* table recording objects in the first level of all MPfile *)
+}
+
+let empty_modular () = {
+  mpfiles_content = DirPath.Map.empty;
 }
 
 type t = {
   table : Table.t;
   state : state ref;
   visibility : visible_layer ref list;
+  modular : modular option;
   (* fields below are read-only *)
-  modular : bool;
   library : bool;
   (*s Extraction modes: modular or monolithic, library or minimal ?
 
@@ -254,13 +261,12 @@ let make_state kw = {
   params_ren = MBId.Set.empty;
   mpfiles = DirPath.Set.empty;
   duplicates = (0, DupMap.empty);
-  mpfiles_content = DirPath.Map.empty;
 }
 
 let make ~modular ~library ~keywords () = {
   table = Table.make_table ();
   state = ref (make_state keywords);
-  modular;
+  modular = if modular then Some (empty_modular ()) else None;
   library;
   keywords;
   phase = Impl;
@@ -269,7 +275,9 @@ let make ~modular ~library ~keywords () = {
 
 let get_table s = s.table
 
-let get_modular s = s.modular
+let get_modular s = match s.modular with
+| None -> false
+| Some _ -> true
 
 let get_library s = s.library
 
@@ -286,12 +294,10 @@ let with_visibility s mp mps k =
   let ans = k { s with visibility = v :: s.visibility } in
   (* we save the 1st-level-content of MPfile for later use *)
   let () =
-    if s.phase == Impl && s.modular then
-    match !v.mp with
-    | MPfile dp ->
-      let state = s.state.contents in
-      s.state := { state with mpfiles_content = DirPath.Map.add dp !v.content state.mpfiles_content }
-    | MPbound _ | MPdot _ -> ()
+    if s.phase == Impl then match mp, s.modular with
+    | MPfile dp, Some mdl ->
+      mdl.mpfiles_content <- DirPath.Map.add dp !v.content mdl.mpfiles_content
+    | (MPbound _ | MPdot _ | MPfile _), (None | Some _) -> ()
   in
   ans
 
@@ -367,8 +373,9 @@ let add_duplicate s mp l =
 let get_duplicate s mp l =
   DupMap.find_opt (mp, l) (snd s.state.contents.duplicates)
 
-let get_mpfiles_content s mp =
-  DirPath.Map.find mp s.state.contents.mpfiles_content
+let get_mpfiles_content s mp = match s.modular with
+| None -> raise Not_found
+| Some mdl -> DirPath.Map.find mp mdl.mpfiles_content
 
 (* Reset *)
 
@@ -382,8 +389,8 @@ let reset s =
     params_ren = MBId.Set.empty;
     mpfiles = DirPath.Set.empty;
     duplicates = (0, DupMap.empty);
-    mpfiles_content = s.state.contents.mpfiles_content; (* don't reset! *)
   } in
+  (* don't reset modular files content *)
   s.state := state
 
 end
