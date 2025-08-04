@@ -688,7 +688,7 @@ and pp_module_type table params = function
   | MTfunsig (mbid, mt, mt') ->
       let typ = pp_module_type table [] mt in
       let name = pp_modname table (MPbound mbid) in
-      let def = pp_module_type table (MPbound mbid :: params) mt' in
+      let def = pp_module_type table (mbid :: params) mt' in
       str "functor (" ++ name ++ str ":" ++ typ ++ str ") ->" ++ fnl () ++ def
   | MTsig (mp, sign) ->
       let l = State.with_visibility table mp params begin fun table ->
@@ -766,7 +766,7 @@ and pp_module_expr table params = function
   | MEfunctor (mbid, mt, me) ->
       let name = pp_modname table (MPbound mbid) in
       let typ = pp_module_type table [] mt in
-      let def = pp_module_expr table (MPbound mbid :: params) me in
+      let def = pp_module_expr table (mbid :: params) me in
       str "functor (" ++ name ++ str ":" ++ typ ++ str ") ->" ++ fnl () ++ def
   | MEstruct (mp, sel) ->
       let l = State.with_visibility table mp params begin fun table ->

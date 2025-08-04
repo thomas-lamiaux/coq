@@ -211,7 +211,7 @@ module DupMap = CMap.Make(DupOrd)
 *)
 
 type visible_layer = { mp : ModPath.t;
-                       params : ModPath.t list;
+                       params : MBId.t list;
                        content : Label.t KMap.t; }
 
 module State =
@@ -505,10 +505,10 @@ let mpfiles_clash table mp0 ks =
 
 let rec params_lookup table mp0 ks = function
   | [] -> false
-  | param :: _ when ModPath.equal mp0 param -> true
+  | param :: _ when ModPath.equal mp0 (MPbound param) -> true
   | param :: params ->
       let () = match ks with
-      | (Mod, mp) when String.equal (List.hd (mp_renaming table param)) mp -> State.add_params_ren table param
+      | (Mod, mp) when String.equal (List.hd (mp_renaming table (MPbound param))) mp -> State.add_params_ren table (MPbound param)
       | _ -> ()
       in
       params_lookup table mp0 ks params

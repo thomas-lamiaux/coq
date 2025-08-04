@@ -58,7 +58,7 @@ sig
 
   (** Reader-like *)
 
-  val with_visibility : t -> ModPath.t -> ModPath.t list -> (t -> 'a) -> 'a
+  val with_visibility : t -> ModPath.t -> MBId.t list -> (t -> 'a) -> 'a
   (* the [module_path list] corresponds to module parameters, the innermost one
     coming first in the list *)
 
