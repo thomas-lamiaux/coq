@@ -225,7 +225,7 @@ type state = {
   params_ren : MBId.Set.t; (* List of module parameters that we should alpha-rename *)
   mpfiles : DirPath.Set.t; (* List of external modules that will be opened initially *)
   duplicates : int * string DupMap.t; (* table of local module wrappers used to provide non-ambiguous names *)
-  mpfiles_content : Label.t KMap.t ModPath.Map.t; (* table recording objects in the first level of all MPfile *)
+  mpfiles_content : Label.t KMap.t DirPath.Map.t; (* table recording objects in the first level of all MPfile *)
 }
 
 type t = {
@@ -254,7 +254,7 @@ let make_state kw = {
   params_ren = MBId.Set.empty;
   mpfiles = DirPath.Set.empty;
   duplicates = (0, DupMap.empty);
-  mpfiles_content = ModPath.Map.empty;
+  mpfiles_content = DirPath.Map.empty;
 }
 
 let make ~modular ~library ~keywords () = {
@@ -286,10 +286,12 @@ let with_visibility s mp mps k =
   let ans = k { s with visibility = v :: s.visibility } in
   (* we save the 1st-level-content of MPfile for later use *)
   let () =
-    if s.phase == Impl && s.modular && is_modfile !v.mp
-    then
+    if s.phase == Impl && s.modular then
+    match !v.mp with
+    | MPfile dp ->
       let state = s.state.contents in
-      s.state := { state with mpfiles_content = ModPath.Map.add !v.mp !v.content state.mpfiles_content }
+      s.state := { state with mpfiles_content = DirPath.Map.add dp !v.content state.mpfiles_content }
+    | MPbound _ | MPdot _ -> ()
   in
   ans
 
@@ -366,7 +368,7 @@ let get_duplicate s mp l =
   DupMap.find_opt (mp, l) (snd s.state.contents.duplicates)
 
 let get_mpfiles_content s mp =
-  ModPath.Map.find mp s.state.contents.mpfiles_content
+  DirPath.Map.find mp s.state.contents.mpfiles_content
 
 (* Reset *)
 
@@ -500,7 +502,7 @@ let rec clash mem mp0 ks = function
   | _ :: mpl -> clash mem mp0 ks mpl
 
 let mpfiles_clash table mp0 ks =
-  clash (fun mp k -> KMap.mem k (get_mpfiles_content table (MPfile mp))) mp0 ks
+  clash (fun mp k -> KMap.mem k (get_mpfiles_content table mp)) mp0 ks
     (List.rev (DirPath.Set.elements (State.get_mpfiles table)))
 
 let rec params_lookup table mp0 ks = function
@@ -557,7 +559,7 @@ let opened_libraries table =
     let to_open =
       List.filter
         (fun dp ->
-           not (List.exists (fun k -> KMap.mem k (get_mpfiles_content table (MPfile dp))) used_ks))
+           not (List.exists (fun k -> KMap.mem k (get_mpfiles_content table dp)) used_ks))
         used_files
     in
     let () = State.clear_mpfiles table in
