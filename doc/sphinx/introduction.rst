@@ -47,8 +47,9 @@ This manual is organized in three main parts, plus an appendix:
   "elaboration process".
 
 - **The second part presents proof mode**, the central
-  feature of the Rocq Prover.  :ref:`writing-proofs` introduces this interactive
-  mode and the available proof languages.
+  feature of the Rocq Prover.  :ref:`proofhandling` introduces this interactive
+  mode, then :ref:`tactics` introduces the standard Rocq tactics and
+  :ref:`thessreflectprooflanguage` presents the alternative SSReflect tactics.
   :ref:`automatic-tactics` presents some more advanced tactics, while
   :ref:`writing-tactics` is about the languages that allow a user to
   combine tactics together and develop new ones.
