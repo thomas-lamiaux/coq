@@ -37,9 +37,9 @@ type link_info =
 
 type key = int CEphemeron.key option ref
 
-type constant_key = constant_body * (link_info ref * key)
+type constant_key = constant_body * (link_info ref * key) * KerName.t
 
-type mind_key = mutual_inductive_body * link_info ref
+type mind_key = mutual_inductive_body * link_info ref * KerName.t
 
 type named_context_val = private {
   env_named_ctx : Constr.named_context;
@@ -241,7 +241,7 @@ val get_projections : env -> inductive -> (Names.Projection.Repr.t * Sorts.relev
 
 (** {5 Inductive types } *)
 val lookup_mind_key : MutInd.t -> env -> mind_key
-val add_mind_key : MutInd.t -> mind_key -> env -> env
+val add_mind_key : MutInd.t -> mutual_inductive_body -> link_info -> env -> env
 val add_mind : MutInd.t -> mutual_inductive_body -> env -> env
 
 (** Looks up in the context of global inductive names
