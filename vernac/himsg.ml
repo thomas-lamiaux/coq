@@ -948,6 +948,16 @@ let explain_undeclared_used_variables env sigma ~declared_vars ~inferred_vars =
       str "to" ++ fnl () ++
       str "Proof using " ++ inferred_vars)
 
+let explain_ill_formed_constant env sigma cst kn =
+  strbrk "Ill-formed constant" ++ spc () ++ pr_constant env cst ++ str ":" ++ spc () ++
+  strbrk "expected canonical name" ++ spc () ++ KerName.print kn ++ spc () ++
+  strbrk "but found" ++ spc () ++ KerName.print (Constant.canonical cst)
+
+let explain_ill_formed_inductive env sigma mind kn =
+  strbrk "Ill-formed inductive" ++ spc () ++ pr_inductive env (mind, 0) ++ str ":" ++ spc () ++
+  strbrk "expected canonical name" ++ spc () ++ KerName.print kn ++ spc () ++
+  strbrk "but found" ++ spc () ++ KerName.print (MutInd.canonical mind)
+
 let explain_type_error env sigma err =
   let env = make_all_name_different env sigma in
   match err with
@@ -1002,6 +1012,10 @@ let explain_type_error env sigma err =
   | BadVariance {lev;expected;actual} -> explain_bad_variance env sigma ~lev ~expected ~actual
   | UndeclaredUsedVariables {declared_vars;inferred_vars} ->
       explain_undeclared_used_variables env sigma ~declared_vars ~inferred_vars
+  | IllFormedConstant (cst, kn) ->
+    explain_ill_formed_constant env sigma cst kn
+  | IllFormedInductive (mind, kn) ->
+    explain_ill_formed_inductive env sigma mind kn
 
 let pr_position (cl,pos) =
   let clpos = match cl with
