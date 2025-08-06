@@ -341,7 +341,7 @@ let get_ref_renaming s r =
   Refmap'.find r s.state.contents.ref_renaming
 
 let get_mp_renaming s mp =
-  ModPath.Map.find mp s.state.contents.mp_renaming
+  ModPath.Map.find_opt mp s.state.contents.mp_renaming
 
 let add_mp_renaming s mp l =
   let state = s.state.contents in
@@ -468,8 +468,13 @@ let rec mp_renaming_fun table mp = match mp with
 (* ... and its version using a cache *)
 
 and mp_renaming table x =
-  try if is_mp_bound (base_mp x) then raise Not_found; State.get_mp_renaming table x
-  with Not_found -> let y = mp_renaming_fun table x in State.add_mp_renaming table x y; y
+  if is_mp_bound (base_mp x) then mp_renaming_fun table x
+  else match State.get_mp_renaming table x with
+  | Some v -> v
+  | None ->
+    let ans = mp_renaming_fun table x in
+    let () = State.add_mp_renaming table x ans in
+    ans
 
 (*s Renamings creation for a [global_reference]: we build its fully-qualified
     name in a [string list] form (head is the short name). *)
