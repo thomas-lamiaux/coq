@@ -44,7 +44,7 @@ files that declare the axioms used to define the real numbers, you can
 
    `radicalmax`
      bound when searching for r such that
-     :math:`c (P−Q) r = \sum_{i=1..s} S_i (P i − Q i)`.
+     :math:`c (P−Q)^r = \sum_{i=1..s} S_i (P_i − Q_i)`.
      This argument must be of type `N` (binary natural numbers).
 
    `strategy`
