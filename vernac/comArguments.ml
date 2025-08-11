@@ -20,8 +20,8 @@ let smart_global r =
 
 let cache_bidi_hints (gr, ohint) =
   match ohint with
-  | None -> Pretyping.clear_bidirectionality_hint gr
-  | Some nargs -> Pretyping.add_bidirectionality_hint gr nargs
+  | None -> Pretyping.clear_bidirectionality_hint (Global.env ()) gr
+  | Some nargs -> Pretyping.add_bidirectionality_hint (Global.env ()) gr nargs
 
 let load_bidi_hints _ r =
   cache_bidi_hints r
@@ -311,14 +311,14 @@ let vernac_arguments ~section_local reference args more_implicits flags =
   if bidi_hint_specified then begin
     let n = Option.get nargs_before_bidi in
     if section_local then
-      Pretyping.add_bidirectionality_hint sr n
+      Pretyping.add_bidirectionality_hint env sr n
     else
       Lib.add_leaf (inBidiHints (sr, Some n))
   end;
 
   if clear_bidi_hint then begin
     if section_local then
-      Pretyping.clear_bidirectionality_hint sr
+      Pretyping.clear_bidirectionality_hint env sr
     else
       Lib.add_leaf (inBidiHints (sr, None))
   end;

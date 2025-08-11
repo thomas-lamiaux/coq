@@ -427,7 +427,7 @@ let print_arguments env ref =
   in
   let impls = main_implicits 0 names recargs scopes impls in
   let moreimpls = List.map (fun (_,i) -> List.map extra_implicit_kind_of_status i) moreimpls in
-  let bidi = Pretyping.get_bidirectionality_hint ref in
+  let bidi = Pretyping.get_bidirectionality_hint env ref in
   let impls = insert_fake_args nargs_for_red bidi impls in
   if List.for_all is_dummy impls && moreimpls = [] && flags = [] then []
   else
@@ -459,8 +459,8 @@ let print_section_deps env ref =
 
 (** Printing bidirectionality status *)
 
-let print_bidi_hints gr =
-  match Pretyping.get_bidirectionality_hint gr with
+let print_bidi_hints env gr =
+  match Pretyping.get_bidirectionality_hint env gr with
   | None -> []
   | Some nargs ->
     [str "Using typing information from context after typing the " ++ int nargs ++ str " first arguments"]
@@ -1062,7 +1062,7 @@ let print_about_global_reference ?loc env ref udecl =
     print_name_infos env ref @
     print_reduction_behaviour ref @
     print_opacity env ref @
-    print_bidi_hints ref @
+    print_bidi_hints env ref @
     [hov 0 (str "Expands to: " ++ pr_located_qualid env (Term ref)) ++
     loc_info (TrueGlobal ref)])
 
