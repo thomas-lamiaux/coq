@@ -131,7 +131,7 @@ mailing list, the [Coq IRC channel][IRC], the
 Writing about the Rocq Prover, in the form of tutorials or blog posts, is also a
 very important contribution.  In particular, it can help new users get
 interested in Rocq, and learn about it, and existing users learn about
-advance features.  The [reference manual][refman] is not suited for learning Rocq, but
+advanced features.  The [reference manual][refman] is not suited for learning Rocq, but
 we now also provide short, action-oriented tutorials as part of our official resources.
 See the [Platform Docs][Platform-docs] repository for more information.
 
@@ -886,8 +886,8 @@ the various [Rocq team][rocq-team] subpages on the website).
   several days in advance, when unsure that everyone had a chance to
   voice their opinion, or to finish reviewing the PR.
 
-- Only PRs targetting the `master` branch can be merged by a
-  maintainer.  For PRs targetting an actively maintained release
+- Only PRs targeting the `master` branch can be merged by a
+  maintainer.  For PRs targeting an actively maintained release
   branch, the assignee should always be the release manager. For older
   release branches, any **@rocq-prover/core** member can merge any PR (but such
   PRs should be limited to fixing build issues).
@@ -969,7 +969,7 @@ the recommendation of the PR assignee, and who backports PRs to the
 release branch.
 
 Very specific changes that are only relevant for the release branch and
-not for the `master` branch can result in a PR targetting the release
+not for the `master` branch can result in a PR targeting the release
 branch instead of `master`.  In this case, the RM is the only one who
 can merge the PR, and they may even do so if they are the author of
 the PR.  Examples of such PRs include bug fixes to a feature that has
@@ -1121,7 +1121,7 @@ You can find lots of OCaml resources on <http://ocaml.org/>, including
 documentation, a Discourse forum, the package archive, etc.  You may
 also want to refer to the [Dune documentation][dune-doc].
 
-Another ressource is <https://ocamlverse.github.io/>, especially its
+Another resource is <https://ocamlverse.github.io/>, especially its
 [community page][ocamlverse-community], which lists the various OCaml
 discussion platforms.
 
