@@ -133,9 +133,9 @@ parameters is any term :math:`f \, t_1 \ldots t_n`.
 
 .. example:: Contravariant morphisms
 
-   The division function ``Rdiv : R -> R -> R`` is a morphism of signature
+   The subtraction function ``Nat.sub : nat -> nat -> nat`` is a morphism of signature
    ``le ++> le --> le`` where ``le`` is the usual order relation over
-   real numbers. Notice that division is covariant in its first argument
+   natural numbers. Notice that subtraction is covariant in its first argument
    and contravariant in its second argument.
 
 Leibniz equality is a relation and every function is a morphism that
@@ -209,7 +209,7 @@ They also support the :attr:`universes(polymorphic)` attributes.
    the relation is not an equivalence relation. The proofs must be
    instances of the corresponding relation definitions: e.g. the proof of
    reflexivity must have a type convertible to
-   :g:`reflexive (A t1 … tn) (Aeq t′ 1 … t′ n)`.
+   :g:`reflexive (A t1 … tn) (Aeq t′1 … t′m)`.
    Each proof may refer to the introduced variables as well.
 
 .. example:: Parametric relation
@@ -219,7 +219,7 @@ They also support the :attr:`universes(polymorphic)` attributes.
    .. rocqdoc::
 
      Add Parametric Relation (A : Type) : A (@eq A)
-       [reflexivity proved by @refl_equal A]
+       reflexivity proved by (@refl_equal A)
      ...
 
 Some tactics (:tacn:`reflexivity`, :tacn:`symmetry`, :tacn:`transitivity`) work only on
@@ -335,10 +335,10 @@ respective relation instances.
 
 .. example::
 
-   To replace ``(union S empty)`` with ``S`` in ``(union (union S empty) S) (union S S)``
+   To replace ``(union S empty)`` with ``S`` in ``eq_set (union (union S empty) S) (union S S)``
    the rewrite tactic must exploit the monotony of ``union`` (axiom ``union_compat``
    in the previous example). Applying ``union_compat`` by hand we are left with the
-   goal ``eq_set (union S S) (union S S)``.
+   goals ``eq_set (union S empty) S`` and ``eq_set S S``.
 
 When the relations associated with some arguments are not reflexive, the
 tactic cannot automatically prove the reflexivity goals, that are left
@@ -373,16 +373,16 @@ covariant position.
 
 .. example:: Covariance and contravariance
 
-   Suppose that division over real numbers has been defined as a morphism of signature
-   ``Z.div : Z.lt ++> Z.lt --> Z.lt`` (i.e. ``Z.div`` is increasing in
+   Suppose that subtraction over integers has been defined as a morphism of signature
+   ``Z.sub : Z.lt ++> Z.lt --> Z.lt`` (i.e. ``Z.sub`` is increasing in
    its first argument, but decreasing on the second one). Let ``<``
    denote ``Z.lt``. Under the hypothesis ``H : x < y`` we have
-   ``k < x / y -> k < x / x``, but not ``k < y / x -> k < x / x``. Dually,
-   under the same hypothesis ``k < x / y -> k < y / y`` holds, but
-   ``k < y / x -> k < y / y`` does not. Thus, if the current goal is
-   ``k < x / x``, it is possible to replace only the second occurrence of
+   ``k < x - y -> k < x - x``, but not ``k < y - x -> k < x - x``. Dually,
+   under the same hypothesis ``k < x - y -> k < y - y`` holds, but
+   ``k < y - x -> k < y - y`` does not. Thus, if the current goal is
+   ``k < x - x``, it is possible to replace only the second occurrence of
    ``x`` (in contravariant position) with ``y`` since the obtained goal
-   must imply the current one. On the contrary, if ``k < x / x`` is an
+   must imply the current one. On the contrary, if ``k < x - x`` is an
    hypothesis, it is possible to replace only the first occurrence of
    ``x`` (in covariant position) with ``y`` since the current
    hypothesis must imply the obtained one.
@@ -400,13 +400,13 @@ covariant position.
 .. example::
 
    Let us continue the previous example and let us consider
-   the goal ``x / (x / x) < k``. The first and third occurrences of
+   the goal ``x - (x - x) < k``. The first and third occurrences of
    ``x`` are in a contravariant position, while the second one is in
    covariant position. More in detail, the second occurrence of ``x``
-   occurs covariantly in ``(x / x)`` (since division is covariant in
-   its first argument), and thus contravariantly in ``x / (x / x)``
-   (since division is contravariant in its second argument), and finally
-   covariantly in ``x / (x / x) < k`` (since ``<``, as every
+   occurs covariantly in ``(x - x)`` (since subtraction is covariant in
+   its first argument), and thus contravariantly in ``x - (x - x)``
+   (since subtraction is contravariant in its second argument), and finally
+   covariantly in ``x - (x - x) < k`` (since ``<``, as every
    transitive relation, is contravariant in its first argument with
    respect to the relation itself).
 
@@ -454,7 +454,7 @@ Declaring rewrite relations
 
 The ``RewriteRelation A R`` typeclass, indexed by a type and relation, registers
 relations that generalized rewriting handles.
-The default instances of this class are the ``iff```, ``impl`` and ``flip impl``
+The default instances of this class are the ``iff``, ``impl`` and ``flip impl``
 relations on ``Prop``, any declared ``Equivalence`` on a type ``A`` (including :term:`Leibniz equality`),
 and pointwise extensions of declared relations for function types.
 Users can simply add new instances of this class to register relations with the generalized rewriting
@@ -492,9 +492,9 @@ hint database. For example, the declaration:
 .. rocqdoc::
 
    Add Parametric Relation (x1 : T1) ... (xn : Tn) : (A t1 ... tn) (Aeq t′1 ... t′m)
-     [reflexivity proved by refl]
-     [symmetry proved by sym]
-     [transitivity proved by trans]
+     reflexivity proved by refl
+     symmetry proved by sym
+     transitivity proved by trans
      as id.
 
 
@@ -502,10 +502,10 @@ is equivalent to an instance declaration:
 
 .. rocqdoc::
 
-   Instance id (x1 : T1) ... (xn : Tn) : @Equivalence (A t1 ... tn) (Aeq t′1 ... t′m) :=
-     [Equivalence_Reflexive := refl]
-     [Equivalence_Symmetric := sym]
-     [Equivalence_Transitive := trans].
+   Instance id (x1 : T1) ... (xn : Tn) : @Equivalence (A t1 ... tn) (Aeq t′1 ... t′m) := {
+     Equivalence_Reflexive := refl;
+     Equivalence_Symmetric := sym;
+     Equivalence_Transitive := trans }.
 
 The declaration itself amounts to the definition of an object of the record type
 ``Stdlib.Classes.RelationClasses.Equivalence`` and a hint added to the
@@ -875,7 +875,7 @@ smaller than ``R``, and the inverse applies on the right of an arrow. One
 can then declare only a few morphisms instances that generate the
 complete set of signatures for a particular :term:`constant`. By default, the
 only declared subrelation is ``iff``, which is a subrelation of ``impl`` and
-``inverse impl`` (the dual of implication). That’s why we can declare only
+``flip impl`` (the dual of implication). That’s why we can declare only
 two morphisms for conjunction: ``Proper (impl ==> impl ==> impl) and`` and
 ``Proper (iff ==> iff ==> iff) and``. This is sufficient to satisfy any
 rewriting constraints arising from a rewrite using ``iff``, ``impl`` or
