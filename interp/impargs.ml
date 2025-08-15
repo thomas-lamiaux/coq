@@ -540,9 +540,10 @@ let implicits_table = Summary.ref GlobRefMap.empty ~name:"implicits"
 
 let implicits_of_global ref =
   try
-    let l = GlobRefMap.find (Global.env ()) ref !implicits_table in
+    let env = Global.env () in
+    let l = GlobRefMap.find env ref !implicits_table in
     try
-      let rename_l = Arguments_renaming.arguments_names ref in
+      let rename_l = Arguments_renaming.arguments_names env ref in
       let rec rename implicits names = match implicits, names with
         | [], _ -> []
         | _, [] -> implicits

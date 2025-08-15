@@ -64,7 +64,7 @@ let print_ref env reduce ref udecl =
       let ctx,ccl = Reductionops.whd_decompose_prod_decls env sigma (EConstr.of_constr typ)
       in EConstr.to_constr sigma (EConstr.it_mkProd_or_LetIn ccl ctx)
     else typ in
-  let typ = Arguments_renaming.rename_type typ ref in
+  let typ = Arguments_renaming.rename_type env typ ref in
   let impargs = select_stronger_impargs (implicits_of_global ref) in
   let impargs = List.map binding_kind_of_status impargs in
   let variance = let open GlobRef in match ref with
@@ -414,7 +414,7 @@ let print_arguments env ref =
     | _ -> [], [], None
   in
   let names, not_renamed =
-    try Arguments_renaming.arguments_names ref, false
+    try Arguments_renaming.arguments_names env ref, false
     with Not_found ->
       let ty, _ = Typeops.type_of_global_in_context env ref in
       List.map pi1 (Impargs.compute_implicits_names env (Evd.from_env env) (EConstr.of_constr ty)), true in

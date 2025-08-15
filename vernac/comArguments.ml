@@ -117,7 +117,7 @@ let vernac_arguments ~section_local reference args more_implicits flags =
     List.map pi1 (Impargs.compute_implicits_names env sigma (EConstr.of_constr ty))
   in
   let prev_names =
-    try Arguments_renaming.arguments_names sr with Not_found -> inf_names
+    try Arguments_renaming.arguments_names env sr with Not_found -> inf_names
   in
   let num_args = List.length inf_names in
   assert (Int.equal num_args (List.length prev_names));
