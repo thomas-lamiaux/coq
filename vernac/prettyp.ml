@@ -418,7 +418,7 @@ let print_arguments env ref =
     with Not_found ->
       let ty, _ = Typeops.type_of_global_in_context env ref in
       List.map pi1 (Impargs.compute_implicits_names env (Evd.from_env env) (EConstr.of_constr ty)), true in
-  let scopes = Notation.find_arguments_scope ref in
+  let scopes = Notation.find_arguments_scope env ref in
   let flags = if needs_extra_scopes env ref scopes then `ExtraScopes::flags else flags in
   let impls = Impargs.extract_impargs_data (Impargs.implicits_of_global ref) in
   let impls, moreimpls = match impls with
