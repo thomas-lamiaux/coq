@@ -1135,15 +1135,15 @@ Conceptually, a few of these are defined in terms of the others:
 The basic control strategy semantics are straightforward: strategies
 are applied to subterms of the term to rewrite, starting from the root
 of the term. The lemma strategies unify the left-hand-side of the
-lemma with the current subterm and on success rewrite it to the right-
-hand-side. Composition can be used to continue rewriting on the
+lemma with the current subterm and on success rewrite it to the
+right-hand-side. Composition can be used to continue rewriting on the
 current subterm. The ``fail`` strategy always fails while the identity
 strategy succeeds without making progress. The reflexivity strategy
 succeeds, making progress using a reflexivity proof of rewriting.
 ``progress`` tests progress of the argument :n:`@rewstrategy1` and
 fails if no progress was made, while ``try`` always succeeds, catching
 failures. ``choice`` uses the first successful strategy in the list of
-:n:`@rewstrategy0`s. One can iterate a strategy at least 1 time using
+:n:`@rewstrategy0`\s. One can iterate a strategy at least 1 time using
 ``repeat`` and at least 0 times using ``any``.
 
 The ``subterm`` and ``subterms`` strategies apply their argument :n:`@rewstrategy1` to
