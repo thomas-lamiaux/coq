@@ -216,11 +216,13 @@ They also support the :attr:`universes(polymorphic)` attributes.
 
    For Leibniz equality, we may declare:
 
-   .. rocqdoc::
+   .. rocqtop:: in
 
      Add Parametric Relation (A : Type) : A (@eq A)
-       reflexivity proved by (@refl_equal A)
-     ...
+       reflexivity proved by (@eq_refl A)
+       symmetry proved by (@eq_sym A)
+       transitivity proved by (@eq_trans A)
+       as eq_rel.
 
 Some tactics (:tacn:`reflexivity`, :tacn:`symmetry`, :tacn:`transitivity`) work only on
 relations that respect the expected properties. The remaining tactics
@@ -339,6 +341,16 @@ respective relation instances.
    the rewrite tactic must exploit the monotony of ``union`` (axiom ``union_compat``
    in the previous example). Applying ``union_compat`` by hand we are left with the
    goals ``eq_set (union S empty) S`` and ``eq_set S S``.
+
+   .. rocqtop:: in
+
+      Goal forall (S : set nat),
+        eq_set (union (union S (empty nat)) S) (union S S).
+      Proof.
+
+   .. rocqtop:: all abort
+
+      intros; apply union_compat.
 
 When the relations associated with some arguments are not reflexive, the
 tactic cannot automatically prove the reflexivity goals, that are left
