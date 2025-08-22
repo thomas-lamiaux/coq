@@ -337,10 +337,10 @@ respective relation instances.
 
 .. example::
 
-   To replace ``(union S empty)`` with ``S`` in ``eq_set (union (union S empty) S) (union S S)``
-   the rewrite tactic must exploit the monotony of ``union`` (axiom ``union_compat``
-   in the previous example). Applying ``union_compat`` by hand we are left with the
-   goals ``eq_set (union S empty) S`` and ``eq_set S S``.
+   To replace ``(union S empty)`` with ``S`` in ``eq_set (union (union S empty) S)
+   (union S S)`` the rewrite tactic must exploit the monotony of ``union``. Since
+   only the first argument is being replaced, it is necessary to prove that the
+   second argument relates to itself.
 
    .. rocqtop:: in
 
@@ -350,7 +350,7 @@ respective relation instances.
 
    .. rocqtop:: all abort
 
-      intros; apply union_compat.
+      intros; apply union_compat; [apply empty_neutral|].
 
 When the relations associated with some arguments are not reflexive, the
 tactic cannot automatically prove the reflexivity goals, that are left
