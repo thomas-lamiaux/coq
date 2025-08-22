@@ -218,6 +218,7 @@ They also support the :attr:`universes(polymorphic)` attributes.
 
    .. rocqtop:: in
 
+     From Corelib Require Import Setoid.
      Add Parametric Relation (A : Type) : A (@eq A)
        reflexivity proved by (@eq_refl A)
        symmetry proved by (@eq_sym A)
