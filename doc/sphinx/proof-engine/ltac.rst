@@ -90,9 +90,9 @@ because `||` is part of :token:`ltac_expr2`, which has higher precedence than
 in turn have higher precedence than `;`, which is part of :token:`ltac_expr4`.
 (A *lower* number in the nonterminal name means *higher* precedence in this grammar.)
 
-The constructs in :token:`ltac_expr` are :term:`left associative` when at the same
-precedence. For example :n:`@tactic__1 ; @tactic__2 ; @tactic__3` is interpreted as
-:n:`(@tactic__1 ; @tactic__2) ; @tactic__3` instead of returning a parse error.
+The constructs in :token:`ltac_expr` are :term:`left associative` when they have
+the same precedence. For example :n:`@tactic__1 ; @tactic__2 ; @tactic__3` is
+interpreted as :n:`(@tactic__1 ; @tactic__2) ; @tactic__3`.
 
 .. insertprodn ltac_expr tactic_atom
 
@@ -566,7 +566,7 @@ A sequence is an expression of the following form:
    possibly producing more goals. Then the right-hand side is evaluated to
    produce :n:`v__2`, which must be a tactic value. The tactic
    :n:`v__2` is applied to all the goals produced by the prior
-   application. Sequence is associative.
+   application. Sequence is left-associative.
 
    This construct uses backtracking: if :n:`@ltac_expr3__2` fails, Rocq will
    try each alternative success (if any) for :n:`@ltac_expr3__1`, retrying
@@ -672,8 +672,6 @@ We can branch with backtracking with the following structure:
    fails, |Ltac| backtracks and selects the next success for :n:`ltac_expr1`.  If there are
    no more successes, then `+` similarly evaluates and applies (and backtracks in) the right-hand side.
    To prevent evaluation of further alternatives after an initial success for a tactic, use :tacn:`first` instead.
-
-   `+` is right-associative.
 
    In all cases, :n:`(@ltac_expr__1 + @ltac_expr__2); @ltac_expr__3` is equivalent to
    :n:`(@ltac_expr__1; @ltac_expr__3) + (@ltac_expr__2; @ltac_expr__3)`.
@@ -840,7 +838,7 @@ structure:
 
    :n:`@ltac_expr1 || @ltac_expr2` is
    equivalent to :n:`first [ progress @ltac_expr1 | @ltac_expr2 ]`, except that
-   if it fails, it fails like :n:`@ltac_expr2`. `||` is right-associative.
+   if it fails, it fails like :n:`@ltac_expr2`.
 
 Detecting progress
 ~~~~~~~~~~~~~~~~~~
@@ -1955,10 +1953,10 @@ Printing |Ltac| tactics
 Examples of using |Ltac|
 -------------------------
 
-Proof that the natural numbers have more than two elements
+Proof that the natural numbers have at least three elements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. example:: Proof that the natural numbers have more than two elements
+.. example:: Proof that the natural numbers have at least three elements
 
    The first example shows how to use pattern matching over the proof
    context to prove that natural numbers have at least three
