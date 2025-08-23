@@ -90,7 +90,9 @@ because `||` is part of :token:`ltac_expr2`, which has higher precedence than
 in turn have higher precedence than `;`, which is part of :token:`ltac_expr4`.
 (A *lower* number in the nonterminal name means *higher* precedence in this grammar.)
 
-The constructs in :token:`ltac_expr` are :term:`left associative`.
+The constructs in :token:`ltac_expr` are :term:`left associative` when at the same
+precedence. For example :n:`@tactic__1 ; @tactic__2 ; @tactic__3` is interpreted as
+:n:`(@tactic__1 ; @tactic__2) ; @tactic__3` instead of returning a parse error.
 
 .. insertprodn ltac_expr tactic_atom
 
@@ -671,7 +673,7 @@ We can branch with backtracking with the following structure:
    no more successes, then `+` similarly evaluates and applies (and backtracks in) the right-hand side.
    To prevent evaluation of further alternatives after an initial success for a tactic, use :tacn:`first` instead.
 
-   `+` is left-associative.
+   `+` is right-associative.
 
    In all cases, :n:`(@ltac_expr__1 + @ltac_expr__2); @ltac_expr__3` is equivalent to
    :n:`(@ltac_expr__1; @ltac_expr__3) + (@ltac_expr__2; @ltac_expr__3)`.
@@ -838,10 +840,7 @@ structure:
 
    :n:`@ltac_expr1 || @ltac_expr2` is
    equivalent to :n:`first [ progress @ltac_expr1 | @ltac_expr2 ]`, except that
-   if it fails, it fails like :n:`@ltac_expr2. `||` is left-associative.
-
-   :n:`@ltac_expr`\s that don't evaluate to tactic values are ignored.  See the
-   note at :tacn:`solve`.
+   if it fails, it fails like :n:`@ltac_expr2`. `||` is right-associative.
 
 Detecting progress
 ~~~~~~~~~~~~~~~~~~
@@ -1345,7 +1344,7 @@ Pattern matching on goals and hypotheses: match goal
          :token:`name` can't have a `?`.  Note that the last two forms are equivalent except that:
 
          - if the `:` in the third form has been bound to something else in a notation, you must use the fourth form.
-           Note that cmd:`Require Import` `ssreflect` loads a notation that does this.
+           Note that :cmd:`Require Import` `ssreflect` loads a notation that does this.
          - a :n:`@term__binder` such as `[ ?l ]` (e.g., denoting a singleton list after
            :cmd:`Import` `ListNotations`) must be parenthesized or, for the fourth form,
            use double brackets: `[ [ ?l ] ]`.
@@ -1956,13 +1955,13 @@ Printing |Ltac| tactics
 Examples of using |Ltac|
 -------------------------
 
-Proof that the natural numbers have at least two elements
+Proof that the natural numbers have more than two elements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. example:: Proof that the natural numbers have at least two elements
+.. example:: Proof that the natural numbers have more than two elements
 
    The first example shows how to use pattern matching over the proof
-   context to prove that natural numbers have at least two
+   context to prove that natural numbers have at least three
    elements. This can be done as follows:
 
    .. rocqtop:: reset all
@@ -2132,7 +2131,7 @@ tactic language as shown below.
                elim H; intro; clear H
            | H : ?A /\ ?B -> ?C |- _ =>
                cut (A -> B -> C);
-                   [ intro | intros; apply H; split; assumption ]
+                   [ intro; clear H | intros; apply H; split; assumption ]
            | H: ?A \/ ?B -> ?C |- _ =>
                cut (B -> C);
                    [ cut (A -> C);
