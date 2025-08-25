@@ -756,7 +756,7 @@ class RocqtopBlocksTransform(Transform):
         multi-line comments.  Nested comments are not supported.
 
         A chunk is a minimal sequence of consecutive lines of the input that
-        ends with a '.', possibly followed by blanks and/or comments.
+        ends with a '.' or a focusing brace, possibly followed by blanks and/or comments.
 
         >>> split_lines('A.\nB.''')
         ['A.\n', 'B.']
@@ -790,12 +790,14 @@ class RocqtopBlocksTransform(Transform):
         """
         comment = r"\(\*.*\*\)"
         # the end of a chunk is marked by
-        # a period (\.)
+        # a period (\.) or a focusing brace (:\s*\{)
         # optional blanks or comments (?:[ \t]*|{comment})*
         # followed by a newline \n
         # We capture everything starting from the '.' to recover it afterwards
         blank = r"[ \t]"
-        end_of_chunk = fr"(\.(?:{blank}*|{comment})*\n)"
+        dot = r"\."
+        focusing_brace = r":\s*\{"
+        end_of_chunk = fr"((?:{dot}|{focusing_brace})(?:{blank}*|{comment})*\n)"
         splits = re.split(end_of_chunk, source.strip())
         return [''.join(splits[i:i+2]) for i in range(0, len(splits), 2)]
 
