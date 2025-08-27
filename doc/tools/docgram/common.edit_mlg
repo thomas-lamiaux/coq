@@ -858,6 +858,7 @@ ltac_constructs: [
 | toplevel_selector ltac_expr5
 ]
 
+(* temporarily render left-associativity manually, see #21029 *)
 ltac_expr4: [
 | REPLACE ltac_expr3 ";" [ ltac_expr3 ]
 | WITH ltac_expr4 ";" [ ltac_expr3 ]
