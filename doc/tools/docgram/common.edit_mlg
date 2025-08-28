@@ -846,8 +846,8 @@ DELETE: [
 
 ltac_constructs: [
 (* repeated in main ltac grammar - need to create a COPY edit *)
-| ltac_expr3 ";" [ ltac_expr3 ]
-| ltac_expr3 ";" "[" for_each_goal "]"
+| ltac_expr4 ";" [ ltac_expr3 ]
+| ltac_expr4 ";" "[" for_each_goal "]"
 
 | ltac_expr1 "+" [ ltac_expr2 ]
 | ltac_expr1 "||" [ ltac_expr2 ]
@@ -858,9 +858,12 @@ ltac_constructs: [
 | toplevel_selector ltac_expr5
 ]
 
+(* temporarily render left-associativity manually, see #21029 *)
 ltac_expr4: [
+| REPLACE ltac_expr3 ";" [ ltac_expr3 ]
+| WITH ltac_expr4 ";" [ ltac_expr3 ]
 | REPLACE ltac_expr3 ";" for_each_goal "]"
-| WITH ltac_expr3 ";" "[" for_each_goal "]"
+| WITH ltac_expr4 ";" "[" for_each_goal "]"
 ]
 
 l3_tactic: [ ]
