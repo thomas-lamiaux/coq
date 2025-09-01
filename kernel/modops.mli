@@ -26,11 +26,6 @@ val destr_functor : ('ty,'a) functorize -> MBId.t * 'ty * ('ty,'a) functorize
 
 val destr_nofunctor : ModPath.t -> ('ty,'a) functorize -> 'a
 
-(** Conversions between [module_body] and [module_type_body] *)
-
-val module_type_of_module : module_body -> module_type_body
-val module_body_of_type : module_type_body -> module_body
-
 val check_modpath_equiv : env -> ModPath.t -> ModPath.t -> unit
 
 val annotate_module_expression : module_expression -> module_signature ->

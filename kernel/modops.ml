@@ -133,9 +133,6 @@ let get_global_delta mb = match mod_global_delta mb with
 
 (** {6 Misc operations } *)
 
-let module_type_of_module = Mod_declarations.module_type_of_module
-let module_body_of_type = Mod_declarations.module_body_of_type
-
 let check_modpath_equiv env mp1 mp2 =
   if ModPath.equal mp1 mp2 then ()
   else
