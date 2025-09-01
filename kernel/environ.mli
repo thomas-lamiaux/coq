@@ -296,15 +296,6 @@ sig
   val canonize : env -> t -> t
 end
 
-module type QNameS =
-sig
-  type t
-  val equal : env -> t -> t -> bool
-  val compare : env -> t -> t -> int
-  val hash : env -> t -> int
-  val canonize : env -> t -> t
-end
-
 module type QMapS =
 sig
   type key
@@ -322,21 +313,50 @@ end
 
 module QMap (M : CSig.UMapS) (_ : QS with type t = M.key) : QMapS with type key = M.key
 
-module QConstant : QNameS with type t = Constant.t
+module type QNameS =
+sig
+  type t
+  val equal : env -> t -> t -> bool
+  val compare : env -> t -> t -> int
+  val hash : env -> t -> int
+  val canonize : env -> t -> t
+end
 
-module QMutInd : QNameS with type t = MutInd.t
+module QConstant : sig
+  include QNameS with type t = Constant.t
+  module Map : QMapS with type key = t
+end
 
-module QInd : QNameS with type t = Ind.t
+module QMutInd : sig
+  include QNameS with type t = MutInd.t
+  module Map : QMapS with type key = t
+end
 
-module QConstruct : QNameS with type t = Construct.t
+module QInd : sig
+  include QNameS with type t = Ind.t
+  module Map : QMapS with type key = t
+end
+
+module QConstruct : sig
+  include QNameS with type t = Construct.t
+  module Map : QMapS with type key = t
+end
 
 module QProjection :
 sig
   include QNameS with type t = Projection.t
-  module Repr : QNameS with type t = Projection.Repr.t
+  module Map : QMapS with type key = t
+
+  module Repr : sig
+    include QNameS with type t = Projection.Repr.t
+    module Map : QMapS with type key = t
+end
 end
 
-module QGlobRef : QNameS with type t = GlobRef.t
+module QGlobRef : sig
+  include QNameS with type t = GlobRef.t
+  module Map : QMapS with type key = t
+end
 
 (** {5 Modules } *)
 

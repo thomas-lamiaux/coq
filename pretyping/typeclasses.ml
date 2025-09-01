@@ -56,7 +56,7 @@ type typeclass = {
   cl_unique : bool;
 }
 
-module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+module GlobRefMap = Environ.QGlobRef.Map
 
 type typeclasses = typeclass GlobRefMap.t
 (* Invariant: for any pair (gr, tc) in the map, gr and tc.cl_impl are equal *)

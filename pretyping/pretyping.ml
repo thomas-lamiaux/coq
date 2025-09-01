@@ -51,7 +51,7 @@ type typing_constraint = IsType | OfType of types | WithoutTypeConstraint
 
 let (!!) env = GlobEnv.env env
 
-module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+module GlobRefMap = Environ.QGlobRef.Map
 
 let bidi_hints =
   Summary.ref (GlobRefMap.empty : int GlobRefMap.t) ~name:"bidirectionalityhints"

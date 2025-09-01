@@ -196,7 +196,7 @@ end
 
 module PatMap = Environ.QMap(Map.Make(ValuePattern))(ValuePattern)
 
-module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+module GlobRefMap = Environ.QGlobRef.Map
 
 let object_table =
   Summary.ref (GlobRefMap.empty : (constr * obj_typ) PatMap.t GlobRefMap.t)
