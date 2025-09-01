@@ -323,11 +323,11 @@ let finalize_module_alg (cst, ustate) (vm, vmstate) env mp (sign,alg,reso) resty
     mb, cst, vm
   | Some (params_mte,inl) ->
     let res_mtb, cst, vm = translate_modtype (cst, ustate) (vm, vmstate) env mp inl params_mte in
-    let auto_mtb = mk_modtype sign reso in
+    let auto_mtb = Mod_declarations.make_module_body sign reso [] in
     (* This function is supposed to be called in a state where the current module
        is about to be closed, so all subcomponents of the module are already
        part of the environment. We only need to add the toplevel module entry. *)
-    let env = Environ.shallow_add_module mp (module_body_of_type auto_mtb) env in
+    let env = Environ.shallow_add_module mp auto_mtb env in
     let cst = Subtyping.check_subtypes (cst, ustate) env mp mp res_mtb in
     let impl = match alg with
     | Some e -> Algebraic e
