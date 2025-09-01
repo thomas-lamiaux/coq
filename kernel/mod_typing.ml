@@ -249,9 +249,8 @@ let rec translate_apply ustate env inl mp subst (sign, reso, cst) args = match a
     if is_empty_subst subst then farg_b
     else subst_modtype subst_codom subst (MPbound farg_id) farg_b
   in
-  let mtb = module_type_of_module (lookup_module mp1 env) in
   let cst = Subtyping.check_subtypes (cst, ustate) env mp1 (MPbound farg_id) farg_b in
-  let mp_delta = discr_resolver mp1 mtb in
+  let mp_delta = discr_resolver mp1 (lookup_module mp1 env) in
   let mp_delta = inline_delta_resolver env inl mp1 farg_id farg_b mp_delta in
   let nsubst = map_mbid farg_id mp1 mp_delta in
   let subst = join subst nsubst in
