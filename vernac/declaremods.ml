@@ -1436,13 +1436,13 @@ let declare_one_include_core (me,base,kind,inl) =
   let () = Global.add_constraints cst in
   let () = assert (ModPath.equal cur_mp (Global.current_modpath ())) in
   (* Include Self support  *)
-  let mb = make_module_type (RawModOps.Interp.current_struct ()) (RawModOps.Interp.current_modresolver ()) in
+  let mb = make_module_body (RawModOps.Interp.current_struct ()) (RawModOps.Interp.current_modresolver ()) [] in
   let rec compute_sign sign =
     match sign with
     | MoreFunctor(mbid,mtb,str) ->
       let state = ((Global.universes (), Univ.Constraints.empty), Reductionops.inferred_universes) in
       (* Module subcomponents are already part of env at this point *)
-      let env = Environ.shallow_add_module cur_mp (module_body_of_type mb) (Global.env ()) in
+      let env = Environ.shallow_add_module cur_mp mb (Global.env ()) in
       let (_, cst) = Subtyping.check_subtypes state env cur_mp (MPbound mbid) mtb in
       let () = Global.add_constraints cst in
       let mpsup_delta = match mod_global_delta mb with
