@@ -203,7 +203,7 @@ val start_modtype : Label.t -> ModPath.t safe_transformer
 
 val add_module_parameter :
   MBId.t -> Entries.module_struct_entry -> Declarations.inline ->
-    Mod_subst.delta_resolver safe_transformer
+    Mod_declarations.module_type_body safe_transformer
 
 (** returns the number of module (type) parameters following the nested module
     structure. The inner module (type) comes first in the list. *)

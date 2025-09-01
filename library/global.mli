@@ -121,7 +121,7 @@ val end_modtype : Summary.Interp.frozen -> Id.t -> ModPath.t * MBId.t list
 
 val add_module_parameter :
   MBId.t -> Entries.module_struct_entry -> inline ->
-    Mod_subst.delta_resolver
+    module_type_body
 
 (** {6 Queries in the global environment } *)
 

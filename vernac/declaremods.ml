@@ -1043,7 +1043,8 @@ let intern_arg (acc, cst) (mbidl,(mty, base, kind, inl)) =
     let id = MBId.to_id mbid in
     let sp = Libnames.make_path DirPath.empty id in
     let mp = MPbound mbid in
-    let resolver = Global.add_module_parameter mbid mty inl in
+    let mtb = Global.add_module_parameter mbid mty inl in
+    let resolver = mod_delta mtb in
     let sobjs = subst_sobjs (map_mp mp0 mp resolver) sobjs in
     InterpVisitor.load_module 1 sp mp sobjs;
     (mbid,mty,inl)::acc

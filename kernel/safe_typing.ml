@@ -1301,7 +1301,7 @@ let add_module_parameter mbid mte inl senv =
   | None -> senv.paramresolver
   | Some delta -> ParamResolver.add_delta_resolver mp delta senv.paramresolver
   in
-  mod_delta mtb,
+  mtb,
   { senv with
     modvariant = new_variant;
     paramresolver = new_paramresolver }
