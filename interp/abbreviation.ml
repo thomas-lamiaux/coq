@@ -78,7 +78,7 @@ let open_abbreviation i ((sp,kn),(_local,abbrev)) =
     if not abbrev.abbrev_onlyparsing then
       (* Redeclare it to be used as (short) name in case an other (distfix)
          notation was declared in between *)
-      Notationextern.declare_uninterpretation (AbbrevRule kn) pat
+      Notationextern.declare_uninterpretation (Global.env ()) (AbbrevRule kn) pat
   end
 
 let import_abbreviation i sp kn =

@@ -56,8 +56,8 @@ type interp_rule =
   | NotationRule of Constrexpr.specific_notation
   | AbbrevRule of Globnames.abbreviation
 
-val remove_uninterpretation : interp_rule -> interpretation -> unit
-val declare_uninterpretation : interp_rule -> interpretation -> unit
+val remove_uninterpretation : Environ.env -> interp_rule -> interpretation -> unit
+val declare_uninterpretation : Environ.env -> interp_rule -> interpretation -> unit
 
 type notation_applicative_status =
   | AppBoundedNotation of int
@@ -71,9 +71,9 @@ type notation_rule = {
 }
 
 (** Return the possible notations for a given term *)
-val uninterp_notations : 'a glob_constr_g -> notation_rule list
-val uninterp_cases_pattern_notations : 'a cases_pattern_g -> notation_rule list
-val uninterp_ind_pattern_notations : inductive -> notation_rule list
+val uninterp_notations : Environ.env -> 'a glob_constr_g -> notation_rule list
+val uninterp_cases_pattern_notations : Environ.env -> 'a cases_pattern_g -> notation_rule list
+val uninterp_ind_pattern_notations : Environ.env -> inductive -> notation_rule list
 
 (** State protection *)
 val with_notation_uninterpretation_protection : ('a -> 'b) -> 'a -> 'b
