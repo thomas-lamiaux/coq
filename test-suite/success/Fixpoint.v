@@ -165,8 +165,10 @@ Fail Fixpoint f (x:nat) := id (fix g x : nat := f x) 0.
 Fixpoint f x :=
   match x with
   | 0 => 0
-  | S n => id (fix g x := f x) n
+  | S n => (id (fix g x := f x)) n
   end.
+
+
 
 End NestingAndUnfolding.
 
