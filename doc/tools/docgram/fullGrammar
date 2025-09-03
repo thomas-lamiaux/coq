@@ -3023,8 +3023,8 @@ G_LTAC2_simple_intropattern: [
 ]
 
 G_LTAC2_simple_intropattern_closed: [
-| G_LTAC2_or_and_intropattern      (* ltac2 plugin *)
 | G_LTAC2_equality_intropattern      (* ltac2 plugin *)
+| G_LTAC2_or_and_intropattern      (* ltac2 plugin *)
 | "_"      (* ltac2 plugin *)
 | G_LTAC2_naming_intropattern      (* ltac2 plugin *)
 ]

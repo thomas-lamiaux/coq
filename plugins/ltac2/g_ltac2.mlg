@@ -586,10 +586,10 @@ GRAMMAR EXTEND Gram
     ] ]
   ;
   simple_intropattern_closed:
-    [ [ pat = or_and_intropattern ->
-        { CAst.make ~loc @@ QIntroAction (CAst.make ~loc @@ QIntroOrAndPattern pat) }
-      | pat = equality_intropattern ->
+    [ [ pat = equality_intropattern ->
         { CAst.make ~loc @@ QIntroAction pat }
+      | pat = or_and_intropattern ->
+        { CAst.make ~loc @@ QIntroAction (CAst.make ~loc @@ QIntroOrAndPattern pat) }
       | "_" ->
         { CAst.make ~loc @@ QIntroAction (CAst.make ~loc @@ QIntroWildcard) }
       | pat = naming_intropattern ->
