@@ -493,7 +493,14 @@ let rec intern_pat_rec env cpat t =
             true)
             patvars patvars')
         (* TODO say what variables are differently bound *)
-        then CErrors.user_err ?loc Pp.(str "These patterns do not bind the same variables.");
+        then begin
+          let leftdom = Id.Map.domain patvars in
+          let rightdom = Id.Map.domain patvars' in
+          let only_left = Id.Set.diff leftdom rightdom in
+          let only_right = Id.Set.diff rightdom leftdom in
+          let pp_side side vars () = if Id.Set.is_empty vars then mt() else Pp.fmt "@ (%s pattern also binds %t)" side (fun () -> Pp.pr_enum Id.print (Id.Set.elements vars)) in
+          CErrors.user_err ?loc Pp.(fmt "These patterns do not bind the same variables%t%t." (pp_side "left" only_left) (pp_side "right" only_right))
+        end;
         pat)
         rest
     in
