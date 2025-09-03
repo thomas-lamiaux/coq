@@ -366,8 +366,8 @@ val push_context_set : ?strict:bool -> ContextSet.t -> env -> env
     context set to the environment. It does not fail even if one of the
     universes is already declared. *)
 
-val push_quality_set : Sorts.QVar.Set.t -> env -> env
-(** [push_quality_set qs env] pushes the set of quality variables in
+val push_qualities : Sorts.QVar.Set.t -> env -> env
+(** [push_qualities qs env] pushes the set of quality variables in
     the environment. It fails if a quality variable is already
     declared. *)
 

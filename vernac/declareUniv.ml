@@ -229,7 +229,7 @@ let do_sort ~poly l =
     let qs = List.fold_left  (fun qs (_, qv) -> Sorts.QVar.(Set.add (make_global qv) qs))
       Sorts.QVar.Set.empty l
     in
-    Global.push_quality_set qs
+    Global.push_qualities qs
   | true ->
     let names = CArray.map_of_list (fun (na,_) -> Name na) l in
     let qs = CArray.map_of_list (fun (_,sg) -> Sorts.Quality.global sg) l in

@@ -523,7 +523,7 @@ let push_context_set ~strict cst senv =
 let add_constraints cst senv =
   push_context_set ~strict:true cst senv
 
-let push_quality_set qs senv =
+let push_qualities qs senv =
   if Sorts.QVar.Set.is_empty qs then senv
   else
     let () = if is_modtype senv
@@ -532,7 +532,7 @@ let push_quality_set qs senv =
     let sections = Option.map (Section.push_mono_qualities qs) senv.sections
     in
     { senv with
-      env = Environ.push_quality_set qs senv.env ;
+      env = Environ.push_qualities qs senv.env ;
       qualities = Sorts.QVar.Set.union qs senv.qualities ;
       sections
     }
@@ -1533,7 +1533,7 @@ let import lib vmtab vodigest senv =
   let mp = MPfile lib.comp_name in
   let mb = lib.comp_mod in
   let qualities, univs = lib.comp_univs in
-  let env = Environ.push_quality_set qualities senv.env in
+  let env = Environ.push_qualities qualities senv.env in
   let env = Environ.push_context_set ~strict:true univs env in
   let env = Environ.link_vm_library vmtab env in
   let env =
@@ -1597,7 +1597,7 @@ let close_section senv =
   in
   (* Third phase: replay the discharged section contents *)
   let senv = push_context_set ~strict:true cstrs senv in
-  let senv = push_quality_set qs senv in
+  let senv = push_qualities qs senv in
   let fold entry senv =
     match entry with
   | SecDefinition kn ->

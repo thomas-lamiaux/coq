@@ -488,7 +488,7 @@ let add_universes_set ~strict ctx g =
 let push_context_set ?(strict=false) ctx env =
   map_universes (add_universes_set ~strict ctx) env
 
-let push_quality_set qs env =
+let push_qualities qs env =
   assert Sorts.QVar.Set.(is_empty @@ inter qs env.env_qualities);
   { env with
     env_qualities = Sorts.QVar.Set.union qs env.env_qualities }
