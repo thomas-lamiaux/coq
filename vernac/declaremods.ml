@@ -1006,9 +1006,8 @@ let build_subtypes env mp args mtys =
       (* functor arguments are already part of the env, we compute the type
          and requantify over them *)
       let mtb, (_, cst), _ = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
-      let fold (mbid, _, _) accu =
-        let pty = Global.lookup_module (MPbound mbid) in
-        MoreFunctor (mbid, module_type_of_module pty, accu)
+      let fold (mbid, mtb, _, _) accu =
+        MoreFunctor (mbid, mtb, accu)
       in
       (* XXX: parameters will be rechecked for subtyping, even though we
          statically know they are the same as the ones of the ambient
@@ -1043,10 +1042,11 @@ let intern_arg (acc, cst) (mbidl,(mty, base, kind, inl)) =
     let id = MBId.to_id mbid in
     let sp = Libnames.make_path DirPath.empty id in
     let mp = MPbound mbid in
-    let resolver = Global.add_module_parameter mbid mty inl in
+    let mtb = Global.add_module_parameter mbid mty inl in
+    let resolver = mod_delta mtb in
     let sobjs = subst_sobjs (map_mp mp0 mp resolver) sobjs in
     InterpVisitor.load_module 1 sp mp sobjs;
-    (mbid,mty,inl)::acc
+    (mbid, mtb, mty, inl) :: acc
   in
   let acc = List.fold_left fold acc mbidl in
   (acc, Univ.ContextSet.union cst cst')
@@ -1167,6 +1167,7 @@ let declare_module id args res mexpr_o =
   in
   let env = Environ.push_context_set ctx' env in
   let ctx = Univ.ContextSet.union ctx ctx' in
+  let params = List.map (fun (mbid, _, mte, b) -> (mbid, mte, b)) params in
   let entry, inl_res = match mexpr_entry_o, mty_entry_o with
     | None, None -> assert false (* No body, no type ... *)
     | None, Some (typ, inl) -> MType (params, typ), inl
@@ -1313,6 +1314,7 @@ let declare_modtype id args mtys (mte,base,kind,inl) =
   let state = ((Global.universes (), Univ.Constraints.empty), Reductionops.inferred_universes) in
   let _, (_, mte_cst), _ = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
   let () = Global.push_context_set (Univ.Level.Set.empty,mte_cst) in
+  let params = List.map (fun (mbid, _, mte, b) -> (mbid, mte, b)) params in
   let entry = params, mte in
   let env = Global.env () in
   let sobjs = RawModOps.Interp.get_functor_sobjs false env inl entry in
@@ -1436,13 +1438,13 @@ let declare_one_include_core (me,base,kind,inl) =
   let () = Global.add_constraints cst in
   let () = assert (ModPath.equal cur_mp (Global.current_modpath ())) in
   (* Include Self support  *)
-  let mb = make_module_type (RawModOps.Interp.current_struct ()) (RawModOps.Interp.current_modresolver ()) in
+  let mb = make_module_body (RawModOps.Interp.current_struct ()) (RawModOps.Interp.current_modresolver ()) [] in
   let rec compute_sign sign =
     match sign with
     | MoreFunctor(mbid,mtb,str) ->
       let state = ((Global.universes (), Univ.Constraints.empty), Reductionops.inferred_universes) in
       (* Module subcomponents are already part of env at this point *)
-      let env = Environ.shallow_add_module cur_mp (module_body_of_type mb) (Global.env ()) in
+      let env = Environ.shallow_add_module cur_mp mb (Global.env ()) in
       let (_, cst) = Subtyping.check_subtypes state env cur_mp (MPbound mbid) mtb in
       let () = Global.add_constraints cst in
       let mpsup_delta = match mod_global_delta mb with

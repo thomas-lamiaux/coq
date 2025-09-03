@@ -1301,7 +1301,7 @@ let add_module_parameter mbid mte inl senv =
   | None -> senv.paramresolver
   | Some delta -> ParamResolver.add_delta_resolver mp delta senv.paramresolver
   in
-  mod_delta mtb,
+  mtb,
   { senv with
     modvariant = new_variant;
     paramresolver = new_paramresolver }
@@ -1422,13 +1422,13 @@ let add_include me is_module inl senv =
   let senv = set_vm_library vmtab senv in
   (* Include Self support  *)
   let struc = NoFunctor (List.rev senv.revstruct) in
-  let mb = build_mtb struc senv.modresolver in
+  let mb = Mod_declarations.make_module_body struc senv.modresolver [] in
   let rec compute_sign sign resolver =
     match sign with
     | MoreFunctor(mbid,mtb,str) ->
       let state = check_state senv in
       (* Module subcomponents are already part of senv.env at this point *)
-      let env = Environ.shallow_add_module mp_sup (module_body_of_type mb) senv.env in
+      let env = Environ.shallow_add_module mp_sup mb senv.env in
       let (_ : UGraph.t) = Subtyping.check_subtypes state env mp_sup (MPbound mbid) mtb in
       let mpsup_delta =
         Modops.inline_delta_resolver senv.env inl mp_sup mbid mtb senv.modresolver
