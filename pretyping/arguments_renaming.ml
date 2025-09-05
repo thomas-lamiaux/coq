@@ -19,7 +19,7 @@ open Libobject
 
 (*i*)
 
-module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+module GlobRefMap = Environ.QGlobRef.Map
 
 let name_table =
   Summary.ref (GlobRefMap.empty : Name.t list GlobRefMap.t)

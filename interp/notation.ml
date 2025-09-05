@@ -279,7 +279,7 @@ type required_module = full_path * string list
 let prim_token_interp_infos =
   ref (String.Map.empty : (required_module * prim_token_interp_info) String.Map.t)
 
-module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+module GlobRefMap = Environ.QGlobRef.Map
 
 (* Table from global_reference to backtrack-able informations about
    prim_token uninterpretation (in particular uninterpreter unique id). *)

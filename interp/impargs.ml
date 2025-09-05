@@ -534,7 +534,7 @@ type implicit_discharge_request =
   | ImplInteractive of implicits_flags *
       implicit_interactive_request
 
-module GlobRefMap = Environ.QMap(GlobRef.Map_env)(Environ.QGlobRef)
+module GlobRefMap = Environ.QGlobRef.Map
 
 let implicits_table = Summary.ref GlobRefMap.empty ~name:"implicits"
 

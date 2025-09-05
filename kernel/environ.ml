@@ -971,15 +971,6 @@ sig
   val canonize : env -> t -> t
 end
 
-module type QNameS =
-sig
-  type t
-  val equal : env -> t -> t -> bool
-  val compare : env -> t -> t -> int
-  val hash : env -> t -> int
-  val canonize : env -> t -> t
-end
-
 module type QMapS =
 sig
   type key
@@ -1010,67 +1001,55 @@ struct
   let find_opt env key m = M.find_opt (Q.canonize env key) m
 end
 
-module QConstant =
-struct
-  type t = Constant.t
-  let equal _env c1 c2 = Constant.CanOrd.equal c1 c2
-  let compare _env c1 c2 = Constant.CanOrd.compare c1 c2
-  let hash _env c = Constant.CanOrd.hash c
-  let canonize _env c = Constant.canonize c
+module type QNameS =
+sig
+  type t
+  val equal : env -> t -> t -> bool
+  val compare : env -> t -> t -> int
+  val hash : env -> t -> int
+  val canonize : env -> t -> t
 end
 
-module QMutInd =
-struct
-  type t = MutInd.t
-  let equal _env c1 c2 = MutInd.CanOrd.equal c1 c2
-  let compare _env c1 c2 = MutInd.CanOrd.compare c1 c2
-  let hash _env c = MutInd.CanOrd.hash c
-  let canonize _env c = MutInd.canonize c
-end
+module type HackQS = sig
+  (** A type with canonical information separate from the env *)
+  type t
 
-module QInd =
-struct
-  type t = Ind.t
-  let equal _env c1 c2 = Ind.CanOrd.equal c1 c2
-  let compare _env c1 c2 = Ind.CanOrd.compare c1 c2
-  let hash _env c = Ind.CanOrd.hash c
-  let canonize _env c = Ind.canonize c
-end
-
-module QConstruct =
-struct
-  type t = Construct.t
-  let equal _env c1 c2 = Construct.CanOrd.equal c1 c2
-  let compare _env c1 c2 = Construct.CanOrd.compare c1 c2
-  let hash _env c = Construct.CanOrd.hash c
-  let canonize _env c = Construct.canonize c
-end
-
-module QProjection =
-struct
-  type t = Projection.t
-  let equal _env c1 c2 = Projection.CanOrd.equal c1 c2
-  let compare _env c1 c2 = Projection.CanOrd.compare c1 c2
-  let hash _env c = Projection.CanOrd.hash c
-  let canonize _env c = Projection.canonize c
-  module Repr =
-  struct
-    type t = Projection.Repr.t
-    let equal _env c1 c2 = Projection.Repr.CanOrd.equal c1 c2
-    let compare _env c1 c2 = Projection.Repr.CanOrd.compare c1 c2
-    let hash _env c = Projection.Repr.CanOrd.hash c
-    let canonize _env c = Projection.Repr.canonize c
+  val canonize : t -> t
+  module CanOrd : sig
+    val equal : t -> t -> bool
+    val compare : t -> t -> int
+    val hash : t -> int
   end
 end
 
-module QGlobRef =
-struct
-  type t = GlobRef.t
-  let equal _env c1 c2 = GlobRef.CanOrd.equal c1 c2
-  let compare _env c1 c2 = GlobRef.CanOrd.compare c1 c2
-  let hash _env c = GlobRef.CanOrd.hash c
-  let canonize _env c = GlobRef.canonize c
+module HackQ (X:HackQS) (UserMap:CSig.UMapS with type key = X.t) = struct
+  module Self = struct
+    type t = X.t
+    let canonize _env x = X.canonize x
+  end
+  include Self
+  let equal _env c1 c2 = X.CanOrd.equal c1 c2
+  let compare _env c1 c2 = X.CanOrd.compare c1 c2
+  let hash _env c = X.CanOrd.hash c
+
+  module Map = QMap(UserMap)(Self)
 end
+
+module QConstant = HackQ(Constant)(Cmap_env)
+
+module QMutInd = HackQ(MutInd)(Mindmap_env)
+
+module QInd = HackQ(Ind)(Indmap_env)
+
+module QConstruct = HackQ(Construct)(Constrmap_env)
+
+module QProjection =
+struct
+  include HackQ(Projection)(HMap.Make(Projection.UserOrd))
+  module Repr = HackQ(Projection.Repr)(HMap.Make(Projection.Repr.UserOrd))
+end
+
+module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
 
 module Internal = struct
   let push_template_context uctx env =
