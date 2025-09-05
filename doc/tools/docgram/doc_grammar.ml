@@ -493,7 +493,7 @@ let rec edit_SELF nt cur_level next_level right_assoc inner prod =
       if inner then
         Snterm nt (* first level *)
       else if i = 0 then
-        Snterm next_level
+        Snterm cur_level
       else if i + 1 = len then
         (if right_assoc then Snterm cur_level else Snterm next_level)
       else

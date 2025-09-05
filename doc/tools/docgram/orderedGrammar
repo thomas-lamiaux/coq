@@ -55,13 +55,13 @@ term_ltac: [
 ]
 
 term_projection: [
-| term0 ".(" qualid OPT univ_annot LIST0 arg ")"
-| term0 ".(" "@" qualid OPT univ_annot LIST0 ( term1 ) ")"
+| term1 ".(" qualid OPT univ_annot LIST0 arg ")"
+| term1 ".(" "@" qualid OPT univ_annot LIST0 ( term1 ) ")"
 ]
 
 term_scope: [
-| term0 "%" scope_key
-| term0 "%_" scope_key
+| term1 "%" scope_key
+| term1 "%_" scope_key
 ]
 
 term_evar: [
@@ -76,7 +76,7 @@ dangling_pattern_extension_rule: [
 ]
 
 term_application: [
-| term1 LIST1 arg
+| term10 LIST1 arg
 | "@" qualid_annotated LIST1 term1
 ]
 
@@ -417,10 +417,10 @@ term_generalizing: [
 ]
 
 term_cast: [
-| term10 ":" type
-| term10 "<:" type
-| term10 "<<:" type
-| term10 ":>" type
+| term100 "<:" type
+| term100 "<<:" type
+| term100 ":>" type
+| term100 ":" type
 ]
 
 term_match: [
@@ -436,19 +436,19 @@ eqn: [
 ]
 
 pattern: [
-| pattern10 ":" term
+| pattern ":" term
 | pattern10
 ]
 
 pattern10: [
-| pattern1 "as" name
-| pattern1 LIST0 pattern1
+| pattern10 "as" name
+| pattern10 LIST0 pattern1
 | "@" qualid LIST0 pattern1
 ]
 
 pattern1: [
-| pattern0 "%" scope_key
-| pattern0 "%_" scope_key
+| pattern1 "%" scope_key
+| pattern1 "%_" scope_key
 | pattern0
 ]
 
@@ -1028,8 +1028,8 @@ section_var_expr: [
 ]
 
 section_var_expr50: [
-| section_var_expr0 "-" section_var_expr0
-| section_var_expr0 "+" section_var_expr0
+| section_var_expr50 "-" section_var_expr0
+| section_var_expr50 "+" section_var_expr0
 | section_var_expr0
 ]
 
@@ -1094,17 +1094,17 @@ ltac_production_item: [
 ]
 
 ltac2_type: [
-| ltac2_type2 "->" ltac2_type      (* ltac2 plugin *)
+| ltac2_type "->" ltac2_type      (* ltac2 plugin *)
 | ltac2_type2      (* ltac2 plugin *)
 ]
 
 ltac2_type2: [
-| ltac2_type1 "*" LIST1 ltac2_type1 SEP "*"      (* ltac2 plugin *)
+| ltac2_type2 "*" LIST1 ltac2_type1 SEP "*"      (* ltac2 plugin *)
 | ltac2_type1      (* ltac2 plugin *)
 ]
 
 ltac2_type1: [
-| ltac2_type0 qualid      (* ltac2 plugin *)
+| ltac2_type1 qualid      (* ltac2 plugin *)
 | ltac2_type0      (* ltac2 plugin *)
 ]
 
@@ -2049,7 +2049,7 @@ ltac2_syntax_class: [
 ]
 
 ltac2_expr: [
-| ltac2_expr5 ";" ltac2_expr      (* ltac2 plugin *)
+| ltac2_expr ";" ltac2_expr      (* ltac2 plugin *)
 | ltac2_expr5      (* ltac2 plugin *)
 ]
 
@@ -2064,18 +2064,18 @@ ltac2_let_clause: [
 ]
 
 ltac2_expr3: [
-| LIST1 ltac2_expr2 SEP ","      (* Ltac2 plugin *)
+| LIST1 ltac2_expr3 SEP ","      (* Ltac2 plugin *)
 ]
 
 ltac2_expr2: [
-| ltac2_expr1 "::" ltac2_expr2      (* ltac2 plugin *)
+| ltac2_expr2 "::" ltac2_expr2      (* ltac2 plugin *)
 | ltac2_expr1      (* ltac2 plugin *)
 ]
 
 ltac2_expr1: [
-| ltac2_expr0 LIST1 ltac2_expr0      (* ltac2 plugin *)
-| ltac2_expr0 ".(" qualid ")"      (* ltac2 plugin *)
-| ltac2_expr0 ".(" qualid ")" ":=" ltac2_expr5      (* ltac2 plugin *)
+| ltac2_expr1 LIST1 ltac2_expr0      (* ltac2 plugin *)
+| ltac2_expr1 ".(" qualid ")"      (* ltac2 plugin *)
+| ltac2_expr1 ".(" qualid ")" ":=" ltac2_expr5      (* ltac2 plugin *)
 | ltac2_expr0      (* ltac2 plugin *)
 ]
 
@@ -2141,9 +2141,9 @@ ltac2_branches: [
 tac2pat1: [
 | qualid LIST1 tac2pat0      (* ltac2 plugin *)
 | qualid      (* ltac2 plugin *)
-| tac2pat0 "::" tac2pat0      (* ltac2 plugin *)
-| tac2pat0 "|" LIST1 tac2pat1 SEP "|"      (* ltac2 plugin *)
-| tac2pat0 "as" ident      (* ltac2 plugin *)
+| tac2pat1 "::" tac2pat0      (* ltac2 plugin *)
+| tac2pat1 "|" LIST1 tac2pat1 SEP "|"      (* ltac2 plugin *)
+| tac2pat1 "as" ident      (* ltac2 plugin *)
 | tac2pat0      (* ltac2 plugin *)
 ]
 
@@ -2239,8 +2239,8 @@ ltac_expr3: [
 ]
 
 ltac_expr2: [
-| ltac_expr1 "+" ltac_expr2
-| ltac_expr1 "||" ltac_expr2
+| ltac_expr2 "+" ltac_expr2
+| ltac_expr2 "||" ltac_expr2
 | l2_tactic
 | ltac_expr1
 ]
