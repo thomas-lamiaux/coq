@@ -396,7 +396,7 @@ let rec extern_cases_pattern_in_scope ((custom,(lev_after:int option)),scopes as
     try
       if !Flags.in_debugger || !Flags.raw_print || !print_no_symbol then raise No_match;
       extern_notation_pattern allscopes vars pat
-        (uninterp_cases_pattern_notations pat)
+        (uninterp_cases_pattern_notations (Global.env ()) pat)
     with No_match ->
     let loc = pat.CAst.loc in
     match DAst.get pat with
@@ -533,7 +533,7 @@ let extern_ind_pattern_in_scope (custom,scopes as allscopes) vars ind args =
     try
       if !Flags.raw_print || !print_no_symbol then raise No_match;
       extern_notation_ind_pattern allscopes vars ind args
-          (uninterp_ind_pattern_notations ind)
+          (uninterp_ind_pattern_notations (Global.env ()) ind)
     with No_match ->
       let c = extern_reference vars (GlobRef.IndRef ind) in
       let args = List.map (extern_cases_pattern_in_scope allscopes vars) args in
@@ -1295,7 +1295,7 @@ and extern_notations depth inctx scopes vars nargs t =
   with No_match ->
     if !print_no_symbol then raise No_match;
     let t = flatten_application t in
-    extern_notation depth inctx scopes vars t (filter_enough_applied nargs (uninterp_notations t))
+    extern_notation depth inctx scopes vars t (filter_enough_applied nargs (uninterp_notations (Global.env ()) t))
 
 and extern_notation depth inctx ((custom,(lev_after: int option)),scopes as allscopes) vars t rules =
   match rules with

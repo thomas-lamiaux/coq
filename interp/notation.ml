@@ -774,10 +774,10 @@ let declare_notation (scopt,ntn) pat df ~use coe user_warns =
    | None ->
      (* Update the uninterpretation cache *)
      begin match printing_update with
-     | Some pat -> remove_uninterpretation (NotationRule (scopt,ntn)) pat
+     | Some pat -> remove_uninterpretation (Global.env ()) (NotationRule (scopt,ntn)) pat
      | None -> ()
      end;
-     declare_uninterpretation (NotationRule (scopt,ntn)) pat
+     declare_uninterpretation (Global.env ()) (NotationRule (scopt,ntn)) pat
   end
 
 let availability_of_prim_token n printer_scope local_scopes =

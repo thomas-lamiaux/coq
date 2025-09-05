@@ -131,14 +131,19 @@ type key =
   | RefKey of GlobRef.t
   | Oth
 
-let key_compare k1 k2 = match k1, k2 with
-  | RefKey gr1, RefKey gr2 -> GlobRef.CanOrd.compare gr1 gr2
+module KeyOrd = struct
+  type t = key
+  let compare k1 k2 = match k1, k2 with
+  | RefKey gr1, RefKey gr2 -> GlobRef.UserOrd.compare gr1 gr2
   | RefKey _, Oth -> -1
   | Oth, RefKey _ -> 1
   | Oth, Oth -> 0
+  let canonize env k = match k with
+  | Oth -> Oth
+  | RefKey gr -> RefKey (Environ.QGlobRef.canonize env gr)
+end
 
-module KeyOrd = struct type t = key let compare = key_compare end
-module KeyMap = Map.Make(KeyOrd)
+module KeyMap = Environ.QMap(Map.Make(KeyOrd))(KeyOrd)
 
 type notation_applicative_status =
   | AppBoundedNotation of int
@@ -220,16 +225,16 @@ let repr s = match s with
 
 end
 
-let keymap_add key interp map =
-  let old = try KeyMap.find key map with Not_found -> NotationSet.empty in
-  KeyMap.add key (NotationSet.add interp old) map
+let keymap_add env key interp map =
+  let old = try KeyMap.find env key map with Not_found -> NotationSet.empty in
+  KeyMap.add env key (NotationSet.add interp old) map
 
-let keymap_remove key interp map =
-  let old = try KeyMap.find key map with Not_found -> NotationSet.empty in
-  KeyMap.add key (NotationSet.remove interp old) map
+let keymap_remove env key interp map =
+  let old = try KeyMap.find env key map with Not_found -> NotationSet.empty in
+  KeyMap.add env key (NotationSet.remove interp old) map
 
-let keymap_find key map =
-  try NotationSet.repr (KeyMap.find key map)
+let keymap_find env key map =
+  try NotationSet.repr (KeyMap.find env key map)
   with Not_found -> []
 
 (* Scopes table : interpretation -> scope_name *)
@@ -268,23 +273,23 @@ let notation_constr_key = function (* Rem: NApp(NRef ref,[]) stands for @ref *)
   | NList (_,_,NApp (NVar x,_),_,_) when x = Notation_ops.ldots_var -> Oth, AppUnboundedNotation
   | _ -> Oth, NotAppNotation
 
-let uninterp_notations c =
-  List.map_append (fun key -> keymap_find key !notations_key_table)
+let uninterp_notations env c =
+  List.map_append (fun key -> keymap_find env key !notations_key_table)
     (glob_constr_keys c)
 
-let uninterp_cases_pattern_notations c =
-  keymap_find (cases_pattern_key c) !notations_key_table
+let uninterp_cases_pattern_notations env c =
+  keymap_find env (cases_pattern_key c) !notations_key_table
 
-let uninterp_ind_pattern_notations ind =
-  keymap_find (RefKey (canonical_gr (GlobRef.IndRef ind))) !notations_key_table
+let uninterp_ind_pattern_notations env ind =
+  keymap_find env (RefKey (canonical_gr (GlobRef.IndRef ind))) !notations_key_table
 
-let remove_uninterpretation rule (metas,c as pat) =
+let remove_uninterpretation env rule (metas,c as pat) =
   let (key,n) = notation_constr_key c in
-  notations_key_table := keymap_remove key { not_rule = rule; not_patt = pat; not_status = n } !notations_key_table
+  notations_key_table := keymap_remove env key { not_rule = rule; not_patt = pat; not_status = n } !notations_key_table
 
-let declare_uninterpretation rule (metas,c as pat) =
+let declare_uninterpretation env rule (metas,c as pat) =
   let (key,n) = notation_constr_key c in
-  notations_key_table := keymap_add key { not_rule = rule; not_patt = pat; not_status = n } !notations_key_table
+  notations_key_table := keymap_add env key { not_rule = rule; not_patt = pat; not_status = n } !notations_key_table
 
 let freeze () =
   !notations_key_table
