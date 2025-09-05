@@ -58,6 +58,8 @@ val subst_mind_body : substitution -> mutual_inductive_body -> mutual_inductive_
 
 val subst_rewrite_rules : substitution -> rewrite_rules_body -> rewrite_rules_body
 
+val mind_ntypes : mutual_inductive_body -> int
+
 val inductive_polymorphic_context : mutual_inductive_body -> AbstractContext.t
 
 (** Is the inductive polymorphic? *)

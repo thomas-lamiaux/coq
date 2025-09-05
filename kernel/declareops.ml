@@ -245,7 +245,6 @@ let subst_mind_body subst mib =
   assert (List.is_empty mib.mind_hyps && UVars.Instance.is_empty mib.mind_univ_hyps);
   { mind_record = subst_mind_record subst mib.mind_record ;
     mind_finite = mib.mind_finite ;
-    mind_ntypes = mib.mind_ntypes ;
     mind_hyps = [];
     mind_univ_hyps = UVars.Instance.empty;
     mind_nparams = mib.mind_nparams;
@@ -260,6 +259,8 @@ let subst_mind_body subst mib =
     mind_private = mib.mind_private;
     mind_typing_flags = mib.mind_typing_flags;
   }
+
+let mind_ntypes mib = Array.length mib.mind_packets
 
 let inductive_polymorphic_context mib =
   universes_context mib.mind_universes
