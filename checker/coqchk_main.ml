@@ -309,6 +309,8 @@ let explain_exn = function
       | UndeclaredUniverses _ -> str"UndeclaredUniverse"
       | BadVariance _ -> str "BadVariance"
       | UndeclaredUsedVariables _ -> str "UndeclaredUsedVariables"
+      | IllFormedConstant _ -> str "IllFormedConstant"
+      | IllFormedInductive _ -> str "IllFormedInductive"
       ))
 
   | InductiveError (env,e) ->

@@ -266,7 +266,7 @@ let envcache_of_rel i envcache = {
 }
 
 let rec slot_for_getglobal env sigma kn envcache table =
-  let (cb,(_,rk)) = lookup_constant_key kn env in
+  let (cb,(_,rk),_) = lookup_constant_key kn env in
   try key rk
   with NotEvaluated ->
 (*    Pp.msgnl(str"not yet evaluated");*)

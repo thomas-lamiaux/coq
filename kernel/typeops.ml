@@ -113,6 +113,14 @@ let instantiate_context env u subst nas ctx =
   in
   instantiate (Array.length nas - 1) ctx
 
+let check_constant env cst =
+  let _, _, can = Environ.lookup_constant_key cst env in
+  if not (KerName.equal can (Constant.canonical cst)) then error_ill_formed_constant env cst can
+
+let check_mind env mind =
+  let _, _, can = Environ.lookup_mind_key mind env in
+  if not (KerName.equal can (MutInd.canonical mind)) then error_ill_formed_inductive env mind can
+
 (************************************************)
 (* Incremental typing rules: builds a typing judgment given the *)
 (* judgments for the subterms. *)
@@ -186,8 +194,8 @@ let check_hyps_inclusion env ?evars c sign =
 
 (* Type of constants *)
 
-
 let type_of_constant env (kn,_u as cst) =
+  let () = check_constant env kn in
   let cb = lookup_constant kn env in
   let () = check_hyps_inclusion env (GlobRef.ConstRef kn) cb.const_hyps in
   let ty, cu = constant_type env cst in
@@ -195,6 +203,7 @@ let type_of_constant env (kn,_u as cst) =
     ty
 
 let type_of_constant_in env (kn,_u as cst) =
+  let () = check_constant env kn in
   let cb = lookup_constant kn env in
   let () = check_hyps_inclusion env (GlobRef.ConstRef kn) cb.const_hyps in
   constant_type_in env cst
@@ -412,6 +421,7 @@ let make_param_univs env indu spec args argtys =
     argtys
 
 let type_of_inductive_knowing_parameters env (ind,u as indu) args argst =
+  let () = check_mind env (fst ind) in
   let (mib,_mip) as spec = lookup_mind_specif env ind in
   let () = assert (Option.has_some mib.mind_template) in
   let () = check_hyps_inclusion env (GlobRef.IndRef ind) mib.mind_hyps in
@@ -421,6 +431,7 @@ let type_of_inductive_knowing_parameters env (ind,u as indu) args argst =
   t
 
 let type_of_inductive env (ind,u) =
+  let () = check_mind env (fst ind) in
   let (mib,mip) = lookup_mind_specif env ind in
   check_hyps_inclusion env (GlobRef.IndRef ind) mib.mind_hyps;
   let t,cst = Inductive.constrained_type_of_inductive ((mib,mip),u) in
@@ -431,6 +442,7 @@ let type_of_inductive env (ind,u) =
 
 let type_of_constructor_knowing_parameters env (c, u as cu) args argst =
   let ind = inductive_of_constructor c in
+  let () = check_mind env (fst ind) in
   let (mib, _ as spec) = lookup_mind_specif env ind in
   let () = assert (Option.has_some mib.mind_template) in
   let () = check_hyps_inclusion env (GlobRef.ConstructRef c) mib.mind_hyps in
@@ -440,7 +452,9 @@ let type_of_constructor_knowing_parameters env (c, u as cu) args argst =
   t
 
 let type_of_constructor env (c,_u as cu) =
-  let (mib, _ as specif) = lookup_mind_specif env (inductive_of_constructor c) in
+  let ind = inductive_of_constructor c in
+  let () = check_mind env (fst ind) in
+  let (mib, _ as specif) = lookup_mind_specif env ind in
   let () = check_hyps_inclusion env (GlobRef.ConstructRef c) mib.mind_hyps in
   let t,cst = constrained_type_of_constructor cu specif in
   let () = check_constraints cst env in
@@ -737,6 +751,7 @@ and execute_aux tbl env cstr =
             | Result.Error () -> error_bad_invert env (* TODO: more informative message *)
 
         in
+        let () = check_mind env (fst ci.ci_ind) in
         let mib, mip = Inductive.lookup_mind_specif env ci.ci_ind in
         let pmst = execute_array tbl env pms in
         let pms = Array.map self pms in

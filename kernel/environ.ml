@@ -46,9 +46,9 @@ type link_info =
   | Linked of string
   | NotLinked
 
-type constant_key = constant_body * (link_info ref * key)
+type constant_key = constant_body * (link_info ref * key) * KerName.t
 
-type mind_key = mutual_inductive_body * link_info ref
+type mind_key = mutual_inductive_body * link_info ref * KerName.t
 
 type named_context_val = {
   env_named_ctx : Constr.named_context;
@@ -205,10 +205,10 @@ let record_global_hyps add kn hyps acc =
   else add kn (Context.Named.to_vars hyps) acc
 
 let fold_constants f env acc =
-  Cmap_env.fold (fun c (body,_) acc -> f c body acc) env.env_constants acc
+  Cmap_env.fold (fun c (body,_,_) acc -> f c body acc) env.env_constants acc
 
 let fold_inductives f env acc =
-  Mindmap_env.fold (fun c (body,_) acc -> f c body acc) env.env_inductives acc
+  Mindmap_env.fold (fun c (body,_,_) acc -> f c body acc) env.env_inductives acc
 
 (* Global constants *)
 
@@ -219,7 +219,7 @@ let lookup_constant_key kn env =
     anomaly Pp.(str "Constant " ++ Constant.print kn ++ str" does not appear in the environment.")
 
 let lookup_constant kn env =
-  fst (lookup_constant_key kn env)
+  pi1 (lookup_constant_key kn env)
 
 let mem_constant kn env = Cmap_env.mem kn env.env_constants
 
@@ -244,7 +244,7 @@ let lookup_mind_key kn env =
     anomaly Pp.(str "Inductive " ++ MutInd.print kn ++ str" does not appear in the environment.")
 
 let lookup_mind kn env =
-  fst (lookup_mind_key kn env)
+  pi1 (lookup_mind_key kn env)
 
 let ind_relevance kn env = match Indmap_env.find_opt kn env.irr_inds with
 | None -> Sorts.Relevant
@@ -574,7 +574,7 @@ let no_link_info = NotLinked
 
 let add_constant_key kn cb linkinfo env =
   let new_constants =
-    Cmap_env.add kn (cb,(ref linkinfo, ref None)) env.env_constants in
+    Cmap_env.add kn (cb,(ref linkinfo, ref None), Constant.canonical kn) env.env_constants in
   let irr_constants = if cb.const_relevance != Sorts.Relevant
     then Cmap_env.add kn cb.const_relevance env.irr_constants
     else env.irr_constants
@@ -756,7 +756,8 @@ let template_polymorphic_pind (ind,u) env =
   if not (UVars.Instance.is_empty u) then false
   else template_polymorphic_ind ind env
 
-let add_mind_key kn (mind, _ as mind_key) env =
+let add_mind_key kn mind link env =
+  let mind_key = (mind, ref link, MutInd.canonical kn) in
   let new_inds = Mindmap_env.add kn mind_key env.env_inductives in
   let irr_inds = Array.fold_left_i (fun i irr_inds mip ->
       if mip.mind_relevance != Sorts.Relevant
@@ -767,7 +768,7 @@ let add_mind_key kn (mind, _ as mind_key) env =
   { env with inductive_hyps; irr_inds; env_inductives = new_inds }
 
 let add_mind kn mib env =
-  let li = ref no_link_info in add_mind_key kn (mib, li) env
+  let li = no_link_info in add_mind_key kn mib li env
 
 (* Lookup of section variables *)
 

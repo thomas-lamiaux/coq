@@ -82,6 +82,8 @@ type ('constr, 'types, 'r) ptype_error =
   | BadInvert
   | BadVariance of { lev : Level.t; expected : Variance.t; actual : Variance.t }
   | UndeclaredUsedVariables of { declared_vars : Id.Set.t; inferred_vars : Id.Set.t }
+  | IllFormedConstant of Constant.t * KerName.t
+  | IllFormedInductive of MutInd.t * KerName.t
 
 type type_error = (constr, types, Sorts.relevance) ptype_error
 
@@ -166,6 +168,10 @@ val error_bad_invert : env -> 'a
 val error_bad_variance : env -> lev:Level.t -> expected:Variance.t -> actual:Variance.t -> 'a
 
 val error_undeclared_used_variables : env -> declared_vars:Id.Set.t -> inferred_vars:Id.Set.t -> 'a
+
+val error_ill_formed_constant : env -> Constant.t -> KerName.t -> 'a
+
+val error_ill_formed_inductive : env -> MutInd.t -> KerName.t -> 'a
 
 val map_pguard_error : ('c -> 'd) -> 'c pguard_error -> 'd pguard_error
 val map_ptype_error : ('r1 -> 'r2) -> ('c -> 'd) -> ('c, 'c, 'r1) ptype_error -> ('d, 'd, 'r2) ptype_error
