@@ -236,11 +236,11 @@ let implicits_for_rewrite_of gr =
 
 let rec same_hd env ise metas p c =
   match EConstr.kind ise p, EConstr.kind ise c with
-  | Const(c1,_), Const(c2,_) when Constant.CanOrd.equal c1 c2 ->
+  | Const(c1,_), Const(c2,_) when Environ.QConstant.equal env c1 c2 ->
     CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.ConstRef c1))
-  | Ind(c1,_), Ind(c2,_) when Ind.CanOrd.equal c1 c2 ->
+  | Ind(c1,_), Ind(c2,_) when Environ.QInd.equal env c1 c2 ->
     CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.IndRef c1))
-  | Construct(c1,_), Construct(c2,_) when Construct.CanOrd.equal c1 c2 ->
+  | Construct(c1,_), Construct(c2,_) when Environ.QConstruct.equal env c1 c2 ->
     CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.ConstructRef c1))
   | Const(c1,_), _ when Structures.Structure.is_projection c1 -> CanonicalInfRequired
   | _, Const(c2,i) when Structures.Structure.is_projection c2 ->
