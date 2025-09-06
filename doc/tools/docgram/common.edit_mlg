@@ -340,18 +340,18 @@ sort: [
 ]
 
 term100: [
-| REPLACE term99 "<:" term200
-| WITH term99 "<:" type
-| MOVETO term_cast term99 "<:" type
-| REPLACE term99 "<<:" term200
-| WITH term99 "<<:" type
-| MOVETO term_cast term99 "<<:" type
-| REPLACE term99 ":>" term200
-| WITH term99 ":>" type
-| MOVETO term_cast term99 ":>" type
-| REPLACE term99 ":" term200
-| WITH term99 ":" type
-| MOVETO term_cast term99 ":" type
+| REPLACE term100 "<:" term200
+| WITH term100 "<:" type
+| MOVETO term_cast term100 "<:" type
+| REPLACE term100 "<<:" term200
+| WITH term100 "<<:" type
+| MOVETO term_cast term100 "<<:" type
+| REPLACE term100 ":>" term200
+| WITH term100 ":>" type
+| MOVETO term_cast term100 ":>" type
+| REPLACE term100 ":" term200
+| WITH term100 ":" type
+| MOVETO term_cast term100 ":" type
 ]
 
 constr: [
@@ -367,7 +367,7 @@ term10: [
 | WITH "@" qualid_annotated LIST1 term9
 | REPLACE term9
 | WITH constr
-| MOVETO term_application term9 LIST1 arg
+| MOVETO term_application term10 LIST1 arg
 | MOVETO term_application "@" qualid_annotated LIST1 term9
 (* fixme: add in as a prodn somewhere *)
 | MOVETO dangling_pattern_extension_rule "@" pattern_ident LIST1 identref
@@ -380,16 +380,16 @@ term9: [
 ]
 
 term1: [
-| REPLACE term0 ".(" global univ_annot LIST0 arg ")"
-| WITH    term0 ".(" global univ_annot LIST0 arg ")" (* huh? *)
-| REPLACE term0 "%" IDENT
-| WITH term0 "%" scope_key
-| MOVETO term_scope term0 "%" scope_key
-| REPLACE term0 "%_" IDENT
-| WITH term0 "%_" scope_key
-| MOVETO term_scope term0 "%_" scope_key
-| MOVETO term_projection term0 ".(" global univ_annot LIST0 arg ")"
-| MOVETO term_projection term0 ".(" "@" global univ_annot LIST0 ( term9 ) ")"
+| REPLACE term1 ".(" global univ_annot LIST0 arg ")"
+| WITH    term1 ".(" global univ_annot LIST0 arg ")" (* huh? *)
+| REPLACE term1 "%" IDENT
+| WITH term1 "%" scope_key
+| MOVETO term_scope term1 "%" scope_key
+| REPLACE term1 "%_" IDENT
+| WITH term1 "%_" scope_key
+| MOVETO term_scope term1 "%_" scope_key
+| MOVETO term_projection term1 ".(" global univ_annot LIST0 arg ")"
+| MOVETO term_projection term1 ".(" "@" global univ_annot LIST0 ( term9 ) ")"
 ]
 
 term0: [
@@ -518,16 +518,16 @@ DELETE: [
 ]
 
 pattern10: [
-| REPLACE pattern1 LIST1 pattern1
-| WITH pattern1 LIST0 pattern1
+| REPLACE pattern10 LIST1 pattern1
+| WITH pattern10 LIST0 pattern1
 | DELETE pattern1
 ]
 
 pattern1: [
-| REPLACE pattern0 "%" IDENT
-| WITH pattern0 "%" scope_key
-| REPLACE pattern0 "%_" IDENT
-| WITH pattern0 "%_" scope_key
+| REPLACE pattern1 "%" IDENT
+| WITH pattern1 "%" scope_key
+| REPLACE pattern1 "%_" IDENT
+| WITH pattern1 "%_" scope_key
 ]
 
 pattern0: [
@@ -860,9 +860,7 @@ ltac_constructs: [
 
 (* temporarily render left-associativity manually, see #21029 *)
 ltac_expr4: [
-| REPLACE ltac_expr3 ";" [ ltac_expr3 ]
-| WITH ltac_expr4 ";" [ ltac_expr3 ]
-| REPLACE ltac_expr3 ";" for_each_goal "]"
+| REPLACE ltac_expr4 ";" for_each_goal "]"
 | WITH ltac_expr4 ";" "[" for_each_goal "]"
 ]
 
@@ -1997,8 +1995,8 @@ SPLICE: [
 ]
 
 ltac2_expr3: [
-| REPLACE ltac2_expr2 "," LIST1 ltac2_expr2 SEP ","      (* Ltac2 plugin *)
-| WITH LIST1 ltac2_expr2 SEP "," TAG Ltac2
+| REPLACE ltac2_expr3 "," LIST1 ltac2_expr2 SEP ","      (* Ltac2 plugin *)
+| WITH LIST1 ltac2_expr3 SEP "," TAG Ltac2
 | DELETE ltac2_expr2      (* Ltac2 plugin *)
 ]
 

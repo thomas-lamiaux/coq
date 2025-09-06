@@ -74,10 +74,10 @@ term200: [
 ]
 
 term100: [
-| term99 "<:" term200
-| term99 "<<:" term200
-| term99 ":>" term200
-| term99 ":" term200
+| term100 "<:" term200
+| term100 "<<:" term200
+| term100 ":>" term200
+| term100 ":" term200
 | term99
 ]
 
@@ -90,7 +90,7 @@ term90: [
 ]
 
 term10: [
-| term9 LIST1 arg
+| term10 LIST1 arg
 | "@" global univ_annot LIST0 term9
 | "@" pattern_ident LIST1 identref
 | binder_constr
@@ -107,10 +107,10 @@ term8: [
 ]
 
 term1: [
-| term0 ".(" global univ_annot LIST0 arg ")"
-| term0 ".(" "@" global univ_annot LIST0 ( term9 ) ")"
-| term0 "%" IDENT
-| term0 "%_" IDENT
+| term1 ".(" global univ_annot LIST0 arg ")"
+| term1 ".(" "@" global univ_annot LIST0 ( term9 ) ")"
+| term1 "%" IDENT
+| term1 "%_" IDENT
 | term0
 ]
 
@@ -259,7 +259,7 @@ pattern200: [
 ]
 
 pattern100: [
-| pattern99 ":" term200
+| pattern100 ":" term200
 | pattern99
 ]
 
@@ -272,15 +272,15 @@ pattern90: [
 ]
 
 pattern10: [
-| pattern1 "as" name
-| pattern1 LIST1 pattern1
+| pattern10 "as" name
+| pattern10 LIST1 pattern1
 | "@" Prim.reference LIST0 pattern1
 | pattern1
 ]
 
 pattern1: [
-| pattern0 "%" IDENT
-| pattern0 "%_" IDENT
+| pattern1 "%" IDENT
+| pattern1 "%_" IDENT
 | pattern0
 ]
 
@@ -1287,8 +1287,8 @@ ssexpr35: [
 ]
 
 ssexpr50: [
-| ssexpr0 "-" ssexpr0
-| ssexpr0 "+" ssexpr0
+| ssexpr50 "-" ssexpr0
+| ssexpr50 "+" ssexpr0
 | ssexpr0
 ]
 
@@ -2155,8 +2155,8 @@ ltac_expr5: [
 ]
 
 ltac_expr4: [
-| ltac_expr3 ";" ltac_expr3
-| ltac_expr3 ";" tactic_then_locality for_each_goal "]"
+| ltac_expr4 ";" ltac_expr3
+| ltac_expr4 ";" tactic_then_locality for_each_goal "]"
 | ltac_expr3
 ]
 
@@ -2176,9 +2176,9 @@ ltac_expr3: [
 ]
 
 ltac_expr2: [
-| ltac_expr1 "+" ltac_expr2
+| ltac_expr2 "+" ltac_expr2
 | "tryif" ltac_expr5 "then" ltac_expr5 "else" ltac_expr2
-| ltac_expr1 "||" ltac_expr2
+| ltac_expr2 "||" ltac_expr2
 | ltac_expr1
 ]
 
@@ -2666,9 +2666,9 @@ string_option: [
 tac2pat1: [
 | Prim.qualid LIST1 tac2pat0      (* ltac2 plugin *)
 | Prim.qualid      (* ltac2 plugin *)
-| tac2pat0 "::" tac2pat0      (* ltac2 plugin *)
-| tac2pat0 "|" LIST1 tac2pat1 SEP "|"      (* ltac2 plugin *)
-| tac2pat0 "as" identref      (* ltac2 plugin *)
+| tac2pat1 "::" tac2pat0      (* ltac2 plugin *)
+| tac2pat1 "|" LIST1 tac2pat1 SEP "|"      (* ltac2 plugin *)
+| tac2pat1 "as" identref      (* ltac2 plugin *)
 | tac2pat0      (* ltac2 plugin *)
 ]
 
@@ -2691,7 +2691,7 @@ atomic_tac2pat: [
 ]
 
 ltac2_expr6: [
-| ltac2_expr5 ";" ltac2_expr6      (* ltac2 plugin *)
+| ltac2_expr6 ";" ltac2_expr6      (* ltac2 plugin *)
 | ltac2_expr5      (* ltac2 plugin *)
 ]
 
@@ -2708,19 +2708,19 @@ ltac2_expr4: [
 ]
 
 ltac2_expr3: [
-| ltac2_expr2 "," LIST1 ltac2_expr2 SEP ","      (* ltac2 plugin *)
+| ltac2_expr3 "," LIST1 ltac2_expr2 SEP ","      (* ltac2 plugin *)
 | ltac2_expr2      (* ltac2 plugin *)
 ]
 
 ltac2_expr2: [
-| ltac2_expr1 "::" ltac2_expr2      (* ltac2 plugin *)
+| ltac2_expr2 "::" ltac2_expr2      (* ltac2 plugin *)
 | ltac2_expr1      (* ltac2 plugin *)
 ]
 
 ltac2_expr1: [
-| ltac2_expr0 LIST1 ltac2_expr0      (* ltac2 plugin *)
-| ltac2_expr0 ".(" Prim.qualid ")"      (* ltac2 plugin *)
-| ltac2_expr0 ".(" Prim.qualid ")" ":=" ltac2_expr5      (* ltac2 plugin *)
+| ltac2_expr1 LIST1 ltac2_expr0      (* ltac2 plugin *)
+| ltac2_expr1 ".(" Prim.qualid ")"      (* ltac2 plugin *)
+| ltac2_expr1 ".(" Prim.qualid ")" ":=" ltac2_expr5      (* ltac2 plugin *)
 | ltac2_expr0      (* ltac2 plugin *)
 ]
 
@@ -2804,17 +2804,17 @@ let_binder: [
 ]
 
 ltac2_type5: [
-| ltac2_type2 "->" ltac2_type5      (* ltac2 plugin *)
+| ltac2_type5 "->" ltac2_type5      (* ltac2 plugin *)
 | ltac2_type2      (* ltac2 plugin *)
 ]
 
 ltac2_type2: [
-| ltac2_type1 "*" LIST1 ltac2_type1 SEP "*"      (* ltac2 plugin *)
+| ltac2_type2 "*" LIST1 ltac2_type1 SEP "*"      (* ltac2 plugin *)
 | ltac2_type1      (* ltac2 plugin *)
 ]
 
 ltac2_type1: [
-| ltac2_type0 Prim.qualid      (* ltac2 plugin *)
+| ltac2_type1 Prim.qualid      (* ltac2 plugin *)
 | ltac2_type0      (* ltac2 plugin *)
 ]
 
