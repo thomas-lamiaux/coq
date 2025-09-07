@@ -623,14 +623,7 @@ let empty_args = [||]
 module Cache =
   struct
 
-    module ConstrHash =
-    struct
-      type t = constructor
-      let equal = Construct.CanOrd.equal
-      let hash = Construct.CanOrd.hash
-    end
-
-    module ConstrTable = Hashtbl.Make(ConstrHash)
+    module ConstrTable = Hashtbl.Make(Construct.UserOrd)
 
     type constructor_info = tag * int * int (* nparam nrealargs *)
 
