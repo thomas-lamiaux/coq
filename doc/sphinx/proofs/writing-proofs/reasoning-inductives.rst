@@ -1143,6 +1143,10 @@ Generation of induction principles with ``Scheme``
 
    See examples of the :n:`@scheme_type`\s :ref:`here <scheme_example>`.
 
+   Unless attribute `register=no` is used, the scheme is automatically
+   registered for use by tactics (for instance :tacn:`induction` uses
+   `Induction` schemes). Use :cmd:`Register Scheme` to manually register a scheme.
+
 .. cmd:: Scheme {? Boolean } Equality for @reference
    :name: Scheme Equality; Scheme Boolean Equality
 
