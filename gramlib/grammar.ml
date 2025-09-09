@@ -231,7 +231,7 @@ and ('self, _, _, 'r) ty_rule =
 
 and ('self, 'trec, 'a) ty_tree =
 | Node : ('trn, 'trs, 'trb, 'tr) ty_and_rec3 * ('self, 'trn, 'trs, 'trb, 'b, 'a) ty_node -> ('self, 'tr, 'a) ty_tree
-| LocAct : 'k * 'k list -> ('self, norec, 'k) ty_tree
+| LocAct : 'k -> ('self, norec, 'k) ty_tree
 | DeadEnd : ('self, norec, 'k) ty_tree
 
 and ('self, 'trec, 'trecs, 'trecb, 'a, 'r) ty_node = {
@@ -312,7 +312,7 @@ let rec derive_eps : type s r a. (s, r, a) ty_symbol -> bool =
   | Stokens _ -> false
 and tree_derive_eps : type s tr a. (s, tr, a) ty_tree -> bool =
   function
-    LocAct (_, _) -> true
+    LocAct _ -> true
   | Node (_, {node = s; brother = bro; son = son}) ->
       derive_eps s && tree_derive_eps son || tree_derive_eps bro
   | DeadEnd -> false
@@ -468,7 +468,7 @@ let insert_tree (type s trs trt tr p k a) entry_name (ar : (trs, trt, tr) ty_and
         match ar, tree with
         | NR10, Node (_, n) -> Node (MayRec3, node n)
         | NR11, Node (NoRec3, n) -> Node (NoRec3, node n)
-        | NR11, LocAct (old_action, action_list) ->
+        | NR11, LocAct old_action ->
           (* What to do about this warning? For now it is disabled *)
           if false then
             begin
@@ -478,8 +478,8 @@ let insert_tree (type s trs trt tr p k a) entry_name (ar : (trs, trt, tr) ty_and
                 "some rule has been masked" in
               Feedback.msg_warning (Pp.str msg)
             end;
-          LocAct (action, old_action :: action_list)
-        | NR11, DeadEnd -> LocAct (action, [])
+          LocAct action
+        | NR11, DeadEnd -> LocAct action
   and insert_in_tree : type trs trs' trs'' trt tr a p f k. (trs'', trt, tr) ty_and_ex -> (trs, trs', trs'') ty_and_rec -> (s, trs, a) ty_symbol -> (s, trs', p) ty_symbols -> (p, k, a -> f) rel_prod -> (s, trt, f) ty_tree -> k -> (s, tr, f) ty_tree =
     fun ar ars s sl pf tree action ->
     let ar : (trs'', trt, tr) ty_and_rec = match ar with NR11 -> NoRec2
@@ -545,7 +545,7 @@ let insert_tree (type s trs trt tr p k a) entry_name (ar : (trs, trt, tr) ty_and
              (* should insert before [symb1; son | bro] *)
              None
         end
-    | LocAct (_, _) -> None | DeadEnd -> None
+    | LocAct _ -> None | DeadEnd -> None
   in
   insert ar gsymbols pf tree action
 
@@ -561,7 +561,7 @@ let srules (type self a) (rl : a ty_rules list) : (self, norec, a) ty_symbol =
     function
     | Node (NoRec3, {node = s; son = son; brother = bro}) ->
       Node (NoRec3, {node = retype_symbol s; son = retype_tree son; brother = retype_tree bro})
-    | LocAct (k, kl) -> LocAct (k, kl)
+    | LocAct k -> LocAct k
     | DeadEnd -> DeadEnd
   and retype_symbol : type s a. (s, norec, a) ty_symbol -> (self, norec, a) ty_symbol =
     function
@@ -763,7 +763,7 @@ type 's ex_symbols =
 let rec flatten_tree : type s tr a. (s, tr, a) ty_tree -> s ex_symbols list =
   function
     DeadEnd -> []
-  | LocAct (_, _) -> [ExS TNil]
+  | LocAct _ -> [ExS TNil]
   | Node (_, {node = n; brother = b; son = s}) ->
       List.map (fun (ExS l) -> ExS (TCns (MayRec2, n, l))) (flatten_tree s) @ flatten_tree b
 
@@ -957,10 +957,10 @@ and name_of_tree_failed : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> _ =
       in
       begin match bro with
       | DeadEnd -> txt
-      | LocAct (_, _) -> "nothing else"
+      | LocAct _ -> "nothing else"
       | Node _ -> txt ^ " or " ^ name_of_tree_failed entry bro
       end
-  | DeadEnd -> "???" | LocAct (_, _) -> "nothing else"
+  | DeadEnd -> "???" | LocAct _ -> "nothing else"
 
 let tree_failed (type s tr a) (entry : s ty_entry) (prev_symb_result : a) (prev_symb : (s, tr, a) ty_symbol) tree =
   let txt = name_of_tree_failed entry tree in
@@ -1042,7 +1042,7 @@ let top_tree : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> (s, tr, a) ty_tr
   | Node (NoRec3, {node = s; brother = bro; son = son}) ->
     let+ s' = top_symb entry s in
     Node (NoRec3, {node = s'; brother = bro; son = son})
-  | LocAct (_, _) | DeadEnd -> Error ()
+  | LocAct _ | DeadEnd -> Error ()
 
 let warn_tolerance =
   CWarnings.(create_in (create_warning ~name:"level-tolerance"
@@ -1105,12 +1105,12 @@ let rec parser_of_tree : type s tr r. s ty_entry -> int -> int -> (s, tr, r) ty_
   fun entry nlevn alevn ->
   function
   | DeadEnd -> (fun _ (strm__ : _ LStream.t) -> Error ())
-  | LocAct (act, _) -> (fun _ (strm__ : _ LStream.t) -> Ok act)
-  | Node (_, {node = Sself; son = LocAct (act, _); brother = DeadEnd}) ->
+  | LocAct act -> (fun _ (strm__ : _ LStream.t) -> Ok act)
+  | Node (_, {node = Sself; son = LocAct act; brother = DeadEnd}) ->
       (* SELF on the right-hand side of the last rule *)
       (fun gstate (strm__ : _ LStream.t) ->
          let+ a = start_parser_of_entry gstate entry alevn strm__ in act a)
-  | Node (_, {node = Sself; son = LocAct (act, _); brother = bro}) ->
+  | Node (_, {node = Sself; son = LocAct act; brother = bro}) ->
       (* SELF on the right-hand side of a rule *)
       let p2 = parser_of_tree entry nlevn alevn bro in
       (fun gstate (strm__ : _ LStream.t) ->
