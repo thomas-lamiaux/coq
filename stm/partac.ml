@@ -87,7 +87,7 @@ end = struct (* {{{ *)
     `Stay ((),[])
 
   let on_marshal_error err { t_name } =
-    stm_pr_err ("Fatal marshal error: " ^ t_name );
+    stm_pr_err ("Fatal marshal error (task " ^ t_name ^ "): " ^ err);
     flush_all (); exit 1
 
   let on_task_cancellation_or_expiration_or_slave_death = function
