@@ -263,7 +263,7 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
 
   | PVar v1, Var v2 when Id.equal v1 v2 -> subst
 
-  | PRef ref, _ when EConstr.isRefX env sigma ref t -> subst
+  | PRef ref, (Const _ | Ind _ | Construct _) when EConstr.isRefX env sigma ref t -> subst
 
   | PRel n1, Rel n2 when Int.equal n1 n2 -> subst
 
