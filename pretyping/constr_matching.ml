@@ -241,9 +241,9 @@ let matches_core env sigma allow_bound_rels
     (binding_vars,pat) c =
   let open EConstr in
   let rec sorec ctx env subst (p:constr_pattern) t =
-    let cT = strip_outer_cast sigma t in
-    match p, EConstr.kind sigma cT with
-      | PSoApp (n,args),m ->
+    match p, EConstr.kind sigma t with
+      | _, Cast (t, _, _) -> sorec ctx env subst p t
+      | PSoApp (n,args), _ ->
         let fold (ans, seen) = function
         | PRel n ->
           let () = if Int.Set.mem n seen then user_err (str "Non linear second-order pattern") in
@@ -251,21 +251,21 @@ let matches_core env sigma allow_bound_rels
         | _ -> user_err (str "Only bound indices allowed in second order pattern matching.")
         in
         let relargs, relset = List.fold_left fold ([], Int.Set.empty) args in
-        let frels = free_rels sigma cT in
+        let frels = free_rels sigma t in
         if Int.Set.subset frels relset then
-          constrain sigma n ([], build_lambda sigma relargs ctx cT) subst
+          constrain sigma n ([], build_lambda sigma relargs ctx t) subst
         else
           raise PatternMatchingFailure
 
-      | PMeta (Some n), m -> merge_binding sigma allow_bound_rels ctx n cT subst
+      | PMeta (Some n), _ -> merge_binding sigma allow_bound_rels ctx n t subst
 
-      | PMeta None, m -> subst
+      | PMeta None, _ -> subst
 
       | PRef (GlobRef.VarRef v1), Var v2 when Id.equal v1 v2 -> subst
 
       | PVar v1, Var v2 when Id.equal v1 v2 -> subst
 
-      | PRef ref, _ when EConstr.isRefX env sigma ref cT -> subst
+      | PRef ref, _ when EConstr.isRefX env sigma ref t -> subst
 
       | PRel n1, Rel n2 when Int.equal n1 n2 -> subst
 
