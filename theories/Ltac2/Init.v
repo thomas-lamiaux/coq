@@ -10,7 +10,6 @@
 
 Require Corelib.Init.Ltac.
 
-(* EJGA: Seems that Rocq's findlib loader is not loading this correctly? *)
 Declare ML Module "rocq-runtime.plugins.ltac2".
 Declare ML Module "rocq-runtime.plugins.ltac2_ltac1".
 
