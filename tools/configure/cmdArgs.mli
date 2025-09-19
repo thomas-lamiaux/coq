@@ -28,8 +28,6 @@ type t =
   (** override /etc/xdg/coq *)
   ; datadir : string option
   (** override $prefix/share/coq *)
-  ; mandir : string option
-  (** override $prefix/man *)
   ; docdir : string option
   (** override $prefix/doc *)
   ; arch : string option
