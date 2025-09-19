@@ -317,18 +317,16 @@ let matches_core env sigma allow_bound_rels (binding_vars, pat) c =
     | PRef (GlobRef.ConstRef r), Proj (pr,_,c) when not (Environ.QConstant.equal env r (Projection.constant pr)) ->
       raise PatternMatchingFailure
     | PProj (pr1,c1), Proj (pr,_,c) ->
-      if Environ.QProjection.equal env pr1 pr then
-        try Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c) arg1 arg2
-        with Invalid_argument _ -> raise PatternMatchingFailure
-      else raise PatternMatchingFailure
+      let () = if not (Int.equal (Array.length arg1) (Array.length arg2) && Environ.QProjection.equal env pr1 pr) then raise PatternMatchingFailure in
+      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c) arg1 arg2
     | _, Proj (pr,_,c) ->
       begin match Retyping.expand_projection env sigma pr c (Array.to_list arg2) with
       | term -> sorec ctx env subst p term
       | exception Retyping.RetypeError _ -> raise PatternMatchingFailure
       end
-    | _, _ ->
-      try Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
-      with Invalid_argument _ -> raise PatternMatchingFailure
+    | _ ->
+      let () = if not (Int.equal (Array.length arg1) (Array.length arg2)) then raise PatternMatchingFailure in
+      Array.fold_left2 (sorec ctx env) (sorec ctx env subst c1 c2) arg1 arg2
     end
 
   | PApp (c, args), Proj (pr, _, c2) ->
