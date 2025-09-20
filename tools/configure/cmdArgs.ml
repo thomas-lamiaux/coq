@@ -25,7 +25,6 @@ type t = {
   libdir : string option;
   configdir : string option;
   datadir : string option;
-  mandir : string option;
   docdir : string option;
   arch : string option;
   natdynlink : bool;
@@ -47,7 +46,6 @@ let default_prefs = {
   libdir = None;
   configdir = None;
   datadir = None;
-  mandir = None;
   docdir = None;
   arch = None;
   natdynlink = true;
@@ -107,8 +105,6 @@ let args_options = Arg.align [
     "<dir> Where to install config files";
   "-datadir", arg_string_option (fun p datadir -> { p with datadir }),
     "<dir> Where to install data files";
-  "-mandir", arg_string_option (fun p mandir -> { p with mandir }),
-    "<dir> Where to install man files";
   "-docdir", arg_string_option (fun p docdir -> { p with docdir }),
     "<dir> Where to install doc files";
   "-arch", arg_string_option (fun p arch -> { p with arch }),
