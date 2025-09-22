@@ -80,20 +80,37 @@ let scheme_kind_name (key : _ scheme_kind) : string = key
 
 let is_visible_name id =
   try ignore (Nametab.locate (Libnames.qualid_of_ident id)); true
-  with Not_found -> false
+  with Not_found ->
+    (* FIXME: due to private constant declaration being imperative, we have to
+       also check in the global env *)
+    Global.exists_objlabel (Label.of_id id)
 
-let compute_name internal id =
+let compute_name internal id avoid =
   if internal then
-    Namegen.next_ident_away_from (add_prefix "internal_" id) is_visible_name
+    let visible id = is_visible_name id || Id.Set.mem id avoid in
+    Namegen.next_ident_away_from (add_prefix "internal_" id) visible
   else id
 
-let declare_definition_scheme = ref (fun ~internal ~univs ~role ~name ~effs ?loc c ->
+let declare_definition_scheme = ref (fun ~univs ~role ~name ~effs c ->
     CErrors.anomaly (Pp.str "scheme declaration not registered"))
+
+let register_definition_scheme = ref (fun ~internal ~name ~const ~univs ?loc () ->
+  CErrors.anomaly (Pp.str "scheme registering not registered"))
 
 let lookup_scheme kind ind =
   try Some (DeclareScheme.lookup_scheme kind ind) with Not_found -> None
 
-let redeclare_schemes eff =
+type schemes = {
+  sch_eff : Evd.side_effects;
+  sch_reg : (Id.t * Constant.t * Loc.t option * UState.named_universes_entry) list;
+}
+
+let empty_schemes = {
+  sch_eff = Evd.empty_side_effects;
+  sch_reg = [];
+}
+
+let redeclare_schemes { sch_eff = eff } =
   let fold c role accu = match role with
   | Evd.Schema (ind, kind) ->
     try
@@ -119,19 +136,24 @@ let local_lookup_scheme eff kind ind = match lookup_scheme kind ind with
      this is very rarely called *)
   try let _ = Cmap.iter iter eff.Evd.seff_roles in None with Found c -> Some c
 
-let local_check_scheme kind ind eff =
+let local_check_scheme kind ind { sch_eff = eff } =
   Option.has_some (local_lookup_scheme eff kind ind)
 
-let define ?loc internal role id c poly uctx effs =
-  let id = compute_name internal id in
+let define ?loc internal role id c poly uctx sch =
+  let avoid = Safe_typing.constants_of_private sch.sch_eff.Evd.seff_private in
+  let avoid = Id.Set.of_list @@ List.map (fun cst -> Label.to_id @@ Constant.label cst) avoid in
+  let id = compute_name internal id avoid in
   let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
   let uctx = UState.minimize uctx in
   let c = UState.nf_universes uctx c in
   let uctx = UState.restrict uctx (Vars.universes_of_constr c) in
   let univs = UState.univ_entry ~poly uctx in
-  !declare_definition_scheme ~internal ~univs ~role ~name:id ~effs ?loc c
+  let effs = sch.sch_eff in
+  let cst, effs = !declare_definition_scheme ~univs ~role ~name:id ~effs c in
+  let reg = (id, cst, loc, univs) :: sch.sch_reg in
+  cst, { sch_eff = effs; sch_reg = reg }
 
-  module Locmap : sig
+module Locmap : sig
 
     type t
 
@@ -168,7 +190,7 @@ end = struct
 (* Assumes that dependencies are already defined *)
 let rec define_individual_scheme_base ?loc kind suff f ~internal idopt (mind,i as ind) eff =
   (* FIXME: do not rely on the imperative modification of the global environment *)
-  let (c, ctx) = f (Global.env ()) eff ind in
+  let (c, ctx) = f (Global.env ()) eff.sch_eff ind in
   let mib = Global.lookup_mind mind in
   let id = match idopt with
     | Some id -> id
@@ -189,7 +211,7 @@ and define_individual_scheme ?loc kind ~internal names (mind,i as ind) eff =
 (* Assumes that dependencies are already defined *)
 and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~internal names mind eff =
   (* FIXME: do not rely on the imperative modification of the global environment *)
-  let (cl, ctx) = f (Global.env ()) eff mind in
+  let (cl, ctx) = f (Global.env ()) eff.sch_eff mind in
   let mib = Global.lookup_mind mind in
   let ids = Array.init (Array.length mib.mind_packets) (fun i ->
       try Int.List.assoc i names
@@ -232,22 +254,30 @@ let find_scheme kind (mind,i as ind) =
       match Hashtbl.find scheme_object_table kind with
       | s,IndividualSchemeFunction (f, deps) ->
         let deps = match deps with None -> [] | Some deps -> deps (Global.env ()) ind in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) Evd.empty_side_effects deps in
+        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) empty_schemes deps in
         let c, eff = define_individual_scheme_base kind s f ~internal:true None ind eff in
-        Proofview.tclEFFECTS eff <*> Proofview.tclUNIT c
+        Proofview.tclEFFECTS eff.sch_eff <*> Proofview.tclUNIT c
       | s,MutualSchemeFunction (f, deps) ->
         let deps = match deps with None -> [] | Some deps -> deps (Global.env ()) mind in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) Evd.empty_side_effects deps in
+        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) empty_schemes deps in
         let ca, eff = define_mutual_scheme_base kind s f ~internal:true [] mind eff in
-        Proofview.tclEFFECTS eff <*> Proofview.tclUNIT ca.(i)
+        Proofview.tclEFFECTS eff.sch_eff <*> Proofview.tclUNIT ca.(i)
     with Rocqlib.NotFoundRef _ as e ->
       let e, info = Exninfo.capture e in
       Proofview.tclZERO ~info e
 
+let register_schemes sch =
+  let iter (id, kn, loc, univs) =
+    !register_definition_scheme ~internal:false ~name:id ~const:kn ~univs ?loc ()
+  in
+  List.iter iter (List.rev sch.sch_reg)
+
 let define_individual_scheme ?loc kind names ind =
-  let eff = define_individual_scheme ?loc kind ~internal:false names ind Evd.empty_side_effects in
+  let eff = define_individual_scheme ?loc kind ~internal:false names ind empty_schemes in
+  let () = register_schemes eff in
   redeclare_schemes eff
 
 let define_mutual_scheme ?locmap kind names mind =
-  let eff = define_mutual_scheme ?locmap kind ~internal:false names mind Evd.empty_side_effects in
+  let eff = define_mutual_scheme ?locmap kind ~internal:false names mind empty_schemes in
+  let () = register_schemes eff in
   redeclare_schemes eff
