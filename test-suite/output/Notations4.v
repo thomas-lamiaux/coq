@@ -121,7 +121,7 @@ End NumberNotations.
 Module K.
 
 Notation "# x |-> t & u" := ((fun x => (x,t)),(fun x => (x,u)))
-  (at level 0, x pattern, t, u at level 39).
+  (at level 2, x pattern, t, u at level 39).
 Check fun y : nat => # (x,z) |-> y & y.
 Check fun y : nat => # (x,z) |-> (x + y) & (y + z).
 
@@ -295,7 +295,7 @@ Module CustomIdentOnlyParsing.
 
 Declare Custom Entry ent2.
 Notation "ent:( x )" := x (x custom ent2, format "ent:( x )").
-Notation "# x" := (S x) (in custom ent2 at level 0, x at level 0).
+Notation "# x" := (S x) (in custom ent2 at level 2, x at level 0).
 Notation "x" := x (in custom ent2 at level 0, x ident, only parsing).
 Check fun x : nat => ent:(# x).
 
@@ -305,7 +305,7 @@ Module CustomGlobalOnlyParsing.
 
 Declare Custom Entry ent3.
 Notation "ent:( x )" := x (x custom ent3, format "ent:( x )").
-Notation "# x" := (S x) (in custom ent3 at level 0, x at level 0).
+Notation "# x" := (S x) (in custom ent3 at level 2, x at level 0).
 Notation "x" := x (in custom ent3 at level 0, x global, only parsing).
 Check ent:(True).
 
@@ -325,7 +325,7 @@ Module P.
   Module NotationMixedTermBinderAsIdent.
 
   Notation "▢_ n P" := (pseudo_force n (fun n => P))
-    (at level 0, n ident, P at level 9, format "▢_ n  P").
+    (at level 2, n ident, P at level 9, format "▢_ n  P").
   Check exists p, ▢_p (p >= 1).
   Section S.
   Variable n:nat.
@@ -341,7 +341,7 @@ Module P.
   Module NotationMixedTermBinderAsPattern.
 
   Notation "▢_ n P" := (pseudo_force n (fun n => P))
-    (at level 0, n pattern, P at level 9, format "▢_ n  P").
+    (at level 2, n pattern, P at level 9, format "▢_ n  P").
   Check exists x y, ▢_(x,y) (x >= 1 /\ y >= 2).
   Section S.
   Variable n:nat.
@@ -357,7 +357,7 @@ Module P.
   Module NotationMixedTermBinderAsStrictPattern.
 
   Notation "▢_ n P" := (pseudo_force n (fun n => P))
-    (at level 0, n strict pattern, P at level 9, format "▢_ n  P").
+    (at level 2, n strict pattern, P at level 9, format "▢_ n  P").
   Check exists x y, ▢_(x,y) (x >= 1 /\ y >= 2).
   Section S.
   Variable n:nat.
@@ -562,7 +562,7 @@ End RecursivePatternsArgumentsInRecursiveNotations.
 
 Module CyclicNotations.
 
-Notation "! x" := (list x) (at level 0, x at level 50, right associativity, format "! x").
+Notation "! x" := (list x) (at level 2, x at level 50, right associativity, format "! x").
 Check ((!!nat) + bool)%type.
 
 End CyclicNotations.
@@ -571,7 +571,7 @@ Module CustomCyclicNotations.
 
 Declare Custom Entry myconstr2.
 Notation "[ x ]" := x (x custom myconstr2 at level 6).
-Notation "! x" := (x,1) (in custom myconstr2 at level 0, x at level 2, format "! x").
+Notation "! x" := (x,1) (in custom myconstr2 at level 1, x at level 2, format "! x").
 Notation "x + y" := (x,y,2) (in custom myconstr2 at level 2, left associativity).
 Notation "x" := x (in custom myconstr2 at level 0, x ident).
 

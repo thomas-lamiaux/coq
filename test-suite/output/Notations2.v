@@ -106,7 +106,7 @@ Check mylet f [x;y;z;(a:bool)] := x+y+z+1 in f 0 1 2.
 (* Old request mentioned again on coq-club 20/1/2012 *)
 
 Notation "#  x : T => t" := (fun x : T => t)
-  (at level 0, t at level 200, x name).
+  (at level 2, t at level 200, x name).
 
 Check # x : nat => x.
 Check # _ : nat => 2.
@@ -118,7 +118,7 @@ Parameters (A : Set) (x y : A) (Q : A -> A -> Prop) (conj : Q x y).
 Check (exist (Q x) y conj).
 
 (* Check bug #4854 *)
-Notation "% i" := (fun i : nat => i) (at level 0, i name).
+Notation "% i" := (fun i : nat => i) (at level 2, i name).
 Check %i.
 Check %j.
 
