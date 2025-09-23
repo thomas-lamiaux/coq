@@ -1389,7 +1389,7 @@ let find_precedence custom lev etyps symbols onlyprint =
         | false, _ -> [], lev
         | true, None -> [fun () -> Flags.if_verbose (Feedback.msg_info ?loc:None) (strbrk "Setting postfix notation at level 1.")], Some 1
         | true, Some 1 -> [], Some 1
-        | true, Some n -> [fun () -> warn_postfix_notation_not_level_1 ()], Some n in
+        | true, Some n -> [warn_postfix_notation_not_level_1], Some n in
       let test () =
         if onlyprint then
           if Option.is_empty lev then
@@ -1424,7 +1424,7 @@ let find_precedence custom lev etyps symbols onlyprint =
       begin match lev with
       | None -> [fun () -> Flags.if_verbose (Feedback.msg_info ?loc:None) (strbrk "Setting notation at level 0.")], 0
       | Some 0 -> [], 0
-      | Some n -> [fun () -> warn_closed_notation_not_level_0 ()], n
+      | Some n -> [warn_closed_notation_not_level_0], n
       end
   | Some _ ->
       if Option.is_empty lev then user_err Pp.(str "Cannot determine the level.");
