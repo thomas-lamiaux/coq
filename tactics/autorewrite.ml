@@ -495,7 +495,7 @@ let subst_hintrewrite (subst,(rbase,list as node)) =
 (* Declaration of the Hint Rewrite library object *)
 let inHintRewrite : Libobject.locality * (string * rew_rule list) -> Libobject.obj =
   let open Libobject in
-  declare_object @@ object_with_locality "HINT_REWRITE_GLOBAL"
+  declare_object @@ object_with_locality ~cat:Hints.hint_cat "HINT_REWRITE_GLOBAL"
     ~cache:cache_hintrewrite
     ~subst:(Some subst_hintrewrite)
     ~discharge:(fun _ -> assert false)
