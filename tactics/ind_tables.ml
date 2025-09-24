@@ -102,11 +102,13 @@ let lookup_scheme kind ind =
 
 type schemes = {
   sch_eff : Evd.side_effects;
+  sch_env : Safe_typing.safe_environment;
   sch_reg : (Id.t * Constant.t * Loc.t option * UState.named_universes_entry) list;
 }
 
-let empty_schemes = {
+let empty_schemes senv = {
   sch_eff = Evd.empty_side_effects;
+  sch_env = senv;
   sch_reg = [];
 }
 
@@ -148,10 +150,11 @@ let define ?loc internal role id c poly uctx sch =
   let c = UState.nf_universes uctx c in
   let uctx = UState.restrict uctx (Vars.universes_of_constr c) in
   let univs = UState.univ_entry ~poly uctx in
-  let effs = sch.sch_eff in
+  let effs = sch.sch_eff, sch.sch_env in
   let cst, effs = !declare_definition_scheme ~univs ~role ~name:id ~effs c in
+  let effs, senv = effs in
   let reg = (id, cst, loc, univs) :: sch.sch_reg in
-  cst, { sch_eff = effs; sch_reg = reg }
+  cst, { sch_eff = effs; sch_env = senv; sch_reg = reg }
 
 module Locmap : sig
 
@@ -187,11 +190,17 @@ end = struct
 
   end
 
+let get_env sch =
+  Safe_typing.env_of_safe_env sch.sch_env
+
+let globally_declare_schemes sch =
+  Global.Internal.reset_safe_env sch.sch_env
+
 (* Assumes that dependencies are already defined *)
 let rec define_individual_scheme_base ?loc kind suff f ~internal idopt (mind,i as ind) eff =
-  (* FIXME: do not rely on the imperative modification of the global environment *)
-  let (c, ctx) = f (Global.env ()) eff.sch_eff ind in
-  let mib = Global.lookup_mind mind in
+  let env = get_env eff in
+  let (c, ctx) = f env eff.sch_eff ind in
+  let mib = Environ.lookup_mind mind env in
   let id = match idopt with
     | Some id -> id
     | None -> add_suffix mib.mind_packets.(i).mind_typename ("_"^suff) in
@@ -203,16 +212,17 @@ and define_individual_scheme ?loc kind ~internal names (mind,i as ind) eff =
   match Hashtbl.find scheme_object_table kind with
   | _,MutualSchemeFunction _ -> assert false
   | s,IndividualSchemeFunction (f, deps) ->
-    let deps = match deps with None -> [] | Some deps -> deps (Global.env ()) ind in
+    let env = get_env eff in
+    let deps = match deps with None -> [] | Some deps -> deps env ind in
     let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) eff deps in
     let _, eff = define_individual_scheme_base ?loc kind s f ~internal names ind eff in
     eff
 
 (* Assumes that dependencies are already defined *)
 and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~internal names mind eff =
-  (* FIXME: do not rely on the imperative modification of the global environment *)
-  let (cl, ctx) = f (Global.env ()) eff.sch_eff mind in
-  let mib = Global.lookup_mind mind in
+  let env = get_env eff in
+  let (cl, ctx) = f env eff.sch_eff mind in
+  let mib = Environ.lookup_mind mind env in
   let ids = Array.init (Array.length mib.mind_packets) (fun i ->
       try Int.List.assoc i names
       with Not_found -> add_suffix mib.mind_packets.(i).mind_typename ("_"^suff)) in
@@ -229,7 +239,8 @@ and define_mutual_scheme ?locmap kind ~internal names mind eff =
   match Hashtbl.find scheme_object_table kind with
   | _,IndividualSchemeFunction _ -> assert false
   | s,MutualSchemeFunction (f, deps) ->
-    let deps = match deps with None -> [] | Some deps -> deps (Global.env ()) mind in
+    let env = get_env eff in
+    let deps = match deps with None -> [] | Some deps -> deps env mind in
     let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) eff deps in
     let _, eff = define_mutual_scheme_base ?locmap kind s f ~internal names mind eff in
     eff
@@ -250,17 +261,24 @@ let find_scheme kind (mind,i as ind) =
   | Some s ->
     Proofview.tclUNIT s
   | None ->
+    let senv = Global.safe_env () in
     try
       match Hashtbl.find scheme_object_table kind with
       | s,IndividualSchemeFunction (f, deps) ->
-        let deps = match deps with None -> [] | Some deps -> deps (Global.env ()) ind in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) empty_schemes deps in
+        let env = Safe_typing.env_of_safe_env senv in
+        let deps = match deps with None -> [] | Some deps -> deps env ind in
+        let sch = empty_schemes senv in
+        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
         let c, eff = define_individual_scheme_base kind s f ~internal:true None ind eff in
+        let () = globally_declare_schemes eff in
         Proofview.tclEFFECTS eff.sch_eff <*> Proofview.tclUNIT c
       | s,MutualSchemeFunction (f, deps) ->
-        let deps = match deps with None -> [] | Some deps -> deps (Global.env ()) mind in
-        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) empty_schemes deps in
+        let env = Safe_typing.env_of_safe_env senv in
+        let deps = match deps with None -> [] | Some deps -> deps env mind in
+        let sch = empty_schemes senv in
+        let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
         let ca, eff = define_mutual_scheme_base kind s f ~internal:true [] mind eff in
+        let () = globally_declare_schemes eff in
         Proofview.tclEFFECTS eff.sch_eff <*> Proofview.tclUNIT ca.(i)
     with Rocqlib.NotFoundRef _ as e ->
       let e, info = Exninfo.capture e in
@@ -273,11 +291,15 @@ let register_schemes sch =
   List.iter iter (List.rev sch.sch_reg)
 
 let define_individual_scheme ?loc kind names ind =
-  let eff = define_individual_scheme ?loc kind ~internal:false names ind empty_schemes in
+  let sch = empty_schemes (Global.safe_env ()) in
+  let eff = define_individual_scheme ?loc kind ~internal:false names ind sch in
+  let () = globally_declare_schemes eff in
   let () = register_schemes eff in
   redeclare_schemes eff
 
 let define_mutual_scheme ?locmap kind names mind =
-  let eff = define_mutual_scheme ?locmap kind ~internal:false names mind empty_schemes in
+  let sch = empty_schemes (Global.safe_env ()) in
+  let eff = define_mutual_scheme ?locmap kind ~internal:false names mind sch in
+  let () = globally_declare_schemes eff in
   let () = register_schemes eff in
   redeclare_schemes eff
