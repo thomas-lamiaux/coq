@@ -377,15 +377,15 @@ let declare_instance_open sigma ?hook ~tac ~locality ~poly (id:lident) pri impar
           Tactics.reduce_after_refine;
         ]
       in
-      let lemma, _ = Declare.Proof.by init_refine lemma in
+      let lemma, _ = Declare.Proof.by (Global.env ()) init_refine lemma in
       lemma
     | None ->
-      let lemma, _ = Declare.Proof.by (Tactics.auto_intros_tac ids) lemma in
+      let lemma, _ = Declare.Proof.by (Global.env ()) (Tactics.auto_intros_tac ids) lemma in
       lemma
   in
   match tac with
   | Some tac ->
-    let lemma, _ = Declare.Proof.by tac lemma in
+    let lemma, _ = Declare.Proof.by (Global.env ()) tac lemma in
     lemma
   | None ->
     lemma

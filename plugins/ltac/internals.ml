@@ -341,7 +341,7 @@ let infoH ~pstate (tac : raw_tactic_expr) : unit =
         ++  (str "</infoH>")) in
     Proofview.tclUNIT ()
   in
-  ignore (Declare.Proof.by tac pstate)
+  ignore (Declare.Proof.by (Global.env ()) tac pstate)
 
 let declare_equivalent_keys c c' =
   let get_key c =

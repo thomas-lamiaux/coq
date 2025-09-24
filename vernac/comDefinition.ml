@@ -194,5 +194,5 @@ let do_definition_refine ?loc ?hook ~name ~scope ?clearbody ~poly ~typing_flags 
       Tactics.reduce_after_refine;
     ]
   in
-  let lemma, _ = Declare.Proof.by init_refine lemma in
+  let lemma, _ = Declare.Proof.by (Global.env ()) init_refine lemma in
   lemma

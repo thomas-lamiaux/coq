@@ -79,7 +79,7 @@ let solve_core ~pstate n ~info ?(with_end_tac=CAst.make false) t =
   let pstate, status = Declare.Proof.map_fold_endline ~f:(fun etac p ->
       let with_end_tac = use_end_tac ~with_end_tac etac in
       let info = Option.append info (print_info_trace ()) in
-      let (p,status) = Proof.solve n info t ?with_end_tac p in
+      let (p,status) = Proof.solve (Global.env ()) n info t ?with_end_tac p in
       (* in case a strict subtree was completed,
          go back to the top of the prooftree *)
       let p = Proof.maximal_unfocus Vernacentries.command_focus p in

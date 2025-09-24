@@ -28,6 +28,7 @@ val declare_abstract :
   -> secsign:Environ.named_context_val
   -> opaque:bool
   -> solve_tac:unit Proofview.tactic
+  -> Environ.env
   -> Evd.evar_map
   -> EConstr.t
   -> Evd.side_effects * Evd.evar_map * EConstr.t * EConstr.t list * bool) ref

@@ -251,10 +251,10 @@ module Proof : sig
   (** Admit a proof *)
   val save_admitted : pm:OblState.t -> proof:t -> OblState.t
 
-  (** [by tac] applies tactic [tac] to the 1st subgoal of the current
+  (** [by env tac] applies tactic [tac] to the 1st subgoal of the current
       focused proof.
       Returns [false] if an unsafe tactic has been used. *)
-  val by : unit Proofview.tactic -> t -> t * bool
+  val by : Environ.env -> unit Proofview.tactic -> t -> t * bool
 
   (** Operations on ongoing proofs *)
   val get : t -> Proof.t

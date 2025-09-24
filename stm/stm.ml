@@ -1936,7 +1936,7 @@ let known_state ~doc ?(redefine_qed=false) ~cache id =
                Option.iter PG_compat.unfreeze lemmas;
                PG_compat.with_current_proof (fun p ->
                  feedback ~id:id Feedback.AddedAxiom;
-                 fst (Proof.solve Goal_select.SelectAll None tac p), ());
+                 fst (Proof.solve (Global.env ()) Goal_select.SelectAll None tac p), ());
                (* STATE SPEC:
                 * - start: Modifies the input state adding a proof.
                 * - end  : maybe after recovery command.
