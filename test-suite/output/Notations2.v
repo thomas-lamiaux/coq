@@ -71,6 +71,7 @@ Check let' f x y (a:=0) z (b:bool) := x+y+z+1 in f 0 1 2.
 (* In practice, only the printing rule is used here *)
 (* Note: does not work for pattern *)
 Module A.
+#[warning="-postfix-notation-not-level-1"]
 Notation "f ( x )" := (f x) (at level 10, format "f ( x )").
 Check fun f x => f x + S x.
 

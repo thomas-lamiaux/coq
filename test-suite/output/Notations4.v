@@ -7,7 +7,7 @@ Declare Custom Entry myconstr.
 Notation "[ x ]" := x (x custom myconstr at level 6).
 Notation "x + y" := (Nat.add x y) (in custom myconstr at level 5).
 Notation "x * y" := (Nat.mul x y) (in custom myconstr at level 4).
-Notation "< x >" := x (in custom myconstr at level 3, x constr at level 10).
+Notation "< x >" := x (in custom myconstr at level 0, x constr at level 10).
 Check [ < 0 > + < 1 > * < 2 >].
 Print Custom Grammar myconstr.
 
@@ -18,7 +18,7 @@ Check [ < b > + < a > * < 2 >].
 Declare Custom Entry anotherconstr.
 
 Notation "[ x ]" := x (x custom myconstr at level 6).
-Notation "<< x >>" := x (in custom myconstr at level 3, x custom anotherconstr at level 10).
+Notation "<< x >>" := x (in custom myconstr at level 0, x custom anotherconstr at level 10).
 Notation "# x" := (Some x) (in custom anotherconstr at level 8, x constr at level 9).
 Check [ << # 0 >> ].
 
@@ -35,7 +35,7 @@ Module NonCoercions.
 Notation "[[ x ]]" := x (at level 0, x at level 42).
 
 (* Check invalid coercions (thus not used for printing) *)
-Notation "[[[ x ]]]" := x (in custom myconstr at level 5, x custom myconstr at level 5).
+Notation "[[[ x ]]]" := x (in custom myconstr at level 0, x custom myconstr at level 0).
 
 End NonCoercions.
 
@@ -162,7 +162,7 @@ End M.
 
 Module Bug11331.
 
-Notation "{ p }" := (p) (in custom expr at level 201, p constr).
+Notation "{ p }" := (p) (in custom expr at level 0, p constr).
 Print Custom Grammar expr.
 
 End Bug11331.
