@@ -2162,15 +2162,16 @@ let update_sigma_univs ugraph p =
 
 let next = let n = ref 0 in fun () -> incr n; !n
 
-let by tac = map_fold ~f:(Proof.solve (Goal_select.select_nth 1) None tac)
+let by env tac pf =
+  map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf
 
-let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~sign ~poly (typ : EConstr.t) tac =
+let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let loc = fallback_loc ~warn:false name None in
   let cinfo = [CInfo.make ?loc ~name ~typ:() ()] in
   let info = Info.make ~poly () in
   let pinfo = Proof_info.make ~cinfo ~info () in
   let pf = start_proof_core ~name ~pinfo sigma [Some sign, typ] in
-  let pf, status = by tac pf in
+  let pf, status = by env tac pf in
   let proof = close_proof ?warn_incomplete ~keep_body_ucst_separate:false ~opaque:Vernacexpr.Transparent pf in
   let entries = process_proof ~info proof.proof_object in
   let { Proof.sigma } = Proof.data pf.proof in
@@ -2185,7 +2186,7 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
   let name = Id.of_string ("temporary_proof"^string_of_int (next())) in
   let sign = Environ.(val_of_named_context (named_context env)) in
   let sigma = Evd.from_ctx uctx in
-  let ce, status, sigma = build_constant_by_tactic ~name ~sigma ~sign ~poly typ tac in
+  let ce, status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in
   let uctx = Evd.ustate sigma in
   (* ignore side effect universes:
      we don't reset the global env in this code path so the side effects are still present
@@ -2195,9 +2196,9 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
   let body, _uctx = inline_private_constants ~uctx env ((body, Univ.ContextSet.empty), effs) in
   body, ce.proof_entry_type, ce.proof_entry_universes, status, uctx
 
-let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac sigma concl =
+let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
   let (const, safe, sigma') =
-    try build_constant_by_tactic ~warn_incomplete:false ~name ~poly ~sigma ~sign:secsign concl solve_tac
+    try build_constant_by_tactic ~warn_incomplete:false ~name ~poly ~env ~sigma ~sign:secsign concl solve_tac
     with Logic_monad.TacticFailure e as src ->
     (* if the tactic [tac] fails, it reports a [TacticFailure e],
        which is an error irrelevant to the proof system (in fact it
@@ -2611,7 +2612,7 @@ let solve_obligation ?check_final prg num tac =
   let poly = Internal.get_poly prg in
   let info = Info.make ~kind ~poly () in
   let lemma = Proof.start_core ~cinfo ~info ~proof_ending ?using evd  in
-  let lemma = fst @@ Proof.by !default_tactic lemma in
+  let lemma = fst @@ Proof.by (Global.env ()) !default_tactic lemma in
   let lemma = Option.cata (fun tac -> Proof.set_endline_tactic tac lemma) lemma tac in
   lemma
 

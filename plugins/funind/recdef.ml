@@ -1467,10 +1467,10 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
   let lemma = Declare.Proof.start ~cinfo ~info sigma in
   let lemma =
     if Indfun_common.is_strict_tcc () then
-      fst @@ Declare.Proof.by tclIDTAC lemma
+      fst @@ Declare.Proof.by (Global.env ()) tclIDTAC lemma
     else
       fst
-      @@ Declare.Proof.by
+      @@ Declare.Proof.by (Global.env ())
            (tclTHEN decompose_and_tac
               (tclORELSE
                  (tclFIRST
@@ -1502,12 +1502,12 @@ let com_terminate interactive_proof tcc_lemma_name tcc_lemma_ref is_mes
     let lemma = Declare.Proof.start ~cinfo ~info ctx in
     let lemma =
       fst
-      @@ Declare.Proof.by
+      @@ Declare.Proof.by (Global.env ())
            (observe_tac (fun _ _ -> str "starting_tac") tac_start)
            lemma
     in
     fst
-    @@ Declare.Proof.by
+    @@ Declare.Proof.by (Global.env ())
          (observe_tac
             (fun _ _ -> str "whole_start")
             (whole_start tac_end nb_args is_mes fonctional_ref input_type
@@ -1573,7 +1573,7 @@ let com_eqn uctx nb_arg eq_name functional_ref f_ref terminate_ref
   let lemma = Declare.Proof.start ~cinfo evd ~info in
   let lemma =
     fst
-    @@ Declare.Proof.by
+    @@ Declare.Proof.by (Global.env ())
          (start_equation f_ref terminate_ref (fun x ->
               prove_eq
                 (fun _ -> Proofview.tclUNIT ())

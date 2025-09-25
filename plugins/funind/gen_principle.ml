@@ -1484,7 +1484,7 @@ let derive_correctness (funs : Constr.pconstant list) (graphs : inductive list)
           let info = Declare.Info.make () in
           let cinfo = Declare.CInfo.make ~name:lem_id ~typ () in
           let lemma = Declare.Proof.start ~cinfo ~info !evd in
-          let lemma = fst @@ Declare.Proof.by (proving_tac i) lemma in
+          let lemma = fst @@ Declare.Proof.by (Global.env ()) (proving_tac i) lemma in
           let (_ : _ list) =
             Declare.Proof.save_regular ~proof:lemma
               ~opaque:Vernacexpr.Transparent ~idopt:None
@@ -1553,7 +1553,7 @@ let derive_correctness (funs : Constr.pconstant list) (graphs : inductive list)
           let lemma = Declare.Proof.start ~cinfo sigma ~info in
           let lemma =
             fst
-              (Declare.Proof.by
+              (Declare.Proof.by (Global.env ())
                  (observe_tac
                     ("prove completeness (" ^ Id.to_string f_id ^ ")")
                     (proving_tac i))

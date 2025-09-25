@@ -189,6 +189,7 @@ val all_goals : t -> Evar.Set.t
 
 val solve :
      ?with_end_tac:unit Proofview.tactic
+  -> Environ.env
   -> Goal_select.t
   -> int option
   -> unit Proofview.tactic
