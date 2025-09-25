@@ -552,6 +552,7 @@ Creating Hints
          .. rocqtop:: reset all
 
             Require Import ListDef.
+            Create HintDb eqdec.
             Hint Extern 5 ({?X1 = ?X2} + {?X1 <> ?X2}) =>
               generalize  X1, X2; decide equality : eqdec.
             Goal forall a b:list (nat * nat), {a = b} + {a <> b}.
@@ -650,6 +651,7 @@ Creating Hints
       .. rocqtop:: all reset
 
          Parameter plus : nat -> nat -> nat -> Prop.
+         Create HintDb plus.
          Hint Mode plus ! - - : plus.
          Hint Mode plus - ! - : plus.
 
