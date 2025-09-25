@@ -100,7 +100,7 @@ let eval_flexible_term ts env evd c sk =
   match EConstr.kind evd c with
   | Const (c, u) ->
       if Structures.PrimitiveProjections.is_transparent_constant ts c then begin
-        let cb = lookup_constant c env in
+        let cb = lookup_constant env evd c in
         match cb.const_body with
         | Def l_body ->
             let def = subst_instance_constr u (EConstr.of_constr l_body) in

@@ -37,7 +37,7 @@ exception ReductionTacticError of reduction_tactic_error
 
 (** Evaluable global reference *)
 
-val is_evaluable : Environ.env -> Evaluable.t -> bool
+val is_evaluable : Environ.env -> Evd.evar_map -> Evaluable.t -> bool
 
 exception NotEvaluableRef of GlobRef.t
 val error_not_evaluable : ?loc:Loc.t -> GlobRef.t -> 'a

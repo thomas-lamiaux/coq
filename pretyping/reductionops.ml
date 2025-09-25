@@ -854,11 +854,9 @@ let whd_state_gen flags ?metas env sigma =
       reduction_effect_hook env sigma c
          (lazy (EConstr.to_constr sigma (Stack.zip sigma (x,fst (Stack.strip_app stack)))));
       if RedFlags.red_set flags (RedFlags.fCONST c) then
-       let u' = EInstance.kind sigma u in
-       match constant_value_in env (c, u') with
+       match constant_value_in env sigma (c, u) with
        | body ->
          begin
-          let body = EConstr.of_constr body in
           whrec (body, stack)
           end
        | exception NotEvaluableConst (IsPrimitive (u,p)) when Stack.check_native_args p stack ->
@@ -1609,6 +1607,12 @@ let is_sort env sigma t =
   | Sort s -> true
   | _ -> false
 
+let is_symbol env sigma c =
+  let cb = EConstr.lookup_constant env sigma c in
+  match cb.Declarations.const_body with
+  | Declarations.Symbol _ -> true
+  | _ -> false
+
 (* reduction to head-normal-form allowing delta/zeta only in argument
    of case/fix (heuristic used by evar_conv) *)
 
@@ -1634,7 +1638,7 @@ let whd_betaiota_deltazeta_for_iota_state ts ?metas env sigma s =
     let (t, stack as s) = whd_state_gen RedFlags.betaiota ?metas env sigma s in
     let rewrite_step =
       match kind sigma t with
-      | Const (cst, u) when Environ.is_symbol env cst ->
+      | Const (cst, u) when is_symbol env sigma cst ->
         let r = Environ.lookup_rewrite_rules cst env in
         begin match apply_rules whrec env sigma u r stack with
         | r -> Some r

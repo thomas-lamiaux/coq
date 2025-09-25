@@ -477,11 +477,24 @@ let restrict_evar evd evk filter candidates =
   | Some [] -> raise (ClearDependencyError (*FIXME*)(Id.of_string "blah", (NoCandidatesLeft evk), None))
   | _ -> Evd.restrict evk filter ?candidates evd
 
+(* FIXME: put this somewhere more sensible *)
+let vars_of_global env sigma gr =
+  let open GlobRef in
+  match gr with
+  | ConstRef cst ->
+    let eff = Evd.eval_side_effects sigma in
+    if Safe_typing.is_empty_private_constants @@ Evd.seff_private @@ eff then
+      Environ.vars_of_global env gr
+    else
+      let senv = Evd.get_senv_side_effects eff in
+      Environ.vars_of_global (Safe_typing.env_of_safe_env senv) gr
+  | VarRef _ | IndRef _ | ConstructRef _ -> Environ.vars_of_global env gr
+
 let check_vars env sigma ids c =
   let rec check_rec c =
     match EConstr.destRef sigma c with
     | gr, _ ->
-      let vars = vars_of_global env gr in
+      let vars = vars_of_global env sigma gr in
       Id.Map.iter (fun id _ -> if Id.Set.mem id vars then raise (Depends id)) ids
     | exception DestKO -> EConstr.iter sigma check_rec c
   in
@@ -508,7 +521,7 @@ let rec check_and_clear_in_constr ~is_section_variable env evdref err ids ~globa
             if Id.Set.mem id' ids then
               raise (ClearDependencyError (id',err,Some r))
           in
-          Id.Set.iter check (Environ.vars_of_global env r)
+          Id.Set.iter check (vars_of_global env !evdref r)
         in
         c
 

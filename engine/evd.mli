@@ -393,6 +393,10 @@ type side_effects
 
 val empty_side_effects : side_effects
 
+val get_senv_side_effects : side_effects -> Safe_typing.safe_environment
+
+val set_side_effects : side_effects -> evar_map -> evar_map
+
 val emit_side_effects : side_effects -> evar_map -> evar_map
 (** Push a side-effect into the evar map. *)
 
@@ -402,11 +406,12 @@ val eval_side_effects : evar_map -> side_effects
 val drop_side_effects : evar_map -> evar_map
 (** This should not be used. For hacking purposes. *)
 
-val push_side_effects : Safe_typing.private_constants ->
+val push_side_effects : Safe_typing.private_constants -> Safe_typing.safe_environment ->
   ?univs:UState.named_universes_entry -> ?role:side_effect_role -> side_effects -> side_effects
 
 (** {6 Accessors} *)
 
+val seff_mem_label : Id.t -> side_effects -> bool
 val seff_private : side_effects -> Safe_typing.private_constants
 val seff_roles : side_effects -> side_effect_role Cmap_env.t
 val seff_univs : side_effects -> UState.named_universes_entry Names.Cmap_env.t
@@ -745,6 +750,8 @@ module MiniEConstr : sig
     (t, t, ERelevance.t) Context.Named.pt
   val of_rel_context : (Constr.t, Constr.types, Sorts.relevance) Context.Rel.pt ->
     (t, t, ERelevance.t) Context.Rel.pt
+
+  val lookup_constant : env -> evar_map -> Constant.t -> Declarations.constant_body
 end
 
 (** Only used as EConstr internals *)

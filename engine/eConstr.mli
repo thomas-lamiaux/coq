@@ -442,6 +442,9 @@ val lookup_rel : int -> env -> rel_declaration
 val lookup_named : variable -> env -> named_declaration
 val lookup_named_val : variable -> named_context_val -> named_declaration
 
+val lookup_constant : env -> Evd.evar_map -> Constant.t -> Declarations.constant_body
+val constant_value_in : env -> Evd.evar_map -> Constant.t * EInstance.t -> constr
+
 val map_rel_context_in_env :
   (env -> constr -> constr) -> env -> rel_context -> rel_context
 

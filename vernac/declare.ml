@@ -151,8 +151,49 @@ type 'body pproof_entry = {
   proof_entry_inline_code : bool;
 }
 
+module SideEff :
+sig
+  type t
+  val empty : t
+  val make : Evd.side_effects -> t
+  val concat : t -> t -> t
+  val get : t -> Safe_typing.private_constants
+  val obj : t -> (Evd.side_effect_role option * UState.named_universes_entry option) Cmap_env.t
+end =
+struct
+
+type t = {
+  priv : Safe_typing.private_constants;
+  data : (Evd.side_effect_role option * UState.named_universes_entry option) Cmap_env.t;
+}
+
+let empty = {
+  priv = Safe_typing.empty_private_constants;
+  data = Cmap_env.empty;
+}
+
+let make eff =
+  let fold accu c =
+    let role = try Some (Cmap_env.find c (Evd.seff_roles eff)) with Not_found -> None in
+    let univs = try Some (Cmap_env.find c (Evd.seff_univs eff)) with Not_found -> None in
+    Cmap_env.add c (role, univs) accu
+  in
+  let priv = Evd.seff_private eff in
+  let data = List.fold_left fold Cmap_env.empty (Safe_typing.constants_of_private priv) in
+  { priv; data }
+
+let concat e1 e2 = {
+  priv = Safe_typing.concat_private e1.priv e2.priv;
+  data = Cmap_env.union (fun _ x y -> Some x) e1.data e2.data;
+}
+
+let get e = e.priv
+let obj e = e.data
+
+end
+
 (* The most general form of proof entry *)
-type proof_entry = Evd.side_effects proof_body pproof_entry
+type proof_entry = SideEff.t proof_body pproof_entry
 
 type parameter_entry = {
   parameter_entry_secctx : Id.Set.t option;
@@ -254,7 +295,7 @@ let make_univs_immediate_default ~poly ~opaque ~uctx ~udecl ~eff ~used_univs bod
          Not sure if it makes more sense to merge them in the ustate
          before restrict/check_univ_decl or here. Since we only do it
          when monomorphic it shouldn't really matter. *)
-      Monomorphic_entry (Univ.ContextSet.union uctx (Safe_typing.universes_of_private (Evd.seff_private eff))), snd utyp
+      Monomorphic_entry (Univ.ContextSet.union uctx (Safe_typing.universes_of_private (SideEff.get eff))), snd utyp
   in
   uctx, utyp, used_univs, Default { body = (body, eff); opaque = if opaque then Opaque Univ.ContextSet.empty else Transparent }
 
@@ -283,7 +324,7 @@ let pure_definition_entry ?(opaque=Transparent) ?using ?inline ?types ?univs bod
 
 let definition_entry ?(opaque=false) ?using ?inline ?types ?univs body =
   let opaque = if opaque then Opaque Univ.ContextSet.empty else Transparent in
-  definition_entry_core ?using ?inline ?types ?univs (Default { body = (body, Evd.empty_side_effects); opaque })
+  definition_entry_core ?using ?inline ?types ?univs (Default { body = (body, SideEff.empty); opaque })
 
 let delayed_definition_entry ?feedback_id ?using ~univs ?types body =
   definition_entry_core ?using ?types ~univs (DeferredOpaque { body; feedback_id })
@@ -479,30 +520,35 @@ let register_side_effect (c, body, role, univs) =
   | Some (Evd.Schema (ind, kind)) -> DeclareScheme.declare_scheme SuperGlobal kind (ind,c)
 
 let get_roles export eff =
+  let eff = SideEff.obj eff in
   let map (c, body) =
-    let role = try Some (Cmap_env.find c (Evd.seff_roles eff)) with Not_found -> None in
-    let univs = try Some (Cmap_env.find c (Evd.seff_univs eff)) with Not_found -> None in
+    let role, univs = try (Cmap_env.find c eff) with Not_found -> None, None in
     (c, body, role, univs)
   in
   List.map map export
 
 let export_side_effects eff =
-  let export = Global.export_private_constants (Evd.seff_private eff) in
+  let export = Global.export_private_constants (SideEff.get eff) in
   let export = get_roles export eff in
   List.iter register_side_effect export
 
 let register_side_effects pf =
   (* TODO: factorize this with [register_side_effect] above *)
   let open Names in
-  let eff = Evd.eval_side_effects (Proof.data pf).Proof.sigma in
-  let cst = Safe_typing.constants_of_private (Evd.seff_private eff) in
-  let iter kn =
+  let pf, eff = Proof.purge_side_effects pf in
+  let export = Global.export_private_constants (Evd.seff_private eff) in
+  let iter (kn, body) =
+    let () = match body with
+    | None -> ()
+    | Some opaque -> Opaques.declare_private_opaque opaque
+    in
     let gr = GlobRef.ConstRef kn in
     let id = Constant.label kn in
     let sp = Lib.make_path id in
     Nametab.push (Nametab.Until 1) sp gr
   in
-  List.iter iter cst
+  let () = List.iter iter export in
+  pf, SideEff.make eff
 
 let record_aux env s_ty s_bo =
   let open Environ in
@@ -604,14 +650,14 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
         let () = Global.push_context_set ctx in
         Entries.DefinitionEntry e, false, ubinders, None, ctx
       | Default { body = (body, eff); opaque = Opaque body_uctx } ->
-        let body = ((body, body_uctx), Evd.seff_private eff) in
+        let body = ((body, body_uctx), SideEff.get eff) in
         let de = { de with proof_entry_body = body } in
         let cd, ctx = cast_opaque_proof_entry ImmediateEffectEntry de in
         let ubinders = make_ubinders ctx de.proof_entry_universes in
         let () = Global.push_context_set ctx in
         Entries.OpaqueEntry cd, false, ubinders, Some (Future.from_val body, None), ctx
       | DeferredOpaque { body; feedback_id } ->
-        let map (body, eff) = body, Evd.seff_private eff in
+        let map (body, eff) = body, SideEff.get eff in
         let body = Future.chain body map in
         let de = { de with proof_entry_body = body } in
         let cd, ctx = cast_opaque_proof_entry DeferredEffectEntry de in
@@ -698,11 +744,11 @@ let declare_private_constant ?role ~name ~opaque de effs senv =
     else Some (UState.Monomorphic_entry ctx, UnivNames.empty_binders)
   in
   let (kn, eff), senv = Safe_typing.add_private_constant name ctx de senv in
-  let effs = Evd.push_side_effects eff ?univs ?role effs in
+  let effs = Evd.push_side_effects eff senv ?univs ?role effs in
   kn, effs, senv
 
 let inline_private_constants ~uctx env (body, eff) =
-  let body, ctx = Safe_typing.inline_private_constants env (body, Evd.seff_private eff) in
+  let body, ctx = Safe_typing.inline_private_constants env (body, SideEff.get eff) in
   let uctx = UState.merge ~sideff:true Evd.univ_rigid uctx ctx in
   body, uctx
 
@@ -769,7 +815,7 @@ let declare_variable ~name ~kind ~typing_flags d =
           let cname = Id.of_string (Id.to_string name ^ "_subproof") in
           let cname = Namegen.next_global_ident_away (Global.safe_env ()) cname Id.Set.empty in
           let de = {
-            proof_entry_body = DeferredOpaque { body = Future.from_val ((body, Univ.ContextSet.empty), Evd.empty_side_effects); feedback_id };
+            proof_entry_body = DeferredOpaque { body = Future.from_val ((body, Univ.ContextSet.empty), SideEff.empty); feedback_id };
             proof_entry_secctx = None; (* de.proof_entry_secctx is NOT respected *)
             proof_entry_type = de.proof_entry_type;
             proof_entry_universes = univs;
@@ -838,27 +884,9 @@ let assumption_message id =
   discussion on coqdev: "Chapter 4 of the Reference Manual", 8/10/2015) *)
   Flags.if_verbose Feedback.msg_info (Id.print id ++ str " is declared")
 
-module Internal = struct
-
-  module Constant = struct
-    type t = constant_obj
-    let tag = objConstant
-    let kind obj = obj.cst_kind
-  end
-
-  let objVariable = objVariable
-
-  let export_side_effects = export_side_effects
-
-  let register_side_effects pf =
-    let () = register_side_effects pf in
-    pf
-
-end
-
 (* The word [proof] is to be understood as [justification] *)
 (* A possible alternatve would be [evidence]?? *)
-type closed_proof_output = ((Constr.t * Evd.side_effects) * Constr.t option) list * UState.t
+type closed_proof_output = ((Constr.t * SideEff.t) * Constr.t option) list * UState.t
 
 type proof_object =
   | DefaultProof of
@@ -1070,7 +1098,7 @@ let declare_mutual_definitions ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guar
   let rec_declaration = prepare_recursive_declaration cinfo fixtypes fixrelevances bodies in
   let elim_to = Inductive.eliminates_to @@ UState.elim_graph uctx in
   let bodies_types, indexes = make_recursive_bodies ~elim_to env ~typing_flags ~rec_declaration ~possible_guard in
-  let entries = List.map (fun (body, typ) -> ((body, Evd.empty_side_effects), Some typ)) bodies_types in
+  let entries = List.map (fun (body, typ) -> ((body, SideEff.empty), Some typ)) bodies_types in
   let entries_for_using = List.map (fun (body, typ) -> (body, Some typ)) bodies_types in
   let using = interp_mutual_using env cinfo entries_for_using using in
   let obj = DefaultProof { proof = (entries, uctx); opaque; using; keep_body_ucst_separate = None } in
@@ -1107,7 +1135,7 @@ let declare_definition ~info ~cinfo ~opaque ~obls ~body ?using sigma =
   let typ = Option.map (EConstr.to_constr sigma) typ in
   let uctx = Evd.ustate sigma in
   let using = interp_mutual_using env [cinfo] [body,typ] using in
-  let obj = DefaultProof { proof = ([((body,Evd.empty_side_effects),typ)], uctx); opaque; using; keep_body_ucst_separate = None } in
+  let obj = DefaultProof { proof = ([((body, SideEff.empty),typ)], uctx); opaque; using; keep_body_ucst_separate = None } in
   let gref = List.hd (declare_possibly_mutual_definitions ~info ~cinfo:[cinfo] ~obls obj) in
   gref, uctx
 
@@ -1777,7 +1805,6 @@ end
 module Proof_ = Proof
 module Proof = struct
 
-type proof = Proof.t
 type nonrec closed_proof_output = closed_proof_output
 type proof_object = Proof_object.t
 
@@ -1788,6 +1815,12 @@ type t =
   ; initial_euctx : UState.t
   (** The initial universe context (for the statement) *)
   ; pinfo : Proof_info.t
+  ; sideff : SideEff.t;
+  (** Local constants to replay at the end of the proof. Invariant: the global
+      environment already contains these constants, including non-logical data
+      such as nametab and the like. Note that the evarmap within Proof.t may
+      also contain side-effects, but these ones are not yet globally
+      registered. *)
   }
 
 (*** Proof Global manipulation ***)
@@ -1834,6 +1867,7 @@ let start_proof_core ~name ~pinfo ?using sigma goals =
   ; using
   ; initial_euctx
   ; pinfo
+  ; sideff = SideEff.empty
   }
 
 (** [start_proof ~info ~cinfo sigma] starts a proof of [cinfo].
@@ -1858,6 +1892,7 @@ let start_dependent ~info ~cinfo ~name ~proof_ending goals =
   ; using = None
   ; initial_euctx
   ; pinfo
+  ; sideff = SideEff.empty
   }
 
 let start_derive ~name ~info ~cinfo goals =
@@ -2069,7 +2104,7 @@ let check_incomplete_proof evd =
   else if Evd.has_undefined evd then warn_remaining_unresolved_evars ()
 
 (* XXX: This is still separate from close_proof below due to drop_pt in the STM *)
-let prepare_proof ?(warn_incomplete=true) { proof; pinfo } =
+let prepare_proof ?(warn_incomplete=true) { proof; pinfo; sideff } =
   let Proof.{name=pid;entry;poly;sigma=evd} = Proof.data proof in
   let initial_goals = Proofview.initial_goals entry in
   let () = if not @@ Proof.is_done proof then raise (OpenProof (pid, OpenGoals)) in
@@ -2077,7 +2112,7 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo } =
     (* checks that we closed all brackets ("}") *)
     Proof.unfocus_all proof
   in
-  let eff = Evd.eval_side_effects evd in
+  let eff = SideEff.make @@ Evd.eval_side_effects evd in
   let evd = Evd.minimize_universes evd in
   let to_constr c =
     match EConstr.to_constr_opt evd c with
@@ -2100,13 +2135,13 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo } =
   let proofs = match pinfo.possible_guard with
     | None -> proofs
     | Some (possible_guard, fixrelevances) ->
-      let env = Safe_typing.push_private_constants (Global.env()) (Evd.seff_private eff) in
+      let env = Safe_typing.push_private_constants (Global.env()) (SideEff.get eff) in
       let fixbodies, fixtypes = List.split proofs in
       let fixrelevances = List.map (EConstr.ERelevance.kind evd) fixrelevances in
       let rec_declaration = prepare_recursive_declaration pinfo.cinfo fixtypes fixrelevances fixbodies in
       let typing_flags = pinfo.info.typing_flags in
       fst (make_recursive_bodies env ~typing_flags ~possible_guard ~rec_declaration) in
-  let proofs = List.map (fun (body, typ) -> ((body, eff), Some typ)) proofs in
+  let proofs = List.map (fun (body, typ) -> ((body, SideEff.concat eff sideff), Some typ)) proofs in
   let () = if warn_incomplete then check_incomplete_proof evd in
   proofs, Evd.ustate evd
 
@@ -2187,8 +2222,9 @@ let next = let n = ref 0 in fun () -> incr n; !n
 
 let by env tac pf =
   let pf, safe = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
-  let () = register_side_effects pf.proof in
-  pf, safe
+  let proof, eff = register_side_effects pf.proof in
+  let sideff = SideEff.concat eff pf.sideff in
+  { pf with proof; sideff }, safe
 
 let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let loc = fallback_loc ~warn:false name None in
@@ -2233,20 +2269,20 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
     Exninfo.iraise (e, info)
   in
   let sigma = Evd.drop_new_defined ~original:sigma sigma' in
-  let body, effs = const.proof_entry_body in
+  let body, _effs = const.proof_entry_body in
   (* EJGA: Hack related to the above call to
      `build_constant_by_tactic` with `~opaque:Transparent`. Even if
      the abstracted term is destined to be opaque, if we trigger the
      `if poly && opaque && private_poly_univs ()` in `close_proof`
      kernel will boom. This deserves more investigation. *)
   let body, typ, args = ProofEntry.shrink_entry sign body const.proof_entry_type in
-  let senv = Global.safe_env () in
+  let senv = Evd.get_senv_side_effects (Evd.eval_side_effects sigma) in
+  let senv = Safe_typing.set_oracle (Environ.oracle env) senv in
   let cst, effs, senv =
     (* No side-effects in the entry, they already exist in the ambient environment *)
     let const = { const with proof_entry_body = body; proof_entry_type = typ } in
-    declare_private_constant ~name ~opaque const effs senv
+    declare_private_constant ~name ~opaque const (Evd.eval_side_effects sigma) senv
   in
-  let () = Global.Internal.reset_safe_env senv in
   let inst = instance_of_univs const.proof_entry_universes in
   let lem = EConstr.of_constr (Constr.mkConstU (cst, inst)) in
   effs, sigma, lem, args, safe
@@ -2442,6 +2478,25 @@ let _ = Ind_tables.register_definition_scheme := register_definition_scheme
 let _ = Abstract.declare_abstract := Proof.declare_abstract
 
 let build_by_tactic = Proof.build_by_tactic
+
+module Internal = struct
+
+  module Constant = struct
+    type t = constant_obj
+    let tag = objConstant
+    let kind obj = obj.cst_kind
+  end
+
+  let objVariable = objVariable
+
+  let export_side_effects eff = export_side_effects (SideEff.make eff)
+
+  let register_side_effects pf =
+    let proof, eff = register_side_effects pf.Proof.proof in
+    let sideff = SideEff.concat eff pf.sideff in
+    { pf with proof; sideff }
+
+end
 
 (* This module could be merged with Obl, and placed before [Proof],
    however there is a single dependency on [Proof.start] for the interactive case *)

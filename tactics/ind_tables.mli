@@ -22,6 +22,8 @@ type 'a scheme_kind
 
 type handle
 
+val push_handle : handle -> unit Proofview.tactic
+
 type scheme_dependency =
 | SchemeMutualDep of MutInd.t * mutual scheme_kind
 | SchemeIndividualDep of inductive * individual scheme_kind

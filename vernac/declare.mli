@@ -257,7 +257,6 @@ module Proof : sig
   val by : Environ.env -> unit Proofview.tactic -> t -> t * bool
 
   (** Operations on ongoing proofs *)
-  type proof = Proof.t
   val get : t -> Proof.t
   val get_name : t -> Names.Id.t
 
@@ -658,6 +657,6 @@ module Internal : sig
     tactic was run as part of a command *)
   val export_side_effects : Evd.side_effects -> unit
 
-  val register_side_effects : Proof.proof -> Proof.proof
+  val register_side_effects : Proof.t -> Proof.t
 
 end

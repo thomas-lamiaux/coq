@@ -54,8 +54,15 @@ let () = CErrors.register_handler (function
 
 let error_not_evaluable ?loc r = Loc.raise ?loc (NotEvaluableRef r)
 
-let is_evaluable_const env cst =
-  is_transparent env (Evaluable.EvalConstRef cst) && evaluable_constant cst env
+let evaluable_constant env sigma kn =
+  let cb = lookup_constant env sigma kn in
+  match cb.const_body with
+  | Def _ -> true
+  | OpaqueDef _ -> false
+  | Undef _ | Primitive _ | Symbol _ -> false
+
+let is_evaluable_const env sigma cst =
+  is_transparent env (Evaluable.EvalConstRef cst) && evaluable_constant env sigma cst
 
 let is_evaluable_var env id =
   is_transparent env (Evaluable.EvalVarRef id) && evaluable_named id env
@@ -63,16 +70,15 @@ let is_evaluable_var env id =
 let is_evaluable_projection env p =
   is_transparent env (Evaluable.EvalProjectionRef p)
 
-let is_evaluable env = function
-  | Evaluable.EvalConstRef cst -> is_evaluable_const env cst
+let is_evaluable env sigma = function
+  | Evaluable.EvalConstRef cst -> is_evaluable_const env sigma cst
   | Evaluable.EvalVarRef id -> is_evaluable_var env id
   | Evaluable.EvalProjectionRef p -> is_evaluable_projection env p
 
-let value_of_evaluable_ref env evref u =
+let value_of_evaluable_ref env sigma evref u =
   match evref with
   | Evaluable.EvalConstRef con ->
-    let u = Unsafe.to_instance u in
-    EConstr.of_constr (constant_value_in env (con, u))
+    constant_value_in env sigma (con, u)
   | Evaluable.EvalVarRef id ->
     env |> lookup_named id |> NamedDecl.get_value |> Option.get
   | Evaluable.EvalProjectionRef _ ->
@@ -89,7 +95,7 @@ let soft_evaluable_of_global_reference ?loc = function
   | r -> error_not_evaluable ?loc r
 
 let evaluable_of_global_reference env = function
-  | GlobRef.ConstRef cst when is_evaluable_const env cst ->
+  | GlobRef.ConstRef cst when not (Environ.mem_constant cst env) || is_evaluable_const env (Evd.from_env env) cst (* FIXME *) ->
       begin
         match Structures.PrimitiveProjections.find_opt cst with
         | None -> Evaluable.EvalConstRef cst
@@ -125,14 +131,14 @@ let mkEvalRef ref u =
   | EvalEvar ev -> EConstr.mkEvar ev
 
 let isEvalRef env sigma c = match EConstr.kind sigma c with
-  | Const (sp,_) -> is_evaluable env (EvalConstRef sp)
-  | Var id -> is_evaluable env (EvalVarRef id)
+  | Const (sp,_) -> is_evaluable env sigma (EvalConstRef sp)
+  | Var id -> is_evaluable env sigma (EvalVarRef id)
   | Rel _ | Evar _ -> true
   | _ -> false
 
 let isTransparentEvalRef env sigma ts c = match EConstr.kind sigma c with
-  | Const (cst,_) -> is_evaluable env (EvalConstRef cst) && Structures.PrimitiveProjections.is_transparent_constant ts cst
-  | Var id -> is_evaluable env (EvalVarRef id) && TransparentState.is_transparent_variable ts id
+  | Const (cst,_) -> is_evaluable env sigma (EvalConstRef cst) && Structures.PrimitiveProjections.is_transparent_constant ts cst
+  | Var id -> is_evaluable env sigma (EvalVarRef id) && TransparentState.is_transparent_variable ts id
   | Rel _ -> true
   | Evar _ -> false (* undefined *)
   | _ -> false
@@ -157,15 +163,18 @@ module CacheTable = Hashtbl.Make(struct
       Hashset.Combine.combine (Constant.UserOrd.hash c) (UVars.Instance.hash u)
   end)
 
+let constant_opt_value_in env sigma cst =
+  try Some (EConstr.constant_value_in env sigma cst)
+  with NotEvaluableConst _ -> None
+
 let reference_opt_value cache env sigma eval u =
   match eval with
   | EvalConst cst ->
-    let u = EInstance.kind sigma u in
-    let cu = (cst, u) in
+    let cu = (cst, EInstance.kind sigma u) in
     begin match CacheTable.find_opt cache cu with
     | Some v -> v
     | None ->
-      let v = Option.map EConstr.of_constr (constant_opt_value_in env cu) in
+      let v = constant_opt_value_in env sigma (cst, u) in
       CacheTable.add cache cu v;
       v
     end
@@ -606,8 +615,8 @@ let match_eval_ref env sigma constr stack =
   | Const (sp, u) ->
      reduction_effect_hook env sigma sp
         (lazy (EConstr.to_constr sigma (applist (constr,stack))));
-     if is_evaluable env (EvalConstRef sp) then Some (EvalConst sp, u) else None
-  | Var id when is_evaluable env (EvalVarRef id) -> Some (EvalVar id, EInstance.empty)
+     if is_evaluable env sigma (EvalConstRef sp) then Some (EvalConst sp, u) else None
+  | Var id when is_evaluable env sigma (EvalVarRef id) -> Some (EvalVar id, EInstance.empty)
   | Rel i -> Some (EvalRel i, EInstance.empty)
   | Evar ev -> Some (EvalEvar ev, EInstance.empty)
   | _ -> None
@@ -617,16 +626,15 @@ let match_eval_ref_value env sigma constr stack =
   | Const (sp, u) ->
      reduction_effect_hook env sigma sp
         (lazy (EConstr.to_constr sigma (applist (constr,stack))));
-    if is_evaluable env (EvalConstRef sp) then
-      let u = EInstance.kind sigma u in
-      Some (EConstr.of_constr (constant_value_in env (sp, u)))
+    if is_evaluable env sigma (EvalConstRef sp) then
+      Some (constant_value_in env sigma (sp, u))
     else
       None
   | Proj (p, r, c) when not (Projection.unfolded p) ->
-     if is_evaluable env (EvalProjectionRef (Projection.repr p)) then
+     if is_evaluable env sigma (EvalProjectionRef (Projection.repr p)) then
        Some (mkProj (Projection.unfold p, r, c))
      else None
-  | Var id when is_evaluable env (EvalVarRef id) ->
+  | Var id when is_evaluable env sigma (EvalVarRef id) ->
      env |> lookup_named id |> NamedDecl.get_value
   | Rel n ->
      env |> lookup_rel n |> RelDecl.get_value |> Option.map (Vars.lift n)
@@ -683,9 +691,8 @@ let whd_nothing_for_iota env sigma s =
              | _ -> s)
       | Evar _ | Meta _ -> s
       | Const (const, u) ->
-          let u = EInstance.kind sigma u in
-          (match constant_opt_value_in env (const, u) with
-             | Some  body -> whrec (EConstr.of_constr body, stack)
+          (match constant_opt_value_in env sigma (const, u) with
+             | Some body -> whrec (body, stack)
              | None -> s)
       | LetIn (_,b,_,c) -> whrec (beta_applist sigma [b] c stack)
       | Cast (c,_,_) -> whrec (c, stack)
@@ -734,6 +741,16 @@ let make_simpl_reds env =
 (* The reductions that should be performed as part of the hnf tactic *)
 let make_hnf_reds env =
   make_reds env ReductionBehaviour.Db.empty
+
+(* TODO: write a more efficient check *)
+let is_primitive env sigma c =
+  Environ.mem_constant c env && Environ.is_primitive env c
+
+let is_symbol env sigma c =
+  let cb = EConstr.lookup_constant env sigma c in
+  match cb.Declarations.const_body with
+  | Declarations.Symbol _ -> true
+  | _ -> false
 
 (* [red_elim_const] contracts iota/fix/cofix redexes hidden behind
    constants by keeping the name of the constants in the recursive calls;
@@ -847,7 +864,7 @@ and whd_simpl_stack infos env sigma =
       | Proj (p, r, c) ->
         let ans =
            let unf = Projection.unfolded p in
-           if unf || is_evaluable env (EvalProjectionRef (Projection.repr p)) then
+           if unf || is_evaluable env sigma (EvalProjectionRef (Projection.repr p)) then
              let npars = Projection.npars p in
              match unf, ReductionBehaviour.get_from_db infos.red_behavior (Projection.constant p) with
               | false, Some NeverUnfold -> NotReducible
@@ -869,7 +886,7 @@ and whd_simpl_stack infos env sigma =
           | NotReducible -> s'
           end
 
-      | Const (cst, _) when is_primitive env cst ->
+      | Const (cst, _) when is_primitive env sigma cst ->
         let ans =
             let args =
               List.map_filter_i (fun i a ->
@@ -883,7 +900,7 @@ and whd_simpl_stack infos env sigma =
         | NotReducible -> s'
         end
 
-      | Const (cst, _) when is_symbol env cst ->
+      | Const (cst, _) when is_symbol env sigma cst ->
           whd_all env sigma (applist s'), []
 
       | _ ->
@@ -1248,7 +1265,7 @@ let match_constr_evaluable_ref env sigma c evref =
 
 let substlin env sigma evalref occs c =
   let count = ref (Locusops.initialize_occurrence_counter occs) in
-  let value u = value_of_evaluable_ref env evalref u in
+  let value u = value_of_evaluable_ref env sigma evalref u in
   let rec substrec () c =
     if Locusops.occurrences_done !count then c
     else
@@ -1294,7 +1311,7 @@ let unfold_red kn =
   mkflags flags
 
 let unfold env sigma name c =
-  if is_evaluable env name then
+  if is_evaluable env sigma name then
     clos_norm_flags (unfold_red name) env sigma c
   else
     user_err Pp.(str (string_of_evaluable_ref env name^" is opaque."))

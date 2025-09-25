@@ -528,6 +528,8 @@ module Unsafe : sig
   (** [update_sigma_univs] lifts [UState.update_sigma_univs] to the proofview *)
   val update_sigma_univs : UGraph.t -> proofview -> proofview
 
+  val purge_side_effects : proofview -> proofview * Evd.side_effects
+
 end
 
 (** This module gives access to the innards of the monad. Its use is

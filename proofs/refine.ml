@@ -55,14 +55,11 @@ let generic_refine ~typecheck f gl =
   (* Create the refinement term *)
   Proofview.Unsafe.tclEVARS sigma >>= fun () ->
   f >>= fun (v, c, principal) ->
-  Proofview.tclEVARMAP >>= fun sigma' ->
+  Proofview.tclEVARMAP >>= fun sigma ->
   Proofview.wrap_exceptions begin fun () ->
-  (* Redo the effects in sigma in the monad's env *)
-  let privates_csts = Evd.seff_private (Evd.eval_side_effects sigma') in
-  let env = Safe_typing.push_private_constants env privates_csts in
   (* Check that the introduced evars are well-typed *)
   let fold accu ev = typecheck_evar ev env accu in
-  let sigma = if typecheck then Evd.fold_future_goals fold sigma' else sigma' in
+  let sigma = if typecheck then Evd.fold_future_goals fold sigma else sigma in
   (* Check that the refined term is typesafe *)
   let sigma = if typecheck then Typing.check env sigma c concl else sigma in
   (* Check that the goal itself does not appear in the refined term *)
@@ -97,8 +94,6 @@ let generic_refine ~typecheck f gl =
   let trace () = Pp.(hov 2 (str"simple refine"++spc()++
                                    Termops.Internal.print_constr_env env sigma c)) in
   Proofview.Trace.name_tactic trace (Proofview.tclUNIT v) >>= fun v ->
-  Proofview.tclENV >>= fun env ->
-  Proofview.Unsafe.tclSETENV (Safe_typing.push_private_constants env privates_csts) <*>
   Proofview.Unsafe.tclEVARS sigma <*>
   Proofview.Unsafe.tclSETGOALS comb <*>
   Proofview.tclUNIT v

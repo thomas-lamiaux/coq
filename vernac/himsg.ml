@@ -99,6 +99,11 @@ let pr_lconstr_env e s c = quote (pr_lconstr_env e s c)
 let pr_leconstr_env e s c = quote (pr_leconstr_env e s c)
 let pr_ljudge_env e s c = let v,t = pr_ljudge_env e s c in (quote v,quote t)
 
+(* Make the printer robust to missing globrefs *)
+let pr_global gr =
+  try pr_global gr
+  with Not_found -> GlobRef.print gr
+
 (** A canonisation procedure for constr such that comparing there
     externalisation catches more equalities *)
 let canonize_constr sigma c =

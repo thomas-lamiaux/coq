@@ -115,7 +115,7 @@ let check_not_fully_opaque l ref =
   match ref, l with
   | Evaluable.EvalConstRef sp, Conv_oracle.Opaque -> ()
   | Evaluable.EvalConstRef sp, _ ->
-    if Declareops.is_opaque (Global.lookup_constant sp) then
+    if Environ.mem_constant sp (Global.env ()) && Declareops.is_opaque (Global.lookup_constant sp) (* FIXME *) then
       user_err
         (str "Cannot make" ++ spc () ++
             Nametab.pr_global_env Id.Set.empty (GlobRef.ConstRef sp) ++

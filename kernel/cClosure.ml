@@ -129,6 +129,7 @@ type evar_handler = {
   evar_irrelevant : constr pexistential -> bool;
   qnorm : Sorts.QVar.t -> Sorts.Quality.t;
   qvar_irrelevant : Sorts.QVar.t -> bool;
+  abstr_const : Constant.t -> (unit, (unit -> Vmemitcodes.to_patch) Vmemitcodes.pbody_code) Declarations.pconstant_body;
 }
 
 let default_evar_handler env = {
@@ -141,7 +142,26 @@ let default_evar_handler env = {
   qvar_irrelevant = (fun q ->
       assert (Sorts.QVar.Set.mem q (Environ.qvars env));
       false);
+  abstr_const = fun _ -> assert false;
 }
+
+let drop_opaque = function
+| OpaqueDef _ -> OpaqueDef ()
+| Def _ | Undef _ | Primitive _ | Symbol _ as body -> body
+
+let drop_code env = function
+| None -> Vmemitcodes.BCconstant
+| Some (Vmemitcodes.BCdefined (mask, idx, patch)) ->
+  let code () = Environ.lookup_vm_code idx env in
+  Vmemitcodes.BCdefined (mask, code, patch)
+| Some (BCalias _ | BCconstant as code) -> code
+
+let lookup_constant_handler env sigma cst = match lookup_constant_opt cst env with
+| None -> sigma.abstr_const cst
+| Some cb ->
+  let const_body = drop_opaque cb.const_body in
+  let const_body_code = drop_code env cb.const_body_code in
+  { cb with const_body; const_body_code }
 
 (** Reduction cache *)
 type infos_cache = {
@@ -402,14 +422,17 @@ end = struct
         else
           raise Not_found
       | ConstKey (cst,u) ->
-        let cb = lookup_constant cst env in
+        let cb = match lookup_constant_opt cst env with
+        | Some cb -> { cb with const_body = drop_opaque cb.const_body; const_body_code = drop_code env cb.const_body_code }
+        | None -> info.i_cache.i_sigma.abstr_const cst
+        in
         shortcut_irrelevant info (UVars.subst_instance_relevance u cb.const_relevance);
         let ts = RedFlags.red_transparent info.i_flags in
         if TransparentState.is_transparent_constant ts cst then match cb.const_body with
         | Undef _ | Def _ | OpaqueDef _ | Primitive _ ->
           let mask = match cb.const_body_code with
-          | None | Some (Vmemitcodes.BCalias _ | Vmemitcodes.BCconstant) -> [||]
-          | Some (Vmemitcodes.BCdefined (mask, _, _)) -> mask
+          | (Vmemitcodes.BCalias _ | Vmemitcodes.BCconstant) -> [||]
+          | (Vmemitcodes.BCdefined (mask, _, _)) -> mask
           in
           Def (constant_value_in u cb.const_body, mask)
         | Symbol b ->

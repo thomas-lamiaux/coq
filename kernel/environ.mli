@@ -177,6 +177,7 @@ val lookup_constant_key :  Constant.t -> env -> constant_key
 (** Looks up in the context of global constant names
    raises an anomaly if the required path is not found *)
 val lookup_constant    : Constant.t -> env -> constant_body
+val lookup_constant_opt : Constant.t -> env -> constant_body option
 val evaluable_constant : Constant.t -> env -> bool
 val constant_relevance : Constant.t -> env -> Sorts.relevance
 

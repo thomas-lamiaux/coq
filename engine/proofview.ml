@@ -894,7 +894,6 @@ let emit_side_effects eff x =
 let tclEFFECTS eff =
   let open Proof in
   return () >>= fun () -> (* The Global.env should be taken at exec time *)
-  Env.set (Global.env ()) >>
   Pv.modify (fun initial -> emit_side_effects eff initial)
 
 let mark_as_unsafe = Status.put false
@@ -1133,6 +1132,10 @@ module Unsafe = struct
 
   let update_sigma_univs ugraph pv =
     { pv with solution = Evd.update_sigma_univs ugraph pv.solution }
+
+  let purge_side_effects pv =
+    let effs = Evd.eval_side_effects pv.solution in
+    { pv with solution = Evd.drop_side_effects pv.solution }, effs
 
 end
 

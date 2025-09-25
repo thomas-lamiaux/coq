@@ -1119,6 +1119,8 @@ let compute_bl_tact handle ind lnamesparrec nparrec =
     @ ( List.map (fun (_,_,sbl,_ ) -> sbl) list_id )
   in
   let open Tactics in
+  let open Proofview.Notations in
+  Ind_tables.push_handle handle <*>
   intros_using_then first_intros begin fun fresh_first_intros ->
     Tacticals.tclTHENLIST [
         intro_using_then (Id.of_string "x") (fun freshn -> induct_on (EConstr.mkVar freshn));
@@ -1264,6 +1266,8 @@ let compute_lb_tact handle ind lnamesparrec nparrec =
     @ ( List.map (fun (_,_,_,slb) -> slb) list_id )
   in
   let open Tactics in
+  let open Proofview.Notations in
+  Ind_tables.push_handle handle <*>
   intros_using_then first_intros begin fun fresh_first_intros ->
     Tacticals.tclTHENLIST [
         intro_using_then (Id.of_string "x") (fun freshn -> induct_on (EConstr.mkVar freshn));
@@ -1422,6 +1426,8 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
   in
   let open Tactics in
   let fresh_id s gl = fresh_id_in_env (Id.Set.empty) s (Proofview.Goal.env gl) in
+  let open Proofview.Notations in
+  Ind_tables.push_handle handle <*>
   intros_using_then first_intros begin fun fresh_first_intros ->
     let eqI =
       let a = Array.of_list fresh_first_intros in

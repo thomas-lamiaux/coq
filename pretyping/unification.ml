@@ -802,14 +802,15 @@ type key =
   | IsProj of Projection.t * ERelevance.t * EConstr.constr
 
 let expand_table_key ~metas ts env sigma args = function
-  | ConstKey (c, _ as cst) ->
+  | ConstKey (c, u) ->
       if Structures.PrimitiveProjections.is_transparent_constant ts c then
-        match constant_value_in env cst with
+        match constant_value_in env sigma (c, EInstance.make u) with
         (* If we are unfolding a compatibility constant we want to return the
             unfolded primitive projection directly since we would like to pretend
             that the compatibility constant itself does not count as an unfolding
             (delta) step. *)
         | def ->
+        let def = EConstr.Unsafe.to_constr def in
         let unf = unfold_projection_under_eta env ts c def in
         Some (EConstr.of_constr @@ Option.default def unf, args)
         | exception NotEvaluableConst (HasRules (u, b, r)) ->

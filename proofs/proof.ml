@@ -457,11 +457,9 @@ let solve ?with_end_tac env gi info_lvl tac pr =
 (* Shortcut to build a term using tactics *)
 
 let refine_by_tactic ~name ~poly env sigma ty tac =
-  (* Save the initial side-effects to restore them afterwards. We set the
-     current set of side-effects to be empty so that we can retrieve the
-     ones created during the tactic invocation easily. *)
+  (* Save the initial side-effects to restore them afterwards. *)
   let eff = Evd.eval_side_effects sigma in
-  let sigma = Evd.drop_side_effects sigma in
+  let old_len = Safe_typing.length_private @@ Evd.seff_private eff in
   (* Save the existing goals *)
   let sigma = Evd.push_future_goals sigma in
   (* Start a proof *)
@@ -482,10 +480,11 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
   in
   let ans = EConstr.to_constr ~abort_on_undefined_evars:false sigma ans in
   (* [neff] contains the freshly generated side-effects *)
-  let neff = Evd.eval_side_effects sigma in
+  let neff = Evd.seff_private @@ Evd.eval_side_effects sigma in
+  let new_len = Safe_typing.length_private neff in
+  let neff, _ = Safe_typing.pop_private neff (new_len - old_len) in
   (* Reset the old side-effects *)
-  let sigma = Evd.drop_side_effects sigma in
-  let sigma = Evd.emit_side_effects eff sigma in
+  let sigma = Evd.set_side_effects eff sigma in
   (* Restore former goals *)
   let _goals, sigma = Evd.pop_future_goals sigma in
   (* Push remaining goals as future_goals which is the only way we
@@ -497,8 +496,8 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
      other goals that were already present during its invocation, so that
      those goals rely on effects that are not present anymore. Hopefully,
      this hack will work in most cases. *)
-  let neff = Evd.seff_private neff in
-  let (ans, _) = Safe_typing.inline_private_constants env ((ans, Univ.ContextSet.empty), neff) in
+  let (ans, uctx) = Safe_typing.inline_private_constants env ((ans, Univ.ContextSet.empty), neff) in
+  let sigma = Evd.merge_context_set ~sideff:true UState.UnivRigid sigma uctx in
   EConstr.of_constr ans, sigma
 
 let get_goal_context_gen pf i =
@@ -514,3 +513,7 @@ let get_proof_context p =
     (* No more focused goals *)
     let { sigma } = data p in
     sigma, Global.env ()
+
+let purge_side_effects p =
+  let proofview, eff = Proofview.Unsafe.purge_side_effects p.proofview in
+  { p with proofview }, eff

@@ -444,6 +444,9 @@ type side_effect_role =
 | Schema of inductive * string
 
 type side_effects = {
+  seff_safeenv : Safe_typing.safe_environment option;
+  (* If seff_safeenv = Some senv, then senv = Global.safe_env + seff_private *)
+  seff_labels : Id.Set.t;
   seff_private : Safe_typing.private_constants;
   seff_roles : side_effect_role Cmap_env.t;
   seff_univs : UState.named_universes_entry Cmap_env.t;
@@ -868,6 +871,12 @@ let is_relevance_irrelevant sigma r =
   | Irrelevant -> true
   | Relevant | RelevanceVar _ -> false
 
+let get_senv_side_effects eff = match eff.seff_safeenv with
+| Some senv -> senv
+| None ->
+  let (_, senv) = Safe_typing.export_private_constants eff.seff_private (Global.safe_env ()) in
+  senv
+
 let evar_handler sigma =
   let evar_expand ev = existential_expand_value0 sigma ev in
   let qnorm q = UState.nf_qvar sigma.universes q in
@@ -877,7 +886,26 @@ let evar_handler sigma =
   | exception Not_found -> false (* Should be an anomaly *)
   in
   let evar_repack ev = mkLEvar sigma ev in
-  { CClosure.evar_expand; evar_irrelevant; evar_repack; qnorm; qvar_irrelevant }
+  let abstr_const cst =
+    (* XXX: be more efficient *)
+    let open Declarations in
+    let senv = get_senv_side_effects sigma.effects in
+    let env = Safe_typing.env_of_safe_env senv in
+    let cb = Environ.lookup_constant cst env in
+    let drop_opaque = function
+    | OpaqueDef _ -> OpaqueDef ()
+    | Def _ | Undef _ | Primitive _ | Symbol _ as body -> body
+    in
+    let drop_code = function
+    | None -> Vmemitcodes.BCconstant
+    | Some (Vmemitcodes.BCdefined (mask, idx, patch)) ->
+      let code () = Environ.lookup_vm_code idx env in
+      Vmemitcodes.BCdefined (mask, code, patch)
+    | Some (BCalias _ | BCconstant as code) -> code
+    in
+    { cb with const_body = drop_opaque cb.const_body; const_body_code = drop_code cb.const_body_code }
+  in
+  { CClosure.evar_expand; evar_irrelevant; evar_repack; qnorm; qvar_irrelevant; abstr_const }
 
 let existential_type_opt d (n, args) =
   match find_undefined d n with
@@ -925,6 +953,8 @@ let empty_evar_flags =
   }
 
 let empty_side_effects = {
+  seff_safeenv = None;
+  seff_labels = Id.Set.empty;
   seff_private = Safe_typing.empty_private_constants;
   seff_roles = Cmap_env.empty;
   seff_univs = Cmap_env.empty;
@@ -1135,12 +1165,35 @@ let make_nonalgebraic_variable evd u =
 (* Operations on constants              *)
 (****************************************)
 
+let lookup_constant env sigma c =
+  (* FIXME: do this more cleanly *)
+  if Environ.mem_constant c env then Environ.lookup_constant c env
+  else
+    let senv = get_senv_side_effects sigma.effects in
+    Environ.lookup_constant c (Safe_typing.env_of_safe_env senv)
+
 let fresh_sort_in_quality ?loc ?(rigid=univ_flexible) evd s =
   with_sort_context_set ?loc rigid evd
     (UnivGen.fresh_sort_in_quality s)
 
+let fresh_instance ?loc ?names env sigma gr =
+  let open GlobRef in
+  let auctx = match gr with
+  | VarRef _ -> UVars.AbstractContext.empty
+  | ConstRef c ->
+    let cb = lookup_constant env sigma c in
+    Declareops.constant_polymorphic_context cb
+  | IndRef (mind,_) | ConstructRef ((mind,_),_) ->
+    let mib = lookup_mind mind env in
+    Declareops.inductive_polymorphic_context mib
+  in
+  let names = Option.map (fun x -> gr, x) names in
+  let u, ctx = UnivGen.fresh_instance_from ?loc auctx names in
+  u, ctx
+
 let fresh_constant_instance ?loc ?(rigid=univ_flexible) env evd c =
-  with_sort_context_set ?loc rigid evd (UnivGen.fresh_constant_instance env c)
+  let (u, ctx) = fresh_instance env evd (GlobRef.ConstRef c) in
+  with_sort_context_set ?loc rigid evd ((c, u), ctx)
 
 let fresh_inductive_instance ?loc ?(rigid=univ_flexible) env evd i =
   with_sort_context_set ?loc rigid evd (UnivGen.fresh_inductive_instance env i)
@@ -1152,7 +1205,8 @@ let fresh_array_instance ?loc ?(rigid=univ_flexible) env evd =
   with_sort_context_set ?loc rigid evd (UnivGen.fresh_array_instance env)
 
 let fresh_global ?loc ?(rigid=univ_flexible) ?names env evd gr =
-  with_sort_context_set ?loc rigid evd (UnivGen.fresh_global_instance ?loc ?names env gr)
+  let (u, ctx) = fresh_instance ?loc ?names env evd gr in
+  with_sort_context_set ?loc rigid evd (mkRef (gr, u), ctx)
 
 let is_flexible_level evd l =
   let uctx = evd.universes in
@@ -1278,20 +1332,30 @@ exception UniversesDiffer = UState.UniversesDiffer
 (**********************************************************)
 (* Side effects *)
 
+let concat_side_effects eff1 eff2 = {
+  seff_safeenv = None;
+  seff_labels = Id.Set.fold Id.Set.add eff1.seff_labels eff2.seff_labels;
+  seff_private = Safe_typing.concat_private eff1.seff_private eff2.seff_private;
+  seff_roles = Cmap_env.fold Cmap_env.add eff1.seff_roles eff2.seff_roles;
+  seff_univs = Cmap_env.fold Cmap_env.add eff1.seff_univs eff2.seff_univs;
+}
+
 let emit_side_effects eff evd =
-  let effects = {
-  seff_private = Safe_typing.concat_private eff.seff_private evd.effects.seff_private;
-  seff_roles = Cmap_env.fold Cmap_env.add eff.seff_roles evd.effects.seff_roles;
-  seff_univs = Cmap_env.fold Cmap_env.add eff.seff_univs evd.effects.seff_univs;
-  } in
+  let senv = get_senv_side_effects eff in
+  let _, senv = Safe_typing.export_private_constants eff.seff_private senv in
+  let effects = concat_side_effects eff evd.effects in
+  let effects = { effects with seff_safeenv = Some senv } in
   { evd with effects; universes = UState.emit_side_effects eff.seff_private evd.universes }
 
 let drop_side_effects evd =
   { evd with effects = empty_side_effects; }
 
+let set_side_effects eff evd =
+  { evd with effects = eff }
+
 let eval_side_effects evd = evd.effects
 
-let push_side_effects prv ?univs ?role effs =
+let push_side_effects prv senv ?univs ?role effs =
   let kn = match Safe_typing.constants_of_private prv with
   | [cst] -> cst
   | _ -> assert false
@@ -1307,9 +1371,14 @@ let push_side_effects prv ?univs ?role effs =
   let seff_private = Safe_typing.concat_private prv effs.seff_private in
   {
     seff_private = Safe_typing.concat_private prv seff_private;
+    seff_labels = Id.Set.add (Constant.label kn) effs.seff_labels;
     seff_roles = seff_roles;
     seff_univs = seff_univs;
+    seff_safeenv = Some senv;
   }
+
+let seff_mem_label id effs =
+  Id.Set.mem id effs.seff_labels
 
 let seff_private eff = eff.seff_private
 let seff_roles effs = effs.seff_roles
@@ -1901,6 +1970,7 @@ module MiniEConstr = struct
   let unsafe_to_case_invert x = x
   let of_case_invert x = x
 
+  let lookup_constant = lookup_constant
 end
 
 (** The following functions return the set of evars immediately
