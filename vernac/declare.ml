@@ -2200,7 +2200,7 @@ let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ
   let info = Info.make ~poly () in
   let pinfo = Proof_info.make ~cinfo ~info () in
   let pf = start_proof_core ~name ~pinfo sigma [Some sign, typ] in
-  let pf, status = by env tac pf in
+  let pf, status = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
   let proof = close_proof ?warn_incomplete ~keep_body_ucst_separate:false ~opaque:Vernacexpr.Transparent pf in
   let entries = process_proof ~info proof.proof_object in
   let { Proof.sigma } = Proof.data pf.proof in
