@@ -49,18 +49,8 @@ export PATH="$COQBIN:$PATH"
 # Rocq's tools need an ending slash :S, we should fix them.
 export COQBIN="$COQBIN/"
 
-if [ -z "${CI_QUIET}" ];
-then
-  ls -l "$COQBIN"
-fi
-
 # Where we download and build external developments
 CI_BUILD_DIR="$PWD/_build_ci"
-
-if [ -z "${CI_QUIET}" ];
-then
-  ls -l "$CI_BUILD_DIR" || true
-fi
 
 declare -A overlays
 
