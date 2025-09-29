@@ -68,8 +68,10 @@ type case_info =
    the same order (i.e. last argument first) *)
 type 'constr pexistential = existential_key * 'constr SList.t
 type ('constr, 'types, 'r) prec_declaration =
+    (* names / types / bodies *)
     (Name.t,'r) pbinder_annot array * 'types array * 'constr array
 type ('constr, 'types, 'r) pfixpoint =
+    (* struct / focus / branches *)
     (int array * int) * ('constr, 'types, 'r) prec_declaration
 type ('constr, 'types, 'r) pcofixpoint =
     int * ('constr, 'types, 'r) prec_declaration

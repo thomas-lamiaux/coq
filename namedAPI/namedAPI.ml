@@ -24,6 +24,34 @@ type aname = Name.t binder_annot
 let lift_decl n =
   RelDecl.map_constr (Vars.lift n)
 
+(* for namming ??? *)
+module RelEnv =
+struct
+  type t = { env : Environ.env; avoid : Id.Set.t }
+
+  let make env =
+    let avoid = Id.Set.of_list (Termops.ids_of_rel_context (rel_context env)) in
+    { env; avoid }
+
+  let avoid_decl avoid decl = match get_name decl with
+  | Anonymous -> avoid
+  | Name id -> Id.Set.add id avoid
+
+  let push_rel decl env =
+    { env = EConstr.push_rel decl env.env; avoid = avoid_decl env.avoid decl }
+
+  let push_rel_context ctx env =
+    let avoid = List.fold_left avoid_decl env.avoid ctx in
+    { env = EConstr.push_rel_context ctx env.env; avoid }
+
+end
+
+let make_name env s r =
+  let id = next_ident_away (Id.of_string s) env.RelEnv.avoid in
+  make_annot (Name id) r
+
+
+
 
 type state =
   { state_context : rel_context;
@@ -353,11 +381,23 @@ let add_indices env s kname pos_indb = add_old_context s (get_indices env kname 
 
 let closure_params binder env s kname pos_indb = closure_old_context binder s (get_indices env kname pos_indb)
 
-let make_name env s r =
-  let id = next_ident_away (Id.of_string s) env.RelEnv.avoid in
-  make_annot (Name id) r
-
-let nameP = make_name env "P" ERelevance.relevant
 
 
-let mk_tFix env sigma kname pos_indb
+let get_ind_bodies env kname = (Environ.lookup_mind kname env).mind_packets
+(* let nameP = make_name env "P" ERelevance.relevant *)
+
+let mk_tFix env sigma kname s tFix_rarg focus tFix_type tmc =
+  let ind_bodies = get_ind_bodies env kname in
+  (* data fix *)
+  let rargs = Array.mapi (fun pos_indb _ -> tFix_rarg pos_indb) ind_bodies in
+  let tFix_name name = make_name (RelEnv.make env) name ERelevance.relevant in
+  let tFix_names = Array.mapi (fun pos_indb _ -> tFix_name "F") ind_bodies in
+  let tFix_types = Array.mapi (fun pos_indb _ -> tFix_type pos_indb) ind_bodies in
+  (* update context continuation *)
+  let cdecl pos_indb _ = Context.Rel.Declaration.LocalAssum (tFix_name "F", tFix_type pos_indb) in
+  let tFix_context = List.rev (List.mapi cdecl (Array.to_list ind_bodies)) in
+  let* (sFix, keys_Fix) = add_fresh_context s tFix_context in
+  let tFix_bodies = Array.mapi (fun pos_indb _ -> tmc (sFix, keys_Fix, pos_indb)) ind_bodies in
+  (* result *)
+  EConstr.mkFix ((rargs, focus), (tFix_names, tFix_types, tFix_bodies))
+
