@@ -14,7 +14,7 @@ open Context
 open Typing
 open Util
 open Namegen
-open RelvEnv
+open Declarations
 
 module RelDecl = Rel.Declaration
 open RelDecl
@@ -309,7 +309,7 @@ let read_context_sep read_var read_letin s cxt =
 let add_old_context = read_context add_old_var add_old_letin
 let add_old_context_sep = read_context_sep add_old_var add_old_letin
 
-let add_fresh_context = read_context add_old_var add_old_letin
+let add_fresh_context s cxt (f : state * keys -> 'a) : 'a = read_context add_old_var add_old_letin s cxt f
 let add_fresh_context_sep = read_context_sep add_old_var add_old_letin
 
 let closure_old_context binder = read_context (kp_binder binder) kp_tLetIn
@@ -357,35 +357,20 @@ let get_nuparams env kname =
 let get_params env kname =
   EConstr.of_rel_context (Environ.lookup_mind kname env).mind_params_ctxt
 
-let get_indices env kname pos_indb =
-    let mdecl = Environ.lookup_mind kname env in
-    let indb = Array.get mdecl.mind_packets pos_indb in
-    let indices, _ = List.chop indb.mind_nrealdecls indb.mind_arity_ctxt in
-    EConstr.of_rel_context indices
-
-
-
 let add_uparams env s kname = add_old_context s (get_uparams env kname)
-
 let closure_uparams binder env s kname = closure_old_context binder s (get_uparams env kname)
 
 let add_nuparams env s kname = add_old_context s (get_nuparams env kname)
-
 let closure_nuparams binder env s kname  = closure_old_context binder s (get_nuparams env kname)
 
 let add_params env s kname  = add_old_context s (get_params env kname)
-
 let closure_params binder env s kname  = closure_old_context binder s (get_params env kname)
-
-let add_indices env s kname pos_indb = add_old_context s (get_indices env kname pos_indb)
-
-let closure_params binder env s kname pos_indb = closure_old_context binder s (get_indices env kname pos_indb)
-
-
 
 let get_ind_bodies env kname = (Environ.lookup_mind kname env).mind_packets
 (* let nameP = make_name env "P" ERelevance.relevant *)
 
+
+(* create fix *)
 let mk_tFix env sigma kname s tFix_rarg focus tFix_type tmc =
   let ind_bodies = get_ind_bodies env kname in
   (* data fix *)
@@ -401,3 +386,79 @@ let mk_tFix env sigma kname s tFix_rarg focus tFix_type tmc =
   (* result *)
   EConstr.mkFix ((rargs, focus), (tFix_names, tFix_types, tFix_bodies))
 
+(* one_inductive_body level *)
+let get_indices env kname pos_indb =
+    let mdecl = Environ.lookup_mind kname env in
+    let indb = Array.get mdecl.mind_packets pos_indb in
+    let indices, _ = List.chop indb.mind_nrealdecls indb.mind_arity_ctxt in
+    EConstr.of_rel_context indices
+
+let add_indices env s kname pos_indb = add_old_context s (get_indices env kname pos_indb)
+let closure_indices binder env s kname pos_indb = closure_old_context binder s (get_indices env kname pos_indb)
+
+let default_rarg env s kname pos_indb =
+  (Environ.lookup_mind kname env).mind_nparams_rec + List.length (get_indices env kname pos_indb)
+
+(* create match *)
+
+let mk_tCase env sigma s kname mdecl pos_indb indb mk_case_pred keys_uparams keys_nuparams tm_match tc =
+  let tCase_info = Inductiveops.make_case_info env (kname, pos_indb) RegularStyle in
+
+  let tCase_Pred =
+    (* indices *)
+    let indices = get_indices env kname pos_indb in
+    let name_indices = List.map get_annot indices in
+    let* (sPred, keys_fresh_indices) = add_fresh_context s indices in
+    (* new var *)
+    let name_var_match = make_annot Anonymous ERelevance.relevant in
+    let sigma, ty_var = make_ind env sigma s kname pos_indb keys_uparams keys_nuparams keys_fresh_indices in
+    let* (sPred, key_var_match) = add_fresh_var s name_var_match ty_var in
+    (* return type *)
+    let return_type = mk_case_pred sPred keys_fresh_indices key_var_match in
+    (* return *)
+    ((Array.of_list (List.append name_indices [name_var_match]) , return_type), ERelevance.relevant)
+  in
+
+  let params = Array.of_list (List.append (get_terms s keys_uparams) (get_terms s keys_nuparams)) in
+
+  let univs = Obj.magic 2 in
+
+  let branch pos_ctor (cxt, _) =
+    let args = EConstr.of_rel_context (fst (List.chop mdecl.mind_nparams cxt)) in
+    let names_args = Array.of_list (List.map get_annot args) in
+    let* sArgs, key_args, key_letin, key_both = add_old_context_sep s args in
+    let branches_body = tc s key_args key_letin key_both in
+    (names_args, branches_body)
+  in
+
+  let branches = Array.mapi branch indb.mind_nf_lc in
+
+  EConstr.mkCase (tCase_info, univs, params, tCase_Pred, NoInvert, tm_match, branches)
+
+
+
+
+
+
+
+
+
+
+
+
+  open CArray
+
+let map_right_i f a =
+  let l = length a in
+  if l = 0 then [||] else begin
+    let r = Array.make l (f (l-1) (unsafe_get a (l-1))) in
+    for i = l-2 downto 0 do
+      unsafe_set r i (f i (unsafe_get a i))
+    done;
+    r
+  end
+
+let fold_right_map_i f v e =
+  let e' = ref e in
+  let v' = map_right_i (fun i x -> let (y,e) = f i x !e' in e' := e; y) v in
+  (v',!e')
