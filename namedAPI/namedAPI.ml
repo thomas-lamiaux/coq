@@ -9,15 +9,17 @@
 (************************************************************************)
 
 open Names
-open Constr
+open EConstr
 open Context
+open Typing
 open Util
+open Namegen
+open RelvEnv
 
 module RelDecl = Rel.Declaration
 open RelDecl
 
 type aname = Name.t binder_annot
-type term = constr
 
 let lift_decl n =
   RelDecl.map_constr (Vars.lift n)
@@ -117,15 +119,15 @@ let add_odecl s d =
 let add_ovar (s : state) (an : aname) (ty : constr) : state =
   add_odecl s (LocalAssum (an, ty))
 
-let add_old_var : state -> aname -> term -> (state * key -> 'a) -> 'a =
+let add_old_var : state -> aname -> constr -> (state * key -> 'a) -> 'a =
   fun s an ty cc ->
   let s' = add_ovar s an ty in
   cc (s', (fresh_key s))
 
-let add_oletin (s : state) (an : aname) (db : term) (ty : term) : state =
+let add_oletin (s : state) (an : aname) (db : constr) (ty : constr) : state =
   add_odecl s (LocalDef (an, db, ty))
 
-let add_old_letin : state -> aname -> term -> term -> (state * key -> 'a) -> 'a =
+let add_old_letin : state -> aname -> constr -> constr -> (state * key -> 'a) -> 'a =
   fun s an db ty cc ->
   let s' = add_oletin s  an db ty in
   cc (s', (fresh_key s))
@@ -141,16 +143,16 @@ let add_fdecl s d =
 
 let add_fvar s na t = add_fdecl s (LocalAssum (na,t))
 
-let add_fresh_var : state -> aname -> term -> (state * key -> 'a) -> 'a =
+let add_fresh_var : state -> aname -> constr -> (state * key -> 'a) -> 'a =
   fun s an ty cc ->
   let s' = add_fvar s an ty in
   cc (s', (fresh_key s))
 
-let add_fletin (s : state) (an : aname) (db : term) (ty : term) : state =
+let add_fletin (s : state) (an : aname) (db : constr) (ty : constr) : state =
   mk_state (LocalDef (an, db, ty) :: s.state_context)
     (List.map (Vars.lift 1) s.state_subst)
 
-let add_fresh_letin : state -> aname -> term -> term -> (state * key -> _) -> _ =
+let add_fresh_letin : state -> aname -> constr -> constr -> (state * key -> _) -> _ =
   fun s an db ty cc ->
   let s' = add_fletin s an db ty in
   cc (s', (fresh_key s))
@@ -160,20 +162,20 @@ let add_fcontext (s : state) (cxt : rel_context) : state =
     cxt s
 
 (* substitute variables *)
-let subst_obind (s : state) (tm : term) : state =
+let subst_obind (s : state) (tm : constr) : state =
   mk_state s.state_context
     (tm :: List.map (Vars.lift 1) s.state_subst)
 
-let subst_old_bind : state -> term -> (state -> _) -> _ =
+let subst_old_bind : state -> constr -> (state -> _) -> _ =
   fun s tm cc ->
   let s' = subst_obind s tm in
   cc s'
 
-let subst_ocontext (s : state) (ltm : term list) : state =
+let subst_ocontext (s : state) (ltm : constr list) : state =
   mk_state s.state_context
   (List.rev_append ltm (List.map (Vars.lift (List.length ltm)) s.state_subst))
 
-let subst_old_context : state -> term list -> (state -> _) -> _ =
+let subst_old_context : state -> constr list -> (state -> _) -> _ =
   fun s ltm cc ->
   let s' = subst_ocontext s ltm in
   cc s'
@@ -203,7 +205,7 @@ let getters f =
   in
   (get_X, geti_X, getij_X, get_Xs)
 
-let get_sdecl_term : int -> rel_declaration -> term =
+let get_sdecl_term : int -> rel_declaration -> constr =
   fun n d ->
   match RelDecl.get_value d with
   | Some tm -> Vars.lift 1 tm
@@ -226,7 +228,7 @@ let check_pos: state -> key -> int -> bool =
 let (let*) x f = x f
 
 (* 1. Keep, and Make Binary Binders and letin *)
-let kp_binder binder : state -> aname -> term -> (state * key -> term) -> term =
+let kp_binder binder : state -> aname -> constr -> (state * key -> constr) -> constr =
   fun s an ty cc ->
   let ty' = weaken s ty in
   let* (s', key_bind) = add_old_var s an ty in
@@ -235,7 +237,7 @@ let kp_binder binder : state -> aname -> term -> (state * key -> term) -> term =
 let kp_tProd = kp_binder mkProd
 let kp_tLambda = kp_binder mkLambda
 
-let mk_binder binder : state -> aname -> term -> (state * key -> term) -> term =
+let mk_binder binder : state -> aname -> constr -> (state * key -> constr) -> constr =
   fun s an ty cc ->
     let* (s, key_mk) = add_fresh_var s an ty in
     binder (an, ty, cc (s, key_mk))
@@ -243,14 +245,14 @@ let mk_binder binder : state -> aname -> term -> (state * key -> term) -> term =
 let mk_tProd = mk_binder mkProd
 let mk_tLambda = mk_binder mkLambda
 
-let kp_tLetIn : state -> aname -> term -> term -> (state * key -> term) -> term =
+let kp_tLetIn : state -> aname -> constr -> constr -> (state * key -> constr) -> constr =
   fun s an db ty cc ->
   let db' = weaken s db in
   let ty' = weaken s ty in
   let* (s', key_let) = add_old_letin s an db ty in
   mkLetIn (an, db', ty', cc (s', key_let))
 
-let mk_tLetIn : state -> aname -> term -> term -> (state * key -> term) -> term =
+let mk_tLetIn : state -> aname -> constr -> constr -> (state * key -> constr) -> constr =
   fun s an db ty cc ->
   let* (s, key_let) = add_fresh_letin s an db ty in
   mkLetIn (an, db, ty, cc (s, key_let))
@@ -294,55 +296,68 @@ let closure_new_context_sep binder = read_context_sep (mk_binder binder) kp_tLet
 let unsafe_instance = UVars.Instance.empty
 
 (* Builds: Ind A1 ... An B0 ... Bm i1 ... il *)
-let make_ind : state -> MutInd.t -> int -> keys -> keys -> keys -> term =
-  fun s kname pos_indb key_uparams key_nuparams key_indices ->
-  Term.applist (mkIndU ((kname, pos_indb), unsafe_instance),
-                (List.concat [get_terms s key_uparams;
-                              get_terms s key_nuparams;
-                              get_terms s key_indices]))
+let make_ind =
+  fun env sigma s kname pos_indb key_uparams key_nuparams key_indices ->
+    let sigma, tind = Evd.fresh_global env sigma (GlobRef.IndRef (kname ,pos_indb)) in
+    let args = [get_terms s key_uparams; get_terms s key_nuparams; get_terms s key_indices] in
+    Typing.checked_appvect env sigma tind (Array.of_list (List.concat args))
 
-let make_indt : state -> MutInd.t -> int -> keys -> term list -> term list -> term =
-  fun s kname pos_indb key_uparams nuparams indices ->
-  Term.applist (mkIndU ((kname, pos_indb), unsafe_instance),
-                (List.concat [get_terms s key_uparams; nuparams; indices]))
+let make_indt =
+  fun env sigma s kname pos_indb key_uparams nuparams indices ->
+  let sigma, tind = Evd.fresh_global env sigma (GlobRef.IndRef (kname ,pos_indb)) in
+  let args = [get_terms s key_uparams; nuparams; indices] in
+  Typing.checked_appvect env sigma tind (Array.of_list (List.concat args))
 
 
 (* Builds: Cst A1 ... An B0 ... Bm *)
-let make_cst : state -> MutInd.t -> int -> int -> keys -> keys -> term =
-  fun s kname pos_indb pos_ctor key_uparams key_nuparams ->
-  Term.applist (mkConstructU (((kname, pos_indb), pos_ctor), unsafe_instance),
-                (List.concat [get_terms s key_uparams; get_terms s key_nuparams]))
+let make_cst =
+  fun env sigma s kname pos_indb pos_ctor key_uparams key_nuparams ->
+  let sigma, tcst = Evd.fresh_global env sigma (GlobRef.ConstructRef ((kname, pos_indb), pos_ctor)) in
+  let args = [get_terms s key_uparams; get_terms s key_nuparams;] in
+  Typing.checked_appvect env sigma tcst (Array.of_list (List.concat args))
 
-
-let get_uparams kname env =
+let get_uparams env kname =
   let mdecl = Environ.lookup_mind kname env in
   let (uparams, _) = List.chop mdecl.mind_nparams_rec mdecl.mind_params_ctxt in
-  uparams
+  EConstr.of_rel_context uparams
 
-let get_nuparams kname env =
+let get_nuparams env kname =
   let mdecl = Environ.lookup_mind kname env in
   let (_, nuparams) = List.chop mdecl.mind_nparams_rec mdecl.mind_params_ctxt in
-  nuparams
+  EConstr.of_rel_context nuparams
+
+let get_params env kname =
+  EConstr.of_rel_context (Environ.lookup_mind kname env).mind_params_ctxt
+
+let get_indices env kname pos_indb =
+    let mdecl = Environ.lookup_mind kname env in
+    let indb = Array.get mdecl.mind_packets pos_indb in
+    let indices, _ = List.chop indb.mind_nrealdecls indb.mind_arity_ctxt in
+    EConstr.of_rel_context indices
 
 
 
+let add_uparams env s kname = add_old_context s (get_uparams env kname)
+
+let closure_uparams binder env s kname = closure_old_context binder s (get_uparams env kname)
+
+let add_nuparams env s kname = add_old_context s (get_nuparams env kname)
+
+let closure_nuparams binder env s kname  = closure_old_context binder s (get_nuparams env kname)
+
+let add_params env s kname  = add_old_context s (get_params env kname)
+
+let closure_params binder env s kname  = closure_old_context binder s (get_params env kname)
+
+let add_indices env s kname pos_indb = add_old_context s (get_indices env kname pos_indb)
+
+let closure_params binder env s kname pos_indb = closure_old_context binder s (get_indices env kname pos_indb)
+
+let make_name env s r =
+  let id = next_ident_away (Id.of_string s) env.RelEnv.avoid in
+  make_annot (Name id) r
+
+let nameP = make_name env "P" ERelevance.relevant
 
 
-let add_uparams s kname env =
-  add_old_context s (get_uparams kname env)
-let closure_uparams binder s kname env =
-  closure_old_context binder s (get_uparams kname env)
-
-let add_nuparams s kname env =
-  add_old_context s (get_nuparams kname env)
-let closure_nuparams binder s kname env =
-  closure_old_context binder s (get_nuparams kname env)
-
-let add_params s kname env =
-  add_old_context s (Environ.lookup_mind kname env).mind_params_ctxt
-let closure_params binder s kname env =
-  closure_old_context binder s (Environ.lookup_mind kname env).mind_params_ctxt
-
-  (* same for indices => Ecostr or not ? *)
-  (* let get_indices ind env =
-  Inductiveops.inductive_alldecls env  *)
+let mk_tFix env sigma kname pos_indb
