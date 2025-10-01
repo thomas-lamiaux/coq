@@ -138,8 +138,8 @@ let with_timeout ~timeout:n f =
   check_timeout_f n;
   let start = Unix.gettimeofday () in
   begin match Control.timeout n f () with
-  | None -> Exninfo.iraise (CmdTimeout, snd (Exninfo.capture Control.Timeout))
-  | Some v ->
+  | Error info -> Exninfo.iraise (CmdTimeout, info)
+  | Ok v ->
     let stop = Unix.gettimeofday () in
     let remaining = n -. (stop -. start) in
     if remaining <= 0. then raise CmdTimeout
