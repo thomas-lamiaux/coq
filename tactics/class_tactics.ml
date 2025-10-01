@@ -105,7 +105,7 @@ end = struct
         optwrite = set_typeclasses_verbose; }
 
   let ppdebug lvl pp =
-    if !typeclasses_debug > lvl then Feedback.msg_debug (pp())
+    if !typeclasses_debug > lvl then Feedback.msg_debug (hov 2 @@ pp())
 
   let get_debug () = !typeclasses_debug
 end
@@ -750,7 +750,7 @@ module Search = struct
                  str" on" ++ spc () ++ pr_ev sigma (Proofview.Goal.goal gl)
                else mt ())
             in
-            (header ++ str " failed with: " ++ pr_internal_exception ie))
+            (header ++ spc() ++ str "failed with: " ++ pr_internal_exception ie))
       in
       let tac_of gls i j = Goal.enter begin fun gl' ->
         let sigma' = Goal.sigma gl' in
