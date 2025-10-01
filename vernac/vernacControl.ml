@@ -130,11 +130,11 @@ let with_timeout ~timeout:n f =
   check_timeout_f n;
   let start = Unix.gettimeofday () in
   begin match Control.timeout n f () with
-  | None -> Exninfo.iraise (Exninfo.capture CErrors.Timeout)
+  | None -> Exninfo.iraise (Exninfo.capture Control.Timeout)
   | Some v ->
     let stop = Unix.gettimeofday () in
     let remaining = n -. (stop -. start) in
-    if remaining <= 0. then Exninfo.iraise (Exninfo.capture CErrors.Timeout)
+    if remaining <= 0. then Exninfo.iraise (Exninfo.capture Control.Timeout)
     else Some (ControlTimeout { remaining }, v)
   end
 
@@ -152,7 +152,7 @@ let with_fail f : (Loc.t option * Pp.t, 'a) result =
   | e ->
     (* The error has to be printed in the failing state *)
     let _, info as exn = Exninfo.capture e in
-    if CErrors.is_anomaly e && e != CErrors.Timeout then Exninfo.iraise exn;
+    if CErrors.is_anomaly e && e != Control.Timeout then Exninfo.iraise exn;
     Ok (Loc.get_loc info, CErrors.iprint exn)
 
 type ('st0,'st) with_local_state = { with_local_state : 'a. 'st0 -> (unit -> 'a) -> 'st * 'a }
