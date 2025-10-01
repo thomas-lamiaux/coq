@@ -168,25 +168,31 @@ end = struct
 
     type t = {
       default : Loc.t option;
-      ind_to_loc : Loc.t Names.Indmap.t;
+      mind : MutInd.t option;
+      ind_to_loc : Loc.t Int.Map.t;
     }
-    let lookup ~locmap:{ ind_to_loc; default } x =
-      Names.Indmap.find_opt x ind_to_loc |> fun loc ->
+
+    let lookup ~locmap:{ ind_to_loc; default; mind } (m, i) =
+      let () = match mind with
+      | None -> ()
+      | Some mind -> assert (MutInd.UserOrd.equal mind m)
+      in
+      Int.Map.find_opt i ind_to_loc |> fun loc ->
       Option.append loc default
 
-    let default default = { default; ind_to_loc = Names.Indmap.empty }
+    let default default = { default; ind_to_loc = Int.Map.empty; mind = None }
 
     let make ?default mind locs =
       let default, ind_to_loc =
         CList.fold_left_i (fun i (default,m) loc ->
           let m = match loc with
             | None -> m
-            | Some loc -> Indmap.add (mind, i) loc m
+            | Some loc -> Int.Map.add i loc m
           in
           let default = if Option.has_some default then default else loc in
           default, m)
-          0 (default,Names.Indmap.empty) locs in
-      { default; ind_to_loc }
+          0 (default, Int.Map.empty) locs in
+      { default; ind_to_loc; mind = Some mind }
 
   end
 
