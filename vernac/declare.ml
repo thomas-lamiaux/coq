@@ -491,6 +491,19 @@ let export_side_effects eff =
   let export = get_roles export eff in
   List.iter register_side_effect export
 
+let register_side_effects pf =
+  (* TODO: factorize this with [register_side_effect] above *)
+  let open Names in
+  let eff = Evd.eval_side_effects (Proof.data pf).Proof.sigma in
+  let cst = Safe_typing.constants_of_private eff.Evd.seff_private in
+  let iter kn =
+    let gr = GlobRef.ConstRef kn in
+    let id = Label.to_id (Constant.label kn) in
+    let sp = Lib.make_path id in
+    Nametab.push (Nametab.Until 1) sp gr
+  in
+  List.iter iter cst
+
 let record_aux env s_ty s_bo =
   let open Environ in
   let in_ty = keep_hyps env s_ty in
@@ -841,6 +854,10 @@ module Internal = struct
   let objVariable = objVariable
 
   let export_side_effects = export_side_effects
+
+  let register_side_effects pf =
+    let () = register_side_effects pf in
+    pf
 
 end
 
@@ -1764,6 +1781,7 @@ end
 module Proof_ = Proof
 module Proof = struct
 
+type proof = Proof.t
 type nonrec closed_proof_output = closed_proof_output
 type proof_object = Proof_object.t
 
@@ -2172,7 +2190,9 @@ let update_sigma_univs ugraph p =
 let next = let n = ref 0 in fun () -> incr n; !n
 
 let by env tac pf =
-  map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf
+  let pf, safe = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
+  let () = register_side_effects pf.proof in
+  pf, safe
 
 let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let loc = fallback_loc ~warn:false name None in
@@ -2180,7 +2200,7 @@ let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ
   let info = Info.make ~poly () in
   let pinfo = Proof_info.make ~cinfo ~info () in
   let pf = start_proof_core ~name ~pinfo sigma [Some sign, typ] in
-  let pf, status = by env tac pf in
+  let pf, status = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
   let proof = close_proof ?warn_incomplete ~keep_body_ucst_separate:false ~opaque:Vernacexpr.Transparent pf in
   let entries = process_proof ~info proof.proof_object in
   let { Proof.sigma } = Proof.data pf.proof in
