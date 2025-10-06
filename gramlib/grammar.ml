@@ -1047,51 +1047,25 @@ let top_tree : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> (s, tr, a) ty_tr
 let warn_tolerance =
   CWarnings.(create_in (create_warning ~name:"level-tolerance"
                           ~from:[CoreCategories.parsing; Deprecation.Version.v9_2] ())
-    Pp.(fun (e,cur_lev,top_lev) ->
-        let f = function None -> "<unknown>" | Some s -> s in
-        strbrk "In " ++ str e ++ str ", tolerating this expression at level " ++ str (f cur_lev) ++
-        strbrk " while it is expected to be at level " ++ str (f top_lev) ++ str "." ++
+    Pp.(fun (e, msg) ->
+        strbrk "In " ++ str e ++ str ", tolerating this expression at" ++
+        strbrk " a higher level than expected." ++
+        pr_opt (fun m -> strbrk (" " ^ m)) msg ++
         strbrk " This tolerance will be eventually removed." ++
         strbrk " Insert parentheses or try to lower the level at which the top symbol of this expression is parsed."))
 
-type capsule = Capsule : 's ty_entry * ('s, 't, 'a) ty_symbol -> capsule
-
-let get_node : type s tr a. s ty_entry -> (s, tr, a) ty_tree -> capsule
-  = fun entry -> function
-    | Node (MayRec3, {node = s; brother = bro; son = son}) -> Capsule (entry, s)
-    | Node (NoRec3, {node = s; brother = bro; son = son}) -> Capsule (entry, s)
-    | _ -> assert false
-
-let warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__ =
+let warn_recover ename bp strm__ =
   let ep = LStream.count strm__ in
   let loc = LStream.interval_loc bp ep strm__ in
-  let find_lev levn = function
-    | Dlevels levs -> let Level levs = List.nth levs levn in levs.lname
-    | _ -> assert false in
-  let rec find_symb : type s tr a. s ty_entry -> (s, tr, a) ty_symbol -> _ = fun entry -> function
-    | Sself -> let levs = (get_entry gstate.estate entry).edesc in find_lev alevn levs, find_lev 0 levs
-    | Snext -> let levs = (get_entry gstate.estate entry).edesc in find_lev nlevn levs, find_lev 0 levs
-    | Snterml (e, levn) -> Some levn, find_lev 0 (get_entry gstate.estate e).edesc
-    | Slist1sep (s, sep) -> find_symb entry s
-    | _ -> assert false in
-  let cur_lev, top_lev = try find_symb entry s with Failure _ -> None, None in
-  warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
+  warn_tolerance ~loc (ename, None)
 
-let warn_recover_continuation levfrom clevn entry gstate bp ep strm__ =
+let warn_recover_continuation ename bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
-  let find_lev levn = function
-    | Dlevels levs -> let Level levs = List.nth levs levn in levs.lname
-    | _ -> assert false in
-  let cur_lev, top_lev = try
-      let levs = (get_entry gstate.estate entry).edesc in find_lev clevn levs, find_lev levfrom levs
-    with Failure _ -> None, None
-  in
-  warn_tolerance ~loc (entry.ename, cur_lev,top_lev)
+  warn_tolerance ~loc (ename, None)
 
-let warn_recover_last_start entry bp ep strm__ =
+let warn_recover_last_start ename bp ep strm__ =
   let loc = LStream.interval_loc bp ep strm__ in
-  warn_tolerance ~loc
-    (entry.ename, Some "last", Some "next (there is no next level of last level)")
+  warn_tolerance ~loc (ename, Some "(there is no next level of last level)")
 
 let empty_entry ename levn strm =
   raise (ParseError ("entry [" ^ ename ^ "] is empty"))
@@ -1176,7 +1150,7 @@ and parser_cont : type s tr tr' a r.
          parentheses as in "A \/ (forall x, x = x)". *)
       match let* top = top_tree entry son in parser_of_tree entry nlevn alevn top gstate strm__ with
       | Ok a ->
-        warn_recover nlevn alevn (get_node entry son) gstate bp strm__;
+        warn_recover entry.ename bp strm__;
         Ok (a a0)
       | Error () ->
         (* In case of success on just SELF, NEXT or an explicit call to
@@ -1193,7 +1167,7 @@ and parser_cont : type s tr tr' a r.
         in
         let a = or_fail a0 a in
         let act = or_fail a (p1 gstate strm__) in
-        warn_recover nlevn alevn (Capsule (entry, s)) gstate bp strm__;
+        warn_recover entry.ename bp strm__;
         Ok (act a)
 
 (** [parser_of_token_list] attempts to look-ahead an arbitrary-long
@@ -1243,7 +1217,7 @@ and parser_of_token_list : type s tr lt r.
                let bp = LStream.count strm in
                let* top = top_tree entry tree in
                let+ a = parser_of_tree entry nlevn alevn top gstate strm in
-               warn_recover nlevn alevn (get_node entry tree) gstate bp strm;
+               warn_recover entry.ename bp strm;
                a
          in
          match v with
@@ -1325,8 +1299,7 @@ and parser_of_symbol : type s tr a.
                   | Error () ->
                     raise (ParseError (symb_failed entry v sep symb))
                 in
-                (* not sure about nlevn/alevn args here *)
-                let () = warn_recover 1 0 (Capsule (entry, symb)) gstate bp strm__ in
+                let () = warn_recover entry.ename bp strm__ in
                 Ok a
           in
           kont gstate (a::al) strm__
@@ -1435,7 +1408,7 @@ let rec start_parser_of_levels entry clevn =
                  let ep = LStream.count strm__ in
                  let a = act (LStream.interval_loc bp ep strm__) in
                  let () = if levn > clevn then
-                     warn_recover_last_start entry bp ep strm__
+                     warn_recover_last_start entry.ename bp ep strm__
                  in
                  continue_parser_of_entry gstate entry (Some clevn) levn bp a strm)
           | _ ->
@@ -1501,7 +1474,7 @@ let rec continue_parser_of_levels entry clevn =
                     continue_parser_of_entry gstate entry (Some clevn) levn bp a strm in
               let () = match levfrom with
                 | Some levfrom when levfrom < clevn ->
-                  warn_recover_continuation levfrom clevn entry gstate bp ep strm__
+                  warn_recover_continuation entry.ename bp ep strm__
                 | _ -> ()
               in
               c
