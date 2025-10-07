@@ -1799,8 +1799,6 @@ simple_tactic: [
 | "generalize_eqs_vars" hyp
 | "dependent" "generalize_eqs_vars" hyp
 | "specialize_eqs" hyp
-| "destauto"
-| "destauto" "in" hyp
 | "transparent_abstract" tactic3
 | "transparent_abstract" tactic3 "using" ident
 | "constr_eq" constr constr
