@@ -131,12 +131,10 @@ let is_traced () =
 
 (** More naming applications *)
 let name_vfun appl vle =
-  if is_traced () then
-    match to_tacvalue vle with
-    | Some (VFun (appl0,trace,loc,lfun,vars,t)) ->
-      of_tacvalue (VFun (combine_appl appl0 appl,trace,loc,lfun,vars,t))
-    | Some (VRec _) | None -> vle
-  else vle
+  match to_tacvalue vle with
+  | Some (VFun (appl0,trace,loc,lfun,vars,t)) ->
+    of_tacvalue (VFun (combine_appl appl0 appl,trace,loc,lfun,vars,t))
+  | Some (VRec _) | None -> vle
 
 module TacStore = Geninterp.TacStore
 
