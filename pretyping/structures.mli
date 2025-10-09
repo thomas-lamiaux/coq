@@ -38,18 +38,18 @@ val rebuild : Environ.env -> t -> t
 (** [find isp] returns the Structure.t associated to the
    inductive path [isp] if it corresponds to a structure, otherwise
    it fails with [Not_found] *)
-val find : Names.inductive -> t
+val find : Environ.env -> Names.inductive -> t
 
 (** raise [Not_found] if not a structure projection *)
-val find_from_projection : Names.Constant.t -> t
+val find_from_projection : Environ.env -> Names.Constant.t -> t
 
 (** [lookup_projections isp] returns the projections associated to the
    inductive path [isp] if it corresponds to a structure, otherwise
    it fails with [Not_found] *)
-val find_projections : Names.inductive -> Names.Constant.t option list
+val find_projections : Environ.env -> Names.inductive -> Names.Constant.t option list
 
 (** raise [Not_found] if not a projection *)
-val projection_nparams : Names.Constant.t -> int
+val projection_nparams : Environ.env -> Names.Constant.t -> int
 
 val is_projection : Names.Constant.t -> bool
 

@@ -298,7 +298,7 @@ let print_projection env ref =
       | Some p -> [pr_global ref ++ str " is a primitive projection of " ++ pr_global (IndRef (Projection.Repr.inductive p))]
       | None ->
       try
-        let ind = (Structures.Structure.find_from_projection cst).name in
+        let ind = (Structures.Structure.find_from_projection env cst).name in
         [pr_global ref ++ str " is a projection of " ++ pr_global (IndRef ind)]
       with Not_found -> []
     end
@@ -533,7 +533,7 @@ let print_inductive_args env mind mib =
     (* We don't use the PrimRecord field as it misses the projections corresponding to local definition *)
     try
       Array.mapi (fun i mip ->
-          let projs = Option.List.flatten (Structures.Structure.find_projections (mind,i)) in
+          let projs = Option.List.flatten (Structures.Structure.find_projections env (mind,i)) in
           (mip.mind_consnames, Array.of_list projs)) mib.mind_packets
     with
       Not_found (* find_projections *) ->

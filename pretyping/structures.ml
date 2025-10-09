@@ -57,15 +57,16 @@ let make env name projections =
   { name; projections; nparams }
 
 let structure_table =
-  Summary.ref (Indmap.empty : t Indmap.t) ~name:"record-structs"
+  Summary.ref (Environ.QInd.Map.empty : t Environ.QInd.Map.t) ~name:"record-structs"
 let projection_table =
-  Summary.ref (Cmap.empty : t Cmap.t) ~name:"record-projs"
+  Summary.ref (Environ.QConstant.Map.empty : t Environ.QConstant.Map.t) ~name:"record-projs"
 
 let register ({ name; projections; nparams } as s) =
-  structure_table := Indmap.add name s !structure_table;
+  let env = Global.env () in
+  structure_table := Environ.QInd.Map.add env name s !structure_table;
   projection_table :=
     List.fold_right (fun { proj_body } m ->
-      Option.fold_right (fun proj -> Cmap.add proj s) proj_body m)
+      Option.fold_right (fun proj -> Environ.QConstant.Map.add env proj s) proj_body m)
     projections !projection_table
 
 let subst subst ({ name; projections; nparams } as s) =
@@ -85,20 +86,24 @@ let rebuild env s =
   let nparams = mib.Declarations.mind_nparams in
   { s with nparams }
 
-let find indsp = Indmap.find indsp !structure_table
+let find env indsp = Environ.QInd.Map.find env indsp !structure_table
 
-let find_projections indsp =
-  (find indsp).projections |>
+let find_projections env indsp =
+  (find env indsp).projections |>
   List.map (fun { proj_body } -> proj_body)
 
-let find_from_projection cst = Cmap.find cst !projection_table
+let find_from_projection env cst =
+  Environ.QConstant.Map.find env cst !projection_table
 
-let projection_nparams cst = (Cmap.find cst !projection_table).nparams
+let projection_nparams env cst =
+  (Environ.QConstant.Map.find env cst !projection_table).nparams
 
-let is_projection cst = Cmap.mem cst !projection_table
+let is_projection cst =
+  let env = Global.env () in
+  Environ.QConstant.Map.mem env cst !projection_table
 
 let projection_number env cst =
-  let s = find_from_projection cst in
+  let s = find_from_projection env cst in
   CList.index0 (Option.equal (Environ.QConstant.equal env)) (Some cst)
     (List.map (fun x -> x.proj_body) s.projections)
 
@@ -233,7 +238,7 @@ let compute_canonical_projections env sigma ~warn (gref,ind) =
   let o_TABS = List.rev_map Context.Rel.Declaration.get_type sign in
   let args = snd (decompose_app_list t) in
   let { Structure.nparams = p; projections = lpj } =
-    Structure.find ind in
+    Structure.find env ind in
   let o_TPARAMS, projs = List.chop p args in
   let o_NPARAMS = List.length o_TPARAMS in
   let lpj = keep_true_projections lpj in
@@ -310,7 +315,7 @@ let make env sigma ref =
     | Construct ((indsp,1),u) -> indsp
     | _ -> error_not_structure ref (str "Expected an instance of a record or structure") in
   let s =
-    try Structure.find indsp
+    try Structure.find env indsp
     with Not_found ->
       error_not_structure ref
         (str "Could not find the record or structure " ++ Termops.pr_global_env env (IndRef indsp)) in
@@ -396,7 +401,7 @@ let rec decompose_projection ?metas env sigma c args =
   | Cast (c, _, _) -> decompose_projection ?metas env sigma c args
   | App (c, arg) -> decompose_projection ?metas env sigma c (arg :: args)
   | Const (c, u) ->
-     let n = Structure.projection_nparams c in
+     let n = Structure.projection_nparams env c in
      (* Check if there is some canonical projection attached to this structure *)
      let _ = GlobRefMap.find env (GlobRef.ConstRef c) !object_table in
      get_nth n args

@@ -110,7 +110,7 @@ let { Goptions.get = get_record_print } =
 
 let is_record indsp =
   try
-    let _ = Structure.find indsp in
+    let _ = Structure.find (Global.env ()) indsp in
     true
   with Not_found -> false
 
@@ -355,7 +355,7 @@ let pattern_printable_in_both_syntax (ind,_ as c) =
 let extern_record_pattern cstrsp args =
   try
     if !Flags.raw_print then raise_notrace Exit;
-    let projs = Structure.find_projections (fst cstrsp) in
+    let projs = Structure.find_projections (Global.env ()) (fst cstrsp) in
     if PrintingRecord.active (fst cstrsp) then
       ()
     else if PrintingConstructor.active (fst cstrsp) then
@@ -567,7 +567,7 @@ let is_projection nargs r =
     try
       match r with
       | GlobRef.ConstRef c ->
-        let n = Structure.projection_nparams c + 1 in
+        let n = Structure.projection_nparams (Global.env ()) c + 1 in
         if n <= nargs then Some n
         else None
       | _ -> None
@@ -637,7 +637,7 @@ let extern_record ref args =
   try
     if !Flags.raw_print then raise_notrace Exit;
     let cstrsp = match ref with GlobRef.ConstructRef c -> c | _ -> raise Not_found in
-    let struc = Structure.find (fst cstrsp) in
+    let struc = Structure.find (Global.env ()) (fst cstrsp) in
     if PrintingRecord.active (fst cstrsp) then
       ()
     else if PrintingConstructor.active (fst cstrsp) then
