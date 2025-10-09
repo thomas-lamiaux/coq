@@ -2402,6 +2402,12 @@ let fast_head_check sigma knd c = match EConstr.kind sigma c, knd with
 | Construct _, (HeadProd | HeadSort) -> false
 | Prod _, (HeadInd | HeadProd) -> false
 | Ind _, HeadInd -> false
+| App (hd, _), _ ->
+  begin match EConstr.kind sigma hd, knd with
+  | Construct _, HeadSort -> false
+  | Ind _, HeadInd -> false
+  | _ -> true
+  end
 | _ -> true
 
 (* Tries to find an instance of term [cl] in term [op].
