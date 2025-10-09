@@ -1105,9 +1105,6 @@ simple_tactic: [
 | DELETE "unify" constr constr
 | REPLACE "unify" constr constr "with" preident
 | WITH "unify" constr constr OPT ( "with" preident )
-| DELETE "destauto"
-| REPLACE "destauto" "in" hyp
-| WITH "destauto" OPT ( "in" hyp )
 | REPLACE "autounfold_one" hintbases "in" hyp
 | WITH "autounfold_one" hintbases OPT ( "in" hyp )
 | DELETE "autounfold_one" hintbases

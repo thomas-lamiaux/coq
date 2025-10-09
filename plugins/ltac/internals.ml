@@ -10,12 +10,9 @@
 
 open Constr
 open EConstr
-open EConstr.Vars
-open Names
 open Tacexpr
 open CErrors
 open Util
-open Termops
 open Tactypes
 open Tactics
 open Proofview.Notations
@@ -107,107 +104,6 @@ let refine_tac ist ~simple ~with_classes c =
     else refine <*>
            Tactics.reduce_after_refine <*>
            Proofview.shelve_unifiable
-  end
-
-(**********************************************************************)
-
-(**********************************************************************)
-(* A tactic that reduces one match t with ... by doing destruct t.    *)
-(* if t is not a variable, the tactic does                            *)
-(* case_eq t;intros ... heq;rewrite heq in *|-. (but heq itself is    *)
-(* preserved).                                                        *)
-(* Contributed by Julien Forest and Pierre Courtieu (july 2010)       *)
-(**********************************************************************)
-
-let induction_arg_of_quantified_hyp = function
-  | AnonHyp n -> None,ElimOnAnonHyp n
-  | NamedHyp id -> None,ElimOnIdent id
-
-exception Found of unit Proofview.tactic
-
-let rewrite_except h =
-  Proofview.Goal.enter begin fun gl ->
-  let hyps = Tacmach.pf_ids_of_hyps gl in
-  Tacticals.tclMAP (fun id -> if Id.equal id h then Proofview.tclUNIT () else
-      Tacticals.tclTRY (Equality.general_rewrite ~where:(Some id) ~l2r:true Locus.AllOccurrences ~freeze:true ~dep:true ~with_evars:false (mkVar h, NoBindings)))
-    hyps
-  end
-
-
-let refl_equal () = Rocqlib.lib_ref "core.eq.type"
-
-(* This is simply an implementation of the case_eq tactic.  this code
-  should be replaced by a call to the tactic but I don't know how to
-  call it before it is defined. *)
-let  mkCaseEq a  : unit Proofview.tactic =
-  Proofview.Goal.enter begin fun gl ->
-    let type_of_a = Tacmach.pf_get_type_of gl a in
-    Tacticals.pf_constr_of_global (delayed_force refl_equal) >>= fun req ->
-    Tacticals.tclTHENLIST
-         [Generalize.generalize [(mkApp(req, [| type_of_a; a|]))];
-          Proofview.Goal.enter begin fun gl ->
-            let concl = Proofview.Goal.concl gl in
-            let env = Proofview.Goal.env gl in
-            (* FIXME: this looks really wrong. Does anybody really use
-               this tactic? *)
-            let ans = Tacred.pattern_occs [Locus.OnlyOccurrences [1], a] env (Evd.from_env env) concl in
-            match ans with
-            | NoChange -> Proofview.tclUNIT ()
-            | Changed (_, c) -> change_concl c
-          end;
-          simplest_case a]
-  end
-
-
-let case_eq_intros_rewrite x =
-  Proofview.Goal.enter begin fun gl ->
-  let n = nb_prod (Tacmach.project gl) (Proofview.Goal.concl gl) in
-  (* Pp.msgnl (Printer.pr_lconstr x); *)
-  Tacticals.tclTHENLIST [
-      mkCaseEq x;
-    Proofview.Goal.enter begin fun gl ->
-      let concl = Proofview.Goal.concl gl in
-      let hyps = Tacmach.pf_ids_set_of_hyps gl in
-      let n' = nb_prod (Tacmach.project gl) concl in
-      let h = fresh_id_in_env hyps (Id.of_string "heq") (Proofview.Goal.env gl)  in
-      Tacticals.tclTHENLIST [
-                    Tacticals.tclDO (n'-n-1) intro;
-                    introduction h;
-                    rewrite_except h]
-    end
-  ]
-  end
-
-let rec find_a_destructable_match sigma t =
-  let cl = induction_arg_of_quantified_hyp (NamedHyp (CAst.make @@ Id.of_string "x")) in
-  let cl = [cl, (None, None), None], None in
-  let dest = CAst.make @@ TacAtom (TacInductionDestruct(false, false, cl)) in
-  match EConstr.kind sigma t with
-    | Case (_,_,_,_,_,x,_) when closed0 sigma x ->
-        if isVar sigma x then
-          (* TODO check there is no rel n. *)
-          raise (Found (Tacinterp.eval_tactic dest))
-        else
-          (* let _ = Pp.msgnl (Printer.pr_lconstr x)  in *)
-          raise (Found (case_eq_intros_rewrite x))
-    | _ -> EConstr.iter sigma (fun c -> find_a_destructable_match sigma c) t
-
-
-let destauto0 t =
-  Proofview.tclEVARMAP >>= fun sigma ->
-  try find_a_destructable_match sigma t;
-    Tacticals.tclZEROMSG (Pp.str "No destructable match found")
-  with Found tac -> tac
-
-let destauto =
-  Proofview.Goal.enter begin fun gl -> destauto0 (Proofview.Goal.concl gl) end
-
-let destauto_in id =
-  Proofview.Goal.enter begin fun gl ->
-  let ctype = Tacmach.pf_get_type_of gl (mkVar id) in
-(*  Pp.msgnl (Printer.pr_lconstr (mkVar id)); *)
-(*  Pp.msgnl (Printer.pr_lconstr (ctype)); *)
-  destauto0 ctype
   end
 
 (** Term introspection *)

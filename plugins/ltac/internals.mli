@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Names
 open Proofview
 open Ltac_pretype
 
@@ -41,9 +40,6 @@ val injHyp : Names.Id.t -> unit tactic
 
 val refine_tac : Tacinterp.interp_sign -> simple:bool -> with_classes:bool ->
   closed_glob_constr -> unit tactic
-
-val destauto : unit tactic
-val destauto_in : Id.t -> unit tactic
 
 val has_evar : EConstr.t -> unit tactic
 val is_evar : EConstr.t -> unit tactic
