@@ -391,8 +391,8 @@ type side_effect_role =
 
 type side_effects = {
   seff_private : Safe_typing.private_constants;
-  seff_roles : side_effect_role Cmap.t;
-  seff_univs : UState.named_universes_entry Cmap.t;
+  seff_roles : side_effect_role Cmap_env.t;
+  seff_univs : UState.named_universes_entry Cmap_env.t;
   (* only used by Declare to register names for mono universes *)
 }
 

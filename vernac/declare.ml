@@ -480,8 +480,8 @@ let register_side_effect (c, body, role, univs) =
 
 let get_roles export eff =
   let map (c, body) =
-    let role = try Some (Cmap.find c eff.Evd.seff_roles) with Not_found -> None in
-    let univs = try Some (Cmap.find c eff.Evd.seff_univs) with Not_found -> None in
+    let role = try Some (Cmap_env.find c eff.Evd.seff_roles) with Not_found -> None in
+    let univs = try Some (Cmap_env.find c eff.Evd.seff_univs) with Not_found -> None in
     (c, body, role, univs)
   in
   List.map map export
@@ -696,11 +696,11 @@ let declare_private_constant ?role ~name ~opaque de effs senv =
   let (kn, eff), senv = Safe_typing.add_private_constant (Label.of_id name) ctx de senv in
   let seff_univs =
     if Univ.Level.Set.is_empty (fst ctx) then effs.Evd.seff_univs
-    else Cmap.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.Evd.seff_univs
+    else Cmap_env.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.Evd.seff_univs
   in
   let seff_roles = match role with
   | None -> effs.Evd.seff_roles
-  | Some r -> Cmap.add kn r effs.Evd.seff_roles
+  | Some r -> Cmap_env.add kn r effs.Evd.seff_roles
   in
   let seff_private = Safe_typing.concat_private eff effs.Evd.seff_private in
   let effs = Evd.({ seff_private; seff_roles; seff_univs }) in

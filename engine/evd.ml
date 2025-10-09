@@ -445,8 +445,8 @@ type side_effect_role =
 
 type side_effects = {
   seff_private : Safe_typing.private_constants;
-  seff_roles : side_effect_role Cmap.t;
-  seff_univs : UState.named_universes_entry Cmap.t;
+  seff_roles : side_effect_role Cmap_env.t;
+  seff_univs : UState.named_universes_entry Cmap_env.t;
 }
 
 module FutureGoals : sig
@@ -926,8 +926,8 @@ let empty_evar_flags =
 
 let empty_side_effects = {
   seff_private = Safe_typing.empty_private_constants;
-  seff_roles = Cmap.empty;
-  seff_univs = Cmap.empty;
+  seff_roles = Cmap_env.empty;
+  seff_univs = Cmap_env.empty;
 }
 
 let empty = {
@@ -1270,8 +1270,8 @@ exception UniversesDiffer = UState.UniversesDiffer
 let emit_side_effects eff evd =
   let effects = {
   seff_private = Safe_typing.concat_private eff.seff_private evd.effects.seff_private;
-  seff_roles = Cmap.fold Cmap.add eff.seff_roles evd.effects.seff_roles;
-  seff_univs = Cmap.fold Cmap.add eff.seff_univs evd.effects.seff_univs;
+  seff_roles = Cmap_env.fold Cmap_env.add eff.seff_roles evd.effects.seff_roles;
+  seff_univs = Cmap_env.fold Cmap_env.add eff.seff_univs evd.effects.seff_univs;
   } in
   { evd with effects; universes = UState.emit_side_effects eff.seff_private evd.universes }
 
