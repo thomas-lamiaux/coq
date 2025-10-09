@@ -737,14 +737,14 @@ let make_constructor_subst sigma sign args =
     let a', args = decompose_app sigma a in
     begin match EConstr.kind sigma a' with
     | Construct (cstr, _) ->
-      let l = try Constrmap.find cstr accu with Not_found -> [] in
-      Constrmap.add cstr ((args, id) :: l) accu
+      let l = try Constrmap_env.find cstr accu with Not_found -> [] in
+      Constrmap_env.add cstr ((args, id) :: l) accu
     | _ -> accu
     end
   | LocalAssum _ :: decls, Some (None, args) -> fold decls args accu
   | LocalDef _ :: decls, Some (_, args) -> fold decls args accu
   in
-  fold sign args Constrmap.empty
+  fold sign args Constrmap_env.empty
 
 let make_projectable_subst aliases sigma sign args =
   let evar_aliases = compute_var_aliases sign sigma in
@@ -927,7 +927,7 @@ let check_evar_instance unify flags env evd evk body =
 
 let find_projectable_constructor env evd cstr k args cstr_subst =
   try
-    let l = Constrmap.find cstr cstr_subst in
+    let l = Constrmap_env.find cstr cstr_subst in
     let args = Array.map (lift (-k)) args in
     let l =
       List.filter (fun (args',id) ->
