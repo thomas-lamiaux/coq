@@ -1194,7 +1194,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
         (* Fast path for projections. *)
         | Proj (p1,_,c1), Proj (p2,_,c2) when Environ.QConstant.equal env
             (Projection.constant p1) (Projection.constant p2) ->
-          (try unify_same_proj curenvnb pb {opt with at_top = true}
+          (try unify_same_proj curenvnb CONV {opt with at_top = true}
                substn c1 c2
            with ex when precatchable_exception ex ->
              unify_not_same_head curenvnb pb opt substn ~nargs cM cN)
