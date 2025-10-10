@@ -1082,7 +1082,7 @@ let fast_occur_meta_or_undefined_evar sigma (c, gnd) = match gnd with
 | Ground -> false
 | NotGround -> true
 
-let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags m n =
+let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n =
   let mk_expand_subst substn =
     let metasubst = if flags.use_metas_eagerly_in_conv_on_closed_terms then substn.subst_metas else subst.subst_metas in
     let evarsubst = if flags.use_evars_eagerly_in_conv_on_closed_terms then substn.subst_evars else subst.subst_evars in
@@ -1152,7 +1152,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
         | Evar (evk,_ as ev), Evar (evk',_)
             when is_evar_allowed flags evk
               && Evar.equal evk evk' ->
-            begin match constr_cmp cv_pb env sigma flags cM cN with
+            begin match constr_cmp pb env sigma flags cM cN with
             | Some sigma ->
               push_sigma sigma substn
             | None ->
@@ -1194,7 +1194,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
         (* Fast path for projections. *)
         | Proj (p1,_,c1), Proj (p2,_,c2) when Environ.QConstant.equal env
             (Projection.constant p1) (Projection.constant p2) ->
-          (try unify_same_proj curenvnb cv_pb {opt with at_top = true}
+          (try unify_same_proj curenvnb CONV {opt with at_top = true}
                substn c1 c2
            with ex when precatchable_exception ex ->
              unify_not_same_head curenvnb pb opt substn ~nargs cM cN)
@@ -1367,7 +1367,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
         if Array.length l1 == 0 then error_cannot_unify (fst curenvnb) sigma (cM,cN)
         else
           Array.fold_left2 (unirec_rec curenvnb CONV opta ~nargs:0)
-            (unirec_rec curenvnb CONV optf substn f1 f2 ~nargs:(Array.length l1)) l1 l2
+            (unirec_rec curenvnb pb optf substn f1 f2 ~nargs:(Array.length l1)) l1 l2
     with ex when precatchable_exception ex ->
     try reduce curenvnb pb {opt with with_types = false} substn cM cN
     with ex when precatchable_exception ex ->
@@ -1393,7 +1393,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
     let sigma = substn.subst_sigma in
     try canonical_projections curenvnb pb opt cM cN substn
     with ex when precatchable_exception ex ->
-    match constr_cmp cv_pb env sigma flags ~nargs cM cN with
+    match constr_cmp pb env sigma flags ~nargs cM cN with
     | Some sigma -> push_sigma sigma substn
     | None ->
         try reduce curenvnb pb opt substn cM cN
@@ -1594,8 +1594,8 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
       let (m, _) = m in
       let (n, _) = n in
       let ans = match flags.modulo_conv_on_closed_terms with
-        | Some convflags -> careful_infer_conv ~pb:cv_pb ~ts:convflags env sigma m n
-        | _ -> constr_cmp cv_pb env sigma flags m n in
+        | Some convflags -> careful_infer_conv ~pb ~ts:convflags env sigma m n
+        | _ -> constr_cmp pb env sigma flags m n in
       match ans with
       | Some sigma -> ans
       | None ->
@@ -1608,7 +1608,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env cv_pb flags 
   in
     let a = match res with
     | Some sigma -> push_sigma sigma subst
-    | None -> unirec_rec (env,0) cv_pb opt subst (fst m) (fst n) in
+    | None -> unirec_rec (env,0) pb opt subst (fst m) (fst n) in
     debug_tactic_unification (fun () -> str "Leaving unification with success");
     a
   with e ->
