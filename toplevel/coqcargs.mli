@@ -24,9 +24,7 @@ type compilation_mode = BuildVo | BuildVos | BuildVok
 
 type glob_output =
 | NoGlob
-| Feedback
-| MultFiles                   (* one glob file per .v file *)
-| File of string              (* Single file for all coqc arguments *)
+| GlobFile of string (* Single file for all coqc arguments *)
 
 type t =
   { compilation_mode : compilation_mode
@@ -36,7 +34,7 @@ type t =
 
   ; echo : bool
 
-  ; glob_out    : glob_output
+  ; glob_out    : glob_output option
 
   ; output_context : bool
   }

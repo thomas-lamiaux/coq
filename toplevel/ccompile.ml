@@ -59,10 +59,9 @@ let compile opts stm_options injections copts ~echo ~f_in ~f_out =
         ~v_file:long_f_dot_in);
 
       let dump = match copts.glob_out with
-      | NoGlob -> Dumpglob.NoGlob
-      | Feedback -> Dumpglob.Feedback
-      | MultFiles -> Dumpglob.MultFiles { vofile = long_f_dot_out; vfile = long_f_dot_in }
-      | File f -> Dumpglob.File f
+      | None -> Dumpglob.MultFiles { vofile = long_f_dot_out; vfile = long_f_dot_in }
+      | Some NoGlob -> Dumpglob.NoGlob
+      | Some (GlobFile f) -> Dumpglob.File f
       in
       Dumpglob.push_output dump;
       Dumpglob.dump_string ("F" ^ Names.DirPath.to_string ldir ^ "\n");
