@@ -1543,7 +1543,7 @@ let descend_in_conjunctions avoid tac (err, info) c =
         let (_,inst), params = dest_ind_family indf in
         let cstr = (get_constructors env indf).(0) in
         let elim =
-          try DefinedRecord (Structures.Structure.find_projections ind)
+          try DefinedRecord (Structures.Structure.find_projections env ind)
           with Not_found -> NotADefinedRecordUseScheme
         in
         let or_tac t1 t2 e = Proofview.tclORELSE (t1 e) t2 in

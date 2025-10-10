@@ -281,7 +281,7 @@ let decompose_proj ?metas env sigma (t1, sk1) =
     | _ -> raise Not_found
     | exception _ -> raise Not_found in
   (* Given a ConstRef projection, I obtain the structure it is a projection from. *)
-  let structure = try Structures.Structure.find_from_projection proji
+  let structure = try Structures.Structure.find_from_projection env proji
     with _ -> raise Not_found in
   (* Knowing the structure and hence its number of arguments, I can cut sk1 into pieces. *)
   let params1, c1, extra_args1 =

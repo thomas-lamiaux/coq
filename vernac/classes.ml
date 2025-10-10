@@ -523,13 +523,13 @@ let do_instance_program ~pm env env' sigma ?hook ~locality ~poly cty k ctx ctx' 
   else
     declare_instance_program pm env sigma ~locality ~poly id pri imps decl term termtype
 
-let typeclass_univ_instance (cl, u) =
+let typeclass_univ_instance env (cl, u) =
   assert (UVars.eq_sizes (UVars.AbstractContext.size cl.cl_univs) (EInstance.length u));
   let subst_ctx c = Context.Rel.map (Vars.subst_instance_constr u) (EConstr.of_rel_context c) in
   let clu_isstruct = match cl.cl_impl with
     | ConstRef _ -> None
     | ConstructRef _ | VarRef _ -> assert false
-    | IndRef ind -> match Structures.Structure.find ind with
+    | IndRef ind -> match Structures.Structure.find env ind with
       | exception Not_found -> None
       | s -> Some s
   in
@@ -551,7 +551,7 @@ let interp_instance_context ~program_mode env ctx pl tclass =
   let ctx', c = decompose_prod_decls sigma c' in
   let ctx'' = ctx' @ ctx in
   let (k, u), args = Typeclasses.dest_class_app (push_rel_context ctx'' env) sigma c in
-  let cl = typeclass_univ_instance (k, u) in
+  let cl = typeclass_univ_instance env (k, u) in
   let args = List.map of_constr args in
   let _, args =
     List.fold_right (fun decl (args, args') ->

@@ -974,7 +974,7 @@ let declare_class ?mode declared =
         meth_const = kn;
       }
       in
-      let projs = List.map2 make_proj (List.rev fields) (Structure.find_projections (mind,0)) in
+      let projs = List.map2 make_proj (List.rev fields) (Structure.find_projections env (mind,0)) in
       GlobRef.IndRef (mind, 0), univs, mib.mind_params_ctxt, fields, projs
   in
   let k = {
@@ -1019,7 +1019,7 @@ let add_inductive_class ind =
   let ctx = oneind.mind_arity_ctxt in
   let univs = Declareops.inductive_polymorphic_context mind in
   let props, projs =
-    match Structure.find ind with
+    match Structure.find env ind with
     | exception Not_found ->
       let r = oneind.mind_relevance in
       let args = Context.Rel.instance mkRel 0 ctx in

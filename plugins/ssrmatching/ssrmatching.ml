@@ -245,7 +245,7 @@ let rec same_hd env ise metas p c =
   | Const(c1,_), _ when Structures.Structure.is_projection c1 -> CanonicalInfRequired
   | _, Const(c2,i) when Structures.Structure.is_projection c2 ->
       let b = Environ.constant_value_in env (c2,EConstr.EInstance.kind ise i) in
-      CanonicalRedRequired (ise, EConstr.of_constr b, Structures.Structure.projection_nparams c2)
+      CanonicalRedRequired (ise, EConstr.of_constr b, Structures.Structure.projection_nparams env c2)
   | Rel c1,Rel c2 when c1 == c2 -> CompareArgs (ise,metas,[])
   | Var c1,Var c2 when Id.equal c1 c2 ->
     CompareArgs (ise,metas,implicits_for_rewrite_of (GlobRef.VarRef c1))
@@ -438,8 +438,8 @@ let empty_tpatterns sigma = { tpat_sigma = sigma; tpat_pats = [] }
 
 let all_ok _ _ = true
 
-let proj_nparams c =
-  try 1 + Structures.Structure.projection_nparams c
+let proj_nparams env c =
+  try 1 + Structures.Structure.projection_nparams env c
   with Not_found -> 0
 
 let isRigid sigma c = match EConstr.kind sigma c with
@@ -501,7 +501,7 @@ let mk_tpattern ?p_origin ?(hack=false) ?(ok = all_ok) ~rigid env t dir p { tpat
     let f, a = Reductionops.whd_betaiota_stack env ise p in
     match EConstr.kind ise f with
     | Const (p,_) ->
-      let np = proj_nparams p in
+      let np = proj_nparams env p in
       if np = 0 || np > List.length a then KpatConst, f, a else
       let a1, a2 = List.chop np a in KpatProj p, (applistc f a1), a2
     | Proj (p,_,arg) -> KpatProj (Projection.constant p), f, a

@@ -1287,7 +1287,7 @@ let intern_field_ref qid =
   match
     Smartlocate.global_of_extended_global (intern_extended_global_of_qualid qid) |>
     Option.map (function
-     | GlobRef.ConstRef c as x -> x, Structure.find_from_projection c
+     | GlobRef.ConstRef c as x -> x, Structure.find_from_projection (Global.env ()) c
      | _ -> raise Not_found)
   with
   | exception Not_found ->
@@ -1348,10 +1348,10 @@ let find_projection_data c =
   match DAst.get c with
   | GApp (r, l) ->
     begin match DAst.get r with
-    | GRef (GlobRef.ConstRef cst,us) -> Some (cst, us, l, Structure.projection_nparams cst)
+    | GRef (GlobRef.ConstRef cst,us) -> Some (cst, us, l, Structure.projection_nparams (Global.env ()) cst)
     | _ -> None
     end
-  | GRef (GlobRef.ConstRef cst,us) -> Some (cst, us, [], Structure.projection_nparams cst)
+  | GRef (GlobRef.ConstRef cst,us) -> Some (cst, us, [], Structure.projection_nparams (Global.env ()) cst)
   | _ -> None
 
 let glob_sort_of_level (level: glob_level) : glob_sort =
