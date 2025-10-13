@@ -710,8 +710,12 @@ module GlobRef : sig
     with type key = t and module Set := Set_env
 
   module Set : CSig.USetS with type elt = t
+  [@@ocaml.deprecated "(9.2) This will switch to user ordering at some point in \
+  the future. In the meantime either use the _env variant or the Q-variant from \
+  Environ, depending on the desired semantics."]
+
   module Map : Map.UExtS
-    with type key = t and module Set := Set
+    with type key = t and module Set := Set [@@ocaml.warning "-3"]
 
   val print : t -> Pp.t
   (** Print internal representation (not to be used for user-facing messages). *)
