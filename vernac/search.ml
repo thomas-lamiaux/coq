@@ -126,8 +126,6 @@ module ConstrPriority = struct
   type t = GlobRef.t * Decls.logical_kind option * Environ.env * Evd.evar_map * Constr.t * priority
   and priority = int
 
-  module ConstrSet = CSet.Make(Constr)
-
   (** A measure of the size of a term *)
   let rec size t =
     Constr.fold (fun s t -> 1 + s + size t) 0 t
@@ -137,13 +135,13 @@ module ConstrPriority = struct
   let rec symbols acc t =
     let open Constr in
     match kind t with
-    | Const _ | Ind _ | Construct _ -> ConstrSet.add t acc
+    | Const _ | Ind _ | Construct _ -> GlobRef.Set_env.add (fst @@ destRef t) acc
     | _ -> Constr.fold symbols acc t
 
   (** The number of distinct "symbols" (see {!symbols}) which appear
       in a term. *)
   let num_symbols t =
-    ConstrSet.(cardinal (symbols empty t))
+    GlobRef.Set_env.(cardinal (symbols empty t))
 
   let priority gref t : priority =
     -(3*(num_symbols t) + size t)
