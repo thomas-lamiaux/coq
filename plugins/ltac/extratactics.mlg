@@ -238,6 +238,11 @@ VERNAC COMMAND EXTEND HintRewrite CLASSIFIED BY { classify_hint }
   { add_rewrite_hint ~locality ~poly:polymorphic ["core"] o (Some t) l }
 END
 
+VERNAC COMMAND EXTEND HintCreateRewriteDb CLASSIFIED BY { classify_hint }
+| #[ locality = Synterp.module_locality ] [ "Create" "Rewrite" "HintDb" ident(id) ] ->
+  { create_rewrite_hint_db ~local:locality ~name:(Id.to_string id) }
+END
+
 (**********************************************************************)
 (* Refine                                                             *)
 
