@@ -240,10 +240,6 @@ let current_modpath () =
 let current_dirpath () =
   Safe_typing.current_dirpath (safe_env ())
 
-let with_global f =
-  let (a, ctx) = f (env ()) (current_dirpath ()) in
-  push_context_set ctx; a
-
 let register_inline c = globalize0 (Safe_typing.register_inline c)
 let register_inductive c r = globalize0 (Safe_typing.register_inductive c r)
 
