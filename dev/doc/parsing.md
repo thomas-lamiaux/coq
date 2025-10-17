@@ -167,7 +167,7 @@ This is done by appending one of the following annotations to the `VERNAC COMMAN
 - `CLASSIFIED AS QUERY` for `VtQuery`
 - `CLASSIFIED AS SIDEFF` for `VtSideff ([], VtLater)` (most commands are in this case)
 - `CLASSIFIED BY { code }` where code is the classification, when it is static
-- adding `{ code } =>` after the parsing rule (before its
+- adding `=> { code }` after the parsing rule (before its
   interpretation), where `code` is the classification and has access
   to argument values.
 
