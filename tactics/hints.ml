@@ -315,7 +315,7 @@ sig
   val empty : t
   val mem : KerName.t -> t -> bool
   val add : stored_data -> t -> t
-  val remove : GlobRef.Set.t -> t -> t
+  val remove : Environ.env -> GlobRef.Set_env.t -> t -> t
   val elements : t -> StoredSet.t
 end =
 struct
@@ -334,10 +334,10 @@ let add t sd = {
   set = KerName.Set.add (snd t).code.uid sd.set;
 }
 
-let remove grs sd =
+let remove env grs sd =
   let fold ((_, h) as v) (accu, ans) =
     let keep = match h.name with
-    | Some gr -> not (GlobRef.Set.mem gr grs)
+    | Some gr -> not (GlobRef.Set_env.mem (Environ.QGlobRef.canonize env gr) grs)
     | None -> true
     in
     if keep then (accu, StoredSet.add v ans) else (KerName.Set.remove h.code.uid accu, ans)
@@ -768,10 +768,11 @@ struct
 
   let add_list env sigma l db = List.fold_left (fun db k -> add_one env sigma k db) db l
 
-  let remove st grs se =
-    let grs = List.fold_left (fun accu gr -> GlobRef.Set.add gr accu) GlobRef.Set.empty grs in
-    let nopat = StoredData.remove grs se.sentry_nopat in
-    let pat = StoredData.remove grs se.sentry_pat in
+  let remove env st grs se =
+    let fold accu gr = GlobRef.Set_env.add (Environ.QGlobRef.canonize env gr) accu in
+    let grs = List.fold_left fold GlobRef.Set_env.empty grs in
+    let nopat = StoredData.remove env grs se.sentry_nopat in
+    let pat = StoredData.remove env grs se.sentry_pat in
     if pat == se.sentry_pat && nopat == se.sentry_nopat then se
     else
       let se = { se with sentry_nopat = nopat; sentry_pat = pat } in
@@ -781,7 +782,7 @@ struct
     let eq gr1 gr2 = QGlobRef.equal env gr1 gr2 in
     let filter (_, h) =
       match h.name with Some gr -> not (List.mem_f eq gr grs) | None -> true in
-    let hintmap = GlobRef.Map.map (fun e -> remove (dn_ts db) grs e) db.hintdb_map in
+    let hintmap = GlobRef.Map.map (fun e -> remove env (dn_ts db) grs e) db.hintdb_map in
     let hintnopat = List.filter filter db.hintdb_nopat in
       { db with hintdb_map = hintmap; hintdb_nopat = hintnopat }
 
