@@ -464,6 +464,37 @@ let auto_multi_rewrite_with ?(conds=Naive) tac_main lbas cl =
       Tacticals.tclZEROMSG ~info
         (strbrk "autorewrite .. in .. using can only be used either with a unique hypothesis or on the conclusion.")
 
+type db_obj = {
+  db_local : bool;
+  db_name : string;
+}
+
+let warn_create_hintdb =
+  CWarnings.create ~name:"already-declared-rewrite-hint-db" ~category:CWarnings.CoreCategories.automation
+    Pp.(fun db -> str "Rewrite hint database " ++ str db.db_name ++ str " already exists.")
+
+let cache_db db = match String.Map.find_opt db.db_name !rewtab with
+| None ->
+  rewtab := String.Map.add db.db_name empty_rewrite_db !rewtab
+| Some _ -> warn_create_hintdb db
+
+let load_db _ x = cache_db x
+
+let classify_db db =
+  if db.db_local then Libobject.Dispose else Libobject.Substitute
+
+let inDB : db_obj -> Libobject.obj =
+  let open Libobject in
+  declare_object {(default_object "AUTOREWRITE_DB") with
+    cache_function = cache_db;
+    load_function = load_db;
+    subst_function = (fun (_, x) -> x);
+    classify_function = classify_db; }
+
+let create_rewrite_hint_db ~local ~name =
+  let hint = { db_local = local; db_name = name } in
+  Lib.add_leaf (inDB hint)
+
 (* Functions necessary to the library object declaration *)
 let cache_hintrewrite (rbase,lrl) =
   let base = try raw_find_base rbase with Not_found -> empty_rewrite_db in

@@ -623,6 +623,7 @@ command: [
 | "Hint" "Rewrite" orient LIST1 constr "using" generic_tactic ":" LIST1 preident
 | "Hint" "Rewrite" orient LIST1 constr
 | "Hint" "Rewrite" orient LIST1 constr "using" generic_tactic
+| "Create" "Rewrite" "HintDb" ident
 | "Derive" "Inversion_clear" identref "with" constr "Sort" sort_quality_or_set
 | "Derive" "Inversion_clear" identref "with" constr
 | "Derive" "Inversion" identref "with" constr "Sort" sort_quality_or_set

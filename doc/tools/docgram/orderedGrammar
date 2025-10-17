@@ -901,6 +901,7 @@ command: [
 | "Functional" "Case" func_scheme_def      (* funind plugin *)
 | "Generate" "graph" "for" qualid      (* funind plugin *)
 | "Hint" "Rewrite" OPT [ "->" | "<-" ] LIST1 one_term OPT ( "using" generic_tactic ) OPT ( ":" LIST1 ident )
+| "Create" "Rewrite" "HintDb" ident
 | "Derive" "Inversion_clear" ident "with" one_term OPT ( "Sort" sort_quality_or_set )
 | "Derive" "Inversion" ident "with" one_term OPT ( "Sort" sort_quality_or_set )
 | "Derive" "Dependent" "Inversion" ident "with" one_term "Sort" sort_quality_or_set
