@@ -240,9 +240,6 @@ val cpattern_of_id : Names.Id.t -> cpattern
 val pr_constr_pat : env -> evar_map -> constr -> Pp.t
 val pr_econstr_pat : env -> evar_map -> econstr -> Pp.t
 
-(* One can also "Set SsrMatchingDebug" from a .v *)
-val debug : bool -> unit
-
 val ssrinstancesof : cpattern -> unit Proofview.tactic
 
 (** Functions used for grammar extensions. Do not use. *)
