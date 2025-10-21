@@ -38,23 +38,9 @@ let errorstrm = CErrors.user_err
 let loc_error loc msg = CErrors.user_err ?loc (str msg)
 let ppnl = Feedback.msg_info
 
-(* 0 cost pp function. Active only if env variable SSRDEBUG is set *)
-(* or if SsrDebug is Set                                                  *)
-let pp_ref = ref (fun _ -> ())
-let ssr_pp s = Feedback.msg_debug (str"SSR: "++Lazy.force s)
-let _ =
-  try ignore(Sys.getenv "SSRMATCHINGDEBUG"); pp_ref := ssr_pp
-  with Not_found -> ()
-let debug b =
-  if b then pp_ref := ssr_pp else pp_ref := fun _ -> ()
-let _ =
-  Goptions.declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optkey   = ["Debug";"SsrMatching"];
-      optdepr  = None;
-      optread  = (fun _ -> !pp_ref == ssr_pp);
-      optwrite = debug }
-let pp s = !pp_ref s
+let pp = CDebug.create ~name:"ssrmatching" ()
+let pp s = pp (fun () -> Lazy.force s)
+
 let { Goptions.get = option_LegacyFoUnif } =
   Goptions.declare_bool_option_and_ref ~key:["SsrMatching";"LegacyFoUnif"]
     ~depr:{Deprecation.since=Some "9.2";
