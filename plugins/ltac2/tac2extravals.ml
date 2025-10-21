@@ -582,9 +582,11 @@ let warn_unqualified_delimiters =
 (e.g. \"%s(delimiters(%t))\")@ unless there is a unique delimiter argument." s s delims)
 
 let delimiters_qid = Libnames.qualid_of_string "delimiters"
+let level_qid = Libnames.qualid_of_string "level"
+let custom_qid = Libnames.qualid_of_string "custom"
 
-let constr_delimiters s args =
-  let fail () = syntax_class_fail s args in
+let constr_args s arg =
+  let fail () = syntax_class_fail s arg in
   let extract_id = function
     | SexprRec (_, { v = Some qid }, []) when Libnames.qualid_is_ident qid ->
       Some (Libnames.qualid_basename qid)
@@ -594,32 +596,70 @@ let constr_delimiters s args =
     | Some id -> id
     | None -> fail ()
   in
-  let raw_delims, all_delims =
-    List.fold_left (fun (raw_delims,all_delims) arg ->
-        match extract_id arg with
-        | Some id -> id :: raw_delims, [id] :: all_delims
-        | None ->
-          match arg with
-          | SexprRec (_, { v = Some qid }, subargs) when Libnames.qualid_eq qid delimiters_qid ->
-            raw_delims, (List.map force_id subargs) :: all_delims
-          | _ -> fail ())
-      ([],[])
-      args
+  let lev, custom, raw_delims, all_delims =
+    List.fold_left (fun (lev,custom,raw_delims,all_delims) -> function
+      | SexprRec (_, { v = Some qid }, [])
+        when Libnames.qualid_is_ident qid ->
+        let id = Libnames.qualid_basename qid in
+        lev, custom, id :: raw_delims, [id] :: all_delims
+      | SexprRec (_, { v = Some qid }, subargs) when Libnames.qualid_eq qid delimiters_qid ->
+        lev, custom, raw_delims, (List.map force_id subargs) :: all_delims
+      | SexprRec (_, { v = Some qid }, [SexprInt lev'])
+        when Libnames.qualid_eq qid level_qid ->
+        if Option.has_some lev then fail()
+        else Some lev', custom, raw_delims, all_delims
+      | SexprRec (_, { v = Some qid }, [SexprRec (_, { v = Some custom' }, [])])
+        when Libnames.qualid_eq qid custom_qid ->
+        if Option.has_some custom then fail()
+        else lev, Some custom', raw_delims, all_delims
+      | _ -> fail())
+    (None,None,[],[])
+    arg
   in
   let all_delims = List.concat (List.rev all_delims) in
-  let () = match raw_delims, args with
+  let () = match raw_delims, arg with
     | [], _ -> ()
     | [delim], [arg] when Option.equal Id.equal (Some delim) (extract_id arg) -> ()
     | _ -> warn_unqualified_delimiters (s,raw_delims)
   in
-  List.rev all_delims
+  lev, custom, List.rev all_delims
+
+let constr_delimiters s arg =
+  let lev, custom, scopes = constr_args s arg in
+  let () = if Option.has_some lev then
+      CErrors.user_err Pp.(str "Specifying level not allowed for syntax class " ++ str s ++ str ".")
+  in
+  let () = if Option.has_some custom then
+      CErrors.user_err Pp.(str "Custom entry not allowed for syntax class " ++ str s ++ str ".")
+  in
+  scopes
+
+let constr_args s arg =
+  let lev, custom, scopes = constr_args s arg in
+  let custom = custom
+    |> Option.map (fun custom ->
+        try Nametab.CustomEntries.locate custom
+        with Not_found -> CErrors.user_err ?loc:custom.loc Pp.(str "Unknown custom entry " ++ Libnames.pr_qualid custom ++ str "."))
+  in
+  let () = lev |> Option.iter (fun lev -> if lev.v < 0 then CErrors.user_err ?loc:lev.loc Pp.(str "Level must be nonnegative.")) in
+  let lev = lev |> Option.map (fun lev -> string_of_int lev.v) in
+  (lev, custom), scopes
+
+let constr_symb (lev,custom) =
+  let custom = Option.map (fun custom -> fst @@ Egramrocq.find_custom_entry custom) custom in
+  match lev, custom with
+  | None, None -> Procq.Symbol.nterm Procq.Constr.constr
+  | Some lev, None -> Procq.Symbol.nterml Procq.Constr.term lev
+  | None, Some custom -> Procq.Symbol.nterm custom
+  | Some lev, Some custom ->
+    Procq.Symbol.nterml custom lev
 
 let add_constr_classes (name,lname) quote =
   let () =
     let s = name in
-    add_syntax_class s (constr_delimiters s) begin function delimiters ->
+    add_syntax_class s (constr_args s) begin function (symb,delimiters) ->
       let act e = quote ?delimiters:(Some delimiters) e in
-      Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
+      Tac2entries.SyntaxRule (constr_symb symb, act)
     end
   in
   let () =
