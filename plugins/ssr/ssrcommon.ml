@@ -481,32 +481,33 @@ let abs_evars_pirrel env sigma0 (sigma, c0) =
   | Evar (k, a) ->
     if List.mem_assoc k evlist || Evd.mem sigma0 k then evlist else
     let n = max 0 (SList.length a - nenv) in
+    let evi = Evd.find_undefined sigma k in
     (* FIXME? this is not the right environment in general *)
-    let k_ty = Retyping.get_sort_quality_of env sigma (Evd.evar_concl (Evd.find_undefined sigma k)) in
+    let k_ty = Retyping.get_sort_quality_of env sigma (Evd.evar_concl evi) in
     let is_prop = UnivGen.QualityOrSet.is_prop k_ty in
     let t = abs_evar n k in
-    (k, (n, t, is_prop)) :: put evlist t
+    (k, (n, t, is_prop, Evd.evar_relevance evi)) :: put evlist t
   | _ -> EConstr.fold sigma put evlist c in
   let evlist = put [] c0 in
   if evlist = [] then 0, c0 else
   let evplist =
-    let depev = List.fold_left (fun evs (_,(_,t,_)) ->
+    let depev = List.fold_left (fun evs (_,(_,t,_,_)) ->
         Intset.union evs (Evarutil.undefined_evars_of_term sigma t)) Intset.empty evlist in
-    List.filter (fun (i,(_,_,b)) -> b && Intset.mem i depev) evlist in
+    List.filter (fun (i,(_,_,b,_)) -> b && Intset.mem i depev) evlist in
   let evlist, evplist, sigma =
     if evplist = [] then evlist, [], sigma else
-    List.fold_left (fun (ev, evp, sigma) (i, (_,t,_) as p) ->
+    List.fold_left (fun (ev, evp, sigma) (i, (_,t,_,_) as p) ->
       try
         let sigma = call_on_evar env sigma !ssrautoprop_tac i in
         List.filter (fun (j,_) -> j <> i) ev, evp, sigma
       with e when CErrors.noncritical e -> ev, p::evp, sigma) (evlist, [], sigma) (List.rev evplist) in
   let c0 = Evarutil.nf_evar sigma c0 in
-  let nf (k, (n, t, p)) = (k, (n, Evarutil.nf_evar sigma t, p)) in
+  let nf (k, (n, t, p, r)) = (k, (n, Evarutil.nf_evar sigma t, p, r)) in
   let evlist = List.map nf evlist in
   let evplist = List.map nf evplist in
   let rec lookup k i = function
     | [] -> 0, 0
-    | (k', (n,_,_)) :: evl -> if k = k' then i,n else lookup k (i + 1) evl in
+    | (k', (n,_,_,_)) :: evl -> if k = k' then i,n else lookup k (i + 1) evl in
   let open EConstr in
   let rec get evlist i c = match EConstr.kind sigma c with
   | Evar (ev, a) ->
@@ -522,13 +523,13 @@ let abs_evars_pirrel env sigma0 (sigma, c0) =
   | _ -> EConstr.map_with_binders sigma ((+) 1) (app extra_args) i c in
   let rec loopP evlist accu i = function
   | [] -> List.rev accu
-  | (_, (n, t, _)) :: evl ->
+  | (_, (n, t, _, r)) :: evl ->
     let t = get evlist (i - 1) t in
     let n = Name (Id.of_string (ssr_anon_hyp ^ string_of_int n)) in
-    loopP evlist (RelDecl.LocalAssum (make_annot n ERelevance.relevant, t) :: accu) (i - 1) evl
+    loopP evlist (RelDecl.LocalAssum (make_annot n r, t) :: accu) (i - 1) evl
   in
   let rec loop c i = function
-  | (_, (n, t, _)) :: evl ->
+  | (_, (n, t, _, r)) :: evl ->
     let evs = Evarutil.undefined_evars_of_term sigma t in
     let t_evplist = List.filter (fun (k,_) -> Intset.mem k evs) evplist in
     let ctx_t = loopP t_evplist [] 1 t_evplist in
@@ -536,7 +537,7 @@ let abs_evars_pirrel env sigma0 (sigma, c0) =
     let t = get evlist (i - 1) t in
     let extra_args = List.rev_map (fun (k,_) -> mkRel (fst (lookup k i evlist))) t_evplist in
     let c = if extra_args = [] then c else app extra_args 1 c in
-    loop (mkLambda (make_annot (mk_evar_name n) ERelevance.relevant, t, c)) (i - 1) evl
+    loop (mkLambda (make_annot (mk_evar_name n) r, t, c)) (i - 1) evl
   | [] -> c in
   let res = loop (get evlist 1 c0) 1 evlist in
   List.length evlist, res
