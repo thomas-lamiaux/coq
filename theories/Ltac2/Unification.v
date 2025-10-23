@@ -60,3 +60,7 @@ Ltac2 unify_with_full_ts : constr -> constr -> unit := fun c1 c2 =>
 (** [unify_with_current_ts] is like [unify (TransparentState.current ())]. *)
 Ltac2 unify_with_current_ts : constr -> constr -> unit := fun c1 c2 =>
   unify (TransparentState.current ()) c1 c2.
+
+(** [solve_constraints ()] solves any delayed unification constraints. *)
+Ltac2 @external solve_constraints : unit -> unit
+  := "rocq-runtime.plugins.ltac2" "solve_constraints".
