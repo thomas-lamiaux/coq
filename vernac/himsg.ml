@@ -194,9 +194,14 @@ let pr_db env i =
   with Not_found -> str "UNBOUND_REL_" ++ int i
 
 let explain_unbound_rel env sigma n =
-  let pe = pr_ne_context_of (str "In environment") env sigma in
-  str "Unbound reference: " ++ pe ++
-  str "The reference " ++ int n ++ str " is free."
+  if n > 0 then
+    let pe = pr_ne_context_of (str "In environment") env sigma in
+    str "Unbound reference: " ++ pe ++
+    str "The reference " ++ int n ++ str " is free."
+  else
+    str "Invalid Rel " ++ int n ++
+    (if n = 0 then str ": local references are 1-indexed" else mt())
+    ++ str " (bugged tactic?)."
 
 let explain_unbound_var env v =
   let var = Id.print v in
