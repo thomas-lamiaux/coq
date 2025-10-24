@@ -404,7 +404,11 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty new_
   (* The resulting goal *)
   let evty = beta (EConstr.Vars.subst1 new_rdx pred) in
   let typeclass_candidate = Typeclasses.is_maybe_class_type env sigma evty in
-  let sigma, p = Evarutil.new_evar ~typeclass_candidate env sigma evty in
+  let sigma, p =
+    Evarutil.new_evar ~typeclass_candidate
+      ~relevance:(Retyping.relevance_of_type env sigma evty)
+      env sigma evty
+  in
   (* We check the proof is well typed. We assume that the type of [elim] is of
      the form [forall (A : Type) (x : A) (P : A -> Type@{s}), T] s.t. the only
      universes to unify are by checking the [A] and [P] arguments. *)
