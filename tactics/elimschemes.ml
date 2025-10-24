@@ -50,6 +50,7 @@ let change_sort_arity sort =
    whose conclusion is quantified on [Type i] at position [n] of [t] a
    scheme quantified on sort [s]. [s] is declared less or equal to [i]. *)
 let weaken_sort_scheme env evd sort npars term ty =
+  (* (evd, term, ty) *)
   let open Context.Rel.Declaration in
   let evdref = ref evd in
   let rec drec ctx np elim =
@@ -68,7 +69,8 @@ let weaken_sort_scheme env evd sort npars term ty =
         let ctx = LocalDef (n, b, t) :: ctx in
         let c',term' = drec ctx np c in
         mkLetIn (n,b,t,c'), mkLetIn (n,b,t,term')
-      | _ -> CErrors.anomaly ~label:"weaken_sort_scheme" (Pp.str "wrong elimination type.")
+      | _ -> (term, ty)
+        (* CErrors.anomaly ~label:"weaken_sort_scheme" (Pp.str "wrong elimination type.") *)
   in
   let ty, term = drec [] npars ty in
     !evdref, ty, term

@@ -713,5 +713,7 @@ let build_induction_scheme env sigma pind dep kind =
   let (mib,mip) as specif = lookup_mind_specif env (fst pind) in
   if dep && not (Inductiveops.has_dependent_elim specif) then
     raise (RecursionSchemeError (env, NotAllowedDependentAnalysis (true, fst pind)));
-  let sigma, l = mis_make_indrec env sigma [(pind,mib,mip,dep,kind)] mib (snd pind) in
-    sigma, List.hd l
+  let ((kn, pos_indb), u) = pind in
+  let recursor = Recursors.gen_rec env sigma kn u mib kind pos_indb in
+  (* let sigma, l = mis_make_indrec env sigma [(pind,mib,mip,dep,kind)] mib (snd pind) in  *)
+  sigma, recursor

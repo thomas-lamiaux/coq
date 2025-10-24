@@ -59,6 +59,22 @@ type state =
     state_subst : constr list;
   }
 
+let print_state env sigma s =
+  Format.printf "\n ### Print State ### \n";
+    Format.printf "BEGIN: State new context: \n";
+    List.fold_right_i (fun i x _ ->
+      Format.printf "var: %n" i;
+      (* Feedback.msg_info (Termops.Internal.print_constr_env env sigma (get_type x)) *)
+      Feedback.msg_info (Termops.Internal.debug_print_constr sigma (get_type x))
+    ) 0 s.state_context ();
+    Format.printf "END: State new context: \n";
+  Format.printf "\n BEGIN: Substitution \n";
+  List.fold_right (fun x _ ->
+    Feedback.msg_info (Termops.Internal.print_constr_env env sigma x)) s.state_subst ();
+  Format.printf "\n END: Substitution \n";
+  Format.printf "\n \n"
+
+
 let init_state = { state_context = []; state_subst = [] }
 
 let mk_state x y = { state_context = x; state_subst = y }
@@ -145,7 +161,7 @@ let fresh_key s = List.length s.state_context
 (* old declarations *)
 let add_odecl s d =
   mk_state (RelDecl.map_constr (Vars.substl s.state_subst) d :: s.state_context)
-    (mkRel 0 :: List.map (Vars.lift 1) s.state_subst)
+    (mkRel 1 :: List.map (Vars.lift 1) s.state_subst)
 
 let add_ovar s an ty : state =
   add_odecl s (LocalAssum (an, ty))
@@ -244,7 +260,7 @@ let get_sdecl_term =
   fun n d ->
   match RelDecl.get_value d with
   | Some tm -> Vars.lift 1 tm
-  | None -> mkRel n
+  | None -> mkRel (1+n)
 
 let get_term, geti_term, getij_term, get_terms = getters get_sdecl_term
 
@@ -405,7 +421,7 @@ let make_ind =
 (* Builds: Cst A1 ... An B0 ... Bm x1 ... xp *)
 let make_cst =
   fun s ind u pos_ctor key_uparams nuparams args ->
-  let tCst = mkConstructU ((ind, pos_ctor), u) in
+  let tCst = mkConstructU ((ind, 1+pos_ctor), u) in
   let args = [get_terms s key_uparams; nuparams; args] in
   mkApp (tCst, (Array.of_list (List.concat args)))
 
@@ -419,15 +435,23 @@ let closure_indices binder s indb = closure_old_context binder s (get_indices in
 let default_rarg mdecl indb =
   mdecl.mind_nparams_rec + List.length (get_indices indb)
 
-let get_ctors mdecl pos_indb = mdecl.mind_packets.(pos_indb).mind_nf_lc
+let get_args mdecl sigma (cxt, ty) =
+  let args = List.rev @@ let (_, args) = List.chop mdecl.mind_nparams (List.rev cxt) in args in
+  let (hd, xs) = decompose_app sigma (EConstr.of_constr ty) in
+  let indices = Array.sub xs mdecl.mind_nparams (Array.length xs - mdecl.mind_nparams) in
+  (args, indices)
 
-let iterate_ctors s mdecl pos_indb tp cc =
-  let ctors = Array.map (fun (cxt, hd) -> (EConstr.of_rel_context cxt, hd)) (get_ctors mdecl pos_indb) in
+let get_ctors mdecl sigma pos_indb =
+  let ctors = mdecl.mind_packets.(pos_indb).mind_nf_lc in
+  Array.map (get_args mdecl sigma) ctors
+
+let iterate_ctors s mdecl sigma pos_indb tp cc =
+  let ctors = Array.map (fun (cxt, hd) -> (EConstr.of_rel_context cxt, hd)) (get_ctors mdecl sigma pos_indb) in
   fold_right_state s (Array.to_list ctors) tp cc
 
-let iterate_all_ctors s kname mdecl tp cc =
+let iterate_all_ctors s kname mdecl sigma tp cc =
   iterate_inductives s mdecl (
-    fun s pos_indb indb cc -> iterate_ctors s mdecl pos_indb (fun s -> tp s pos_indb indb) cc
+    fun s pos_indb indb cc -> iterate_ctors s mdecl sigma pos_indb (fun s -> tp s pos_indb indb) cc
   ) cc
 
 
