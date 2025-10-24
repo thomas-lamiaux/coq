@@ -367,13 +367,16 @@ let closure_new_context_sep binder = read_context_sep (mk_binder binder) kp_tLet
 (* ************************************************************************** *)
 
 (* 3. Mutual Inductive Body Level *)
+let get_params_sep mdecl =
+  let nb_nuparams = mdecl.mind_nparams - mdecl.mind_nparams_rec in
+  let (nuparams, uparams) = List.chop nb_nuparams mdecl.mind_params_ctxt in
+  (EConstr.of_rel_context uparams, EConstr.of_rel_context nuparams)
+
 let get_uparams mdecl =
-  let (uparams, _) = List.chop mdecl.mind_nparams_rec mdecl.mind_params_ctxt in
-  EConstr.of_rel_context uparams
+  fst @@ get_params_sep mdecl
 
 let get_nuparams mdecl =
-  let (_, nuparams) = List.chop mdecl.mind_nparams_rec mdecl.mind_params_ctxt in
-  EConstr.of_rel_context nuparams
+  snd @@ get_params_sep mdecl
 
 let get_params mdecl =
   EConstr.of_rel_context mdecl.mind_params_ctxt

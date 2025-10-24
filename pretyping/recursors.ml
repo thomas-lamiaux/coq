@@ -68,8 +68,7 @@ let gen_rec env sigma kn u mdecl sort_pred =
 
     (* get the rec call *)
     let make_rec_call_cc s _ key_arg cc =
-      (* let red_ty = Reductionops.whd_all env sigma (get_type s key_arg) in *)
-      let red_ty = (get_type s key_arg) in
+      let red_ty = Reductionops.whd_all (Environ.push_rel_context (EConstr.Unsafe.to_rel_context s.state_context) env) sigma (get_type s key_arg) in
       match make_rec_call s key_arg red_ty with
       | Some (ty, _) ->
           let name_rec_hyp = make_annot Anonymous pred_relevance in
