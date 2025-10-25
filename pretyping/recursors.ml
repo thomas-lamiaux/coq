@@ -173,6 +173,10 @@ let gen_rec env sigma kn u mdecl sort_pred =
   let compute_args_fix pos_ctor s key_fixs key_args =
     CList.fold_right_i (fun pos_arg key_arg t ->
       let ty_arg = get_type s key_arg in
+      (* Format.printf "\n ------------------------------------------------------------- \n";
+      Format.printf "pos arg : %n | key_arg : %n \n" pos_arg key_arg;
+      Feedback.msg_info (Termops.Internal.debug_print_constr sigma ty_arg);
+      Format.printf "\n" ; *)
       let env = Environ.push_rel_context (EConstr.Unsafe.to_rel_context s.state_context) env in
       let red_ty = Reductionops.whd_all env sigma ty_arg in
       match make_rec_call key_fixs s key_arg red_ty with
@@ -220,6 +224,7 @@ let gen_rec_term pos_indb =
   let* (s, key_VarMatch) = mk_tLambda s (make_annot Anonymous (ERelevance.make indb.mind_relevance))
                           (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
   (* 4. Proof of P ... x by match *)
+  print_state env sigma s false;
   let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
   let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
   let* (s, key_args, key_letin, key_both, pos_ctor) =
@@ -230,9 +235,9 @@ let gen_rec_term pos_indb =
   mkApp ((getij_term s key_ctors pos_indb pos_ctor), Array.of_list args)
 
 in
-(* Format.printf "\n ------------------------------------------------------------- \n";
+Format.printf "\n ------------------------------------------------------------- \n";
 Feedback.msg_info (Termops.Internal.debug_print_constr sigma t);
-Format.printf "\n" ; *)
+Format.printf "\n" ;
 Format.printf "\n ------------------------------------------------------------- \n";
 Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
 Format.printf "\n \n" ;

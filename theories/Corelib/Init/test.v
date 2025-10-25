@@ -178,6 +178,11 @@ Inductive nu_ftree2 A : Type :=
 
 (* nb_uparams : 3 *)
 (* strpos : [false, false, true] *)
+Inductive sAll2i (R : nat -> bool -> bool -> Type) (n : nat) : Type :=
+	| sAll2i_nil : sAll2i R n
+  | sAll2i_cons : forall (a : bool) (b : bool),
+                 R n a b -> sAll2i R (suc n) -> sAll2i R n.
+
 Inductive All2i (A B : Type) (R : nat -> A -> B -> Type) (n : nat) : list A -> list B -> Type :=
 	| All2i_nil : All2i A B R n ( nil A) (nil B)
   | All2i_cons : forall (a : A) (b : B) (lA : list A) (lB : list B),

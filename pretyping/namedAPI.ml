@@ -454,8 +454,9 @@ let get_indices indb =
     let indices, _ = List.chop indb.mind_nrealdecls indb.mind_arity_ctxt in
     EConstr.of_rel_context indices
 
-let add_indices s indb = add_old_context s (get_indices indb)
-let closure_indices binder s indb = closure_old_context binder s (get_indices indb)
+(* Closure for indices must be fresh as it is not in the context of arguments *)
+let add_indices s indb = add_fresh_context s (weaken_context s (get_indices indb))
+let closure_indices binder s indb = closure_new_context binder s (weaken_context s (get_indices indb))
 
 let default_rarg mdecl indb =
   (mdecl.mind_nparams - mdecl.mind_nparams_rec) + List.length (get_indices indb)
