@@ -86,6 +86,18 @@ let mk_state x y = { state_context = x; state_subst = y }
 
 let weaken s c = Vars.substl s.state_subst c
 
+let weaken_context s cxt =
+  let nb_cxt = List.length cxt in
+  List.mapi (fun i x ->
+    let n = nb_cxt - i -1 in
+    let weak x = Vars.substnl s.state_subst n x in
+    match x with
+    | LocalAssum (an, ty) -> LocalAssum (an, weak ty)
+    | LocalDef (an, db, ty) -> LocalDef (an, weak db, weak ty)
+    ) cxt
+
+  (* Definition weaken_context : state -> context -> context :=
+  fun s cxt => rev (mapi (fun i cdecl => weaken_decl_aux i s cdecl) (rev cxt)). *)
 
 (* fold functions for state *)
 let fold_right_state s l tp t =
@@ -469,7 +481,8 @@ let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_c
 
   let tCase_Pred =
     (* indices *)
-    let indices = get_indices indb in
+    (* let indices = weaken_context s (get_indices indb) in *)
+    let indices = (get_indices indb) in
     let name_indices = List.map get_annot indices in
     let* (s, keys_fresh_indices) = add_fresh_context s indices in
     (* new var *)

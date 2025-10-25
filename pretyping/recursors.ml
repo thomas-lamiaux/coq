@@ -204,7 +204,7 @@ let gen_rec_term pos_indb =
   print_state env sigma s; *)
   (* 4. Proof of P ... x by match *)
   let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
-  let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams key_indices key_var_match in
+  let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
   let* (s, key_args, key_letin, key_both, pos_ctor) =
     mk_tCase env sigma s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params
           tCase_pred pred_relevance (get_term s key_VarMatch) in
@@ -219,10 +219,10 @@ let gen_rec_term pos_indb =
   mkApp ((getij_term s key_ctors pos_indb pos_ctor), Array.of_list args)
 
 in
-  (* Feedback.msg_info (Termops.Internal.print_constr_env env sigma t); *)
-  (* Format.printf "\n \n" ; *)
-  Feedback.msg_info (Termops.Internal.debug_print_constr sigma t);
+  Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
   Format.printf "\n \n" ;
+  (* Feedback.msg_info (Termops.Internal.debug_print_constr sigma t); *)
+  (* Format.printf "\n \n" ; *)
   t
 in
 
