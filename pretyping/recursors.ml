@@ -2,6 +2,8 @@ open Names
 open Declarations
 open Context
 open EConstr
+module RelDecl = Rel.Declaration
+open RelDecl
 open NamedAPI
 
 let gen_rec env sigma kn u mdecl sort_pred =
@@ -112,9 +114,11 @@ let gen_rec env sigma kn u mdecl sort_pred =
      forall (i1 : t1) ... (il : tl),
      forall (x : Ind A0 ... An B0 ... Bm i0 ... il),
       P B0 ... Bm i0 ... il x *)
-  let make_return_type s pos_indb indb keys_uparams key_preds =
+  let make_return_type s pos_indb indb keys_uparams key_preds debug =
       let* (s, keys_nuparams) = closure_nuparams mkProd mdecl s in
+      if debug then print_state env sigma s false;
       let* (s, keys_indices) = closure_indices mkProd s indb in
+      if debug then print_state env sigma s false;
       let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
       let* (s, key_VarMatch) = mk_tProd s (make_annot Anonymous (ERelevance.make indb.mind_relevance)) ind in
       make_ccl s key_preds pos_indb keys_nuparams keys_indices key_VarMatch
@@ -135,7 +139,7 @@ let gen_rec env sigma kn u mdecl sort_pred =
       let* (s, key_uparams) = closure_uparams mkProd mdecl s in
       let* (s, key_preds)   = closure_preds mkProd s key_uparams in
       let* (s, key_ctors)   = closure_ctors mkProd s sigma key_uparams key_preds in
-      make_return_type s pos_indb indb key_uparams key_preds
+      make_return_type s pos_indb indb key_uparams key_preds false
     in
     Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
     (* Feedback.msg_info (Termops.Internal.debug_print_constr sigma t); *)
@@ -156,7 +160,7 @@ let gen_rec env sigma kn u mdecl sort_pred =
     match view_arg kn mdecl s sigma ty with
     | ArgIsInd (pos_ind, loc, inst_nuparams, inst_indices) ->
         Some (
-          (* Fi  B0 ... Bm i0 ... il (x a0 ... an) *)
+          (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
           let* (s, key_locals, _, _) = closure_old_context_sep mkLambda s loc in
           let fix = mkApp ((geti_term s key_fixs pos_ind), (Array.append inst_nuparams inst_indices)) in
           let arg = mkApp (get_term s key_arg, Array.of_list (get_terms s key_locals)) in
@@ -177,12 +181,27 @@ let gen_rec env sigma kn u mdecl sort_pred =
     ) 0 key_args []
     in
 
+let debug_cxt s n cxt  =
+  Format.printf "\n BEGIN DEBUG %s: %n \n" s n;
+  List.fold_left (fun _ x ->
+    match x with
+    | LocalAssum (_, ty) ->
+      Feedback.msg_info (Termops.Internal.debug_print_constr sigma ty)
+    | _ -> ()
+    ) () cxt ;
+  Format.printf "\n END DEBUG %s \n" s;
+    in
+
 (* 3.2 Generates the recursor *)
 let gen_rec_term pos_indb =
 
   Format.printf "################################################## \n";
-  Format.printf "\n ### PP rec # Type: %s  ### \n" (MutInd.to_string kn);
+  Format.printf "\n ### PP rec # Type: %s # block %n ### \n" (MutInd.to_string kn) pos_indb ;
   Feedback.msg_info (Termops.Internal.print_constr_env env sigma (mkSort sort_pred));
+  (* Format.printf "IS ALLOWED ELIMINATION: %b" (Inductiveops.is_allowed_elimination sigma ((mdecl, mdecl.mind_packets.(0)), u) sort_pred); *)
+  let b = Array.fold_right (fun mipi b -> b && Inductiveops.is_allowed_elimination sigma ((mdecl,mipi),u) sort_pred) mdecl.mind_packets true in
+  Format.printf "IS ALLOWED ELIMINATION: %b" b;
+
   let t =
   (* 0. Initialise state with inductives *)
   let s = init_state in
@@ -192,16 +211,14 @@ let gen_rec_term pos_indb =
   let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
   (* 2. Fixpoint *)
   let tFix_name pos_indb indb = make_annot (Name.Name (Id.of_string "F")) pred_relevance in
-  let tFix_type pos_indb indb = make_return_type s pos_indb indb key_uparams key_preds in
+  let tFix_type s pos_indb indb = make_return_type s pos_indb indb key_uparams key_preds false in
   let tFix_rarg pos_indb indb = default_rarg mdecl indb in
   let* (s, key_fixs, pos_indb, indb) = mk_tFix env sigma mdecl kn s tFix_rarg pos_indb tFix_name tFix_type in
   (* 3. Closure Nuparams / Indices / Var *)
   let* (s, key_nuparams) = closure_nuparams mkLambda mdecl s in
   let* (s, key_indices ) = closure_indices  mkLambda s indb in
   let* (s, key_VarMatch) = mk_tLambda s (make_annot Anonymous (ERelevance.make indb.mind_relevance))
-  (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
-  (* Format.printf "\n DEBUG REC TERM \n ";
-  print_state env sigma s; *)
+                          (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
   (* 4. Proof of P ... x by match *)
   let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
   let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
@@ -209,20 +226,16 @@ let gen_rec_term pos_indb =
     mk_tCase env sigma s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params
           tCase_pred pred_relevance (get_term s key_VarMatch) in
   (* 5. Make the branch *)
-  (* Format.printf "\n DEBUG CTOR: %n \n " pos_ctor;
-  CList.fold_right_i (fun pos_arg key_arg () ->
-    Format.printf "\n ### pos_arg : %n \n | key_arg : %n " pos_arg key_arg;
-    print_state env sigma s;
-    Format.printf "\n --- \n ";
-  ) 0 key_args () ; *)
   let args = get_terms s key_nuparams @ compute_args_fix pos_ctor s key_fixs key_args  in
   mkApp ((getij_term s key_ctors pos_indb pos_ctor), Array.of_list args)
 
 in
-  Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
-  Format.printf "\n \n" ;
-  (* Feedback.msg_info (Termops.Internal.debug_print_constr sigma t); *)
-  (* Format.printf "\n \n" ; *)
+(* Format.printf "\n ------------------------------------------------------------- \n";
+Feedback.msg_info (Termops.Internal.debug_print_constr sigma t);
+Format.printf "\n" ; *)
+Format.printf "\n ------------------------------------------------------------- \n";
+Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
+Format.printf "\n \n" ;
   t
 in
 

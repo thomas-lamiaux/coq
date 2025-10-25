@@ -675,7 +675,8 @@ let build_case_analysis_scheme_default env sigma pity kind =
 let check_arities env sigma listdepkind =
   let _ = List.fold_left
      (fun ln (((_,ni as mind),u),mibi,mipi,dep,s) ->
-       if not @@ Inductiveops.is_allowed_elimination sigma ((mibi,mipi),u) s then
+      let elim_allowed = Array.fold_right (fun mipi b -> b && Inductiveops.is_allowed_elimination sigma ((mibi,mipi),u) s) mibi.mind_packets true in
+       if not elim_allowed then
         let s = ESorts.kind sigma s in
         let u = EInstance.kind sigma u in
         raise

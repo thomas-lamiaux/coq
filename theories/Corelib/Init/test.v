@@ -57,7 +57,7 @@ Inductive prod (A B:Type) : Type :=
 Inductive and (A B : Prop) : Prop :=
   conj : A -> B -> and A B.
 
-Inductive or (A B:Prop) : Prop :=
+Inductive or (A B : Prop) : Prop :=
   | or_introl : A -> or A B
   | or_intror : B -> or A B.
 
@@ -103,6 +103,7 @@ Inductive vec5 (A B : Type) : nat -> nat -> Type :=
 Inductive myeq (A : Type) (x:A) : A -> Prop :=
     myeq_refl : myeq A x x.
 
+
 Inductive foo (A : Type) : list A -> Type :=
 | cf : foo A (@nil A).
 
@@ -119,18 +120,18 @@ Inductive vectree2 A : nat -> Type :=
 
 (* mutual *)
 
-Inductive teven : Prop :=
+Inductive teven : Type :=
 | teven0 : teven
 | tevenS : todd -> teven
 with
-todd : Prop :=
+todd : Type :=
 | toddS : teven -> todd.
 
-Inductive even : nat -> Prop :=
+Inductive even : nat -> Type :=
 | even0   : even zero
 | evenS n : odd n -> even (suc n)
 with
-odd : nat -> Prop :=
+odd : nat -> Type :=
 | oddS n : even n -> odd (suc n).
 
 
