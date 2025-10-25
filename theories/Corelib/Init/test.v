@@ -14,15 +14,10 @@ Notation "A -> B" := (forall (_ : A), B) (right associativity, at level 99).
 Inductive True : Prop :=
   I : True.
 
+Print True_rect.
+
 (** [False] is the always false proposition *)
 Inductive False : Prop :=.
-
-Inductive and (A B : Prop) : Prop :=
-  conj : A -> B -> and A B.
-
-Inductive or (A B:Prop) : Prop :=
-  | or_introl : A -> or A B
-  | or_intror : B -> or A B.
 
 Inductive nat : Type :=
 | zero : nat
@@ -56,8 +51,19 @@ Inductive list (A : Type) : Type :=
  | nil : list A
  | cons : A -> list A -> list A.
 
- Inductive prod (A B:Type) : Type :=
+Inductive prod (A B:Type) : Type :=
   pair : A -> B -> prod A B.
+
+Inductive and (A B : Prop) : Prop :=
+  conj : A -> B -> and A B.
+
+Inductive or (A B:Prop) : Prop :=
+  | or_introl : A -> or A B
+  | or_intror : B -> or A B.
+
+Inductive orbis (A B:Prop) : Prop :=
+  | orbis_introl : A -> orbis A B
+  | orbis_intror : A -> B -> orbis A B.
 
 Inductive prod4 (A B C D : Type) : Type :=
 | pair4 : A -> B -> C -> D -> prod4 A B C D.

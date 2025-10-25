@@ -60,19 +60,24 @@ type state =
   }
 
 let print_state env sigma s =
+  let env = Environ.push_rel_context (EConstr.Unsafe.to_rel_context s.state_context) env in
+  Format.printf "\n ################################################# \n";
   Format.printf "\n ### Print State ### \n";
+  (* Print state *)
     Format.printf "BEGIN: State new context: \n";
     List.fold_right_i (fun i x _ ->
-      Format.printf "var: %n" i;
+      Format.printf "------------------------------------------- \n";
+      Format.printf "var | %n | " (1+i);
       (* Feedback.msg_info (Termops.Internal.print_constr_env env sigma (get_type x)) *)
       Feedback.msg_info (Termops.Internal.debug_print_constr sigma (get_type x))
     ) 0 s.state_context ();
     Format.printf "END: State new context: \n";
-  Format.printf "\n BEGIN: Substitution \n";
-  List.fold_right (fun x _ ->
-    Feedback.msg_info (Termops.Internal.print_constr_env env sigma x)) s.state_subst ();
-  Format.printf "\n END: Substitution \n";
-  Format.printf "\n \n"
+  (* Print Substitution *)
+    Format.printf "\n BEGIN: Substitution \n";
+    List.fold_right (fun x _ ->
+      Feedback.msg_info (Termops.Internal.print_constr_env env sigma x)) s.state_subst ();
+    Format.printf "\n END: Substitution \n";
+  Format.printf "\n ################################################# \n"
 
 
 let init_state = { state_context = []; state_subst = [] }
@@ -396,15 +401,14 @@ let iterate_inductives s mdecl tp cc =
   fold_right_state s (Array.to_list mdecl.mind_packets) tp cc
 
 (* create fix *)
-let mk_tFix env sigma mdecl kname s tFix_rarg focus tFix_type tmc =
+let mk_tFix env sigma mdecl kname s tFix_rarg focus tFix_name tFix_type tmc =
   let ind_bodies = get_ind_bodies mdecl in
   (* data fix *)
   let rargs = Array.mapi (fun pos_indb indb -> tFix_rarg pos_indb indb) ind_bodies in
-  let tFix_name name = make_name (RelEnv.make env) name ERelevance.relevant in
-  let tFix_names = Array.mapi (fun pos_indb _ -> tFix_name "F") ind_bodies in
-  let tFix_types = Array.mapi (fun pos_indb indb -> tFix_type pos_indb indb) ind_bodies in
+  let tFix_names = Array.mapi tFix_name ind_bodies in
+  let tFix_types = Array.mapi tFix_type ind_bodies in
   (* update context continuation *)
-  let cdecl pos_indb indb = Context.Rel.Declaration.LocalAssum (tFix_name "F", tFix_type pos_indb indb) in
+  let cdecl pos_indb indb = Context.Rel.Declaration.LocalAssum (tFix_name pos_indb indb, tFix_type pos_indb indb) in
   let tFix_context = List.rev (List.mapi cdecl (Array.to_list ind_bodies)) in
   let* (sFix, keys_Fix) = add_fresh_context s tFix_context in
   let tFix_bodies = Array.mapi (fun pos_indb indb -> tmc (sFix, keys_Fix, pos_indb, indb)) ind_bodies in
@@ -439,7 +443,7 @@ let default_rarg mdecl indb =
   mdecl.mind_nparams_rec + List.length (get_indices indb)
 
 let get_args mdecl sigma (cxt, ty) =
-  let args = List.rev @@ let (_, args) = List.chop mdecl.mind_nparams (List.rev cxt) in args in
+  let args = EConstr.of_rel_context @@ List.rev @@ let (_, args) = List.chop mdecl.mind_nparams (List.rev cxt) in args in
   let (hd, xs) = decompose_app sigma (EConstr.of_constr ty) in
   let indices = Array.sub xs mdecl.mind_nparams (Array.length xs - mdecl.mind_nparams) in
   (args, indices)
@@ -449,7 +453,7 @@ let get_ctors mdecl sigma pos_indb =
   Array.map (get_args mdecl sigma) ctors
 
 let iterate_ctors s mdecl sigma pos_indb tp cc =
-  let ctors = Array.map (fun (cxt, hd) -> (EConstr.of_rel_context cxt, hd)) (get_ctors mdecl sigma pos_indb) in
+  let ctors = get_ctors mdecl sigma pos_indb in
   fold_right_state s (Array.to_list ctors) tp cc
 
 let iterate_all_ctors s kname mdecl sigma tp cc =
@@ -460,39 +464,35 @@ let iterate_all_ctors s kname mdecl sigma tp cc =
 
 
 (* mk match *)
-let mk_tCase env s mdecl ind indb u mk_case_pred keys_uparams keys_nuparams tm_match tc =
+let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_case_pred mk_case_relevance tm_match tc =
   let tCase_info = Inductiveops.make_case_info env ind RegularStyle in
 
   let tCase_Pred =
     (* indices *)
     let indices = get_indices indb in
     let name_indices = List.map get_annot indices in
-    let* (sPred, keys_fresh_indices) = add_fresh_context s indices in
+    let* (s, keys_fresh_indices) = add_fresh_context s indices in
     (* new var *)
     let name_var_match = make_annot Anonymous ERelevance.relevant in
     let ty_var = make_ind s ind u keys_uparams (get_terms s keys_nuparams) (get_terms s keys_fresh_indices) in
-    let* (sPred, key_var_match) = add_fresh_var s name_var_match ty_var in
+    let* (s, key_var_match) = add_fresh_var s name_var_match ty_var in
     (* return type *)
-    let return_type = mk_case_pred sPred keys_fresh_indices key_var_match in
+    let return_type = mk_case_pred s keys_fresh_indices key_var_match in
     (* return *)
-    ((Array.of_list (List.append name_indices [name_var_match]), return_type), ERelevance.relevant)
+    ((Array.of_list (List.append name_indices [name_var_match]), return_type), mk_case_relevance)
   in
 
-  let params = Array.of_list (List.append (get_terms s keys_uparams) (get_terms s keys_nuparams)) in
-
   let branch pos_ctor ctor =
-    let (cxt, hd) = ctor in
-    let args = EConstr.of_rel_context (fst (List.chop mdecl.mind_nparams cxt)) in
+    let (args, _) = get_args mdecl sigma ctor in
     let names_args = Array.of_list (List.map get_annot args) in
-    let* sArgs, key_args, key_letin, key_both = add_old_context_sep s args in
-    let branches_body = tc (s, key_args, key_letin, key_both, pos_ctor, (EConstr.of_rel_context cxt, hd)) in
+    let* s, key_args, key_letin, key_both = add_old_context_sep s args in
+    let branches_body = tc (s, key_args, key_letin, key_both, pos_ctor) in
     (names_args, branches_body)
   in
 
   let branches = Array.mapi branch indb.mind_nf_lc in
 
   EConstr.mkCase (tCase_info, u, params, tCase_Pred, NoInvert, tm_match, branches)
-
 
 
 (* View Argument *)
