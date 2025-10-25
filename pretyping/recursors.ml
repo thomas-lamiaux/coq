@@ -219,8 +219,8 @@ let gen_rec_term pos_indb =
   mkApp ((getij_term s key_ctors pos_indb pos_ctor), Array.of_list args)
 
 in
-  (* Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
-  Format.printf "\n \n" ; *)
+  (* Feedback.msg_info (Termops.Internal.print_constr_env env sigma t); *)
+  (* Format.printf "\n \n" ; *)
   Feedback.msg_info (Termops.Internal.debug_print_constr sigma t);
   Format.printf "\n \n" ;
   t

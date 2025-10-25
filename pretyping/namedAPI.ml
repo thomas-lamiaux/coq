@@ -440,7 +440,7 @@ let add_indices s indb = add_old_context s (get_indices indb)
 let closure_indices binder s indb = closure_old_context binder s (get_indices indb)
 
 let default_rarg mdecl indb =
-  mdecl.mind_nparams_rec + List.length (get_indices indb)
+  (mdecl.mind_nparams - mdecl.mind_nparams_rec) + List.length (get_indices indb)
 
 let get_args mdecl sigma (cxt, ty) =
   let args = EConstr.of_rel_context @@ List.rev @@ let (_, args) = List.chop mdecl.mind_nparams (List.rev cxt) in args in
