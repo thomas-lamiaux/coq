@@ -197,9 +197,7 @@ Inductive slist (A B : Type) (C : Type) : Type :=
 
 
 
-(* Inductive b_let (A : Type) : Type :=
-| b_letz : b_let A
-| b_lets (n m : nat) : let x := n + zero in x = m -> x = m + 1 -> b_let A -> b_let A. *)
+
 
 Inductive rc_let (A : Type) : Type :=
 | rc_letz : rc_let A
@@ -212,11 +210,6 @@ Inductive rc_letpar (A : Prop) : Type :=
 Inductive crazy1 : nat -> Type :=
 | crazy1_z : crazy1 zero
 | crazy1_s (n : nat) : let x := suc n in crazy1 x.
-
-(* Inductive crazy2 (A : let y := Prop in or y Prop) : (let y := bool in or bool nat) -> Type :=
-| crazy2_z : crazy2 A (inr zero)
-| crazy2_s (k n m : nat) : let x := n + zero in x = m -> x = m + 1 -> crazy2 A (inl true) ->
-                     let z := zero in crazy2 A (let y := zero in inr (x + y)). *)
 
 Inductive diag : nat -> nat -> Type :=
 | dcons c : diag c c -> let ptm := c in diag c c.
@@ -313,6 +306,9 @@ Inductive L (A : Type) (T := A) : Type :=
   CONSL : L nat -> L A.
 
 Inductive IND7 (A:Type) (T:=A) := CONS7 : IND7 T -> IND7 A.
+
+Inductive IND8 : nat -> Type :=
+| CONS8 (n := zero) : IND8 n -> let m := zero in IND8 m.
 
 (* Module TemplateProp.
 

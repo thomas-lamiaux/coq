@@ -48,6 +48,63 @@ let make_name env s r =
 
 
 
+
+
+(* ************************************************************************** *)
+(*                              View Argument                                 *)
+(* ************************************************************************** *)
+
+
+
+type arg =
+  (* pos_ind, constant context, inst_nuparams inst_indices *)
+  | ArgIsInd of int * rel_context * constr array * constr array
+  (* ind, constant context, inst_uparams, inst_nuparams, inst_indices *)
+  | ArgIsNested of inductive * rel_context * constr array * constr array * constr array
+  (* constant context, hd, args (maybe empty) *)
+  | ArgIsCst of rel_context * constr * constr array
+
+(* Decompose the argument in [it_Prod_or_LetIn local, X]
+  where [X] is Ind, nested or a constant *)
+let view_arg kname mdecl sigma t : arg =
+  let (cxt, hd) = decompose_prod_decls sigma t in
+  let (hd, iargs) = decompose_app sigma hd in
+  match kind sigma hd with
+  (* If it is the inductive *)
+  (* | Rel pos ->
+      match find_bool (fun k => check_pos s k pos) key_inds with
+        | (pos_strpos_uparams, true) =>
+            let local_nuparams_indices := skipn (get_nb_uparams s kname) iargs in
+            let local_nuparams := firstn (get_nb_nuparams s kname) local_nuparams_indices in
+            let local_indices  := skipn  (get_nb_nuparams s kname) local_nuparams_indices in
+            VArgIsInd pos local local_nuparams local_indices
+        | _ => VArgIsFree local hd iargs
+        end *)
+  (* If it is nested *)
+  | Ind ((kname_indb, pos_indb), _) ->
+    (* If it is the inductive *)
+    if kname = kname_indb
+    then let nb_uparams = mdecl.mind_nparams_rec in
+         let (_, local_nuparams_indices) = Array.chop mdecl.mind_nparams_rec iargs in
+         let (local_nuparams, local_indices) = Array.chop (mdecl.mind_nparams - mdecl.mind_nparams_rec) local_nuparams_indices in
+         ArgIsInd (pos_indb, cxt, local_nuparams, local_indices)
+    (* 2.2 If it is nested *)
+    else if Array.length iargs = 0 then ArgIsCst (cxt, hd, iargs)
+    else begin ArgIsCst (cxt, hd, iargs)
+      (* match find (fun x => eq_constant kname_indb x.(ep_kname)) Ep with
+      | Some xp ->
+        (* 2.2.1 get uparams and nuparams + indices *)
+        let inst_uparams = firstn xp.(ep_nb_uparams) iargs in
+        let inst_nuparams_indices = skipn xp.(ep_nb_uparams) iargs in
+        let inst_types = instante_types xp.(ep_type_uparams) inst_uparams in
+        (* let inst_types := xp.(ep_type_uparams) in *)
+        (* let inst_types := inst_uparams in *)
+        VArgIsNested (xp, pos_indb, local, inst_uparams, inst_nuparams_indices, inst_types)
+      | None -> VArgIsFree local hd iargs *)
+      end
+  | _ -> ArgIsCst (cxt, hd, iargs)
+
+
 (* ************************************************************************** *)
 (*                           State + fold function                            *)
 (* ************************************************************************** *)
@@ -389,31 +446,38 @@ let closure_new_context_sep binder = read_context_sep (mk_binder binder) mk_tLet
 
 (* 3. Mutual Inductive Body Level *)
 
-(* WARNING THIS CREATES SUB-OPTIMAL REC: nb_nuparams may be too bug *)
+let chop_letin n l =
+  let rec goto i acc = function
+    | tl when Int.equal i 0 -> (List.rev acc, tl)
+    | h :: t ->
+      begin match h with
+      | LocalAssum _ -> goto (pred i) (h :: acc) t
+      | LocalDef _ -> goto i (h :: acc) t
+      end
+    | [] -> failwith "goto"
+  in
+  goto n [] l
+
 let get_params_sep mdecl =
-  let nb_params_letin = List.length mdecl.mind_params_ctxt in
-  Format.printf "\n => nb_params_letin: %n \n " nb_params_letin;
-  let nb_nuparams = nb_params_letin - mdecl.mind_nparams_rec in
-  Format.printf "=> nb_nuparams: %n \n " nb_nuparams;
-  let (nuparams, uparams) = List.chop nb_nuparams mdecl.mind_params_ctxt in
-  (EConstr.of_rel_context uparams, EConstr.of_rel_context nuparams)
+  let (uparams, nuparams) = chop_letin mdecl.mind_nparams_rec @@ List.rev mdecl.mind_params_ctxt in
+  (EConstr.of_rel_context @@ List.rev uparams, EConstr.of_rel_context @@ List.rev nuparams)
 
-let get_uparams mdecl =
-  fst @@ get_params_sep mdecl
+let get_uparams_letin mdecl = fst @@ get_params_sep mdecl
+let nb_uparams_letin mdecl = List.length @@ get_uparams_letin mdecl
+let get_nuparams_letin mdecl = snd @@ get_params_sep mdecl
+let nb_nuparams_letin mdecl = List.length @@ get_nuparams_letin mdecl
 
-let get_nuparams mdecl =
-  snd @@ get_params_sep mdecl
 
 let get_params mdecl =
   EConstr.of_rel_context mdecl.mind_params_ctxt
 
-let add_uparams mdecl s = add_old_context s (get_uparams mdecl)
-let closure_uparams binder mdecl s = closure_old_context_sep binder s (get_uparams mdecl)
+let add_uparams mdecl s = add_old_context_sep s (get_uparams_letin mdecl)
+let closure_uparams binder mdecl s = closure_old_context_sep binder s (get_uparams_letin mdecl)
 
-let add_nuparams mdecl s = add_old_context s (get_nuparams mdecl)
-let closure_nuparams binder mdecl s = closure_old_context_sep binder s (get_nuparams mdecl)
+let add_nuparams mdecl s = add_old_context_sep s (get_nuparams_letin mdecl)
+let closure_nuparams binder mdecl s = closure_old_context_sep binder s (get_nuparams_letin mdecl)
 
-let add_params mdecl s = add_old_context s (get_params mdecl)
+let add_params mdecl s = add_old_context_sep s (get_params mdecl)
 let closure_params binder mdecl s = closure_old_context_sep binder s (get_params mdecl)
 
 let get_ind_bodies mdecl = mdecl.mind_packets
@@ -439,7 +503,9 @@ let mk_tFix env sigma mdecl kname s tFix_rarg focus tFix_name tFix_type tmc =
   EConstr.mkFix ((rargs, focus), (tFix_names, tFix_types, tFix_bodies))
 
 
-(* One Inductive Body Level *)
+(* ************************************************************************** *)
+(*                          One Inductive Type                                *)
+(* ************************************************************************** *)
 
 (* Builds: Ind A1 ... An B0 ... Bm i1 ... il *)
 let make_ind =
@@ -460,21 +526,21 @@ let get_indices indb =
     EConstr.of_rel_context indices
 
 (* Closure for indices must be fresh as it is not in the context of arguments *)
-let add_indices s indb = add_fresh_context s (weaken_context s (get_indices indb))
+let add_indices s indb = add_fresh_context_sep s (weaken_context s (get_indices indb))
 let closure_indices binder s indb = closure_new_context_sep binder s (weaken_context s (get_indices indb))
 
 let default_rarg mdecl indb =
-  (mdecl.mind_nparams - mdecl.mind_nparams_rec) + List.length (get_indices indb)
+  (mdecl.mind_nparams - mdecl.mind_nparams_rec) + indb.mind_nrealargs
 
 let get_args mdecl sigma (cxt, ty) =
   (* recovers args *)
-  Format.printf "\n BEGIN: get_args";
+  (* Format.printf "\n BEGIN: get_args"; *)
   let nb_params_letin = List.length mdecl.mind_params_ctxt in
   let (_, args) = List.chop nb_params_letin (List.rev cxt) in
   let args = EConstr.of_rel_context @@ List.rev args in
   let (hd, xs) = decompose_app sigma (EConstr.of_constr ty) in
   let indices = Array.sub xs mdecl.mind_nparams (Array.length xs - mdecl.mind_nparams) in
-  Format.printf "\n END: get_args \n ";
+  (* Format.printf "\n END: get_args \n "; *)
   (args, indices)
 
 let get_ctors mdecl sigma pos_indb =
@@ -500,7 +566,7 @@ let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_c
     (* indices *)
     let indices = weaken_context s (get_indices indb) in
     let name_indices = List.map get_annot indices in
-    let* (s, keys_fresh_indices) = add_fresh_context s indices in
+    let* (s, keys_fresh_indices, _, _) = add_fresh_context_sep s indices in
     (* new var *)
     let name_var_match = make_annot Anonymous ERelevance.relevant in
     let ty_var = make_ind s ind u keys_uparams (get_terms s keys_nuparams) (get_terms s keys_fresh_indices) in
@@ -523,52 +589,3 @@ let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_c
 
   EConstr.mkCase (tCase_info, u, params, tCase_Pred, NoInvert, tm_match, branches)
 
-
-(* View Argument *)
-type arg =
-  (* pos_ind, constant context, inst_nuparams inst_indices *)
-  | ArgIsInd of int * rel_context * constr array * constr array
-  (* ind, constant context, inst_uparams, inst_nuparams, inst_indices *)
-  | ArgIsNested of inductive * rel_context * constr array * constr array * constr array
-  (* constant context, hd, args (maybe empty) *)
-  | ArgIsCst of rel_context * constr * constr array
-
-(* Decompose the argument in [it_Prod_or_LetIn local, X]
-  where [X] is Ind, nested or a constant *)
-let view_arg kname mdecl s sigma t : arg =
-  let (cxt, hd) = decompose_prod_decls sigma t in
-  let (hd, iargs) = decompose_app sigma hd in
-  match kind sigma hd with
-  (* If it is the inductive *)
-  (* | Rel pos ->
-      match find_bool (fun k => check_pos s k pos) key_inds with
-        | (pos_strpos_uparams, true) =>
-            let local_nuparams_indices := skipn (get_nb_uparams s kname) iargs in
-            let local_nuparams := firstn (get_nb_nuparams s kname) local_nuparams_indices in
-            let local_indices  := skipn  (get_nb_nuparams s kname) local_nuparams_indices in
-            VArgIsInd pos local local_nuparams local_indices
-        | _ => VArgIsFree local hd iargs
-        end *)
-  (* If it is nested *)
-  | Ind ((kname_indb, pos_indb), _) ->
-    (* If it is the inductive *)
-    if kname = kname_indb
-    then let nb_uparams = mdecl.mind_nparams_rec in
-         let (_, local_nuparams_indices) = Array.chop mdecl.mind_nparams_rec iargs in
-         let (local_nuparams, local_indices) = Array.chop (mdecl.mind_nparams - mdecl.mind_nparams_rec) local_nuparams_indices in
-         ArgIsInd (pos_indb, cxt, local_nuparams, local_indices)
-    (* 2.2 If it is nested *)
-    else if Array.length iargs = 0 then ArgIsCst (cxt, hd, iargs)
-    else begin ArgIsCst (cxt, hd, iargs)
-      (* match find (fun x => eq_constant kname_indb x.(ep_kname)) Ep with
-      | Some xp ->
-        (* 2.2.1 get uparams and nuparams + indices *)
-        let inst_uparams = firstn xp.(ep_nb_uparams) iargs in
-        let inst_nuparams_indices = skipn xp.(ep_nb_uparams) iargs in
-        let inst_types = instante_types xp.(ep_type_uparams) inst_uparams in
-        (* let inst_types := xp.(ep_type_uparams) in *)
-        (* let inst_types := inst_uparams in *)
-        VArgIsNested (xp, pos_indb, local, inst_uparams, inst_nuparams_indices, inst_types)
-      | None -> VArgIsFree local hd iargs *)
-      end
-  | _ -> ArgIsCst (cxt, hd, iargs)

@@ -60,7 +60,7 @@ let gen_rec env sigma kn u mdecl sort_pred =
   (* This function computes the type of the recursive call *)
   let make_rec_call s key_preds key_arg ty : constr option =
     (* Format.printf "\n BEGIN: view"; *)
-    let x = view_arg kn mdecl s sigma ty in
+    let x = view_arg kn mdecl sigma ty in
     (* Format.printf "\n END: view \n"; *)
     match x with
     | ArgIsInd (pos_ind, loc, inst_nuparams, inst_indices) ->
@@ -177,7 +177,7 @@ let gen_rec env sigma kn u mdecl sort_pred =
 (* ####################################### *)
 
   let make_rec_call key_fixs s key_arg ty : constr option =
-    match view_arg kn mdecl s sigma ty with
+    match view_arg kn mdecl sigma ty with
     | ArgIsInd (pos_ind, loc, inst_nuparams, inst_indices) ->
         Some (
           (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
@@ -254,16 +254,18 @@ let gen_rec_term pos_indb =
   mkApp ((getij_term s key_ctors pos_indb pos_ctor), Array.of_list args)
 
 in
-Format.printf "\n ------------------------------------------------------------- \n";
-Feedback.msg_info (Termops.Internal.debug_print_constr sigma t);
-Format.printf "\n" ;
 (* Format.printf "\n ------------------------------------------------------------- \n";
-Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
-Format.printf "\n \n" ; *)
+Feedback.msg_info (Termops.Internal.debug_print_constr sigma t);
+Format.printf "\n" ; *)
+(* begin try *)
+  Format.printf "\n ------------------------------------------------------------- \n";
+  Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
+  Format.printf "\n \n";
+(* with _ -> () end; *)
   t
 in
 
-(* gen_rec_term *)
-gen_rec_type
+gen_rec_term
+(* gen_rec_type *)
 
 
