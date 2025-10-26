@@ -11,10 +11,10 @@ Set Debug "backtrace".
 
 Notation "A -> B" := (forall (_ : A), B) (right associativity, at level 99).
 
+Inductive unit := tt.
+
 Inductive True : Prop :=
   I : True.
-
-Print True_rect.
 
 (** [False] is the always false proposition *)
 Inductive False : Prop :=.
@@ -137,7 +137,7 @@ odd : nat -> Type :=
 
 (* non uniform *)
 
-(* nb_uparams: 0 *)
+(* nb_uparams: zero *)
 Inductive nu_list (A : Type) : Type :=
 | nu_nil : nu_list A
 | nu_cons : nu_list (prod A A) -> nu_list A.
@@ -147,12 +147,12 @@ Inductive mixed1 (A B C : Type) : Type :=
 | mc11 : mixed1 A B C
 | mc12 : mixed1 A nat C -> mixed1 A B C.
 
-(* nb_uparams: 0 *)
+(* nb_uparams: zero *)
 Inductive mixed2 (A B C : Type) : Type :=
 | mc21 : mixed2 A bool C -> mixed2 A B C
 | mc22 : mixed2 nat B C -> mixed2 A B C.
 
-(* nb_uparams: 0 *)
+(* nb_uparams: zero *)
 Inductive mixed3 (A B C D : Type) : Type :=
 | mc31 : mixed3 A B C bool -> nat -> mixed3 A B C D
 | mc32 : mixed3 A B nat D -> nat -> mixed3 A B C D
@@ -160,17 +160,17 @@ Inductive mixed3 (A B C D : Type) : Type :=
 | mc34 : mixed3 nat B C D -> mixed3 A B C D -> mixed3 A B C D
 | mc35 : mixed3 A nat C D -> mixed3 B A C D -> mixed3 A B C D.
 
-(* nb_uparams: 0 *)
+(* nb_uparams: zero *)
 Inductive nu_vec (n : nat) : Type :=
 | vnil_pa : nu_vec n
 | vcons_pa : nu_vec (suc n) -> nu_vec n.
 
-(* nb_uparams: 0 *)
+(* nb_uparams: zero *)
 Inductive nu_ftree A : Type :=
 | nufleaf : A -> nu_ftree A
 | nufnode : (nat -> nu_ftree (prod A A)) -> nu_ftree A.
 
-(* nb_uparams: 0 *)
+(* nb_uparams: zero *)
 Inductive nu_ftree2 A : Type :=
 | nufleaf2 : A -> nu_ftree2 A
 | nufnode2 : (nat -> bool -> nu_ftree2 (prod A A)) -> nu_ftree2 A.
@@ -199,7 +199,7 @@ Inductive slist (A B : Type) (C : Type) : Type :=
 
 (* Inductive b_let (A : Type) : Type :=
 | b_letz : b_let A
-| b_lets (n m : nat) : let x := n + 0 in x = m -> x = m + 1 -> b_let A -> b_let A. *)
+| b_lets (n m : nat) : let x := n + zero in x = m -> x = m + 1 -> b_let A -> b_let A. *)
 
 Inductive rc_let (A : Type) : Type :=
 | rc_letz : rc_let A
@@ -214,9 +214,9 @@ Inductive crazy1 : nat -> Type :=
 | crazy1_s (n : nat) : let x := suc n in crazy1 x.
 
 (* Inductive crazy2 (A : let y := Prop in or y Prop) : (let y := bool in or bool nat) -> Type :=
-| crazy2_z : crazy2 A (inr 0)
-| crazy2_s (k n m : nat) : let x := n + 0 in x = m -> x = m + 1 -> crazy2 A (inl true) ->
-                     let z := 0 in crazy2 A (let y := 0 in inr (x + y)). *)
+| crazy2_z : crazy2 A (inr zero)
+| crazy2_s (k n m : nat) : let x := n + zero in x = m -> x = m + 1 -> crazy2 A (inl true) ->
+                     let z := zero in crazy2 A (let y := zero in inr (x + y)). *)
 
 Inductive diag : nat -> nat -> Type :=
 | dcons c : diag c c -> let ptm := c in diag c c.
@@ -238,3 +238,112 @@ Inductive nu_let1 (A : Type) : Type :=
 Inductive nu_let2 (A : Type) : Type :=
 | nu_let2_nil : nu_let2 A
 | nu_let2_cons : let x := prod A A in nu_let2 x -> nu_let2 A.
+
+
+
+
+
+(* Test des definitions inductives imbriquees *)
+
+Inductive X : Set :=
+  cons1 : list X -> X.
+
+Inductive Y : Set :=
+  cons2 : list (prod Y Y) -> Y.
+
+(* Test inductive types with local definitions (arity) *)
+
+Inductive eq1 : forall A:Type, let B:=A in A -> Prop :=
+  refl1 : eq1 True I.
+
+Inductive eq2 (A:Type) (a : A) : forall B C : Type, let D:= (prod A (prod B C)) in D -> Prop :=
+  refl2 : eq2 A a unit bool (pair _ _ a (pair _ _ tt true)).
+
+(* Check inductive types with local definitions (parameters) *)
+
+Inductive LetInIndices (A B : Prop) (E:=A) (F:=B) (f g : E -> F) : E -> Set :=
+    CIn : forall e : E, LetInIndices A B f g e.
+
+Inductive I1 : Set := C1 (_:I1) (_:=zero).
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+
+CoInductive LList (A : Set) : Set :=
+  | LNil : LList A
+  | LCons : A -> LList A -> LList A.
+
+Arguments LNil {A}.
+
+Inductive Finite (A : Set) : LList A -> Prop :=
+  | Finite_LNil : Finite LNil
+  | Finite_LCons :
+      forall (a : A) (l : LList A), Finite l -> Finite (LCons a l).
+
+(* Check inference of evars in arity using information from constructors *)
+
+Inductive foo1 : forall p, Prop := cc1 : foo1 zero.
+
+Inductive foo2 : forall p, Prop := cc2 : forall q, foo2 q | cc3 : foo2 zero.
+
+Inductive IND1 (A:Type) := CONS1 : IND1 ((fun x => A) IND1).
+
+Inductive IND2 (A:Type) (T:=fun _ : Type->Type => A) : Type :=
+| CONS2 : IND2 A -> IND2 (T IND2).
+
+Inductive IND3 (A:Type) (T:=fun _ : Type->Type => A) : Type :=
+| CONS3 : IND3 (T IND3) -> IND3 A.
+
+Inductive IND4 (A:Type) : Type :=
+| CONS4 : IND4 ((fun x => A) IND4) -> IND4 A.
+
+Inductive IND5 (A : Type) (T := A) : Type :=
+| CONS5 : IND5 ((fun _ => A) zero) -> IND5 A.
+
+Inductive IND6 (B : Type) (A := nat) : A -> Type :=
+| CONS6 n : IND6 (prod B B) n -> IND6 B n.
+
+Inductive list' (A:Type) (B:=A) :=
+| nil' : list' A
+| cons' : A -> list' B -> list' A.
+
+Inductive tree := node' : list' tree -> tree.
+
+Inductive L (A : Type) (T := A) : Type :=
+  CONSL : L nat -> L A.
+
+Inductive IND7 (A:Type) (T:=A) := CONS7 : IND7 T -> IND7 A.
+
+(* Module TemplateProp.
+
+  (** Check lowering of a template universe polymorphic inductive to Prop *)
+
+  Inductive Foo (A : Type) : Type := foo : A -> Foo A.
+
+  Check Foo True : Prop.
+
+End TemplateProp. *)
+
+(* Module PolyNoLowerProp.
+
+  (** Check lowering of a general universe polymorphic inductive to Prop is _failing_ *)
+
+  Polymorphic Inductive Foo (A : Type) : Type := foo : A -> Foo A.
+
+  Fail Check Foo True : Prop.
+
+End PolyNoLowerProp. *)
+
+(* Test building of elimination scheme with noth let-ins and
+   non-recursively uniform parameters *)
+
+Module NonRecLetIn.
+
+  Unset Implicit Arguments.
+
+  Inductive Ind (b:=suc (suc zero)) (a:nat) (c:=suc zero) : Type :=
+  | Base : Ind a
+  | Rec : Ind (suc a) -> Ind a.
+
+End NonRecLetIn.
+

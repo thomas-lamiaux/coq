@@ -62,7 +62,7 @@ type state =
 let print_state env sigma s pretty =
   let env = Environ.push_rel_context (EConstr.Unsafe.to_rel_context s.state_context) env in
   Format.printf "\n ************************************************************ \n";
-  Format.printf "\n ### Print State ### \n";
+  Format.printf "\n Print State \n";
   (* Print state *)
     Format.printf "BEGIN: State new context: \n";
     List.fold_right_i (fun i x _ ->
@@ -388,8 +388,13 @@ let closure_new_context_sep binder = read_context_sep (mk_binder binder) mk_tLet
 (* ************************************************************************** *)
 
 (* 3. Mutual Inductive Body Level *)
+
+(* WARNING THIS CREATES SUB-OPTIMAL REC: nb_nuparams may be too bug *)
 let get_params_sep mdecl =
-  let nb_nuparams = mdecl.mind_nparams - mdecl.mind_nparams_rec in
+  let nb_params_letin = List.length mdecl.mind_params_ctxt in
+  Format.printf "\n => nb_params_letin: %n \n " nb_params_letin;
+  let nb_nuparams = nb_params_letin - mdecl.mind_nparams_rec in
+  Format.printf "=> nb_nuparams: %n \n " nb_nuparams;
   let (nuparams, uparams) = List.chop nb_nuparams mdecl.mind_params_ctxt in
   (EConstr.of_rel_context uparams, EConstr.of_rel_context nuparams)
 
@@ -403,13 +408,13 @@ let get_params mdecl =
   EConstr.of_rel_context mdecl.mind_params_ctxt
 
 let add_uparams mdecl s = add_old_context s (get_uparams mdecl)
-let closure_uparams binder mdecl s = closure_old_context binder s (get_uparams mdecl)
+let closure_uparams binder mdecl s = closure_old_context_sep binder s (get_uparams mdecl)
 
 let add_nuparams mdecl s = add_old_context s (get_nuparams mdecl)
-let closure_nuparams binder mdecl s = closure_old_context binder s (get_nuparams mdecl)
+let closure_nuparams binder mdecl s = closure_old_context_sep binder s (get_nuparams mdecl)
 
 let add_params mdecl s = add_old_context s (get_params mdecl)
-let closure_params binder mdecl s = closure_old_context binder s (get_params mdecl)
+let closure_params binder mdecl s = closure_old_context_sep binder s (get_params mdecl)
 
 let get_ind_bodies mdecl = mdecl.mind_packets
 
@@ -456,15 +461,20 @@ let get_indices indb =
 
 (* Closure for indices must be fresh as it is not in the context of arguments *)
 let add_indices s indb = add_fresh_context s (weaken_context s (get_indices indb))
-let closure_indices binder s indb = closure_new_context binder s (weaken_context s (get_indices indb))
+let closure_indices binder s indb = closure_new_context_sep binder s (weaken_context s (get_indices indb))
 
 let default_rarg mdecl indb =
   (mdecl.mind_nparams - mdecl.mind_nparams_rec) + List.length (get_indices indb)
 
 let get_args mdecl sigma (cxt, ty) =
-  let args = EConstr.of_rel_context @@ List.rev @@ let (_, args) = List.chop mdecl.mind_nparams (List.rev cxt) in args in
+  (* recovers args *)
+  Format.printf "\n BEGIN: get_args";
+  let nb_params_letin = List.length mdecl.mind_params_ctxt in
+  let (_, args) = List.chop nb_params_letin (List.rev cxt) in
+  let args = EConstr.of_rel_context @@ List.rev args in
   let (hd, xs) = decompose_app sigma (EConstr.of_constr ty) in
   let indices = Array.sub xs mdecl.mind_nparams (Array.length xs - mdecl.mind_nparams) in
+  Format.printf "\n END: get_args \n ";
   (args, indices)
 
 let get_ctors mdecl sigma pos_indb =
@@ -543,10 +553,9 @@ let view_arg kname mdecl s sigma t : arg =
   | Ind ((kname_indb, pos_indb), _) ->
     (* If it is the inductive *)
     if kname = kname_indb
-    then let nb_uparams = List.length @@ get_uparams mdecl in
-         let (_, local_nuparams_indices) = Array.chop nb_uparams iargs in
-         let nb_nuparams = List.length @@ get_nuparams mdecl in
-         let (local_nuparams, local_indices) = Array.chop nb_nuparams local_nuparams_indices in
+    then let nb_uparams = mdecl.mind_nparams_rec in
+         let (_, local_nuparams_indices) = Array.chop mdecl.mind_nparams_rec iargs in
+         let (local_nuparams, local_indices) = Array.chop (mdecl.mind_nparams - mdecl.mind_nparams_rec) local_nuparams_indices in
          ArgIsInd (pos_indb, cxt, local_nuparams, local_indices)
     (* 2.2 If it is nested *)
     else if Array.length iargs = 0 then ArgIsCst (cxt, hd, iargs)
