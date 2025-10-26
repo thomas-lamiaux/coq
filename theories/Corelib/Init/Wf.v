@@ -30,46 +30,8 @@ Section Well_founded.
  (** The accessibility predicate is defined to be non-informative *)
  (** (Acc_rect is automatically defined because Acc is a singleton type) *)
 
-  Unset Elimination Schemes.
-
  Inductive Acc (x: A) : Prop :=
      Acc_intro : (forall y:A, R y x -> Acc y) -> Acc x.
-
-  Definition Acc_rect (P : A -> Type) (f : forall x : A, (forall y : A, R y x -> Acc y) ->
-    (forall y : A, R y x -> P y) -> P x) :=
-  fix F (x : A) (a : Acc x) {struct a} : P x :=
-  match a with
-  | Acc_intro a0 => f x a0 (fun (y : A) (r : R y x) => F y (a0 y r))
-  end.
-
-  Definition Acc_ind (P : A -> Prop) (f : forall x : A, (forall y : A, R y x -> Acc y) ->
-    (forall y : A, R y x -> P y) -> P x) :=
-  fix F (x : A) (a : Acc x) {struct a} : P x :=
-  match a with
-  | Acc_intro a0 => f x a0 (fun (y : A) (r : R y x) => F y (a0 y r))
-  end.
-
-  Definition Acc_sind (P : A -> SProp) (f : forall x : A, (forall y : A, R y x -> Acc y) ->
-    (forall y : A, R y x -> P y) -> P x) :=
-  fix F (x : A) (a : Acc x) {struct a} : P x :=
-  match a with
-  | Acc_intro a0 => f x a0 (fun (y : A) (r : R y x) => F y (a0 y r))
-  end.
-
-  Definition Acc_rec (P : A -> Set) (f : forall x : A, (forall y : A, R y x -> Acc y) ->
-    (forall y : A, R y x -> P y) -> P x) :=
-  fix F (x : A) (a : Acc x) {struct a} : P x :=
-  match a with
-  | Acc_intro a0 => f x a0 (fun (y : A) (r : R y x) => F y (a0 y r))
-  end.
-
-  Register Scheme Acc_rect as rect_nodep for Acc.
-  Register Scheme Acc_ind  as ind_nodep  for Acc.
-  Register Scheme Acc_sind as sind_nodep for Acc.
-  Register Scheme Acc_rec  as rec_nodep  for Acc.
-
-
-  Set Elimination Schemes.
 
  Register Acc as core.wf.acc.
 

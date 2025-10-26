@@ -15,7 +15,7 @@ open NamedAPI
 
 
 
-let gen_rec env sigma kn u mdecl sort_pred =
+let gen_rec env sigma kn u mdecl sort_pred dep =
   (* sort pred specify the output sorts of the induction predicates *)
 
   let pred_relevance = Retyping.relevance_of_sort sort_pred in
@@ -39,6 +39,7 @@ let gen_rec env sigma kn u mdecl sort_pred =
   let make_type_pred s pos_indb indb keys_uparams : constr =
     let* (s, keys_nuparams, _, _) = closure_nuparams mkProd mdecl s in
     let* (s, keys_indices , _, _) = closure_indices mkProd s indb in
+    if not dep then mkSort sort_pred else
     let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
     mkProd ((make_annot Anonymous (ERelevance.make indb.mind_relevance)), ind, mkSort sort_pred)
   in
@@ -66,8 +67,9 @@ let gen_rec env sigma kn u mdecl sort_pred =
     | ArgIsInd (pos_ind, loc, inst_nuparams, inst_indices) ->
         Some (
           (* Pi B0 ... Bm i0 ... il (x a0 ... an) *)
-          let* (s, key_locals, _, _) = closure_old_context_sep mkProd s loc in
+          let* (s, key_locals, _, _) = closure_new_context_sep mkProd s loc in
           let pred = mkApp ((geti_term s key_preds pos_ind), (Array.append inst_nuparams inst_indices)) in
+          if not dep then pred else
           let arg = mkApp (get_term s key_arg, Array.of_list (get_terms s key_locals)) in
           mkApp (pred, Array.make 1 arg)
         )
@@ -98,6 +100,7 @@ let gen_rec env sigma kn u mdecl sort_pred =
     (* Format.printf "\n END: closure args \n"; *)
     let indices = Array.map (weaken s) indices in
     let pred = mkApp ((geti_term s key_preds pos_indb), Array.append (Array.of_list (get_terms s keys_nuparams)) indices) in
+    if not dep then pred else
     let cst = make_cst s (kn, pos_indb) u pos_ctor keys_uparams (get_terms s keys_nuparams) (get_terms s key_args) in
     mkApp (pred, Array.make 1 cst)
   in
@@ -120,9 +123,10 @@ let gen_rec env sigma kn u mdecl sort_pred =
   (* 1.3. Make the type of the conclusion *)
   (* P B0 ... Bm i0 ... il x *)
   let make_ccl s key_preds pos_indb keys_nuparams keys_indices key_VarMatch =
-      let pred = geti_term s key_preds pos_indb in
-      let args = Array.of_list (get_terms s keys_nuparams @ get_terms s keys_indices @ get_terms s [key_VarMatch]) in
-      mkApp (pred, args)
+    let args = Array.of_list (get_terms s keys_nuparams @ get_terms s keys_indices) in
+    let pred = mkApp (geti_term s key_preds pos_indb, args) in
+    if not dep then pred else
+    mkApp (pred, Array.make 1 (get_term s key_VarMatch))
   in
 
   (* 1.4. Make the return type *)
@@ -176,12 +180,13 @@ let gen_rec env sigma kn u mdecl sort_pred =
 (*    5. Make the term of the recursors    *)
 (* ####################################### *)
 
+  (* ty is well-formed in s *)
   let make_rec_call key_fixs s key_arg ty : constr option =
     match view_arg kn mdecl sigma ty with
     | ArgIsInd (pos_ind, loc, inst_nuparams, inst_indices) ->
         Some (
           (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
-          let* (s, key_locals, _, _) = closure_old_context_sep mkLambda s loc in
+          let* (s, key_locals, _, _) = closure_new_context_sep mkLambda s loc in
           let fix = mkApp ((geti_term s key_fixs pos_ind), (Array.append inst_nuparams inst_indices)) in
           let arg = mkApp (get_term s key_arg, Array.of_list (get_terms s key_locals)) in
           mkApp (fix, Array.make 1 arg)
@@ -189,7 +194,7 @@ let gen_rec env sigma kn u mdecl sort_pred =
     | _ -> None
   in
 
-  (* 3.1 Compute the arguments of the rec call *)
+  (* Compute the arguments of the rec call *)
   let compute_args_fix pos_ctor s key_fixs key_args =
     CList.fold_right_i (fun pos_arg key_arg t ->
       let ty_arg = get_type s key_arg in
@@ -216,12 +221,13 @@ let debug_cxt s n cxt  =
   Format.printf "\n END DEBUG %s \n" s;
     in
 
-(* 3.2 Generates the recursor *)
-let gen_rec_term pos_indb =
+let gen_rec_term print pos_indb =
 
+  if print then begin
   Format.printf "################################################## \n";
   Format.printf "\n ### PP rec # Type: %s # block %n ### \n" (MutInd.to_string kn) pos_indb ;
-  Feedback.msg_info (Termops.Internal.print_constr_env env sigma (mkSort sort_pred));
+  Feedback.msg_info (Termops.Internal.print_constr_env env sigma (mkSort sort_pred))
+  end ;
   (* Format.printf "IS ALLOWED ELIMINATION: %b" (Inductiveops.is_allowed_elimination sigma ((mdecl, mdecl.mind_packets.(0)), u) sort_pred); *)
   (* let b = Array.fold_right (fun mipi b -> b && Inductiveops.is_allowed_elimination sigma ((mdecl,mipi),u) sort_pred) mdecl.mind_packets true in
   Format.printf "IS ALLOWED ELIMINATION: %b" b; *)
@@ -257,15 +263,14 @@ in
 (* Format.printf "\n ------------------------------------------------------------- \n";
 Feedback.msg_info (Termops.Internal.debug_print_constr sigma t);
 Format.printf "\n" ; *)
-(* begin try *)
+  if print then begin
   Format.printf "\n ------------------------------------------------------------- \n";
   Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
-  Format.printf "\n \n";
-(* with _ -> () end; *)
+  Format.printf "\n \n" end;
   t
 in
 
-gen_rec_term
+gen_rec_term false
 (* gen_rec_type *)
 
 

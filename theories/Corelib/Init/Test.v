@@ -120,12 +120,12 @@ Inductive vectree2 A : nat -> Type :=
 
 (* mutual *)
 
-Inductive teven : Type :=
+(* Inductive teven : Prop :=
 | teven0 : teven
 | tevenS : todd -> teven
 with
-todd : Type :=
-| toddS : teven -> todd.
+todd : Prop :=
+| toddS : teven -> todd. *)
 
 Inductive even : nat -> Type :=
 | even0   : even zero
@@ -302,8 +302,8 @@ Inductive list' (A:Type) (B:=A) :=
 
 Inductive tree := node' : list' tree -> tree.
 
-Inductive L (A : Type) (T := A) : Type :=
-  CONSL : L nat -> L A.
+Inductive L (A : Type) (T := A) B : Type :=
+  CONSL : B -> L A B -> L T B.
 
 Inductive IND7 (A:Type) (T:=A) := CONS7 : IND7 T -> IND7 A.
 
@@ -343,3 +343,15 @@ Module NonRecLetIn.
 
 End NonRecLetIn.
 
+Section Well_founded.
+
+ Variable A : Type.
+ Variable R : A -> A -> Prop.
+
+ (** The accessibility predicate is defined to be non-informative *)
+ (** (Acc_rect is automatically defined because Acc is a singleton type) *)
+
+ Inductive Acc (x: A) : Prop :=
+     Acc_intro : (forall y : A, R y x -> Acc y) -> Acc x.
+
+End Well_founded.

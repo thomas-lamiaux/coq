@@ -127,6 +127,9 @@ Theorem iff_sym : forall A B:Prop, (A <-> B) -> (B <-> A).
 End Equivalence.
 
 #[global]
+Create HintDb extcore.
+
+#[global]
 Hint Unfold iff: extcore.
 
 (** Backward direction of the equivalences above does not need assumptions *)
@@ -375,43 +378,10 @@ End universal_quantification.
     as it expresses that [x] and [y] are equal iff every property on
     [A] which is true of [x] is also true of [y] *)
 
-Unset Elimination Schemes.
-
 Inductive eq (A:Type) (x:A) : A -> Prop :=
     eq_refl : x = x :>A
 
 where "x = y :> A" := (@eq A x y) : type_scope.
-
-Definition eq_rect (A : Type) (x : A) (P : A -> Type) (f : P x) (a : A)
-  (e : x = a :> A) :=
-  match e in (_ = a0 :> _) return (P a0) with
-  | eq_refl _ => f
-  end.
-
-Definition eq_ind (A : Type) (x : A) (P : A -> Prop) (f : P x) (a : A)
-  (e : x = a :> A) :=
-  match e in (_ = a0 :> _) return (P a0) with
-  | eq_refl _ => f
-  end.
-
-Definition eq_sind (A : Type) (x : A) (P : A -> SProp) (f : P x) (a : A)
-  (e : x = a :> A) :=
-  match e in (_ = a0 :> _) return (P a0) with
-  | eq_refl _ => f
-  end.
-
-Definition eq_rec (A : Type) (x : A) (P : A -> Set) (f : P x) (a : A)
-  (e : x = a :> A) :=
-  match e in (_ = a0 :> _) return (P a0) with
-  | eq_refl _ => f
-  end.
-
-Register Scheme eq_rect as rect_nodep for eq.
-Register Scheme eq_ind  as ind_nodep  for eq.
-Register Scheme eq_sind as sind_nodep for eq.
-Register Scheme eq_rec  as rec_nodep  for eq.
-
-Set Elimination Schemes.
 
 Arguments eq {A} x _.
 Arguments eq_refl {A x} , [A] x.
@@ -587,7 +557,6 @@ Section equality_dep.
   Variables x y : A.
 
   Theorem f_equal_dep (H: x = y) : rew H in f x = f y.
-  Unset Printing Notations.
   Proof.
     destruct H; reflexivity.
   Defined.
