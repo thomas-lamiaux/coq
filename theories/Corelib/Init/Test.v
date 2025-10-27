@@ -9,6 +9,7 @@
 (************************************************************************)
 Set Debug "backtrace".
 Set Printing Universes.
+Set Printing Relevance Marks.
 
 Notation "A -> B" := (forall (_ : A), B) (right associativity, at level 99).
 
@@ -121,12 +122,12 @@ Inductive vectree2 A : nat -> Type :=
 
 (* mutual *)
 
-(* Inductive teven : Prop :=
+Inductive teven : Prop :=
 | teven0 : teven
 | tevenS : todd -> teven
 with
 todd : Prop :=
-| toddS : teven -> todd. *)
+| toddS : teven -> todd.
 
 Inductive even : nat -> Type :=
 | even0   : even zero
@@ -364,4 +365,61 @@ Polymorphic Inductive polyuin (A : Type): Type := C.
 
 Inductive pFalse : Prop  := .
 
-(* Inductive sFalse : SProp := . *)
+Inductive sFalse : SProp := .
+
+(*
+
+Module M0.
+
+Inductive foo (A : Type) := Foo {
+  foo1 : nat;
+  foo2 := myeq _ foo1 zero;
+  foo3 : foo2;
+}
+
+with bar (A : Type) := Bar {
+  bar0 : A;
+  bar1 := zero;
+  bar2 : myeq _ bar1 zero;
+  bar3 : nat -> foo A;
+}.
+
+End M0.
+
+Module M1.
+
+Set Primitive Projections.
+
+Inductive foo (A : Type) := Foo {
+  foo1 : nat;
+  foo2 := myeq _ foo1 zero;
+  foo3 : foo2;
+}
+
+with bar (A : Type) := Bar {
+  bar0 : A;
+  bar1 := zero;
+  bar2 : myeq _ bar1 zero;
+  bar3 : nat -> foo A;
+}.
+
+End M1.
+
+Module M2.
+
+Set Primitive Projections.
+
+CoInductive foo (A : Type) := Foo {
+  foo1 : nat;
+  foo2 := myeq _ foo1 zero;
+  foo3 : foo2;
+}
+
+with bar (A : Type) := Bar {
+  bar0 : A;
+  bar1 := zero;
+  bar2 : myeq _ bar1 zero;
+  bar3 : nat -> foo A;
+}.
+
+End M2. *)

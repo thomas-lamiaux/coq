@@ -41,7 +41,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
     let* (s, keys_indices , _, _) = closure_indices mkProd s indb u in
     if not dep then mkSort sort_pred else
     let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
-    mkProd ((make_annot Anonymous (ERelevance.make indb.mind_relevance)), ind, mkSort sort_pred)
+    mkProd ((make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u))), ind, mkSort sort_pred)
   in
 
   (* closure version *)
@@ -138,7 +138,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
       let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s mdecl u in
       let* (s, keys_indices , _, _) = closure_indices mkProd s indb u in
       let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
-      let* (s, key_VarMatch) = mk_tProd s (make_annot Anonymous (ERelevance.make indb.mind_relevance)) ind in
+      let* (s, key_VarMatch) = mk_tProd s (make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u))) ind in
       make_ccl s key_preds pos_indb keys_nuparams keys_indices key_VarMatch
   in
 
@@ -221,7 +221,7 @@ let debug_cxt s n cxt  =
   Format.printf "\n END DEBUG %s \n" s;
     in
 
-let gen_rec_term print pos_indb =
+let gen_rec_term print pos_indb indb =
 
   if print then begin
   Format.printf "################################################## \n";
@@ -232,32 +232,63 @@ let gen_rec_term print pos_indb =
   (* let b = Array.fold_right (fun mipi b -> b && Inductiveops.is_allowed_elimination sigma ((mdecl,mipi),u) sort_pred) mdecl.mind_packets true in
   Format.printf "IS ALLOWED ELIMINATION: %b" b; *)
 
+  (* if mutual -> is rec *)
+  let isrec = Array.length mdecl.mind_packets > 1 || Inductiveops.mis_is_recursive env ((kn, pos_indb), mdecl, indb) in
+
   let t =
-  (* 0. Initialise state with inductives *)
-  let s = init_state in
-  (* 1. Closure Uparams / preds / ctors *)
-  let* (s, key_uparams, _, _) = closure_uparams mkLambda s mdecl u in
-  let* (s, key_preds)   = closure_preds   mkLambda s key_uparams in
-  let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
-  (* 2. Fixpoint *)
-  let tFix_name pos_indb indb = make_annot (Name.Name (Id.of_string "F")) pred_relevance in
-  let tFix_type s pos_indb indb = make_return_type s pos_indb indb key_uparams key_preds in
-  let tFix_rarg pos_indb indb = default_rarg mdecl indb in
-  let* (s, key_fixs, pos_indb, indb) = mk_tFix env sigma mdecl kn s tFix_rarg pos_indb tFix_name tFix_type in
-  (* 3. Closure Nuparams / Indices / Var *)
-  let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s mdecl u in
-  let* (s, key_indices , _, _) = closure_indices  mkLambda s indb u in
-  let* (s, key_VarMatch) = mk_tLambda s (make_annot Anonymous (ERelevance.make indb.mind_relevance))
-                          (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
-  (* 4. Proof of P ... x by match *)
-  let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
-  let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
-  let* (s, key_args, key_letin, key_both, pos_ctor) =
-    mk_tCase env sigma s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params
-          tCase_pred pred_relevance (get_term s key_VarMatch) in
-  (* 5. Make the branch *)
-  let args = get_terms s key_nuparams @ compute_args_fix pos_ctor s key_fixs key_args  in
-  mkApp ((getij_term s key_ctors pos_indb pos_ctor), Array.of_list args)
+  if isrec then begin
+
+    (* 0. Initialise state with inductives *)
+    let s = init_state in
+    (* 1. Closure Uparams / preds / ctors *)
+    let* (s, key_uparams, _, _) = closure_uparams mkLambda s mdecl u in
+    let* (s, key_preds)   = closure_preds   mkLambda s key_uparams in
+    let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
+    (* 2. Fixpoint *)
+    let tFix_name pos_indb indb = make_annot (Name.Name (Id.of_string "F")) pred_relevance in
+    let tFix_type s pos_indb indb = make_return_type s pos_indb indb key_uparams key_preds in
+    let tFix_rarg pos_indb indb = default_rarg mdecl indb in
+    let* (s, key_fixs, pos_indb, indb) = mk_tFix env sigma mdecl kn s tFix_rarg pos_indb tFix_name tFix_type in
+    (* 3. Closure Nuparams / Indices / Var *)
+    let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s mdecl u in
+    let* (s, key_indices , _, _) = closure_indices  mkLambda s indb u in
+    let* (s, key_VarMatch) = mk_tLambda s (make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u)))
+                            (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
+    (* 4. Proof of P ... x by match *)
+    let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
+    let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
+    let* (s, key_args, key_letin, key_both, pos_ctor) =
+      mk_tCase env sigma s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params (get_terms s key_indices)
+            tCase_pred pred_relevance (get_term s key_VarMatch) in
+    (* 5. Make the branch *)
+    let args = get_terms s key_nuparams @ compute_args_fix pos_ctor s key_fixs key_args  in
+    mkApp ((getij_term s key_ctors pos_indb pos_ctor), Array.of_list args)
+
+  end
+  else begin
+      (* 0. Initialise state with inductives *)
+    let s = init_state in
+    (* 1. Closure Uparams / preds / ctors *)
+    let* (s, key_uparams, _, _) = closure_uparams mkLambda s mdecl u in
+    let* (s, key_preds)   = closure_preds   mkLambda s key_uparams in
+    let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
+    (* 3. Closure Nuparams / Indices / Var *)
+    let pos_indb = 0 in
+    let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s mdecl u in
+    let* (s, key_indices , _, _) = closure_indices  mkLambda s indb u in
+    let* (s, key_VarMatch) = mk_tLambda s (make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u)))
+                            (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
+    (* 4. Proof of P ... x by match *)
+    let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
+    let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
+    let* (s, key_args, key_letin, key_both, pos_ctor) =
+      mk_tCase env sigma s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params (get_terms s key_indices)
+            tCase_pred pred_relevance (get_term s key_VarMatch) in
+    (* 5. Make the branch *)
+    let args = get_terms s key_nuparams @ get_terms s key_args in
+    mkApp ((getij_term s key_ctors pos_indb pos_ctor), Array.of_list args)
+
+  end
 
 in
 (* Format.printf "\n ------------------------------------------------------------- \n";

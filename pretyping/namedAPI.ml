@@ -558,8 +558,14 @@ let iterate_all_ctors s kname mdecl sigma u tp cc =
 
 
 (* mk match *)
-let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_case_pred mk_case_relevance tm_match tc =
+let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params indices mk_case_pred case_relevance tm_match tc =
   let tCase_info = Inductiveops.make_case_info env ind RegularStyle in
+
+  let case_invert =
+    if Typeops.should_invert_case env (Unsafe.to_relevance case_relevance) tCase_info
+    then Constr.CaseInvert {indices=Array.of_list indices}
+    else Constr.NoInvert
+  in
 
   let tCase_Pred =
     (* indices *)
@@ -567,13 +573,13 @@ let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_c
     let name_indices = List.map get_annot indices in
     let* (s, keys_fresh_indices, _, _) = add_fresh_context_sep s indices in
     (* new var *)
-    let name_var_match = make_annot Anonymous ERelevance.relevant in
+    let name_var_match = make_annot Anonymous (Inductiveops.relevance_of_inductive env (ind, u)) in
     let ty_var = make_ind s ind u keys_uparams (get_terms s keys_nuparams) (get_terms s keys_fresh_indices) in
     let* (s, key_var_match) = add_fresh_var s name_var_match ty_var in
     (* return type *)
     let return_type = mk_case_pred s keys_fresh_indices key_var_match in
     (* return *)
-    ((Array.of_list (List.append name_indices [name_var_match]), return_type), mk_case_relevance)
+    ((Array.of_list (List.append name_indices [name_var_match]), return_type), case_relevance)
   in
 
   let branch pos_ctor ctor =
@@ -586,5 +592,5 @@ let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_c
 
   let branches = Array.mapi branch indb.mind_nf_lc in
 
-  EConstr.mkCase (tCase_info, u, params, tCase_Pred, NoInvert, tm_match, branches)
+  EConstr.mkCase (tCase_info, u, params, tCase_Pred, case_invert, tm_match, branches)
 
