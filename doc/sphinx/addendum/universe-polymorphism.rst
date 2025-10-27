@@ -581,7 +581,7 @@ to universes and explicitly instantiate polymorphic definitions.
 .. _printing-universes:
 
 Printing universes
-------------------
+~~~~~~~~~~~~~~~~~~
 
 .. flag:: Printing Universes
 
