@@ -8,6 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 Set Debug "backtrace".
+Set Printing Universes.
 
 Notation "A -> B" := (forall (_ : A), B) (right associativity, at level 99).
 
@@ -355,3 +356,12 @@ Section Well_founded.
      Acc_intro : (forall y : A, R y x -> Acc y) -> Acc x.
 
 End Well_founded.
+
+Inductive letfoo (n := zero) A :=
+| letFoo : letfoo nat -> letfoo A.
+
+Polymorphic Inductive polyuin (A : Type): Type := C.
+
+Inductive pFalse : Prop  := .
+
+(* Inductive sFalse : SProp := . *)

@@ -37,8 +37,8 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
     forall (i1 : t1) ... (il : tl),
     (Ind A1 ... An B0 ... Bm i1 ... il) -> U)  *)
   let make_type_pred s pos_indb indb keys_uparams : constr =
-    let* (s, keys_nuparams, _, _) = closure_nuparams mkProd mdecl s in
-    let* (s, keys_indices , _, _) = closure_indices mkProd s indb in
+    let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s mdecl u in
+    let* (s, keys_indices , _, _) = closure_indices mkProd s indb u in
     if not dep then mkSort sort_pred else
     let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
     mkProd ((make_annot Anonymous (ERelevance.make indb.mind_relevance)), ind, mkSort sort_pred)
@@ -92,7 +92,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
     P B0 ... Bm f0 ... fl (cst A0 ... An B0 ... Bm x0 ... xl) *)
   let make_type_ctor s pos_indb indb pos_ctor ctor keys_uparams key_preds =
     (* Format.printf "\n BEGIN: closure nup"; *)
-    let* (s, keys_nuparams, _, _) = closure_nuparams mkProd mdecl s in
+    let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s mdecl u in
     (* Format.printf "\n END: closure nup \n"; *)
     let (cxt, indices) = ctor in
     (* Format.printf "\n BEGIN: closure args"; *)
@@ -107,7 +107,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
 
   (* closure assumptions functions over all the ctors *)
   let closure_ctors binder s sigma keys_uparams key_preds cc =
-    iterate_all_ctors s kn mdecl sigma (
+    iterate_all_ctors s kn mdecl sigma u (
       fun s pos_indb indb pos_ctor ctor cc ->
       let name_assumption = make_annot (Name indb.mind_consnames.(pos_ctor)) pred_relevance in
       let fct = make_type_ctor s pos_indb indb pos_ctor ctor keys_uparams key_preds in
@@ -135,8 +135,8 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
      forall (x : Ind A0 ... An B0 ... Bm i0 ... il),
       P B0 ... Bm i0 ... il x *)
   let make_return_type s pos_indb indb keys_uparams key_preds =
-      let* (s, keys_nuparams, _, _) = closure_nuparams mkProd mdecl s in
-      let* (s, keys_indices , _, _) = closure_indices mkProd s indb in
+      let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s mdecl u in
+      let* (s, keys_indices , _, _) = closure_indices mkProd s indb u in
       let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
       let* (s, key_VarMatch) = mk_tProd s (make_annot Anonymous (ERelevance.make indb.mind_relevance)) ind in
       make_ccl s key_preds pos_indb keys_nuparams keys_indices key_VarMatch
@@ -154,7 +154,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
     let t =
       let s = init_state in
       let indb = mdecl.mind_packets.(pos_indb) in
-      let* (s, key_uparams, _, _) = closure_uparams mkProd mdecl s in
+      let* (s, key_uparams, _, _) = closure_uparams mkProd s mdecl u in
       (* Format.printf "\n     SUCESS: closure up     \n "; *)
       let* (s, key_preds)   = closure_preds mkProd s key_uparams in
       (* Format.printf "\n     SUCESS: closure preds     \n "; *)
@@ -236,7 +236,7 @@ let gen_rec_term print pos_indb =
   (* 0. Initialise state with inductives *)
   let s = init_state in
   (* 1. Closure Uparams / preds / ctors *)
-  let* (s, key_uparams, _, _) = closure_uparams mkLambda mdecl s in
+  let* (s, key_uparams, _, _) = closure_uparams mkLambda s mdecl u in
   let* (s, key_preds)   = closure_preds   mkLambda s key_uparams in
   let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
   (* 2. Fixpoint *)
@@ -245,8 +245,8 @@ let gen_rec_term print pos_indb =
   let tFix_rarg pos_indb indb = default_rarg mdecl indb in
   let* (s, key_fixs, pos_indb, indb) = mk_tFix env sigma mdecl kn s tFix_rarg pos_indb tFix_name tFix_type in
   (* 3. Closure Nuparams / Indices / Var *)
-  let* (s, key_nuparams, _, _) = closure_nuparams mkLambda mdecl s in
-  let* (s, key_indices , _, _) = closure_indices  mkLambda s indb in
+  let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s mdecl u in
+  let* (s, key_indices , _, _) = closure_indices  mkLambda s indb u in
   let* (s, key_VarMatch) = mk_tLambda s (make_annot Anonymous (ERelevance.make indb.mind_relevance))
                           (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
   (* 4. Proof of P ... x by match *)

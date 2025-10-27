@@ -448,37 +448,36 @@ let closure_new_context_sep binder = read_context_sep (mk_binder binder) mk_tLet
 
 let chop_letin n l =
   let rec goto i acc = function
-    | tl when Int.equal i 0 -> (List.rev acc, tl)
     | h :: t ->
       begin match h with
-      | LocalAssum _ -> goto (pred i) (h :: acc) t
+      | LocalAssum _ -> if Int.equal i 0 then (List.rev acc, h::t) else goto (pred i) (h :: acc) t
       | LocalDef _ -> goto i (h :: acc) t
       end
-    | [] -> failwith "goto"
+    | [] -> if Int.equal i 0 then (List.rev acc, []) else failwith "goto"
   in
   goto n [] l
 
-let get_params_sep mdecl =
+let get_params_sep mdecl u =
   let (uparams, nuparams) = chop_letin mdecl.mind_nparams_rec @@ List.rev mdecl.mind_params_ctxt in
-  (EConstr.of_rel_context @@ List.rev uparams, EConstr.of_rel_context @@ List.rev nuparams)
+  (Vars.subst_instance_context u @@ EConstr.of_rel_context @@ List.rev uparams, Vars.subst_instance_context u @@ EConstr.of_rel_context @@ List.rev nuparams)
 
-let get_uparams_letin mdecl = fst @@ get_params_sep mdecl
-let nb_uparams_letin mdecl = List.length @@ get_uparams_letin mdecl
-let get_nuparams_letin mdecl = snd @@ get_params_sep mdecl
-let nb_nuparams_letin mdecl = List.length @@ get_nuparams_letin mdecl
+let get_uparams_letin mdecl u = fst @@ get_params_sep mdecl u
+let nb_uparams_letin mdecl u = List.length @@ get_uparams_letin mdecl u
+let get_nuparams_letin mdecl u = snd @@ get_params_sep mdecl u
+let nb_nuparams_letin mdecl u = List.length @@ get_nuparams_letin mdecl u
 
 
-let get_params mdecl =
-  EConstr.of_rel_context mdecl.mind_params_ctxt
+let get_params mdecl u =
+  Vars.subst_instance_context u @@ EConstr.of_rel_context mdecl.mind_params_ctxt
 
-let add_uparams mdecl s = add_old_context_sep s (get_uparams_letin mdecl)
-let closure_uparams binder mdecl s = closure_old_context_sep binder s (get_uparams_letin mdecl)
+let add_uparams s mdecl u = add_old_context_sep s (get_uparams_letin mdecl u)
+let closure_uparams binder s mdecl u = closure_old_context_sep binder s (get_uparams_letin mdecl u)
 
-let add_nuparams mdecl s = add_old_context_sep s (get_nuparams_letin mdecl)
-let closure_nuparams binder mdecl s = closure_old_context_sep binder s (get_nuparams_letin mdecl)
+let add_nuparams s mdecl u = add_old_context_sep s (get_nuparams_letin mdecl u)
+let closure_nuparams binder s mdecl u = closure_old_context_sep binder s (get_nuparams_letin mdecl u)
 
-let add_params mdecl s = add_old_context_sep s (get_params mdecl)
-let closure_params binder mdecl s = closure_old_context_sep binder s (get_params mdecl)
+let add_params s mdecl u = add_old_context_sep s (get_params mdecl u)
+let closure_params binder s mdecl u = closure_old_context_sep binder s (get_params mdecl u)
 
 let get_ind_bodies mdecl = mdecl.mind_packets
 
@@ -521,39 +520,39 @@ let make_cst =
   let args = [get_terms s key_uparams; nuparams; args] in
   mkApp (tCst, (Array.of_list (List.concat args)))
 
-let get_indices indb =
+let get_indices indb u =
     let indices, _ = List.chop indb.mind_nrealdecls indb.mind_arity_ctxt in
-    EConstr.of_rel_context indices
+    Vars.subst_instance_context u @@ EConstr.of_rel_context indices
 
 (* Closure for indices must be fresh as it is not in the context of arguments *)
-let add_indices s indb = add_fresh_context_sep s (weaken_context s (get_indices indb))
-let closure_indices binder s indb = closure_new_context_sep binder s (weaken_context s (get_indices indb))
+let add_indices s indb u = add_fresh_context_sep s (weaken_context s (get_indices indb u))
+let closure_indices binder s indb u = closure_new_context_sep binder s (weaken_context s (get_indices indb u))
 
 let default_rarg mdecl indb =
   (mdecl.mind_nparams - mdecl.mind_nparams_rec) + indb.mind_nrealargs
 
-let get_args mdecl sigma (cxt, ty) =
+let get_args mdecl sigma u (cxt, ty) =
   (* recovers args *)
   (* Format.printf "\n BEGIN: get_args"; *)
   let nb_params_letin = List.length mdecl.mind_params_ctxt in
   let (_, args) = List.chop nb_params_letin (List.rev cxt) in
-  let args = EConstr.of_rel_context @@ List.rev args in
-  let (hd, xs) = decompose_app sigma (EConstr.of_constr ty) in
+  let args = Vars.subst_instance_context u @@ EConstr.of_rel_context @@ List.rev args in
+  let (hd, xs) = decompose_app sigma (Vars.subst_instance_constr u @@  EConstr.of_constr ty) in
   let indices = Array.sub xs mdecl.mind_nparams (Array.length xs - mdecl.mind_nparams) in
   (* Format.printf "\n END: get_args \n "; *)
   (args, indices)
 
-let get_ctors mdecl sigma pos_indb =
+let get_ctors mdecl sigma u pos_indb =
   let ctors = mdecl.mind_packets.(pos_indb).mind_nf_lc in
-  Array.map (get_args mdecl sigma) ctors
+  Array.map (get_args mdecl sigma u) ctors
 
-let iterate_ctors s mdecl sigma pos_indb tp cc =
-  let ctors = get_ctors mdecl sigma pos_indb in
+let iterate_ctors s mdecl sigma u pos_indb tp cc =
+  let ctors = get_ctors mdecl sigma u pos_indb in
   fold_right_state s (Array.to_list ctors) tp cc
 
-let iterate_all_ctors s kname mdecl sigma tp cc =
+let iterate_all_ctors s kname mdecl sigma u tp cc =
   iterate_inductives s mdecl (
-    fun s pos_indb indb cc -> iterate_ctors s mdecl sigma pos_indb (fun s -> tp s pos_indb indb) cc
+    fun s pos_indb indb cc -> iterate_ctors s mdecl sigma u pos_indb (fun s -> tp s pos_indb indb) cc
   ) cc
 
 
@@ -564,7 +563,7 @@ let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_c
 
   let tCase_Pred =
     (* indices *)
-    let indices = weaken_context s (get_indices indb) in
+    let indices = weaken_context s (get_indices indb u) in
     let name_indices = List.map get_annot indices in
     let* (s, keys_fresh_indices, _, _) = add_fresh_context_sep s indices in
     (* new var *)
@@ -578,7 +577,7 @@ let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params mk_c
   in
 
   let branch pos_ctor ctor =
-    let (args, _) = get_args mdecl sigma ctor in
+    let (args, _) = get_args mdecl sigma u ctor in
     let names_args = Array.of_list (List.rev_map get_annot args) in
     let* s, key_args, key_letin, key_both = add_old_context_sep s args in
     let branches_body = tc (s, key_args, key_letin, key_both, pos_ctor) in
