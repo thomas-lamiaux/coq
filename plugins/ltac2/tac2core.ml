@@ -211,6 +211,18 @@ let () =
 
 let () = define "message_of_ident" (ident @-> ret pp) Id.print
 
+let () = define "constant_print" (constant @-> ret pp) @@ fun c ->
+  Nametab.pr_global_env Id.Set.empty (ConstRef c)
+
+let () = define "projection_print" (projection @-> ret pp) @@ fun p ->
+  Nametab.pr_global_env Id.Set.empty (ConstRef (Projection.constant p))
+
+let () = define "ind_print" (inductive @-> ret pp) @@ fun ind ->
+  Nametab.pr_global_env Id.Set.empty (IndRef ind)
+
+let () = define "constructor_print" (constructor @-> ret pp) @@ fun ctor ->
+  Nametab.pr_global_env Id.Set.empty (ConstructRef ctor)
+
 let () =
   define "message_of_exn" (valexpr @-> eret pp) @@ fun v env sigma ->
   Tac2print.pr_valexpr env sigma v (GTypRef (Other t_exn, []))

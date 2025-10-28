@@ -22,3 +22,8 @@ Ltac2 @ external inductive : t -> inductive := "rocq-runtime.plugins.ltac2" "con
 Ltac2 @ external index : t -> int := "rocq-runtime.plugins.ltac2" "constructor_index".
 (** Returns the index of the given constructor
     (such that [c] is [Ind.get_constructor (Ind.data (inductive c)) (index c)]). *)
+
+Ltac2 @external print : t -> message
+  := "rocq-runtime.plugins.ltac2" "constructor_print".
+(** Print the constructor using the shortest qualified identifier which refers to it.
+    Does not avoid variable names in the current or global environment. *)

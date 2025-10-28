@@ -77,3 +77,8 @@ Ltac2 @ external constructor_ndecls : data -> int array := "rocq-runtime.plugins
     let-bindings, e.g., applied to [Inductive Ind (A : Type) (f : A -> A) : Set
     := Constr (x : A) (y := f x)] it would return [[|2|]], because in [match t
     with Constr _ _ x y => e end], [x] and [y] are bound in [e]. *)
+
+Ltac2 @external print : t -> message
+  := "rocq-runtime.plugins.ltac2" "ind_print".
+(** Print the inductive using the shortest qualified identifier which refers to it.
+    Does not avoid variable names in the current or global environment. *)
