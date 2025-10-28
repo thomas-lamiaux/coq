@@ -201,6 +201,14 @@ let () =
   define "message_of_lconstr" (constr @-> tac pp) @@ fun c ->
   pf_apply @@ fun env sigma -> return (Printer.pr_leconstr_env env sigma c)
 
+let () =
+  define "message_of_preterm" (preterm @-> tac pp) @@ fun c ->
+  pf_apply @@ fun env sigma -> return (Printer.pr_closed_glob_env env sigma c)
+
+let () =
+  define "message_of_lpreterm" (preterm @-> tac pp) @@ fun c ->
+  pf_apply @@ fun env sigma -> return (Printer.pr_closed_lglob_env env sigma c)
+
 let () = define "message_of_ident" (ident @-> ret pp) Id.print
 
 let () =

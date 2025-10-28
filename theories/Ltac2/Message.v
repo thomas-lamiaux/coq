@@ -31,6 +31,12 @@ Ltac2 @ external of_lconstr : constr -> message := "rocq-runtime.plugins.ltac2" 
 (** Prints at level 200 (no surrounding parentheses).
     Panics if there is more than one goal under focus. *)
 
+Ltac2 @external of_preterm : preterm -> message := "rocq-runtime.plugins.ltac2" "message_of_preterm".
+(** Prints at level 8. Panics if there is more than one goal under focus. *)
+
+Ltac2 @external of_lpreterm : preterm -> message := "rocq-runtime.plugins.ltac2" "message_of_lpreterm".
+(** Prints at level 200. Panics if there is more than one goal under focus. *)
+
 Ltac2 @ external of_exn : exn -> message := "rocq-runtime.plugins.ltac2" "message_of_exn".
 (** Panics if there is more than one goal under focus. *)
 
