@@ -24,8 +24,6 @@ Notation "~ x" := (not x) : type_scope.
 
 Register not as core.not.type.
 
-Unset Elimination Schemes.
-
 Polymorphic Inductive eq@{s s';u v|} (A:Type@{s;u}) (x:A) : A -> Type@{s';v} :=
     eq_refl : x = x :>A
 
@@ -139,9 +137,6 @@ Inductive CompareSpec (Peq Plt Pgt : Prop) : comparison -> Prop :=
  | CompGt : Pgt -> CompareSpec Peq Plt Pgt Gt.
 #[global]
 Hint Constructors CompareSpec : core.
-
-Print CompareSpecT_rect.
-Print CompareSpecT_rect.
 
 Register CompareSpec as core.CompareSpec.type.
 Register CompEq as core.CompareSpec.CompEq.
