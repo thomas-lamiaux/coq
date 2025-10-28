@@ -8,15 +8,16 @@ open NamedAPI
 
 (* Differences with ind_rect:
 
--> no-dep is not supported
 -> let in params are not unfolded
 
 *)
 
 
-
-let gen_rec env sigma kn u mdecl sort_pred dep =
+let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
   (* sort pred specify the output sorts of the induction predicates *)
+
+  let (sigma, uparams, nuparams) = get_params_sep sigma mdecl u in
+
 
   let pred_relevance = Retyping.relevance_of_sort sort_pred in
   (*  universes *)
@@ -37,7 +38,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
     forall (i1 : t1) ... (il : tl),
     (Ind A1 ... An B0 ... Bm i1 ... il) -> U)  *)
   let make_type_pred s pos_indb indb keys_uparams : constr =
-    let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s mdecl u in
+    let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s nuparams in
     let* (s, keys_indices , _, _) = closure_indices mkProd s indb u in
     if not dep then mkSort sort_pred else
     let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
@@ -92,7 +93,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
     P B0 ... Bm f0 ... fl (cst A0 ... An B0 ... Bm x0 ... xl) *)
   let make_type_ctor s pos_indb indb pos_ctor ctor keys_uparams key_preds =
     (* Format.printf "\n BEGIN: closure nup"; *)
-    let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s mdecl u in
+    let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s nuparams in
     (* Format.printf "\n END: closure nup \n"; *)
     let (cxt, indices) = ctor in
     (* Format.printf "\n BEGIN: closure args"; *)
@@ -135,7 +136,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
      forall (x : Ind A0 ... An B0 ... Bm i0 ... il),
       P B0 ... Bm i0 ... il x *)
   let make_return_type s pos_indb indb keys_uparams key_preds =
-      let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s mdecl u in
+      let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s nuparams in
       let* (s, keys_indices , _, _) = closure_indices mkProd s indb u in
       let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
       let* (s, key_VarMatch) = mk_tProd s (make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u))) ind in
@@ -154,7 +155,7 @@ let gen_rec env sigma kn u mdecl sort_pred dep =
     let t =
       let s = init_state in
       let indb = mdecl.mind_packets.(pos_indb) in
-      let* (s, key_uparams, _, _) = closure_uparams mkProd s mdecl u in
+      let* (s, key_uparams, _, _) = closure_uparams mkProd s uparams in
       (* Format.printf "\n     SUCESS: closure up     \n "; *)
       let* (s, key_preds)   = closure_preds mkProd s key_uparams in
       (* Format.printf "\n     SUCESS: closure preds     \n "; *)
@@ -241,7 +242,7 @@ let gen_rec_term print pos_indb indb =
     (* 0. Initialise state with inductives *)
     let s = init_state in
     (* 1. Closure Uparams / preds / ctors *)
-    let* (s, key_uparams, _, _) = closure_uparams mkLambda s mdecl u in
+    let* (s, key_uparams, _, _) = closure_uparams mkLambda s uparams in
     let* (s, key_preds)   = closure_preds   mkLambda s key_uparams in
     let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
     (* 2. Fixpoint *)
@@ -250,7 +251,7 @@ let gen_rec_term print pos_indb indb =
     let tFix_rarg pos_indb indb = default_rarg mdecl indb in
     let* (s, key_fixs, pos_indb, indb) = mk_tFix env sigma mdecl kn s tFix_rarg pos_indb tFix_name tFix_type in
     (* 3. Closure Nuparams / Indices / Var *)
-    let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s mdecl u in
+    let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s nuparams in
     let* (s, key_indices , _, _) = closure_indices  mkLambda s indb u in
     let* (s, key_VarMatch) = mk_tLambda s (make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u)))
                             (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
@@ -269,12 +270,12 @@ let gen_rec_term print pos_indb indb =
       (* 0. Initialise state with inductives *)
     let s = init_state in
     (* 1. Closure Uparams / preds / ctors *)
-    let* (s, key_uparams, _, _) = closure_uparams mkLambda s mdecl u in
+    let* (s, key_uparams, _, _) = closure_uparams mkLambda s uparams in
     let* (s, key_preds)   = closure_preds   mkLambda s key_uparams in
     let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
     (* 3. Closure Nuparams / Indices / Var *)
     let pos_indb = 0 in
-    let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s mdecl u in
+    let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s nuparams in
     let* (s, key_indices , _, _) = closure_indices  mkLambda s indb u in
     let* (s, key_VarMatch) = mk_tLambda s (make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u)))
                             (make_ind_keys s pos_indb key_uparams key_nuparams key_indices) in
@@ -301,7 +302,7 @@ Format.printf "\n" ; *)
   t
 in
 
-gen_rec_term false
+fun pos_indb indb -> (sigma, gen_rec_term true pos_indb indb)
 (* gen_rec_type *)
 
 

@@ -446,6 +446,32 @@ let closure_new_context_sep binder = read_context_sep (mk_binder binder) mk_tLet
 
 (* 3. Mutual Inductive Body Level *)
 
+(* generalize properly parameters *)
+let paramdecls_fresh_template sigma (mib,u) =
+  match mib.mind_template with
+  | None ->
+    let params = Inductive.inductive_paramdecls (mib, EConstr.Unsafe.to_instance u) in
+    sigma, EConstr.of_rel_context params
+  | Some templ ->
+    assert (EConstr.EInstance.is_empty u);
+    let sigma, univs = List.fold_left_map (fun sigma -> function
+        | None -> sigma, (fun ~default -> assert false)
+        | Some s ->
+          let sigma, u = match snd (Inductive.Template.bind_kind s) with
+            | None -> sigma, Univ.Universe.type0
+            | Some _ ->
+              let sigma, u = Evd.new_univ_level_variable UState.univ_rigid sigma in
+              sigma, Univ.Universe.make u
+          in
+          sigma, fun ~default -> Inductive.TemplateUniv u)
+        sigma
+        templ.template_param_arguments
+    in
+    let csts, params, _ = Inductive.instantiate_template_universes mib univs in
+    let sigma = Evd.add_constraints sigma csts in
+    sigma, EConstr.of_rel_context params
+
+(* seperate uparams and nuparams *)
 let chop_letin n l =
   let rec goto i acc = function
     | h :: t ->
@@ -457,27 +483,28 @@ let chop_letin n l =
   in
   goto n [] l
 
-let get_params_sep mdecl u =
-  let (uparams, nuparams) = chop_letin mdecl.mind_nparams_rec @@ List.rev mdecl.mind_params_ctxt in
-  (Vars.subst_instance_context u @@ EConstr.of_rel_context @@ List.rev uparams, Vars.subst_instance_context u @@ EConstr.of_rel_context @@ List.rev nuparams)
+let get_params_sep sigma mdecl u =
+  let (sigma, up_params) = paramdecls_fresh_template sigma (mdecl, u) in
+  let (uparams, nuparams) = chop_letin mdecl.mind_nparams_rec @@ List.rev up_params in
+  (sigma, List.rev uparams, List.rev nuparams)
 
-let get_uparams_letin mdecl u = fst @@ get_params_sep mdecl u
+(* let get_uparams_letin (mdecl) u = fst @@ get_params_sep mdecl u
 let nb_uparams_letin mdecl u = List.length @@ get_uparams_letin mdecl u
 let get_nuparams_letin mdecl u = snd @@ get_params_sep mdecl u
-let nb_nuparams_letin mdecl u = List.length @@ get_nuparams_letin mdecl u
+let nb_nuparams_letin mdecl u = List.length @@ get_nuparams_letin mdecl u *)
 
 
-let get_params mdecl u =
-  Vars.subst_instance_context u @@ EConstr.of_rel_context mdecl.mind_params_ctxt
+(* let get_params mdecl u =
+  Vars.subst_instance_context u @@ EConstr.of_rel_context mdecl.mind_params_ctxt *)
 
-let add_uparams s mdecl u = add_old_context_sep s (get_uparams_letin mdecl u)
-let closure_uparams binder s mdecl u = closure_old_context_sep binder s (get_uparams_letin mdecl u)
+(* let add_uparams s mdecl uparams = add_old_context_sep s uparams *)
+let closure_uparams binder s uparams = closure_old_context_sep binder s uparams
 
-let add_nuparams s mdecl u = add_old_context_sep s (get_nuparams_letin mdecl u)
-let closure_nuparams binder s mdecl u = closure_old_context_sep binder s (get_nuparams_letin mdecl u)
+(* let add_uparams s mdecl nuparams = add_old_context_sep s nuparams *)
+let closure_nuparams binder s nuparams = closure_old_context_sep binder s nuparams
 
-let add_params s mdecl u = add_old_context_sep s (get_params mdecl u)
-let closure_params binder s mdecl u = closure_old_context_sep binder s (get_params mdecl u)
+(* let add_params s mdecl u = add_old_context_sep s (get_params mdecl u)
+let closure_params binder s mdecl u = closure_old_context_sep binder s (get_params mdecl u) *)
 
 let get_ind_bodies mdecl = mdecl.mind_packets
 
