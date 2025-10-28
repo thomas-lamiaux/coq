@@ -101,6 +101,8 @@ Scheme paths_ind := Induction for paths Sort Type.
 
 Definition paths_rect := paths_ind.
 
+Scheme Rewriting for paths.
+
 Notation "x = y :> A" := (@paths A x y) : type_scope.
 Notation "x = y" := (x = y :>_) : type_scope.
 

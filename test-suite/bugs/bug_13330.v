@@ -1,5 +1,6 @@
 Polymorphic Inductive path {A : Type} (x : A) : A -> Type :=
   refl : path x x.
+Scheme Rewriting for path.
 
 Goal False.
 Proof.

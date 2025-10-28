@@ -254,6 +254,7 @@ type scheme_type =
 type equality_scheme_type =
   | SchemeBooleanEquality
   | SchemeEquality
+  | SchemeRewriting
 
   (* The data of a Scheme decleration *)
 type scheme = {

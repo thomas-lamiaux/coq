@@ -272,6 +272,8 @@ GRAMMAR EXTEND Gram
           { VernacSchemeEquality (SchemeEquality,id) }
       | IDENT "Scheme"; IDENT "Boolean"; IDENT "Equality"; IDENT "for" ; id = smart_global ->
           { VernacSchemeEquality (SchemeBooleanEquality,id) }
+      | IDENT "Scheme"; IDENT "Rewriting"; IDENT "for" ; id = smart_global ->
+        { VernacSchemeEquality (SchemeRewriting,id) }
       | IDENT "Combined"; IDENT "Scheme"; id = identref; IDENT "from";
               l = LIST1 identref SEP "," -> { VernacCombinedScheme (id, l) }
       | IDENT "Register"; g = global; "as"; quid = qualid ->

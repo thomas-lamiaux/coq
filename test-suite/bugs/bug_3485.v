@@ -15,6 +15,7 @@ Notation "x .1" := (projT1 x) : fibration_scope.
 Notation "x .2" := (projT2 x) : fibration_scope.
 Inductive paths {A : Type} (a : A) : A -> Type := idpath : paths a a where "x = y" := (@paths _ x y) : type_scope.
 Arguments idpath {A a} , [A] a.
+Scheme Rewriting for paths.
 Definition concat {A : Type} {x y z : A} (p : x = y) (q : y = z) : x = z := match p, q with idpath, idpath => idpath end.
 #[export] Instance transitive_paths {A} : Transitive (@paths A) | 0 := @concat A.
 Definition transport {A : Type} (P : A -> Type) {x y : A} (p : x = y) (u : P x) : P y := match p with idpath => u end.

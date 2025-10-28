@@ -4,6 +4,8 @@ Inductive myeq (A : Type) (x : A) : A -> Prop :=
 Arguments myeq [A].
 Arguments myeq_refl {A} {x}.
 
+Scheme Rewriting for myeq.
+
 Definition myeqss (A : Type) (a b : A) (H : myeq (Some a) (Some b)) : myeq a b.
 Proof.
   pose (Some b) as Someb.

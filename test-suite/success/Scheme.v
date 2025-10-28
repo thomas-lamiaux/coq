@@ -13,7 +13,7 @@ Check myeq_rect.
 Check myeq_ind.
 Check myeq_rec.
 Check myeq_congr.
-Check myeq_sym_internal.
+Check myeq_sym.
 Check myeq_rew.
 Check myeq_rew_dep.
 Check myeq_rew_fwd_dep.

@@ -432,9 +432,11 @@ let pr_onescheme (idop, {sch_type; sch_qualid; sch_sort}) =
 
 let pr_equality_scheme_type sch id =
   let str_scheme = match sch with
-  | SchemeBooleanEquality -> keyword "Boolean Equality for"
-  | SchemeEquality -> keyword "Equality for" in
-  hov 0 (str_scheme ++ spc() ++ pr_smart_global id)
+  | SchemeBooleanEquality -> keyword "Boolean Equality"
+  | SchemeEquality -> keyword "Equality"
+  | SchemeRewriting -> keyword "Rewriting"
+  in
+  hov 0 (str_scheme ++ str " for" ++ spc() ++ pr_smart_global id)
 
 let begin_of_inductive = function
   | [] -> 0

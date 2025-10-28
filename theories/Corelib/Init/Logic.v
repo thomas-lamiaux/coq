@@ -406,6 +406,10 @@ Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 
+Scheme Rewriting for eq.
+
+Arguments eq_sym_involutive [A]%_type_scope [x y] e : rename.
+
 Section Logic_lemmas.
 
   Theorem absurd : forall A C:Prop, A -> ~ A -> C.
@@ -418,11 +422,6 @@ Section Logic_lemmas.
     Variables A B : Type.
     Variable f : A -> B.
     Variables x y z : A.
-
-    Theorem eq_sym : x = y -> y = x.
-    Proof.
-      destruct 1; trivial.
-    Defined.
 
     Register eq_sym as core.eq.sym.
 
@@ -633,11 +632,6 @@ Defined.
 Theorem eq_trans_refl_r A (x y:A) (e:x=y) : eq_trans e eq_refl = e.
 Proof.
   destruct e. reflexivity.
-Defined.
-
-Theorem eq_sym_involutive A (x y:A) (e:x=y) : eq_sym (eq_sym e) = e.
-Proof.
-  destruct e; reflexivity.
 Defined.
 
 Theorem eq_trans_sym_inv_l A (x y:A) (e:x=y) : eq_trans (eq_sym e) e = eq_refl.

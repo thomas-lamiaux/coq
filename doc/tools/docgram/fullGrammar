@@ -897,6 +897,7 @@ gallina: [
 | "Scheme" LIST1 scheme SEP "with"
 | "Scheme" "Equality" "for" smart_global
 | "Scheme" "Boolean" "Equality" "for" smart_global
+| "Scheme" "Rewriting" "for" smart_global
 | "Combined" "Scheme" identref "from" LIST1 identref SEP ","
 | "Register" global "as" qualid
 | "Register" "Scheme" global "as" qualid "for" global

@@ -8,6 +8,7 @@ Notation "x .1" := (projT1 x) : fibration_scope.
 Inductive paths {A : Type} (a : A) : A -> Type :=
   idpath : paths a a.
 Arguments idpath {A a} , [A] a.
+Scheme Rewriting for paths.
 Notation "x = y :> A" := (@paths A x y) : type_scope.
 Notation "x = y" := (x = y :>_) : type_scope.
 Delimit Scope path_scope with path.

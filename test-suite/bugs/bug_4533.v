@@ -58,6 +58,7 @@ Notation "g 'o' f" := (compose g%function f%function) (at level 40, left
 associativity) : function_scope.
 Inductive paths {A : Type} (a : A) : A -> Type := idpath : paths a a.
 Arguments idpath {A a} , [A] a.
+Scheme Rewriting for paths.
 Notation "x = y :> A" := (@paths A x y) : type_scope.
 Notation "x = y" := (x = y :>_) : type_scope.
 Definition inverse {A : Type} {x y : A} (p : x = y) : y = x

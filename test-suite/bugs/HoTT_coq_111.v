@@ -3,6 +3,7 @@ Module X.
   (*Set Universe Polymorphism.*)
   Inductive paths A (x : A) : forall _ : A, Type := idpath : paths A x x.
   Notation "x = y" := (@paths _ x y) (at level 70, no associativity) : type_scope.
+  Scheme Rewriting for paths.
 
   Axioms A B : Type.
   Axiom P : A = B.
@@ -15,6 +16,7 @@ Module Y.
   (*Set Universe Polymorphism.*)
   Inductive paths A (x : A) : forall _ : A, Type := idpath : paths A x x.
   Notation "x = y" := (@paths _ x y) (at level 70, no associativity) : type_scope.
+  Scheme Rewriting for paths.
 
   Axioms A B : Type.
   Axiom P : A = B.
