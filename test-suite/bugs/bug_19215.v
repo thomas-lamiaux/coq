@@ -61,6 +61,9 @@ Arguments eq_sind [A] x P _ y _ : rename.
 Arguments eq_rec [A] x P _ y _ : rename.
 Arguments eq_rect [A] x P _ y _ : rename.
 
+(* eq_ind needs to be registered for inversion_clear *)
+Register Scheme eq_ind as ind_nodep for eq.
+
 Notation "x = y" := (eq@{_ Prop;_ Set} x y) : type_scope.
 Notation "x <> y  :> T" := (~ x = y :>T) : type_scope.
 Notation "x <> y" := (~ (x = y)) : type_scope.
