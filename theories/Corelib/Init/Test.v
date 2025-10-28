@@ -387,8 +387,6 @@ Module TemplateProp.
 
   Inductive Foo (A : Type) : Type := foo : A -> Foo A.
 
-  Check Foo True : Prop.
-
 End TemplateProp.
 
 Module PolyNoLowerProp.

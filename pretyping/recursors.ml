@@ -5,19 +5,10 @@ open EConstr
 module RelDecl = Rel.Declaration
 open RelDecl
 open NamedAPI
-
-(* Differences with ind_rect:
-
--> let in params are not unfolded
-
-*)
+open State
 
 
-let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
-  (* sort pred specify the output sorts of the induction predicates *)
-
-  let (sigma, uparams, nuparams) = get_params_sep sigma mdecl u in
-
+let gen_rec kn u (mdecl : mutual_inductive_body) sort_pred dep =
 
   let pred_relevance = Retyping.relevance_of_sort sort_pred in
   (*  universes *)
@@ -37,20 +28,20 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
     forall (B0 : R0) ... (Bm : Rm),
     forall (i1 : t1) ... (il : tl),
     (Ind A1 ... An B0 ... Bm i1 ... il) -> U)  *)
-  let make_type_pred s pos_indb indb keys_uparams : constr =
+  let make_type_pred s pos_indb indb keys_uparams nuparams: constr =
     let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s nuparams in
     let* (s, keys_indices , _, _) = closure_indices mkProd s indb u in
     if not dep then mkSort sort_pred else
     let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
-    mkProd ((make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u))), ind, mkSort sort_pred)
+    mkProd ((make_annot Anonymous (Inductiveops.relevance_of_inductive s.env ((kn, pos_indb), u))), ind, mkSort sort_pred)
   in
 
   (* closure version *)
-  let closure_preds binder s keys_uparams =
+  let closure_preds binder s keys_uparams nuparams =
     iterate_inductives s mdecl
       (fun s pos_indb indb cc ->
         let name_pred = make_annot (Name.Name (Id.of_string "P")) ERelevance.relevant in
-        mk_binder binder s name_pred (make_type_pred s pos_indb indb keys_uparams) cc
+        mk_binder binder s name_pred (make_type_pred s pos_indb indb keys_uparams nuparams) cc
     )
   in
 
@@ -62,7 +53,7 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
   (* This function computes the type of the recursive call *)
   let make_rec_call s key_preds key_arg ty : constr option =
     (* Format.printf "\n BEGIN: view"; *)
-    let x = view_arg kn mdecl sigma ty in
+    let x = view_arg kn mdecl s.sigma ty in
     (* Format.printf "\n END: view \n"; *)
     match x with
     | ArgIsInd (pos_ind, loc, inst_nuparams, inst_indices) ->
@@ -79,8 +70,7 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
 
   (* Create and bind the recursive call *)
   let make_rec_call_cc key_preds s _ key_arg cc =
-    let env = Environ.push_rel_context (EConstr.Unsafe.to_rel_context s.state_context) env in
-    let red_ty = Reductionops.whd_all env sigma (get_type s key_arg) in
+    let red_ty = Reductionops.whd_all s.env s.sigma (get_type s key_arg) in
     match make_rec_call s key_preds key_arg red_ty with
     | Some ty -> let name_rec_hyp = make_annot Anonymous pred_relevance in
                   mk_tProd s name_rec_hyp ty (fun (s, key_rec) -> cc s [key_arg])
@@ -91,7 +81,7 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
   (* forall (B0 : R0) ... (Bm : Rm),
     forall x0 : t0, [P x0], ..., xn : tn, [P n],
     P B0 ... Bm f0 ... fl (cst A0 ... An B0 ... Bm x0 ... xl) *)
-  let make_type_ctor s pos_indb indb pos_ctor ctor keys_uparams key_preds =
+  let make_type_ctor s pos_indb indb pos_ctor ctor keys_uparams nuparams key_preds =
     (* Format.printf "\n BEGIN: closure nup"; *)
     let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s nuparams in
     (* Format.printf "\n END: closure nup \n"; *)
@@ -107,11 +97,11 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
   in
 
   (* closure assumptions functions over all the ctors *)
-  let closure_ctors binder s sigma keys_uparams key_preds cc =
-    iterate_all_ctors s kn mdecl sigma u (
+  let closure_ctors binder s sigma keys_uparams nuparams key_preds cc =
+    iterate_all_ctors s kn mdecl u (
       fun s pos_indb indb pos_ctor ctor cc ->
       let name_assumption = make_annot (Name indb.mind_consnames.(pos_ctor)) pred_relevance in
-      let fct = make_type_ctor s pos_indb indb pos_ctor ctor keys_uparams key_preds in
+      let fct = make_type_ctor s pos_indb indb pos_ctor ctor keys_uparams nuparams key_preds in
       mk_binder binder s name_assumption fct cc
     ) cc
   in
@@ -135,11 +125,11 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
      forall (i1 : t1) ... (il : tl),
      forall (x : Ind A0 ... An B0 ... Bm i0 ... il),
       P B0 ... Bm i0 ... il x *)
-  let make_return_type s pos_indb indb keys_uparams key_preds =
+  let make_return_type s pos_indb indb keys_uparams nuparams key_preds =
       let* (s, keys_nuparams, _, _) = closure_nuparams mkProd s nuparams in
       let* (s, keys_indices , _, _) = closure_indices mkProd s indb u in
       let ind = make_ind_keys s pos_indb keys_uparams keys_nuparams keys_indices in
-      let* (s, key_VarMatch) = mk_tProd s (make_annot Anonymous (Inductiveops.relevance_of_inductive env ((kn, pos_indb), u))) ind in
+      let* (s, key_VarMatch) = mk_tProd s (make_annot Anonymous (Inductiveops.relevance_of_inductive s.env ((kn, pos_indb), u))) ind in
       make_ccl s key_preds pos_indb keys_nuparams keys_indices key_VarMatch
   in
 
@@ -148,20 +138,21 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
   (*    4. Make the type of the recursors    *)
   (* ####################################### *)
 
-  let gen_rec_type pos_indb =
+  let gen_rec_type env sigma pos_indb =
     Format.printf "################################################## \n";
     Format.printf "\n ### PP rec # Type: %s # block %n ### \n" (MutInd.to_string kn) pos_indb ;
     Feedback.msg_info (Termops.Internal.print_constr_env env sigma (mkSort sort_pred));
     let t =
-      let s = init_state in
+      let (sigma, uparams, nuparams) = get_params_sep sigma mdecl u in
+      let s = State.make env sigma in
       let indb = mdecl.mind_packets.(pos_indb) in
       let* (s, key_uparams, _, _) = closure_uparams mkProd s uparams in
       (* Format.printf "\n     SUCESS: closure up     \n "; *)
-      let* (s, key_preds)   = closure_preds mkProd s key_uparams in
+      let* (s, key_preds)   = closure_preds mkProd s key_uparams nuparams in
       (* Format.printf "\n     SUCESS: closure preds     \n "; *)
-      let* (s, key_ctors)   = closure_ctors mkProd s sigma key_uparams key_preds in
+      let* (s, key_ctors)   = closure_ctors mkProd s sigma key_uparams nuparams key_preds in
       (* Format.printf "\n     SUCESS: closure ctors     \n "; *)
-      make_return_type s pos_indb indb key_uparams key_preds
+      make_return_type s pos_indb indb key_uparams nuparams key_preds
     in
     (* Format.printf "\n ------------------------------------------------------------- \n";
     Feedback.msg_info (Termops.Internal.debug_print_constr sigma t);
@@ -183,7 +174,7 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
 
   (* ty is well-formed in s *)
   let make_rec_call key_fixs s key_arg ty : constr option =
-    match view_arg kn mdecl sigma ty with
+    match view_arg kn mdecl s.sigma ty with
     | ArgIsInd (pos_ind, loc, inst_nuparams, inst_indices) ->
         Some (
           (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
@@ -203,15 +194,14 @@ let gen_rec env sigma kn u (mdecl : mutual_inductive_body) sort_pred dep =
       Format.printf "pos arg : %n | key_arg : %n \n" pos_arg key_arg;
       Feedback.msg_info (Termops.Internal.debug_print_constr sigma ty_arg);
       Format.printf "\n" ; *)
-      let env = Environ.push_rel_context (EConstr.Unsafe.to_rel_context s.state_context) env in
-      let red_ty = Reductionops.whd_all env sigma ty_arg in
+      let red_ty = Reductionops.whd_all s.env s.sigma ty_arg in
       match make_rec_call key_fixs s key_arg red_ty with
         | Some rc_tm -> (get_term s key_arg) :: rc_tm :: t
         | None -> (get_term s key_arg) :: t
     ) 0 key_args []
     in
 
-let debug_cxt s n cxt  =
+(* let debug_cxt s n cxt  =
   Format.printf "\n BEGIN DEBUG %s: %n \n" s n;
   List.fold_left (fun _ x ->
     match x with
@@ -220,36 +210,35 @@ let debug_cxt s n cxt  =
     | _ -> ()
     ) () cxt ;
   Format.printf "\n END DEBUG %s \n" s;
-    in
+    in *)
 
-let gen_rec_term print pos_indb indb =
+let gen_rec_term env sigma print pos_indb indb =
 
   if print then begin
   Format.printf "################################################## \n";
   Format.printf "\n ### PP rec # Type: %s # block %n ### \n" (MutInd.to_string kn) pos_indb ;
   Feedback.msg_info (Termops.Internal.print_constr_env env sigma (mkSort sort_pred))
   end ;
-  (* Format.printf "IS ALLOWED ELIMINATION: %b" (Inductiveops.is_allowed_elimination sigma ((mdecl, mdecl.mind_packets.(0)), u) sort_pred); *)
-  (* let b = Array.fold_right (fun mipi b -> b && Inductiveops.is_allowed_elimination sigma ((mdecl,mipi),u) sort_pred) mdecl.mind_packets true in
-  Format.printf "IS ALLOWED ELIMINATION: %b" b; *)
 
   (* if mutual -> is rec *)
   let isrec = Array.length mdecl.mind_packets > 1 || Inductiveops.mis_is_recursive env ((kn, pos_indb), mdecl, indb) in
 
+  (* 0. Initialise state with inductives *)
+  let (sigma, uparams, nuparams) = get_params_sep sigma mdecl u in
+  let s = State.make env sigma in
+
   let t =
   if isrec then begin
 
-    (* 0. Initialise state with inductives *)
-    let s = init_state in
     (* 1. Closure Uparams / preds / ctors *)
     let* (s, key_uparams, _, _) = closure_uparams mkLambda s uparams in
-    let* (s, key_preds)   = closure_preds   mkLambda s key_uparams in
-    let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
+    let* (s, key_preds)   = closure_preds   mkLambda s key_uparams nuparams in
+    let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams nuparams key_preds in
     (* 2. Fixpoint *)
     let tFix_name pos_indb indb = make_annot (Name.Name (Id.of_string "F")) pred_relevance in
-    let tFix_type s pos_indb indb = make_return_type s pos_indb indb key_uparams key_preds in
+    let tFix_type s pos_indb indb = make_return_type s pos_indb indb key_uparams nuparams key_preds in
     let tFix_rarg pos_indb indb = default_rarg mdecl indb in
-    let* (s, key_fixs, pos_indb, indb) = mk_tFix env sigma mdecl kn s tFix_rarg pos_indb tFix_name tFix_type in
+    let* (s, key_fixs, pos_indb, indb) = mk_tFix s mdecl kn tFix_rarg pos_indb tFix_name tFix_type in
     (* 3. Closure Nuparams / Indices / Var *)
     let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s nuparams in
     let* (s, key_indices , _, _) = closure_indices  mkLambda s indb u in
@@ -259,7 +248,7 @@ let gen_rec_term print pos_indb indb =
     let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
     let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
     let* (s, key_args, key_letin, key_both, pos_ctor) =
-      mk_tCase env sigma s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params (get_terms s key_indices)
+      mk_tCase s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params (get_terms s key_indices)
             tCase_pred pred_relevance (get_term s key_VarMatch) in
     (* 5. Make the branch *)
     let args = get_terms s key_nuparams @ compute_args_fix pos_ctor s key_fixs key_args  in
@@ -268,11 +257,10 @@ let gen_rec_term print pos_indb indb =
   end
   else begin
       (* 0. Initialise state with inductives *)
-    let s = init_state in
     (* 1. Closure Uparams / preds / ctors *)
     let* (s, key_uparams, _, _) = closure_uparams mkLambda s uparams in
-    let* (s, key_preds)   = closure_preds   mkLambda s key_uparams in
-    let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams key_preds in
+    let* (s, key_preds)   = closure_preds   mkLambda s key_uparams nuparams in
+    let* (s, key_ctors)   = closure_ctors   mkLambda s sigma key_uparams nuparams key_preds in
     (* 3. Closure Nuparams / Indices / Var *)
     let pos_indb = 0 in
     let* (s, key_nuparams, _, _) = closure_nuparams mkLambda s nuparams in
@@ -283,7 +271,7 @@ let gen_rec_term print pos_indb indb =
     let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
     let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
     let* (s, key_args, key_letin, key_both, pos_ctor) =
-      mk_tCase env sigma s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params (get_terms s key_indices)
+      mk_tCase s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params (get_terms s key_indices)
             tCase_pred pred_relevance (get_term s key_VarMatch) in
     (* 5. Make the branch *)
     let args = get_terms s key_nuparams @ get_terms s key_args in
@@ -299,10 +287,12 @@ Format.printf "\n" ; *)
   Format.printf "\n ------------------------------------------------------------- \n";
   Feedback.msg_info (Termops.Internal.print_constr_env env sigma t);
   Format.printf "\n \n" end;
-  t
+  (sigma, t)
 in
 
-fun pos_indb indb -> (sigma, gen_rec_term false pos_indb indb)
-(* gen_rec_type *)
+gen_rec_term
+
+let gen_rec env sigma kn u mdecl sort_pred dep pos_ind indb =
+  gen_rec kn u mdecl sort_pred dep env sigma false pos_ind indb
 
 
