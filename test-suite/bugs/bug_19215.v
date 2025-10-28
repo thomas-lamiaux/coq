@@ -24,6 +24,8 @@ Notation "~ x" := (not x) : type_scope.
 
 Register not as core.not.type.
 
+Unset Elimination Schemes.
+
 Polymorphic Inductive eq@{s s';u v|} (A:Type@{s;u}) (x:A) : A -> Type@{s';v} :=
     eq_refl : x = x :>A
 
@@ -74,6 +76,10 @@ Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 Register eq_elim as core.eq.rect.
 
+(* It needs to be registered for inversion_clear to work *)
+Register Scheme eq_ind as ind_nodep for eq.
+
+
   Section equality.
 
     Theorem eq_sym@{s;u|} (A : Type@{s;u}) (x y : A) : x = y -> y = x.
@@ -99,6 +105,8 @@ Register eq_elim as core.eq.rect.
     Register f_equal as core.eq.congr.
 
   End equality.
+
+Set Elimination Schemes.
 
   Inductive comparison : Set :=
   | Eq : comparison
@@ -128,6 +136,9 @@ Inductive CompareSpec (Peq Plt Pgt : Prop) : comparison -> Prop :=
  | CompGt : Pgt -> CompareSpec Peq Plt Pgt Gt.
 #[global]
 Hint Constructors CompareSpec : core.
+
+Print CompareSpecT_rect.
+Print CompareSpecT_rect.
 
 Register CompareSpec as core.CompareSpec.type.
 Register CompEq as core.CompareSpec.CompEq.
