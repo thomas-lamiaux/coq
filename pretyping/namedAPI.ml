@@ -619,5 +619,8 @@ let mk_tCase env sigma s mdecl ind indb u keys_uparams keys_nuparams params indi
 
   let branches = Array.mapi branch indb.mind_nf_lc in
 
-  EConstr.mkCase (tCase_info, u, params, tCase_Pred, case_invert, tm_match, branches)
+
+  let env = Environ.push_rel_context (EConstr.Unsafe.to_rel_context s.state_context) env in
+  let case_info, pred, case_invert, c, branches = EConstr.expand_case env sigma (tCase_info, u, params, tCase_Pred, case_invert, tm_match, branches) in
+  Inductiveops.simple_make_case_or_project env sigma case_info pred case_invert c branches
 

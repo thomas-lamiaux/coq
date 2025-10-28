@@ -136,7 +136,6 @@ with
 odd : nat -> Type :=
 | oddS n : even n -> odd (suc n).
 
-
 (* non uniform *)
 
 (* nb_uparams: zero *)
@@ -239,98 +238,83 @@ Inductive nu_let2 (A : Type) : Type :=
 
 
 (* Test des definitions inductives imbriquees *)
+Module LETIN.
 
-Inductive X : Set :=
-  cons1 : list X -> X.
+  Inductive X : Set :=
+    cons1 : list X -> X.
 
-Inductive Y : Set :=
-  cons2 : list (prod Y Y) -> Y.
+  Inductive Y : Set :=
+    cons2 : list (prod Y Y) -> Y.
 
-(* Test inductive types with local definitions (arity) *)
+  (* Test inductive types with local definitions (arity) *)
 
-Inductive eq1 : forall A:Type, let B:=A in A -> Prop :=
-  refl1 : eq1 True I.
+  Inductive eq1 : forall A:Type, let B:=A in A -> Prop :=
+    refl1 : eq1 True I.
 
-Inductive eq2 (A:Type) (a : A) : forall B C : Type, let D:= (prod A (prod B C)) in D -> Prop :=
-  refl2 : eq2 A a unit bool (pair _ _ a (pair _ _ tt true)).
+  Inductive eq2 (A:Type) (a : A) : forall B C : Type, let D:= (prod A (prod B C)) in D -> Prop :=
+    refl2 : eq2 A a unit bool (pair _ _ a (pair _ _ tt true)).
 
-(* Check inductive types with local definitions (parameters) *)
+  (* Check inductive types with local definitions (parameters) *)
 
-Inductive LetInIndices (A B : Prop) (E:=A) (F:=B) (f g : E -> F) : E -> Set :=
-    CIn : forall e : E, LetInIndices A B f g e.
+  Inductive LetInIndices (A B : Prop) (E:=A) (F:=B) (f g : E -> F) : E -> Set :=
+      CIn : forall e : E, LetInIndices A B f g e.
 
-Inductive I1 : Set := C1 (_:I1) (_:=zero).
+  Inductive I1 : Set := C1 (_:I1) (_:=zero).
 
-Set Implicit Arguments.
-Unset Strict Implicit.
+  Set Implicit Arguments.
+  Unset Strict Implicit.
 
-CoInductive LList (A : Set) : Set :=
-  | LNil : LList A
-  | LCons : A -> LList A -> LList A.
+  CoInductive LList (A : Set) : Set :=
+    | LNil : LList A
+    | LCons : A -> LList A -> LList A.
 
-Arguments LNil {A}.
+  Arguments LNil {A}.
 
-Inductive Finite (A : Set) : LList A -> Prop :=
-  | Finite_LNil : Finite LNil
-  | Finite_LCons :
-      forall (a : A) (l : LList A), Finite l -> Finite (LCons a l).
+  Inductive Finite (A : Set) : LList A -> Prop :=
+    | Finite_LNil : Finite LNil
+    | Finite_LCons :
+        forall (a : A) (l : LList A), Finite l -> Finite (LCons a l).
 
-(* Check inference of evars in arity using information from constructors *)
+  (* Check inference of evars in arity using information from constructors *)
 
-Inductive foo1 : forall p, Prop := cc1 : foo1 zero.
+  Inductive foo1 : forall p, Prop := cc1 : foo1 zero.
 
-Inductive foo2 : forall p, Prop := cc2 : forall q, foo2 q | cc3 : foo2 zero.
+  Inductive foo2 : forall p, Prop := cc2 : forall q, foo2 q | cc3 : foo2 zero.
 
-Inductive IND1 (A:Type) := CONS1 : IND1 ((fun x => A) IND1).
+  Inductive IND1 (A:Type) := CONS1 : IND1 ((fun x => A) IND1).
 
-Inductive IND2 (A:Type) (T:=fun _ : Type->Type => A) : Type :=
-| CONS2 : IND2 A -> IND2 (T IND2).
+  Inductive IND2 (A:Type) (T:=fun _ : Type->Type => A) : Type :=
+  | CONS2 : IND2 A -> IND2 (T IND2).
 
-Inductive IND3 (A:Type) (T:=fun _ : Type->Type => A) : Type :=
-| CONS3 : IND3 (T IND3) -> IND3 A.
+  Inductive IND3 (A:Type) (T:=fun _ : Type->Type => A) : Type :=
+  | CONS3 : IND3 (T IND3) -> IND3 A.
 
-Inductive IND4 (A:Type) : Type :=
-| CONS4 : IND4 ((fun x => A) IND4) -> IND4 A.
+  Inductive IND4 (A:Type) : Type :=
+  | CONS4 : IND4 ((fun x => A) IND4) -> IND4 A.
 
-Inductive IND5 (A : Type) (T := A) : Type :=
-| CONS5 : IND5 ((fun _ => A) zero) -> IND5 A.
+  Inductive IND5 (A : Type) (T := A) : Type :=
+  | CONS5 : IND5 ((fun _ => A) zero) -> IND5 A.
 
-Inductive IND6 (B : Type) (A := nat) : A -> Type :=
-| CONS6 n : IND6 (prod B B) n -> IND6 B n.
+  Inductive IND6 (B : Type) (A := nat) : A -> Type :=
+  | CONS6 n : IND6 (prod B B) n -> IND6 B n.
 
-Inductive list' (A:Type) (B:=A) :=
-| nil' : list' A
-| cons' : A -> list' B -> list' A.
+  Inductive list' (A:Type) (B:=A) :=
+  | nil' : list' A
+  | cons' : A -> list' B -> list' A.
 
-Inductive tree := node' : list' tree -> tree.
+  Inductive tree := node' : list' tree -> tree.
 
-Inductive L (A : Type) (T := A) B : Type :=
-  CONSL : B -> L A B -> L T B.
+  Inductive L (A : Type) (T := A) B : Type :=
+    CONSL : B -> L A B -> L T B.
 
-Inductive IND7 (A:Type) (T:=A) := CONS7 : IND7 T -> IND7 A.
+  Inductive IND7 (A:Type) (T:=A) := CONS7 : IND7 T -> IND7 A.
 
-Inductive IND8 : nat -> Type :=
-| CONS8 (n := zero) : IND8 n -> let m := zero in IND8 m.
+  Inductive IND8 : nat -> Type :=
+  | CONS8 (n := zero) : IND8 n -> let m := zero in IND8 m.
 
-(* Module TemplateProp.
+End LETIN.
 
-  (** Check lowering of a template universe polymorphic inductive to Prop *)
 
-  Inductive Foo (A : Type) : Type := foo : A -> Foo A.
-
-  Check Foo True : Prop.
-
-End TemplateProp. *)
-
-(* Module PolyNoLowerProp.
-
-  (** Check lowering of a general universe polymorphic inductive to Prop is _failing_ *)
-
-  Polymorphic Inductive Foo (A : Type) : Type := foo : A -> Foo A.
-
-  Fail Check Foo True : Prop.
-
-End PolyNoLowerProp. *)
 
 (* Test building of elimination scheme with noth let-ins and
    non-recursively uniform parameters *)
@@ -345,6 +329,7 @@ Module NonRecLetIn.
 
 End NonRecLetIn.
 
+
 Section Well_founded.
 
  Variable A : Type.
@@ -358,6 +343,7 @@ Section Well_founded.
 
 End Well_founded.
 
+
 Inductive letfoo (n := zero) A :=
 | letFoo : letfoo nat -> letfoo A.
 
@@ -367,59 +353,50 @@ Inductive pFalse : Prop  := .
 
 Inductive sFalse : SProp := .
 
-(*
+  Inductive term (n : nat) : Type :=
+  | app (l : term (suc n)).
 
-Module M0.
+Module bug2353.
 
-Inductive foo (A : Type) := Foo {
-  foo1 : nat;
-  foo2 := myeq _ foo1 zero;
-  foo3 : foo2;
-}
+  Inductive list (A : nat -> Type) :=
+  | cons : A zero -> list A -> list A.
 
-with bar (A : Type) := Bar {
-  bar0 : A;
-  bar1 := zero;
-  bar2 : myeq _ bar1 zero;
-  bar3 : nat -> foo A;
-}.
+  Inductive term (n : nat) : Type :=
+  | app (l : list term).
 
-End M0.
+End bug2353.
+
+Inductive foop : Prop :=
+| cfoop : foop -> foop.
+
 
 Module M1.
 
-Set Primitive Projections.
+  Set Primitive Projections.
 
-Inductive foo (A : Type) := Foo {
-  foo1 : nat;
-  foo2 := myeq _ foo1 zero;
-  foo3 : foo2;
-}
-
-with bar (A : Type) := Bar {
-  bar0 : A;
-  bar1 := zero;
-  bar2 : myeq _ bar1 zero;
-  bar3 : nat -> foo A;
-}.
+  Inductive M1foo (A : Type) := Foo {
+    foo0 : M1foo A;
+    foo1 : nat;
+  }.
 
 End M1.
 
-Module M2.
+Module TemplateProp.
 
-Set Primitive Projections.
+  (** Check lowering of a template universe polymorphic inductive to Prop *)
 
-CoInductive foo (A : Type) := Foo {
-  foo1 : nat;
-  foo2 := myeq _ foo1 zero;
-  foo3 : foo2;
-}
+  Inductive Foo (A : Type) : Type := foo : A -> Foo A.
 
-with bar (A : Type) := Bar {
-  bar0 : A;
-  bar1 := zero;
-  bar2 : myeq _ bar1 zero;
-  bar3 : nat -> foo A;
-}.
+  Check Foo True : Prop.
 
-End M2. *)
+End TemplateProp.
+
+Module PolyNoLowerProp.
+
+  (** Check lowering of a general universe polymorphic inductive to Prop is _failing_ *)
+
+  Polymorphic Inductive Foo (A : Type) : Type := foo : A -> Foo A.
+
+  Fail Check Foo True : Prop.
+
+End PolyNoLowerProp.

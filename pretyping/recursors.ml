@@ -302,7 +302,7 @@ Format.printf "\n" ; *)
   t
 in
 
-fun pos_indb indb -> (sigma, gen_rec_term true pos_indb indb)
+fun pos_indb indb -> (sigma, gen_rec_term false pos_indb indb)
 (* gen_rec_type *)
 
 
