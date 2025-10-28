@@ -2185,6 +2185,10 @@ ltac_expr2: [
 | ltac_expr2 "+" ltac_expr2
 | "tryif" ltac_expr5 "then" ltac_expr5 "else" ltac_expr2
 | ltac_expr2 "||" ltac_expr2
+| ltac_expr1l
+]
+
+ltac_expr1l: [
 | ltac_expr1
 ]
 

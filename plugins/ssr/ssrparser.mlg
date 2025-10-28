@@ -1705,10 +1705,7 @@ let tclintros_expr ?loc tac ipats =
 
 GRAMMAR EXTEND Gram
   GLOBAL: ltac_expr;
-  ltac_expr: LEVEL "3" [
-    [ tac = ltac_expr; intros = ssrintros_ne -> { tclintros_expr ~loc tac intros }
-    ] ];
-  ltac_expr: LEVEL "4" [
+  ltac_expr: LEVEL "1l" [
     [ tac = ltac_expr; intros = ssrintros_ne -> { tclintros_expr ~loc tac intros }
     ] ];
 END

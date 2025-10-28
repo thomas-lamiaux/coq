@@ -127,6 +127,8 @@ GRAMMAR EXTEND Gram
               "then" ; tat = ltac_expr ;
               "else" ; tae = ltac_expr -> { CAst.make ~loc (TacIfThenCatch (ta,tat,tae)) }
       | ta0 = ltac_expr; "||"; ta1 = ltac_expr -> { CAst.make ~loc (TacOrelse (ta0,ta1)) } ]
+    | "1l" LEFTA
+      [ ]
     | "1" RIGHTA
       [ "fun"; it = LIST1 input_fun ; "=>"; body = ltac_expr LEVEL "5" ->
           { CAst.make ~loc (TacFun (it,body)) }

@@ -541,7 +541,7 @@ let autoloaded_mlgs = [ (* productions from other mlgs are marked with TAGs *)
 let has_match p prods = List.exists (fun p2 -> ematch p p2) prods
 
 let plugin_regex = Str.regexp "^plugins/\\([a-zA-Z0-9_]+\\)/"
-let level_regex = Str.regexp "[a-zA-Z0-9_]*$"
+let level_regex = Str.regexp "[a-zA-Z0-9_]*l?$"
 
 let get_plugin_name file =
   if Str.string_match plugin_regex file 0 then
