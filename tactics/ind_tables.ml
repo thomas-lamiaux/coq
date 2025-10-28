@@ -122,7 +122,7 @@ let redeclare_schemes { sch_eff = eff } =
       let old = try String.Map.find kind accu with Not_found -> [] in
       String.Map.add kind ((ind, c) :: old) accu
   in
-  let schemes = Cmap_env.fold fold eff.Evd.seff_roles String.Map.empty in
+  let schemes = Cmap_env.fold fold (Evd.seff_roles eff) String.Map.empty in
   let iter kind defs = List.iter (DeclareScheme.declare_scheme SuperGlobal kind) defs in
   String.Map.iter iter schemes
 
@@ -136,13 +136,13 @@ let local_lookup_scheme eff kind ind = match lookup_scheme kind ind with
   in
   (* Inefficient O(n), but the number of locally declared schemes is small and
      this is very rarely called *)
-  try let _ = Cmap_env.iter iter eff.Evd.seff_roles in None with Found c -> Some c
+  try let _ = Cmap_env.iter iter (Evd.seff_roles eff) in None with Found c -> Some c
 
 let local_check_scheme kind ind { sch_eff = eff } =
   Option.has_some (local_lookup_scheme eff kind ind)
 
 let define ?loc internal role id c poly uctx sch =
-  let avoid = Safe_typing.constants_of_private sch.sch_eff.Evd.seff_private in
+  let avoid = Safe_typing.constants_of_private (Evd.seff_private sch.sch_eff) in
   let avoid = Id.Set.of_list @@ List.map (fun cst -> Constant.label cst) avoid in
   let id = compute_name internal id avoid in
   let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in

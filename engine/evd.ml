@@ -1291,6 +1291,30 @@ let drop_side_effects evd =
 
 let eval_side_effects evd = evd.effects
 
+let push_side_effects prv ?univs ?role effs =
+  let kn = match Safe_typing.constants_of_private prv with
+  | [cst] -> cst
+  | _ -> assert false
+  in
+  let seff_univs = match univs with
+  | None -> effs.seff_univs
+  | Some ctx -> Cmap_env.add kn ctx effs.seff_univs
+  in
+  let seff_roles = match role with
+  | None -> effs.seff_roles
+  | Some r -> Cmap_env.add kn r effs.seff_roles
+  in
+  let seff_private = Safe_typing.concat_private prv effs.seff_private in
+  {
+    seff_private = Safe_typing.concat_private prv seff_private;
+    seff_roles = seff_roles;
+    seff_univs = seff_univs;
+  }
+
+let seff_private eff = eff.seff_private
+let seff_roles effs = effs.seff_roles
+let seff_univs effs = effs.seff_univs
+
 (* Future goals *)
 let declare_future_goal evk evd =
   let future_goals = FutureGoals.add evk evd.future_goals in

@@ -389,12 +389,7 @@ val dependent_evar_ident : Evar.t -> evar_map -> Id.t
 type side_effect_role =
 | Schema of inductive * string
 
-type side_effects = {
-  seff_private : Safe_typing.private_constants;
-  seff_roles : side_effect_role Cmap_env.t;
-  seff_univs : UState.named_universes_entry Cmap_env.t;
-  (* only used by Declare to register names for mono universes *)
-}
+type side_effects
 
 val empty_side_effects : side_effects
 
@@ -406,6 +401,15 @@ val eval_side_effects : evar_map -> side_effects
 
 val drop_side_effects : evar_map -> evar_map
 (** This should not be used. For hacking purposes. *)
+
+val push_side_effects : Safe_typing.private_constants ->
+  ?univs:UState.named_universes_entry -> ?role:side_effect_role -> side_effects -> side_effects
+
+(** {6 Accessors} *)
+
+val seff_private : side_effects -> Safe_typing.private_constants
+val seff_roles : side_effects -> side_effect_role Cmap_env.t
+val seff_univs : side_effects -> UState.named_universes_entry Names.Cmap_env.t
 
 (** {5 Future goals} *)
 
