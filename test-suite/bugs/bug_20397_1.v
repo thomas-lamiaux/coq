@@ -23,8 +23,10 @@ Theorem eq_rect_nat_double : forall T (a b c : nat) x ab bc,
 Admitted.
 
 Ltac eq_rect_simpl :=
-  unfold eq_rec_r, eq_rec;
-  repeat rewrite eq_rect_nat_double;
+  unfold eq_rec_r;
+  change eq_rec with (fun A x (P:_ -> Set) => @eq_rect A x P);
+  unfold eq_rect_r;
+  unfold eq_rect_r;  repeat rewrite eq_rect_nat_double;
   repeat rewrite <- (eq_rect_eq_dec eq_nat_dec).
 
 Inductive word : nat -> Set :=
