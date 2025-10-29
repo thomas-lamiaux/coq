@@ -533,7 +533,8 @@ $coq_opam_package (unknown package)"
         # before), remove it.
         opam uninstall -q $coq_opam_package >/dev/null 2>&1
 
-        for dep in $(opam install --show-actions "$coq_opam_package" | grep -o '∗\s*install\s*[^ ]*' | sed 's/∗\s*install\s*//g'); do
+        # '∗' is a unicode star used by opam for packags to be installed
+        for dep in $(opam install --show-actions "$coq_opam_package" | grep -o '∗\s*[^ ]*' | sed 's/∗\s*//g'); do
             # show-actions will print transitive deps
             # so we don't need to look at the skipped_packages
             if echo "$failed_packages" | grep -q "^$dep "; then
