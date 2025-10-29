@@ -254,7 +254,7 @@ let make_univs_immediate_default ~poly ~opaque ~uctx ~udecl ~eff ~used_univs bod
          Not sure if it makes more sense to merge them in the ustate
          before restrict/check_univ_decl or here. Since we only do it
          when monomorphic it shouldn't really matter. *)
-      Monomorphic_entry (Univ.ContextSet.union uctx (Safe_typing.universes_of_private eff.Evd.seff_private)), snd utyp
+      Monomorphic_entry (Univ.ContextSet.union uctx (Safe_typing.universes_of_private (Evd.seff_private eff))), snd utyp
   in
   uctx, utyp, used_univs, Default { body = (body, eff); opaque = if opaque then Opaque Univ.ContextSet.empty else Transparent }
 
@@ -480,14 +480,14 @@ let register_side_effect (c, body, role, univs) =
 
 let get_roles export eff =
   let map (c, body) =
-    let role = try Some (Cmap_env.find c eff.Evd.seff_roles) with Not_found -> None in
-    let univs = try Some (Cmap_env.find c eff.Evd.seff_univs) with Not_found -> None in
+    let role = try Some (Cmap_env.find c (Evd.seff_roles eff)) with Not_found -> None in
+    let univs = try Some (Cmap_env.find c (Evd.seff_univs eff)) with Not_found -> None in
     (c, body, role, univs)
   in
   List.map map export
 
 let export_side_effects eff =
-  let export = Global.export_private_constants eff.Evd.seff_private in
+  let export = Global.export_private_constants (Evd.seff_private eff) in
   let export = get_roles export eff in
   List.iter register_side_effect export
 
@@ -495,7 +495,7 @@ let register_side_effects pf =
   (* TODO: factorize this with [register_side_effect] above *)
   let open Names in
   let eff = Evd.eval_side_effects (Proof.data pf).Proof.sigma in
-  let cst = Safe_typing.constants_of_private eff.Evd.seff_private in
+  let cst = Safe_typing.constants_of_private (Evd.seff_private eff) in
   let iter kn =
     let gr = GlobRef.ConstRef kn in
     let id = Constant.label kn in
@@ -604,14 +604,14 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
         let () = Global.push_context_set ctx in
         Entries.DefinitionEntry e, false, ubinders, None, ctx
       | Default { body = (body, eff); opaque = Opaque body_uctx } ->
-        let body = ((body, body_uctx), eff.Evd.seff_private) in
+        let body = ((body, body_uctx), Evd.seff_private eff) in
         let de = { de with proof_entry_body = body } in
         let cd, ctx = cast_opaque_proof_entry ImmediateEffectEntry de in
         let ubinders = make_ubinders ctx de.proof_entry_universes in
         let () = Global.push_context_set ctx in
         Entries.OpaqueEntry cd, false, ubinders, Some (Future.from_val body, None), ctx
       | DeferredOpaque { body; feedback_id } ->
-        let map (body, eff) = body, eff.Evd.seff_private in
+        let map (body, eff) = body, Evd.seff_private eff in
         let body = Future.chain body map in
         let de = { de with proof_entry_body = body } in
         let cd, ctx = cast_opaque_proof_entry DeferredEffectEntry de in
@@ -693,21 +693,16 @@ let declare_private_constant ?role ~name ~opaque de effs senv =
       OpaqueEff de, ctx
 
   in
+  let univs =
+    if Univ.Level.Set.is_empty (fst ctx) then None
+    else Some (UState.Monomorphic_entry ctx, UnivNames.empty_binders)
+  in
   let (kn, eff), senv = Safe_typing.add_private_constant name ctx de senv in
-  let seff_univs =
-    if Univ.Level.Set.is_empty (fst ctx) then effs.Evd.seff_univs
-    else Cmap_env.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.Evd.seff_univs
-  in
-  let seff_roles = match role with
-  | None -> effs.Evd.seff_roles
-  | Some r -> Cmap_env.add kn r effs.Evd.seff_roles
-  in
-  let seff_private = Safe_typing.concat_private eff effs.Evd.seff_private in
-  let effs = Evd.({ seff_private; seff_roles; seff_univs }) in
+  let effs = Evd.push_side_effects eff ?univs ?role effs in
   kn, effs, senv
 
 let inline_private_constants ~uctx env (body, eff) =
-  let body, ctx = Safe_typing.inline_private_constants env (body, eff.Evd.seff_private) in
+  let body, ctx = Safe_typing.inline_private_constants env (body, Evd.seff_private eff) in
   let uctx = UState.merge ~sideff:true Evd.univ_rigid uctx ctx in
   body, uctx
 
@@ -2105,7 +2100,7 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo } =
   let proofs = match pinfo.possible_guard with
     | None -> proofs
     | Some (possible_guard, fixrelevances) ->
-      let env = Safe_typing.push_private_constants (Global.env()) eff.Evd.seff_private in
+      let env = Safe_typing.push_private_constants (Global.env()) (Evd.seff_private eff) in
       let fixbodies, fixtypes = List.split proofs in
       let fixrelevances = List.map (EConstr.ERelevance.kind evd) fixrelevances in
       let rec_declaration = prepare_recursive_declaration pinfo.cinfo fixtypes fixrelevances fixbodies in
@@ -2131,7 +2126,7 @@ let control_only_guard { proof; pinfo } =
   let initial_goals = Proofview.initial_goals entry in
   let proofs = List.map (fun (_, body, typ) -> Evarutil.(nf_evar sigma body, nf_evar sigma typ)) initial_goals in
   let eff = Evd.eval_side_effects sigma in
-  let env = Safe_typing.push_private_constants (Global.env()) eff.Evd.seff_private in
+  let env = Safe_typing.push_private_constants (Global.env()) (Evd.seff_private eff) in
   let open Proof_info in
   match pinfo.possible_guard with
   | None ->
