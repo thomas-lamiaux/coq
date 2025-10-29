@@ -127,9 +127,6 @@ Theorem iff_sym : forall A B:Prop, (A <-> B) -> (B <-> A).
 End Equivalence.
 
 #[global]
-Create HintDb extcore.
-
-#[global]
 Hint Unfold iff: extcore.
 
 (** Backward direction of the equivalences above does not need assumptions *)
