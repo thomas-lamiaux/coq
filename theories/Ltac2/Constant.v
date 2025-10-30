@@ -15,3 +15,8 @@ Ltac2 Type t := constant.
 Ltac2 @ external equal : constant -> constant -> bool := "rocq-runtime.plugins.ltac2" "constant_equal".
 (** Constants obtained through module aliases or Include are not
     considered equal by this function. *)
+
+Ltac2 @external print : t -> message
+  := "rocq-runtime.plugins.ltac2" "constant_print".
+(** Print the constant using the shortest qualified identifier which refers to it.
+    Does not avoid variable names in the current or global environment. *)

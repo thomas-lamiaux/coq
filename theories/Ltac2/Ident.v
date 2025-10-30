@@ -17,3 +17,5 @@ Ltac2 @ external equal : t -> t -> bool := "rocq-runtime.plugins.ltac2" "ident_e
 Ltac2 @ external of_string : string -> t option := "rocq-runtime.plugins.ltac2" "ident_of_string".
 
 Ltac2 @ external to_string : t -> string := "rocq-runtime.plugins.ltac2" "ident_to_string".
+
+Ltac2 @external print : ident -> message := "rocq-runtime.plugins.ltac2" "message_of_ident".

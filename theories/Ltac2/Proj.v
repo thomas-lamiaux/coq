@@ -40,3 +40,8 @@ Ltac2 @ external to_constant : t -> constant option
   := "rocq-runtime.plugins.ltac2" "projection_to_constant".
 (** Get the constant associated to the primitive projection.
     Currently always returns [Some] but this may change in the future. *)
+
+Ltac2 @external print : t -> message
+  := "rocq-runtime.plugins.ltac2" "projection_print".
+(** Print the projection using the shortest qualified identifier which refers to it.
+    Does not avoid variable names in the current or global environment. *)
