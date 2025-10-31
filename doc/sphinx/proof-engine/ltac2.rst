@@ -309,8 +309,8 @@ Ltac2 Definitions
    The previous value of the binding can be optionally accessed using the `as`
    binding syntax.
 
-   This command supports :term:`attributes <attribute>` :attr:`local` and :attr:`export`.
-   By default it is `export` outside sections. Inside sections it is `local` and does not support `export`.
+   This command supports :term:`attributes <attribute>` :attr:`local`, :attr:`export` and :attr:`global`.
+   By default it is `export` outside sections. Inside sections it is `local` and does not support `export` or `global`.
 
    .. example:: Dynamic nature of mutable cells
 

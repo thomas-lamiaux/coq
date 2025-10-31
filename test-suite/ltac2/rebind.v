@@ -213,9 +213,10 @@ Module Locality.
     Fail Ltac2 Eval x().
   End testS.
 
+  Ltac2 Eval x().
   Module Inner3.
-    (* might be supported someday? *)
-    Fail #[global] Ltac2 Set x := fun () => Control.throw Assertion_failure.
+    #[global] Ltac2 Set x := fun () => Control.throw Assertion_failure.
   End Inner3.
+  Fail Ltac2 Eval x().
 
 End Locality.
