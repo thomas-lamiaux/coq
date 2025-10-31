@@ -44,6 +44,8 @@ Arguments idpath {A a} , [A] a.
 Notation "x = y :> A" := (@paths A x y) : type_scope.
 Notation "x = y" := (x = y :>_) : type_scope.
 
+Scheme Rewriting for paths.
+
 Definition inverse {A : Type} {x y : A} (p : x = y) : y = x
   := match p with idpath => idpath end.
 

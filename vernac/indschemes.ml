@@ -287,6 +287,8 @@ let ignore_error f x =
 
 let declare_rewriting_schemes ?loc ind =
   if Hipattern.is_inductive_equality (Global.env ()) ind then begin
+    (* Expect the equality to be symmetric *)
+    ignore_error (define_individual_scheme ?loc sym_scheme_kind None) ind;
     define_individual_scheme ?loc rew_r2l_scheme_kind None ind;
     define_individual_scheme ?loc rew_r2l_dep_scheme_kind None ind;
     define_individual_scheme ?loc rew_r2l_forward_dep_scheme_kind None ind;
@@ -317,11 +319,6 @@ let declare_congr_scheme ?loc ind =
     else
       warn_cannot_build_congruence ()
   end
-
-let declare_sym_scheme ?loc ind =
-  if Hipattern.is_inductive_equality (Global.env ()) ind then
-    (* Expect the equality to be symmetric *)
-    ignore_error (define_individual_scheme ?loc sym_scheme_kind None) ind
 
 (* Scheme command *)
 
@@ -450,10 +447,14 @@ let do_scheme ~register env l =
   do_mutual_induction_scheme ~register env ~isrec lnamedepindsort
 
 let do_scheme_equality ?locmap sch id =
-  let mind,_ = smart_ind id in
-  let dec = match sch with SchemeBooleanEquality -> false | SchemeEquality -> true in
-  declare_beq_scheme ?locmap mind;
-  if dec then declare_eq_decidability ?locmap mind
+  let mind,_ as ind = smart_ind id in
+  match sch with
+  | SchemeBooleanEquality | SchemeEquality ->
+    declare_beq_scheme ?locmap mind;
+    if sch = SchemeEquality then declare_eq_decidability ?locmap mind
+  | SchemeRewriting ->
+    let loc = Option.bind locmap (fun locmap -> Locmap.lookup ~locmap ind) in
+    declare_rewriting_schemes ?loc ind
 
 (**********************************************************************)
 (* Combined scheme *)
@@ -563,5 +564,4 @@ let declare_default_schemes ?locmap kn =
   if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
   if !eq_dec_flag then try_declare_eq_decidability kn ?locmap;
   if !rewriting_flag then map_inductive_block ?locmap declare_congr_scheme kn n;
-  if !rewriting_flag then map_inductive_block ?locmap declare_sym_scheme kn n;
   if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n

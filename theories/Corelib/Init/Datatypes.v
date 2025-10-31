@@ -129,6 +129,8 @@ Hint Constructors eq_true : eq_true.
 
 Register eq_true as core.eq_true.type.
 
+Scheme Rewriting for eq_true.
+
 (** Another way of interpreting booleans as propositions *)
 
 Definition is_true b := b = true.

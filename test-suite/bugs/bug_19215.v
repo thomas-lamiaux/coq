@@ -74,6 +74,8 @@ Register eq_ind as core.eq.ind.
 Register eq_rect as core.eq.rect.
 Register eq_elim as core.eq.rect.
 
+Register Scheme eq_ind as ind_nodep for eq.
+
   Section equality.
 
     Theorem eq_sym@{s;u|} (A : Type@{s;u}) (x y : A) : x = y -> y = x.

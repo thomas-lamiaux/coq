@@ -233,7 +233,7 @@ let build_sym_scheme env _handle ind =
   c, UState.of_context_set ctx
 
 let sym_scheme_kind =
-  declare_individual_scheme_object "sym_internal"
+  declare_individual_scheme_object "sym"
   build_sym_scheme
 
 (**********************************************************************)

@@ -20,6 +20,7 @@ Open Scope type_scope.
 Definition iff A B := prod (A -> B) (B -> A).
 Infix "<->" := iff : type_scope.
 Inductive paths {A : Type@{i}} (a : A) : A -> Type@{i} := idpath : paths a a where "x = y" := (@paths _ x y) : type_scope.
+Scheme Rewriting for paths.
 Class Contr_internal (A : Type) := { center : A ; contr : (forall y : A, center
 = y) }.
 Inductive trunc_index : Type := minus_two | trunc_S (_ : trunc_index).

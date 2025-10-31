@@ -3,6 +3,8 @@ Set Universe Polymorphism.
 Inductive path@{i} {A : Type@{i}} (x : A) : A -> Type@{i} := refl : path x x.
 Inductive unit@{i} : Type@{i} := tt.
 
+Scheme Rewriting for path.
+
 Lemma foo@{i j} : forall (m n : unit@{i}) (P : unit -> Type@{j}), path m n -> P m -> P n.
 Proof.
 intros m n P e p.

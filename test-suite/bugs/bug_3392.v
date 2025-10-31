@@ -4,6 +4,7 @@ Generalizable All Variables.
 Axiom admit : forall {T}, T.
 Inductive paths {A : Type} (a : A) : A -> Type := idpath : paths a a where "x = y" := (@paths _ x y) : type_scope.
 Arguments idpath {A a} , [A] a.
+Scheme Rewriting for paths.
 Definition transport {A : Type} (P : A -> Type) {x y : A} (p : x = y) (u : P x) : P y := match p with idpath => u end.
 Notation "p # x" := (transport _ p x) (right associativity, at level 65, only parsing).
 Definition ap {A B:Type} (f:A -> B) {x y:A} (p:x = y) : f x = f y := match p with idpath => idpath end.

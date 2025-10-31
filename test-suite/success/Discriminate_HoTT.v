@@ -30,6 +30,8 @@ Register paths as core.identity.type.
 Register idpath as core.identity.refl.
 Register paths_ind as core.identity.ind.
 
+Scheme paths_ind_nodep := Minimality for paths Sort Type.
+
 Definition inverse {A : Type} {x y : A} (p : x = y) : y = x
   := match p with idpath => idpath end.
 Arguments inverse {A x y} p : simpl nomatch.

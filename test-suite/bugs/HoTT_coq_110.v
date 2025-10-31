@@ -1,6 +1,7 @@
 Module X.
   Inductive paths A (x : A) : A -> Type := idpath : paths A x x.
   Notation "x = y" := (@paths _ x y) : type_scope.
+  Scheme Rewriting for paths.
 
   Axioms A B : Type.
   Axiom P : A = B.
@@ -13,6 +14,7 @@ End X.
 Module Y.
   Inductive paths A (x : A) : A -> Type := idpath : paths A x x.
   Notation "x = y" := (@paths _ x y) : type_scope.
+  Scheme Rewriting for paths.
 
   Axioms A B : Type.
   Axiom P : A = B.
