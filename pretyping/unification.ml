@@ -2399,7 +2399,7 @@ let get_head_kind ~metas env sigma c =
 let fast_head_check sigma knd c = match EConstr.kind sigma c, knd with
 | Lambda _, (HeadInd | HeadSort) -> false
 | Sort _, (HeadInd | HeadProd) -> false
-| Construct _, (HeadProd | HeadSort) -> false
+| Construct _, HeadSort -> false
 | Prod _, (HeadInd | HeadProd) -> false
 | Ind _, HeadInd -> false
 | App (hd, _), _ ->
