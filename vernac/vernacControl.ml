@@ -159,9 +159,8 @@ let with_fail f : (Loc.t option * Pp.t, 'a) result =
   | e ->
     (* The error has to be printed in the failing state *)
     let _, info as exn = Exninfo.capture e in
-    (* Don't turn Sys.Break and anomalies into successes
-       NB: on windows Sys.Break is used instead of Control.Timeout *)
-    if e = Sys.Break || CErrors.is_anomaly e then Exninfo.iraise exn;
+    (* Don't catch async exceptions, don't turn anomalies into successes *)
+    if CErrors.is_async e || CErrors.is_sync_anomaly e then Exninfo.iraise exn;
     Ok (Loc.get_loc info, CErrors.iprint exn)
 
 type ('st0,'st) with_local_state = { with_local_state : 'a. 'st0 -> (unit -> 'a) -> 'st * 'a }

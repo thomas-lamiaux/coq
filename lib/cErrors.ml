@@ -82,11 +82,17 @@ let register_handler h = handle_stack := h::!handle_stack
 
 let is_handled e =
   let is_handled_by h = Option.has_some (h e) in
-  List.exists is_handled_by !handle_stack
+  match e with
+  | Anomaly _ -> false (* anomaly is considered unhandled *)
+  | _ -> List.exists is_handled_by !handle_stack
 
-let is_anomaly = function
-| Anomaly _ -> true
-| exn -> not (is_handled exn)
+let is_async = function
+| Control.Timeout | Sys.Break | Out_of_memory | Stack_overflow -> true
+| e -> Memprof_coq.is_interrupted()
+
+let exit_code e = if is_handled e then 1 else 129
+
+let is_sync_anomaly e = not (is_async e) && not (is_handled e)
 
 (** Printing of additional error info, from Exninfo *)
 let additional_error_info_handler = ref []
