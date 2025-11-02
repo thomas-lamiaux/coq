@@ -22,7 +22,72 @@ module RelDecl = Rel.Declaration
 open RelDecl
 
 
+(* fold functions for state *)
+let fold_right_state s l tp t =
+  let rec aux ids1 i l s t =
+    match l with
+    | [] -> t (s, List.rev ids1)
+    | a :: l -> tp s i a (fun (s, id1) -> aux (id1 :: ids1) (i+1) l s t)
+  in
+  aux [] 0 l s t
 
+let fold_right_state2 s l tp t =
+  let rec aux ids1 ids2 i l s t =
+    match l with
+    | [] -> t (s, List.rev ids1, List.rev ids2)
+    | a :: l -> tp s i a (fun (s, id1, id2) -> aux (id1 :: ids1) (id2 :: ids2) (i+1) l s t)
+  in
+  aux [] [] 0 l s t
+
+let fold_right_state3 s l tp t =
+  let rec aux ids1 ids2 ids3 i l s t =
+    match l with
+    | [] -> t (s, List.rev ids1, List.rev ids2, List.rev ids3)
+    | a :: l -> tp s i a (fun (s, id1, id2, id3) -> aux (id1 :: ids1) (id2 :: ids2) (id3 :: ids3) (i+1) l s t)
+  in
+  aux [] [] [] 0 l s t
+
+let fold_left_state s l tp t =
+  fold_right_state s (List.rev l) tp t
+
+  let fold_left_state2 s l tp t =
+  fold_right_state2 s (List.rev l) tp t
+
+  let fold_left_state3 s l tp t =
+  fold_right_state3 s (List.rev l) tp t
+
+let fold_right_state_opt s l tp t =
+  let rec aux ids1 i l s t =
+    match l with
+    | [] -> t (s, (List.rev ids1))
+    | a :: l -> tp s i a (fun s id1 -> aux (List.append id1 ids1) (1+i) l s t)
+  in
+  aux [] 0 l s t
+
+let fold_right_state_opt2 s l tp t =
+  let rec aux ids1 ids2 i l s t =
+    match l with
+    | [] -> t (s , List.rev ids1, List.rev ids2)
+    | a :: l -> tp s i a (fun s id1 id2 -> aux (List.append id1 ids1) (List.append id2 ids2) (i+1) l s t)
+  in
+  aux [] [] 0 l s t
+
+  let fold_right_state_opt3 s l tp t =
+  let rec aux ids1 ids2 ids3 i l s t =
+    match l with
+    | [] -> t (s , List.rev ids1, List.rev ids2, List.rev ids3)
+    | a :: l -> tp s i a (fun s id1 id2 id3 -> aux (List.append id1 ids1) (List.append id2 ids2) (List.append id3 ids3) (i+1) l s t)
+  in
+  aux [] [] [] 0 l s t
+
+let fold_left_state_opt s l tp cc =
+  fold_right_state_opt s (List.rev l) tp cc
+
+let fold_left_state_opt2 s l tp cc =
+  fold_right_state_opt2 s (List.rev l) tp cc
+
+let fold_left_state_opt3 s l tp cc =
+  fold_right_state_opt3 s (List.rev l) tp cc
 
 
 
@@ -132,7 +197,7 @@ struct
 
   let push_old_rel s decl =
   let s' = { s with
-      env = EConstr.push_rel (weaken_rel s decl) s.env ;
+      env = EConstr.push_rel decl s.env ;
       names = add_names s.names decl;
       subst = mkRel 1 :: List.map (Vars.lift 1) s.subst
     } in
@@ -212,15 +277,25 @@ end
 
 open State
 
+
+(* ************************************************************************** *)
+(*                               Naming Schemes                               *)
+(* ************************************************************************** *)
+
 (* Default naming scheme *)
-let set_name_rel s na ty =
+let naming_id s decl = decl
+
+(*  Chooses the next Id available, creating one using using the first later of the type if needed *)
+let set_name_annot s na ty =
   let name_or_hd = named_hd s.env s.sigma ty na.binder_name in
   let new_id = next_name_away name_or_hd s.names in
   make_annot (Name new_id) na.binder_relevance
 
-let set_names_context s l =
+let naming_hd s decl = set_annot (set_name_annot s (RelDecl.get_annot decl) (RelDecl.get_type decl)) decl
+
+let naming_hd_context s l =
   let fold decl (s, l) =
-    let na = set_name_rel s (RelDecl.get_annot decl) (RelDecl.get_type decl) in
+    let na = set_name_annot s (RelDecl.get_annot decl) (RelDecl.get_type decl) in
     let decl = set_annot na decl in
     let (s, _) = push_old_rel s decl in (* old or not: does not matter for naming *)
     (s, decl :: l)
@@ -229,85 +304,6 @@ let set_names_context s l =
 
 
 
-(* fold functions for state *)
-let fold_right_state s l tp t =
-  let rec aux ids1 i l s t =
-    match l with
-    | [] -> t (s, List.rev ids1)
-    | a :: l -> tp s i a (fun (s, id1) -> aux (id1 :: ids1) (i+1) l s t)
-  in
-  aux [] 0 l s t
-
-let fold_right_state2 s l tp t =
-  let rec aux ids1 ids2 i l s t =
-    match l with
-    | [] -> t (s, List.rev ids1, List.rev ids2)
-    | a :: l -> tp s i a (fun (s, id1, id2) -> aux (id1 :: ids1) (id2 :: ids2) (i+1) l s t)
-  in
-  aux [] [] 0 l s t
-
-let fold_right_state3 s l tp t =
-  let rec aux ids1 ids2 ids3 i l s t =
-    match l with
-    | [] -> t (s, List.rev ids1, List.rev ids2, List.rev ids3)
-    | a :: l -> tp s i a (fun (s, id1, id2, id3) -> aux (id1 :: ids1) (id2 :: ids2) (id3 :: ids3) (i+1) l s t)
-  in
-  aux [] [] [] 0 l s t
-
-let fold_left_state s l tp t =
-  fold_right_state s (List.rev l) tp t
-
-  let fold_left_state2 s l tp t =
-  fold_right_state2 s (List.rev l) tp t
-
-  let fold_left_state3 s l tp t =
-  fold_right_state3 s (List.rev l) tp t
-
-let fold_right_state_opt s l tp t =
-  let rec aux ids1 i l s t =
-    match l with
-    | [] -> t (s, (List.rev ids1))
-    | a :: l -> tp s i a (fun s id1 -> aux (List.append id1 ids1) (1+i) l s t)
-  in
-  aux [] 0 l s t
-
-let fold_right_state_opt2 s l tp t =
-  let rec aux ids1 ids2 i l s t =
-    match l with
-    | [] -> t (s , List.rev ids1, List.rev ids2)
-    | a :: l -> tp s i a (fun s id1 id2 -> aux (List.append id1 ids1) (List.append id2 ids2) (i+1) l s t)
-  in
-  aux [] [] 0 l s t
-
-  let fold_right_state_opt3 s l tp t =
-  let rec aux ids1 ids2 ids3 i l s t =
-    match l with
-    | [] -> t (s , List.rev ids1, List.rev ids2, List.rev ids3)
-    | a :: l -> tp s i a (fun s id1 id2 id3 -> aux (List.append id1 ids1) (List.append id2 ids2) (List.append id3 ids3) (i+1) l s t)
-  in
-  aux [] [] [] 0 l s t
-
-let fold_left_state_opt s l tp cc =
-  fold_right_state_opt s (List.rev l) tp cc
-
-let fold_left_state_opt2 s l tp cc =
-  fold_right_state_opt2 s (List.rev l) tp cc
-
-let fold_left_state_opt3 s l tp cc =
-  fold_right_state_opt3 s (List.rev l) tp cc
-
-
-
-(* ************************************************************************** *)
-(*                      Add variables to the state                            *)
-(* ************************************************************************** *)
-
-
-let add_old_var s na ty cc = cc (push_old_rel s (LocalAssum (na, ty)))
-let add_old_letin s na bd ty cc = cc (push_old_rel s (LocalDef (na, bd, ty)))
-
-let add_fresh_var s na ty cc = cc (push_fresh_rel s (LocalAssum (na, ty)))
-let add_fresh_letin s na bd ty cc = cc (push_fresh_rel s (LocalDef (na, bd, ty)))
 
 
 
@@ -315,99 +311,67 @@ let add_fresh_letin s na bd ty cc = cc (push_fresh_rel s (LocalDef (na, bd, ty))
 (*                            Make Binders                                    *)
 (* ************************************************************************** *)
 
+
+(* This API uses continuation *)
 let (let*) x f = x f
 
+type freshness = Fresh | Old
+type binder = Lambda | Prod
+
+let wrap_binder b =
+  match b with
+  | Lambda -> mkLambda_or_LetIn
+  | Prod -> mkProd_or_LetIn
+
+let add_decl fresh naming_scheme s decl cc =
+    match fresh with
+    | Fresh -> cc @@ push_fresh_rel s @@ naming_scheme s decl
+    | Old -> cc @@ push_old_rel s @@ naming_scheme s @@ weaken_rel s decl
+
 (* 1. Keep, and Make Binary Binders and letin *)
-let kp_binder binder s na ty cc =
-  let ty' = weaken s ty in
-  let* (s', key_bind) = add_old_var s na ty in
-  binder (na, ty', cc (s', key_bind))
+(* ISSUE NAMING *)
+let build_binder binder fresh naming_scheme s decl cc =
+  match fresh with
+    | Fresh ->
+        let decl = naming_scheme s decl in
+        wrap_binder binder decl @@ cc (push_fresh_rel s decl)
+    | Old ->
+        let decl = map_constr (weaken s) decl  in
+        let decl = naming_scheme s decl in
+        wrap_binder binder decl @@ cc (push_old_rel s decl)
 
-let kp_tProd = kp_binder mkProd
-let kp_tLambda = kp_binder mkLambda
-
-let mk_binder binder s na ty cc =
-  let* (s, key_mk) = add_fresh_var s na ty in
-  binder (na, ty, cc (s, key_mk))
-
-let mk_tProd = mk_binder mkProd
-let mk_tLambda = mk_binder mkLambda
-
-let kp_binder_name binder s na ty cc =
-  let ty' = weaken s ty in
-  let na = set_name_rel s na ty' in
-  let* (s', key_bind) = add_old_var s na ty in
-  binder (na, ty', cc (s', key_bind))
-
-let kp_tProd_name = kp_binder_name mkProd
-let kp_tLambda_name = kp_binder_name mkLambda
-
-let mk_binder_name binder s na ty cc =
-  let na = set_name_rel s na ty in
-  let* (s, key_mk) = add_fresh_var s na ty in
-  binder (na, ty, cc (s, key_mk))
-
-let mk_tProd_name = mk_binder_name mkProd
-let mk_tLambda_name = mk_binder_name mkLambda
-
-
-
-let kp_tLetIn s na bd ty cc =
-  let bd' = weaken s bd in
-  let ty' = weaken s ty in
-  let* (s', key_let) = add_old_letin s na bd ty in
-  mkLetIn (na, bd', ty', cc (s', key_let))
-
-let mk_tLetIn s na bd ty cc =
-  let* (s, key_let) = add_fresh_letin s na bd ty in
-  mkLetIn (na, bd, ty, cc (s, key_let))
-
-(* 2. Iterate unary version *)
+let make_binder binder naming_scheme s na ty = build_binder binder Fresh naming_scheme s @@ LocalAssum (na, ty)
+let keep_binder binder naming_scheme s na ty = build_binder binder Old naming_scheme s @@ LocalAssum (na, ty)
 
 (* keep all vars *)
-let read_context read_var read_letin s cxt =
+let read_context binder s cxt =
   fold_left_state s cxt (fun s _ decl cc ->
-      let na = RelDecl.get_annot decl in
-      let ty = RelDecl.get_type decl in
-      match RelDecl.get_value decl with
-      | None    -> read_var s na ty cc
-      | Some bd -> read_letin s na bd ty cc
+      binder s decl cc
   )
 
-(* seperate var and letin *)
-let read_context_sep read_var read_letin s cxt =
+let add_context fresh naming_scheme = read_context (add_decl fresh naming_scheme)
+let closure_context binder fresh naming_scheme = read_context (build_binder binder fresh naming_scheme)
+
+(* seperate var and letin in key_vars / key_letins / key_both *)
+let read_context_sep binder s cxt =
   fold_left_state_opt3 s cxt (fun s i decl cc ->
-      let na = RelDecl.get_annot decl in
-      let ty = RelDecl.get_type decl in
-      match RelDecl.get_value decl with
-      | None    -> read_var s na ty (fun (s, key_var) -> cc s [key_var] [] [key_var])
-      | Some bd -> read_letin s na bd ty (fun (s, key_letin) -> cc s [] [key_letin] [key_letin])
+      let* (s, key) = binder s decl in
+      match decl with
+      | LocalAssum _ -> cc s [key] [] [key]
+      | LocalDef _   -> cc s [] [key] [key]
   )
+
+let add_context_sep fresh  naming_scheme = read_context_sep (add_decl fresh naming_scheme)
+let closure_context_sep binder fresh naming_scheme = read_context_sep (build_binder binder fresh naming_scheme)
 
 (* takes a continuation after binder var and letin to add fresh binders and decide what to do with the keys *)
-let read_by_decl s cxt read_letin cc_letin read_var cc_var =
+let read_by_decl s cxt binder cc_letin cc_var =
   fold_left_state_opt s cxt (fun s pos_decl decl cc ->
+    let* (s, key) = binder s decl in
     match decl with
-    | LocalDef (na, bd, ty) ->
-        let* (s, key_letin) = read_letin s na bd ty in
-        cc_letin s pos_decl key_letin cc
-    | LocalAssum (na, ty) ->
-        let* (s, key_var) = read_var s na ty in
-        cc_var s pos_decl key_var cc
+    | LocalDef _   -> cc_letin s pos_decl key cc
+    | LocalAssum _ -> cc_var   s pos_decl key cc
   )
-
-
-let add_old_context s = read_context add_old_var add_old_letin s
-let add_old_context_sep s = read_context_sep add_old_var add_old_letin s
-
-let add_fresh_context s = read_context add_fresh_var add_fresh_letin s
-let add_fresh_context_sep s = read_context_sep add_fresh_var add_fresh_letin s
-
-let closure_old_context binder = read_context binder kp_tLetIn
-let closure_old_context_sep binder = read_context_sep binder kp_tLetIn
-
-let closure_new_context binder = read_context binder mk_tLetIn
-let closure_new_context_sep binder = read_context_sep binder mk_tLetIn
 
 (* ************************************************************************** *)
 (*                       Mutual Inductive Type                                *)
@@ -457,8 +421,8 @@ let get_params_sep sigma mdecl u =
   let (uparams, nuparams) = chop_letin mdecl.mind_nparams_rec @@ List.rev up_params in
   (sigma, List.rev uparams, List.rev nuparams)
 
-let closure_uparams binder s uparams = closure_old_context_sep binder s uparams
-let closure_nuparams binder s nuparams = closure_old_context_sep binder s nuparams
+let closure_uparams binder s uparams = closure_context_sep binder Old s uparams
+let closure_nuparams binder s nuparams = closure_context_sep binder Old s nuparams
 
 let get_ind_bodies mdecl = mdecl.mind_packets
 
@@ -476,7 +440,7 @@ let mk_tFix s mdecl kname tFix_rarg focus tFix_name tFix_type tmc =
   (* MOST LIKELY BUGGED => IF A ∈ tFix_type -> new binders -> issues *)
   let cdecl pos_indb indb = LocalAssum (tFix_name pos_indb indb, tFix_type s pos_indb indb) in
   let tFix_context = List.rev (List.mapi cdecl (Array.to_list ind_bodies)) in
-  let* (sFix, keys_Fix) = add_fresh_context s tFix_context in
+  let* (sFix, keys_Fix) = add_context Fresh naming_id s tFix_context in
   (* END BUG *)
   let tFix_bodies = Array.mapi (fun pos_indb indb -> tmc (sFix, keys_Fix, pos_indb, indb)) ind_bodies in
   (* result *)
@@ -510,8 +474,8 @@ let get_indices indb u =
     Vars.subst_instance_context u @@ EConstr.of_rel_context indices
 
 (* Closure for indices must be fresh as it is not in the context of the arguments *)
-let add_indices s indb u = add_fresh_context_sep s (weaken_context s (get_indices indb u))
-let closure_indices binder s indb u = closure_new_context_sep binder s (weaken_context s (get_indices indb u))
+let add_indices s indb u = add_context_sep Fresh naming_id s (weaken_context s (get_indices indb u))
+let closure_indices binder naming_scheme s indb u = closure_context_sep binder Fresh naming_scheme s (weaken_context s (get_indices indb u))
 
 let default_rarg mdecl indb =
   (mdecl.mind_nparams - mdecl.mind_nparams_rec) + indb.mind_nrealargs
@@ -552,12 +516,12 @@ let mk_tCase s mdecl ind indb u keys_uparams keys_nuparams params indices mk_cas
   let tCase_Pred =
     (* indices *)
     let indices = weaken_context s (get_indices indb u) in
-    let name_indices = List.map get_annot @@ set_names_context s indices in
-    let* (s, keys_fresh_indices, _, _) = add_fresh_context_sep s indices in
+    let name_indices = List.map get_annot @@ naming_hd_context s indices in
+    let* (s, keys_fresh_indices, _, _) = add_context_sep Fresh naming_id s indices in
     (* new var *)
     let ty_var = make_ind s ind u keys_uparams (get_terms s keys_nuparams) (get_terms s keys_fresh_indices) in
-    let name_var_match = set_name_rel s (make_annot Anonymous (Inductiveops.relevance_of_inductive s.env (ind, u))) ty_var in
-    let* (s, key_var_match) = add_fresh_var s name_var_match ty_var in
+    let name_var_match = set_name_annot s (make_annot Anonymous (Inductiveops.relevance_of_inductive s.env (ind, u))) ty_var in
+    let* (s, key_var_match) = add_decl Fresh naming_id s (LocalAssum (name_var_match, ty_var)) in
     (* return type *)
     let return_type = mk_case_pred s keys_fresh_indices key_var_match in
     (* return *)
@@ -567,7 +531,7 @@ let mk_tCase s mdecl ind indb u keys_uparams keys_nuparams params indices mk_cas
   let branch pos_ctor ctor =
     let args = fst @@ get_args s mdecl u ctor in
     let names_args = Array.of_list (List.rev_map get_annot args) in
-    let* s, key_args, key_letin, key_both = add_old_context_sep s args in
+    let* s, key_args, key_letin, key_both = add_context_sep Old naming_hd s args in
     let branches_body = tc (s, key_args, key_letin, key_both, pos_ctor) in
     (names_args, branches_body)
   in
