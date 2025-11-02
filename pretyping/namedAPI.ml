@@ -222,23 +222,30 @@ end
 
 open State
 
-(* let make_name s id rev =
+let make_name s id rev =
   let id = next_ident_away (Id.of_string id) s.names in
   make_annot (Name id) rev
 
-  let ident_hd env sigma names na t =
-    let na = named_hd env sigma na t in
-    next_name_away na names
 
-let set_names s l =
+let make_name_anon s t rev =
+  let na = named_hd s.env s.sigma t Anonymous in
+  let na = next_name_away na s.names in
+  make_annot (Name na) rev
+
+let ident_hd env sigma names na t =
+  let na = named_hd env sigma na t in
+  next_name_away na names
+
+let set_name_rel s na ty =
+  let id = ident_hd s.env s.sigma s.names ty na.binder_name in
+  make_annot (Name id) na.binder_relevance
+
+let set_names_context s l =
   let fold decl (names, l) =
-    let id = ident_hd s.env s.sigma names (get_type decl) (get_name decl) in
+    let id = ident_hd s.env s.sigma names (RelDecl.get_type decl) (RelDecl.get_name decl) in
     (Id.Set.add id names, set_name (Name id) decl :: l)
   in
   snd @@ List.fold_right fold l (s.names,[])
-
-let state_context s = EConstr.of_rel_context @@ Environ.rel_context s.env *)
-
 
 
 
@@ -371,11 +378,30 @@ let kp_tProd = kp_binder mkProd
 let kp_tLambda = kp_binder mkLambda
 
 let mk_binder binder s na ty cc =
-    let* (s, key_mk) = add_fresh_var s na ty in
-    binder (na, ty, cc (s, key_mk))
+  let* (s, key_mk) = add_fresh_var s na ty in
+  binder (na, ty, cc (s, key_mk))
 
 let mk_tProd = mk_binder mkProd
 let mk_tLambda = mk_binder mkLambda
+
+let kp_binder_name binder s na ty cc =
+  let ty' = weaken s ty in
+  let na = set_name_rel s na ty' in
+  let* (s', key_bind) = add_old_var s na ty in
+  binder (na, ty', cc (s', key_bind))
+
+let kp_tProd_name = kp_binder_name mkProd
+let kp_tLambda_name = kp_binder_name mkLambda
+
+let mk_binder_name binder s na ty cc =
+  let na = set_name_rel s na ty in
+  let* (s, key_mk) = add_fresh_var s na ty in
+  binder (na, ty, cc (s, key_mk))
+
+let mk_tProd_name = mk_binder_name mkProd
+let mk_tLambda_name = mk_binder_name mkLambda
+
+
 
 let kp_tLetIn s na bd ty cc =
   let bd' = weaken s bd in
@@ -428,12 +454,13 @@ let add_old_context_sep s = read_context_sep add_old_var add_old_letin s
 let add_fresh_context s = read_context add_fresh_var add_fresh_letin s
 let add_fresh_context_sep s = read_context_sep add_fresh_var add_fresh_letin s
 
-let closure_old_context binder = read_context (kp_binder binder) kp_tLetIn
-let closure_old_context_sep binder = read_context_sep (kp_binder binder) kp_tLetIn
+let closure_old_context binder = read_context (kp_binder_name binder) kp_tLetIn
+let closure_old_context_sep binder = read_context_sep (kp_binder_name binder) kp_tLetIn
 
-let closure_new_context binder = read_context (mk_binder binder) mk_tLetIn
-let closure_new_context_sep binder = read_context_sep (mk_binder binder) mk_tLetIn
+let closure_new_context binder = read_context (mk_binder_name binder) mk_tLetIn
+let closure_new_context_sep binder = read_context_sep (mk_binder_name binder) mk_tLetIn
 
+let closure_new_context_sep_nn binder = read_context_sep (mk_binder binder) mk_tLetIn
 
 
 (* ************************************************************************** *)
@@ -532,7 +559,7 @@ let get_indices indb u =
 
 (* Closure for indices must be fresh as it is not in the context of arguments *)
 let add_indices s indb u = add_fresh_context_sep s (weaken_context s (get_indices indb u))
-let closure_indices binder s indb u = closure_new_context_sep binder s (weaken_context s (get_indices indb u))
+let closure_indices binder s indb u = closure_new_context_sep_nn binder s (weaken_context s (get_indices indb u))
 
 let default_rarg mdecl indb =
   (mdecl.mind_nparams - mdecl.mind_nparams_rec) + indb.mind_nrealargs
@@ -573,11 +600,11 @@ let mk_tCase s mdecl ind indb u keys_uparams keys_nuparams params indices mk_cas
   let tCase_Pred =
     (* indices *)
     let indices = weaken_context s (get_indices indb u) in
-    let name_indices = List.map get_annot indices in
+    let name_indices = List.map get_annot @@ set_names_context s indices in
     let* (s, keys_fresh_indices, _, _) = add_fresh_context_sep s indices in
     (* new var *)
-    let name_var_match = make_annot Anonymous (Inductiveops.relevance_of_inductive s.env (ind, u)) in
     let ty_var = make_ind s ind u keys_uparams (get_terms s keys_nuparams) (get_terms s keys_fresh_indices) in
+    let name_var_match = set_name_rel s (make_annot Anonymous (Inductiveops.relevance_of_inductive s.env (ind, u))) ty_var in
     let* (s, key_var_match) = add_fresh_var s name_var_match ty_var in
     (* return type *)
     let return_type = mk_case_pred s keys_fresh_indices key_var_match in
@@ -586,7 +613,7 @@ let mk_tCase s mdecl ind indb u keys_uparams keys_nuparams params indices mk_cas
   in
 
   let branch pos_ctor ctor =
-    let (args, _) = get_args s mdecl u ctor in
+    let args = fst @@ get_args s mdecl u ctor in
     let names_args = Array.of_list (List.rev_map get_annot args) in
     let* s, key_args, key_letin, key_both = add_old_context_sep s args in
     let branches_body = tc (s, key_args, key_letin, key_both, pos_ctor) in

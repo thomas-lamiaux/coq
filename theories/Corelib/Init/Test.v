@@ -8,8 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 Set Debug "backtrace".
-Set Printing Universes.
-Set Printing Relevance Marks.
+(* Set Printing Universes. *)
+(* Set Printing Relevance Marks. *)
 
 Notation "A -> B" := (forall (_ : A), B) (right associativity, at level 99).
 
@@ -106,8 +106,14 @@ Inductive myeq (A : Type) (x:A) : A -> Prop :=
     myeq_refl : myeq A x x.
 
 
-Inductive foo (A : Type) : list A -> Type :=
-| cf : foo A (@nil A).
+Inductive food (A : Type) : list A -> Type :=
+| cf : food A (@nil A) -> food A (@nil A).
+
+Inductive foond (A : Type) : list A -> Prop :=
+| cf2 : foond A (@nil A) -> foond A (@nil A).
+
+Inductive ACC (A : Type) (R : A -> A -> Prop) : A -> Prop :=
+  ACC_intro : forall x : A, (forall y : A, R y x -> ACC A R y) -> ACC A R x.
 
 Inductive vectree A : nat -> Type :=
 | vleaf : A -> vectree A zero
