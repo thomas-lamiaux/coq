@@ -226,12 +226,6 @@ let make_name s id rev =
   let id = next_ident_away (Id.of_string id) s.names in
   make_annot (Name id) rev
 
-
-let make_name_anon s t rev =
-  let na = named_hd s.env s.sigma t Anonymous in
-  let na = next_name_away na s.names in
-  make_annot (Name na) rev
-
 let ident_hd env sigma names na t =
   let na = named_hd env sigma na t in
   next_name_away na names
@@ -328,37 +322,6 @@ let add_old_letin s na bd ty cc = cc (push_old_rel s (LocalDef (na, bd, ty)))
 
 let add_fresh_var s na ty cc = cc (push_fresh_rel s (LocalAssum (na, ty)))
 let add_fresh_letin s na bd ty cc = cc (push_fresh_rel s (LocalDef (na, bd, ty)))
-
-
-(* let add_fcontext s cxt =
-  List.fold_right (fun d s -> add_fdecl s d)
-    cxt s *)
-
-(* substitute variables *)
-(* let subst_obind s tm =
-  mk_state (state_context s)
-    (tm :: List.map (Vars.lift 1) s.subst) *)
-
-(* let subst_old_bind =
-  fun s tm cc ->
-  let s' = subst_obind s tm in
-  cc s' *)
-
-(* let subst_ocontext s ltm =
-  mk_state (state_context s)
-  (List.rev_append ltm (List.map (Vars.lift (List.length ltm)) s.subst))
-
-let subst_old_context =
-  fun s ltm cc ->
-  let s' = subst_ocontext s ltm in
-  cc s' *)
-
-
-
-
-
-
-
 
 
 
@@ -535,6 +498,12 @@ let mk_tFix s mdecl kname tFix_rarg focus tFix_name tFix_type tmc =
   let tFix_bodies = Array.mapi (fun pos_indb indb -> tmc (sFix, keys_Fix, pos_indb, indb)) ind_bodies in
   (* result *)
   EConstr.mkFix ((rargs, focus), (tFix_names, tFix_types, tFix_bodies))
+
+(* Doe not create a fix if it is not-recursive and only has one inductive body *)
+  let mk_tFix_or_not is_rec s mdecl kn tFix_rarg pos_indb tFix_name tFix_type cc =
+    if is_rec
+    then mk_tFix s mdecl kn tFix_rarg pos_indb tFix_name tFix_type cc
+    else cc (s, [], 0, mdecl.mind_packets.(0))
 
 
 (* ************************************************************************** *)
