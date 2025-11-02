@@ -212,20 +212,20 @@ end
 
 open State
 
-let ident_hd env sigma names na t =
-  let na = named_hd env sigma na t in
-  next_name_away na names
-
+(* Default naming scheme *)
 let set_name_rel s na ty =
-  let id = ident_hd s.env s.sigma s.names ty na.binder_name in
-  make_annot (Name id) na.binder_relevance
+  let name_or_hd = named_hd s.env s.sigma ty na.binder_name in
+  let new_id = next_name_away name_or_hd s.names in
+  make_annot (Name new_id) na.binder_relevance
 
 let set_names_context s l =
-  let fold decl (names, l) =
-    let id = ident_hd s.env s.sigma names (RelDecl.get_type decl) (RelDecl.get_name decl) in
-    (Id.Set.add id names, set_name (Name id) decl :: l)
+  let fold decl (s, l) =
+    let na = set_name_rel s (RelDecl.get_annot decl) (RelDecl.get_type decl) in
+    let decl = set_annot na decl in
+    let (s, _) = push_old_rel s decl in (* old or not: does not matter for naming *)
+    (s, decl :: l)
   in
-  snd @@ List.fold_right fold l (s.names,[])
+  snd @@ List.fold_right fold l (s,[])
 
 
 
