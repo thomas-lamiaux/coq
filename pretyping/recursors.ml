@@ -227,7 +227,7 @@ let gen_rec_term env sigma pos_indb indb print =
     let params = Array.of_list (get_terms s key_uparams @ get_terms s key_nuparams) in
     let tCase_pred s keys_fresh_indices key_var_match = make_ccl s key_preds pos_indb key_nuparams keys_fresh_indices key_var_match in
     let* (s, key_args, key_letin, key_both, pos_ctor) =
-      mk_tCase s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params (get_terms s key_indices)
+      mk_tCase naming_hd s mdecl (kn, pos_indb) indb u key_uparams key_nuparams params (get_terms s key_indices)
             tCase_pred pred_relevance (get_term s key_VarMatch) in
     (* 5. Make the branch *)
     let args = get_terms s key_nuparams @ compute_args_fix pos_ctor s key_fixs key_args  in
@@ -244,5 +244,5 @@ let gen_rec_term env sigma pos_indb indb print =
 in gen_rec_term
 
 let gen_rec env sigma kn u mdecl sort_pred dep pos_ind indb =
-  gen_rec kn u mdecl sort_pred dep env sigma pos_ind indb false
+  gen_rec kn u mdecl sort_pred dep env sigma pos_ind indb true
 

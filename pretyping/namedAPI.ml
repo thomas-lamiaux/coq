@@ -214,25 +214,15 @@ open State
 (*                               Naming Schemes                               *)
 (* ************************************************************************** *)
 
-(* Default naming scheme *)
+(* Keep naming as is, including Anonymous *)
 let naming_id s decl = decl
 
-(*  Chooses the next Id available, creating one using using the first later of the type if needed *)
-let set_name_annot s na ty =
-  let name_or_hd = named_hd s.env s.sigma ty na.binder_name in
+(* Chooses the next Id available from the binder's name.
+  If the binder is Anonymous, a name is generated using the head the binder's type. *)
+let naming_hd s decl =
+  let name_or_hd = named_hd s.env s.sigma (RelDecl.get_type decl) (RelDecl.get_name decl) in
   let new_id = next_name_away name_or_hd s.names in
-  make_annot (Name new_id) na.binder_relevance
-
-let naming_hd s decl = set_annot (set_name_annot s (RelDecl.get_annot decl) (RelDecl.get_type decl)) decl
-
-let naming_hd_context s l =
-  let fold decl (s, l) =
-    let na = set_name_annot s (RelDecl.get_annot decl) (RelDecl.get_type decl) in
-    let decl = set_annot na decl in
-    let (s, _) = push_old_rel s decl in (* old or not: does not matter for naming *)
-    (s, decl :: l)
-  in
-  snd @@ List.fold_right fold l (s,[])
+  set_name (Name new_id) decl
 
 
 
@@ -480,8 +470,8 @@ let get_indices indb u =
     Vars.subst_instance_context u @@ EConstr.of_rel_context indices
 
 (* Closure for indices must be fresh as it is not in the context of the arguments *)
-let add_indices s indb u = add_context_sep Fresh naming_id s (weaken_context s (get_indices indb u))
-let closure_indices binder naming_scheme s indb u = closure_context_sep binder Fresh naming_scheme s (weaken_context s (get_indices indb u))
+let closure_indices binder naming_scheme s indb u =
+  closure_context_sep binder Fresh naming_scheme s (weaken_context s (get_indices indb u))
 
 let default_rarg mdecl indb =
   (mdecl.mind_nparams - mdecl.mind_nparams_rec) + indb.mind_nrealargs
@@ -510,7 +500,7 @@ let iterate_all_ctors s kname mdecl u tp cc =
 
 
 (* mk match *)
-let mk_tCase s mdecl ind indb u keys_uparams keys_nuparams params indices mk_case_pred case_relevance tm_match tc =
+let mk_tCase naming_vars s mdecl ind indb u keys_uparams keys_nuparams params indices mk_case_pred case_relevance tm_match tc =
   let tCase_info = Inductiveops.make_case_info s.env ind RegularStyle in
 
   let case_invert =
@@ -522,23 +512,22 @@ let mk_tCase s mdecl ind indb u keys_uparams keys_nuparams params indices mk_cas
   let tCase_Pred =
     (* indices *)
     let indices = weaken_context s (get_indices indb u) in
-    let name_indices = List.map get_annot @@ naming_hd_context s indices in
-    let* (s, keys_fresh_indices, _, _) = add_context_sep Fresh naming_id s indices in
+    let* (s, keys_fresh_indices, _, keys_both) = add_context_sep Fresh naming_vars s indices in
     (* new var *)
     let ty_var = make_ind s ind u keys_uparams (get_terms s keys_nuparams) (get_terms s keys_fresh_indices) in
-    let name_var_match = set_name_annot s (make_annot Anonymous (Inductiveops.relevance_of_inductive s.env (ind, u))) ty_var in
-    let* (s, key_var_match) = add_decl Fresh naming_id s (LocalAssum (name_var_match, ty_var)) in
+    let name_var_match = make_annot Anonymous (Inductiveops.relevance_of_inductive s.env (ind, u)) in
+    let* (s, key_var_match) = add_decl Fresh naming_vars s (LocalAssum (name_var_match, ty_var)) in
     (* return type *)
+    let fresh_annot = Array.of_list @@ (get_anames s (keys_both @ [key_var_match])) in
     let return_type = mk_case_pred s keys_fresh_indices key_var_match in
-    (* return *)
-    ((Array.of_list (List.append name_indices [name_var_match]), return_type), case_relevance)
+    ((fresh_annot, return_type), case_relevance)
   in
 
   let branch pos_ctor ctor =
     let args = fst @@ get_args s mdecl u ctor in
-    let names_args = Array.of_list (List.rev_map get_annot args) in
-    let* s, key_args, key_letin, key_both = add_context_sep Old naming_hd s args in
+    let* s, key_args, key_letin, key_both = add_context_sep Old naming_vars s args in
     let branches_body = tc (s, key_args, key_letin, key_both, pos_ctor) in
+    let names_args = Array.of_list @@ get_anames s key_both in
     (names_args, branches_body)
   in
 
