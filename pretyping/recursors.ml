@@ -244,5 +244,5 @@ let gen_rec_term env sigma pos_indb indb print =
 in gen_rec_term
 
 let gen_rec env sigma kn u mdecl sort_pred dep pos_ind indb =
-  gen_rec kn u mdecl sort_pred dep env sigma pos_ind indb true
+  gen_rec kn u mdecl sort_pred dep env sigma pos_ind indb false
 
