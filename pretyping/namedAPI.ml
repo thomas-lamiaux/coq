@@ -22,72 +22,6 @@ module RelDecl = Rel.Declaration
 open RelDecl
 
 
-(* fold functions for state *)
-let fold_right_state s l tp t =
-  let rec aux ids1 i l s t =
-    match l with
-    | [] -> t (s, List.rev ids1)
-    | a :: l -> tp s i a (fun (s, id1) -> aux (id1 :: ids1) (i+1) l s t)
-  in
-  aux [] 0 l s t
-
-let fold_right_state2 s l tp t =
-  let rec aux ids1 ids2 i l s t =
-    match l with
-    | [] -> t (s, List.rev ids1, List.rev ids2)
-    | a :: l -> tp s i a (fun (s, id1, id2) -> aux (id1 :: ids1) (id2 :: ids2) (i+1) l s t)
-  in
-  aux [] [] 0 l s t
-
-let fold_right_state3 s l tp t =
-  let rec aux ids1 ids2 ids3 i l s t =
-    match l with
-    | [] -> t (s, List.rev ids1, List.rev ids2, List.rev ids3)
-    | a :: l -> tp s i a (fun (s, id1, id2, id3) -> aux (id1 :: ids1) (id2 :: ids2) (id3 :: ids3) (i+1) l s t)
-  in
-  aux [] [] [] 0 l s t
-
-let fold_left_state s l tp t =
-  fold_right_state s (List.rev l) tp t
-
-  let fold_left_state2 s l tp t =
-  fold_right_state2 s (List.rev l) tp t
-
-  let fold_left_state3 s l tp t =
-  fold_right_state3 s (List.rev l) tp t
-
-let fold_right_state_opt s l tp t =
-  let rec aux ids1 i l s t =
-    match l with
-    | [] -> t (s, (List.rev ids1))
-    | a :: l -> tp s i a (fun s id1 -> aux (List.append id1 ids1) (1+i) l s t)
-  in
-  aux [] 0 l s t
-
-let fold_right_state_opt2 s l tp t =
-  let rec aux ids1 ids2 i l s t =
-    match l with
-    | [] -> t (s , List.rev ids1, List.rev ids2)
-    | a :: l -> tp s i a (fun s id1 id2 -> aux (List.append id1 ids1) (List.append id2 ids2) (i+1) l s t)
-  in
-  aux [] [] 0 l s t
-
-  let fold_right_state_opt3 s l tp t =
-  let rec aux ids1 ids2 ids3 i l s t =
-    match l with
-    | [] -> t (s , List.rev ids1, List.rev ids2, List.rev ids3)
-    | a :: l -> tp s i a (fun s id1 id2 id3 -> aux (List.append id1 ids1) (List.append id2 ids2) (List.append id3 ids3) (i+1) l s t)
-  in
-  aux [] [] [] 0 l s t
-
-let fold_left_state_opt s l tp cc =
-  fold_right_state_opt s (List.rev l) tp cc
-
-let fold_left_state_opt2 s l tp cc =
-  fold_right_state_opt2 s (List.rev l) tp cc
-
-let fold_left_state_opt3 s l tp cc =
-  fold_right_state_opt3 s (List.rev l) tp cc
 
 
 
@@ -96,8 +30,6 @@ let fold_left_state_opt3 s l tp cc =
 (* ************************************************************************** *)
 (*                              View Argument                                 *)
 (* ************************************************************************** *)
-
-
 
 type arg =
   (* pos_ind, constant context, inst_nuparams inst_indices *)
@@ -138,10 +70,10 @@ let view_arg kname mdecl sigma t : arg =
   | _ -> ArgIsCst (cxt, hd, iargs)
 
 
-(* ************************************************************************** *)
-(*                           State + fold function                            *)
-(* ************************************************************************** *)
 
+(* ************************************************************************** *)
+(*                                 State                                      *)
+(* ************************************************************************** *)
 
 (* state *)
 module State =
@@ -305,16 +237,89 @@ let naming_hd_context s l =
 
 
 
+(* ************************************************************************** *)
+(*                            Fold Functions                                  *)
+(* ************************************************************************** *)
+
+
+
+  (* fold functions for state *)
+let fold_right_state s l tp t =
+  let rec aux ids1 i l s t =
+    match l with
+    | [] -> t (s, List.rev ids1)
+    | a :: l -> tp s i a (fun (s, id1) -> aux (id1 :: ids1) (i+1) l s t)
+  in
+  aux [] 0 l s t
+
+let fold_right_state2 s l tp t =
+  let rec aux ids1 ids2 i l s t =
+    match l with
+    | [] -> t (s, List.rev ids1, List.rev ids2)
+    | a :: l -> tp s i a (fun (s, id1, id2) -> aux (id1 :: ids1) (id2 :: ids2) (i+1) l s t)
+  in
+  aux [] [] 0 l s t
+
+let fold_right_state3 s l tp t =
+  let rec aux ids1 ids2 ids3 i l s t =
+    match l with
+    | [] -> t (s, List.rev ids1, List.rev ids2, List.rev ids3)
+    | a :: l -> tp s i a (fun (s, id1, id2, id3) -> aux (id1 :: ids1) (id2 :: ids2) (id3 :: ids3) (i+1) l s t)
+  in
+  aux [] [] [] 0 l s t
+
+let fold_left_state s l tp t =
+  fold_right_state s (List.rev l) tp t
+
+  let fold_left_state2 s l tp t =
+  fold_right_state2 s (List.rev l) tp t
+
+  let fold_left_state3 s l tp t =
+  fold_right_state3 s (List.rev l) tp t
+
+let fold_right_state_opt s l tp t =
+  let rec aux ids1 i l s t =
+    match l with
+    | [] -> t (s, (List.rev ids1))
+    | a :: l -> tp s i a (fun s id1 -> aux (List.append id1 ids1) (1+i) l s t)
+  in
+  aux [] 0 l s t
+
+let fold_right_state_opt2 s l tp t =
+  let rec aux ids1 ids2 i l s t =
+    match l with
+    | [] -> t (s , List.rev ids1, List.rev ids2)
+    | a :: l -> tp s i a (fun s id1 id2 -> aux (List.append id1 ids1) (List.append id2 ids2) (i+1) l s t)
+  in
+  aux [] [] 0 l s t
+
+  let fold_right_state_opt3 s l tp t =
+  let rec aux ids1 ids2 ids3 i l s t =
+    match l with
+    | [] -> t (s , List.rev ids1, List.rev ids2, List.rev ids3)
+    | a :: l -> tp s i a (fun s id1 id2 id3 -> aux (List.append id1 ids1) (List.append id2 ids2) (List.append id3 ids3) (i+1) l s t)
+  in
+  aux [] [] [] 0 l s t
+
+let fold_left_state_opt s l tp cc =
+  fold_right_state_opt s (List.rev l) tp cc
+
+let fold_left_state_opt2 s l tp cc =
+  fold_right_state_opt2 s (List.rev l) tp cc
+
+let fold_left_state_opt3 s l tp cc =
+  fold_right_state_opt3 s (List.rev l) tp cc
+
 
 
 (* ************************************************************************** *)
 (*                            Make Binders                                    *)
 (* ************************************************************************** *)
 
-
-(* This API uses continuation *)
+(* Notations for continuation *)
 let (let*) x f = x f
 
+(* Notations to specify functions *)
 type freshness = Fresh | Old
 type binder = Lambda | Prod
 
@@ -329,7 +334,6 @@ let add_decl fresh naming_scheme s decl cc =
     | Old -> cc @@ push_old_rel s @@ naming_scheme s @@ weaken_rel s decl
 
 (* 1. Keep, and Make Binary Binders and letin *)
-(* ISSUE NAMING *)
 let build_binder binder fresh naming_scheme s decl cc =
   match fresh with
     | Fresh ->
@@ -343,7 +347,7 @@ let build_binder binder fresh naming_scheme s decl cc =
 let make_binder binder naming_scheme s na ty = build_binder binder Fresh naming_scheme s @@ LocalAssum (na, ty)
 let keep_binder binder naming_scheme s na ty = build_binder binder Old naming_scheme s @@ LocalAssum (na, ty)
 
-(* keep all vars *)
+(* 2. Iterate binders *)
 let read_context binder s cxt =
   fold_left_state s cxt (fun s _ decl cc ->
       binder s decl cc
@@ -372,6 +376,8 @@ let read_by_decl s cxt binder cc_letin cc_var =
     | LocalDef _   -> cc_letin s pos_decl key cc
     | LocalAssum _ -> cc_var   s pos_decl key cc
   )
+
+
 
 (* ************************************************************************** *)
 (*                       Mutual Inductive Type                                *)
