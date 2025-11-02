@@ -48,16 +48,6 @@ let view_arg kname mdecl sigma t : arg =
   let (cxt, hd) = decompose_prod_decls sigma t in
   let (hd, iargs) = decompose_app sigma hd in
   match kind sigma hd with
-  (* If it is the inductive *)
-  (* | Rel pos ->
-      match find_bool (fun k => check_pos s k pos) key_inds with
-        | (pos_strpos_uparams, true) =>
-            let local_nuparams_indices := skipn (get_nb_uparams s kname) iargs in
-            let local_nuparams := firstn (get_nb_nuparams s kname) local_nuparams_indices in
-            let local_indices  := skipn  (get_nb_nuparams s kname) local_nuparams_indices in
-            VArgIsInd pos local local_nuparams local_indices
-        | _ => VArgIsFree local hd iargs
-        end *)
   (* If it is nested *)
   | Ind ((kname_indb, pos_indb), _) ->
     (* If it is the inductive *)
@@ -221,10 +211,6 @@ struct
 end
 
 open State
-
-let make_name s id rev =
-  let id = next_ident_away (Id.of_string id) s.names in
-  make_annot (Name id) rev
 
 let ident_hd env sigma names na t =
   let na = named_hd env sigma na t in
@@ -417,14 +403,11 @@ let add_old_context_sep s = read_context_sep add_old_var add_old_letin s
 let add_fresh_context s = read_context add_fresh_var add_fresh_letin s
 let add_fresh_context_sep s = read_context_sep add_fresh_var add_fresh_letin s
 
-let closure_old_context binder = read_context (kp_binder_name binder) kp_tLetIn
-let closure_old_context_sep binder = read_context_sep (kp_binder_name binder) kp_tLetIn
+let closure_old_context binder = read_context binder kp_tLetIn
+let closure_old_context_sep binder = read_context_sep binder kp_tLetIn
 
-let closure_new_context binder = read_context (mk_binder_name binder) mk_tLetIn
-let closure_new_context_sep binder = read_context_sep (mk_binder_name binder) mk_tLetIn
-
-let closure_new_context_sep_nn binder = read_context_sep (mk_binder binder) mk_tLetIn
-
+let closure_new_context binder = read_context binder mk_tLetIn
+let closure_new_context_sep binder = read_context_sep binder mk_tLetIn
 
 (* ************************************************************************** *)
 (*                       Mutual Inductive Type                                *)
@@ -526,9 +509,9 @@ let get_indices indb u =
     let indices, _ = List.chop indb.mind_nrealdecls indb.mind_arity_ctxt in
     Vars.subst_instance_context u @@ EConstr.of_rel_context indices
 
-(* Closure for indices must be fresh as it is not in the context of arguments *)
+(* Closure for indices must be fresh as it is not in the context of the arguments *)
 let add_indices s indb u = add_fresh_context_sep s (weaken_context s (get_indices indb u))
-let closure_indices binder s indb u = closure_new_context_sep_nn binder s (weaken_context s (get_indices indb u))
+let closure_indices binder s indb u = closure_new_context_sep binder s (weaken_context s (get_indices indb u))
 
 let default_rarg mdecl indb =
   (mdecl.mind_nparams - mdecl.mind_nparams_rec) + indb.mind_nrealargs
