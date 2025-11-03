@@ -404,3 +404,10 @@ Module PolyNoLowerProp.
   Fail Check Foo True : Prop.
 
 End PolyNoLowerProp.
+
+Inductive param_ind_mut0  (A : Type) : A -> Type :=
+| Cparam_ind_mut0 : forall a, param_ind_mut0 A a
+with param_ind_mut1  (A : Type) : A -> Type :=
+| Cparam_ind_mut1 : forall a, param_ind_mut1 A a
+with param_ind_mut2  (A : Type) : A -> Type :=
+| Cparam_ind_mut2 : forall a, param_ind_mut2 A a.
