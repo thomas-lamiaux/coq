@@ -842,7 +842,16 @@ let add_quconstraints uctx (qcstrs,ucstrs) =
   add_universe_constraints uctx cstrs
 
 let check_qconstraints uctx csts =
-  true
+  Sorts.QCumulConstraints.for_all (fun (l,k,r) ->
+    let l = nf_quality uctx l in
+    let r = nf_quality uctx r in
+    match k with
+    | Eq -> QGraph.check_eq (QState.elims uctx.sort_variables) l r
+    | Leq ->
+      match l, r with
+      | QConstant QProp, QConstant QType -> true
+      | _ -> QGraph.check_eq (QState.elims uctx.sort_variables) l r)
+  csts
 
 let check_elim_constraints uctx csts =
   Sorts.ElimConstraints.for_all (fun (l,k,r) ->

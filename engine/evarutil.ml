@@ -799,7 +799,7 @@ let eq_constr_univs_test ~evd ~extended_evd t u =
   let eq_universes _ u1 u2 =
     let u1 = EConstr.EInstance.(kind !sigma (make u1)) in
     let u2 = EConstr.EInstance.(kind !sigma (make u2)) in
-    UGraph.check_eq_instances (universes !sigma) u1 u2
+    UGraph.check_eq_instances (elim_graph !sigma) (universes !sigma) u1 u2
   in
   let eq_sorts s1 s2 =
     if Sorts.equal s1 s2 then true

@@ -1215,12 +1215,12 @@ let checked_sort_cmp_universes _env pb s0 s1 univs =
   | CUMUL -> check_leq univs s0 s1
   | CONV -> check_eq univs s0 s1
 
-let check_convert_instances ~flex:_ u u' univs =
+let check_convert_instances (_ : env) ~flex:_ u u' univs =
   let csts = UVars.enforce_eq_instances u u' (Sorts.QCumulConstraints.empty,Constraints.empty) in
   if Evd.check_quconstraints univs csts then Result.Ok univs else Result.Error None
 
 (* general conversion and inference functions *)
-let check_inductive_instances cv_pb variance u1 u2 univs =
+let check_inductive_instances (_ : env) cv_pb variance u1 u2 univs =
   let csts = get_cumulativity_constraints cv_pb variance u1 u2 in
   if (Evd.check_quconstraints univs csts) then Result.Ok univs
   else Result.Error None
@@ -1276,13 +1276,13 @@ let sigma_compare_sorts _env pb s0 s1 sigma =
       with UGraph.UniverseInconsistency err -> Result.Error (Some err)
     end
 
-let sigma_compare_instances ~flex i0 i1 sigma =
+let sigma_compare_instances _env ~flex i0 i1 sigma =
   match Evd.set_eq_instances ~flex sigma (EInstance.make i0) (EInstance.make i1) with
   | sigma -> Result.Ok sigma
   | exception Evd.UniversesDiffer -> Result.Error None
   | exception UGraph.UniverseInconsistency err -> Result.Error (Some err)
 
-let sigma_check_inductive_instances cv_pb variance u1 u2 sigma =
+let sigma_check_inductive_instances _env cv_pb variance u1 u2 sigma =
   match Evarutil.compare_cumulative_instances cv_pb variance u1 u2 sigma with
   | Inl sigma -> Result.Ok sigma
   | Inr err -> Result.Error (Some err)
@@ -1299,10 +1299,10 @@ let univproblem_compare_sorts env pb s0 s1 uset =
   | Conversion.CONV -> Result.Ok (UnivProblem.Set.add (UEq (s0, s1)) uset)
   | Conversion.CUMUL -> Result.Ok (UnivProblem.Set.add (ULe (s0, s1)) uset)
 
-let univproblem_compare_instances ~flex i0 i1 uset =
+let univproblem_compare_instances _env ~flex i0 i1 uset =
   Result.Ok (UnivProblem.enforce_eq_instances_univs flex i0 i1 uset)
 
-let univproblem_check_inductive_instances cv_pb variance u1 u2 sigma =
+let univproblem_check_inductive_instances _env cv_pb variance u1 u2 sigma =
   Result.Ok (UnivProblem.compare_cumulative_instances cv_pb variance u1 u2 sigma)
 
 let univproblem_univ_state =
@@ -1708,20 +1708,20 @@ let infer_cmp_universes env pb s0 s1 cuniv =
   | CUMUL -> infer_leq (Environ.qualities env) cuniv s0 s1
   | CONV -> infer_eq (Environ.qualities env) cuniv s0 s1
 
-let infer_convert_instances ~flex u u' (univs,cstrs as cuniv) =
+let infer_convert_instances env ~flex u u' (univs,cstrs as cuniv) =
   if flex then
-    if UGraph.check_eq_instances univs u u' then Result.Ok cuniv
+    if UGraph.check_eq_instances (Environ.qualities env) univs u u' then Result.Ok cuniv
     else Result.Error None
   else
     let qcstrs, cstrs' = UVars.enforce_eq_instances u u' Sorts.QUConstraints.empty in
-    if Sorts.QCumulConstraints.trivial qcstrs then
+    if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcstrs) (Environ.qualities env) then
       Result.Ok (univs, Constraints.union cstrs cstrs')
     else
       Result.Error None
 
-let infer_inductive_instances cv_pb variance u1 u2 (univs,csts) =
+let infer_inductive_instances env cv_pb variance u1 u2 (univs,csts) =
   let qcsts, csts' = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if Sorts.QCumulConstraints.trivial qcsts then
+  if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcsts) (Environ.qualities env)  then
     match UGraph.merge_constraints csts' univs with
     | univs -> Result.Ok (univs, Univ.Constraints.union csts csts')
     | exception (UGraph.UniverseInconsistency err) -> Result.Error (Some (Univ err))

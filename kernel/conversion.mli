@@ -24,8 +24,8 @@ type conv_pb = CONV | CUMUL
 
 type ('a, 'err) universe_compare = {
   compare_sorts : env -> conv_pb -> Sorts.t -> Sorts.t -> 'a -> ('a, 'err option) result;
-  compare_instances: flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
-  compare_cumul_instances : conv_pb -> UVars.Variance.t array ->
+  compare_instances: env -> flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
+  compare_cumul_instances : env -> conv_pb -> UVars.Variance.t array ->
     UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
 }
 
@@ -44,7 +44,7 @@ val sort_cmp_universes : env -> conv_pb -> Sorts.t -> Sorts.t ->
 
 (* [flex] should be true for constants, false for inductive types and
 constructors. *)
-val convert_instances : flex:bool -> UVars.Instance.t -> UVars.Instance.t ->
+val convert_instances : env -> flex:bool -> UVars.Instance.t -> UVars.Instance.t ->
   'a * ('a, 'err) universe_compare -> ('a, 'err option) result * ('a, 'err) universe_compare
 
 (** This function never returns an non-empty error. *)

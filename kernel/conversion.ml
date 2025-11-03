@@ -150,8 +150,8 @@ type conv_pb =
 
 type ('a, 'err) universe_compare = {
   compare_sorts : env -> conv_pb -> Sorts.t -> Sorts.t -> 'a -> ('a, 'err option) result;
-  compare_instances: flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
-  compare_cumul_instances : conv_pb -> UVars.Variance.t array ->
+  compare_instances: env -> flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
+  compare_cumul_instances : env -> conv_pb -> UVars.Variance.t array ->
     UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
 }
 
@@ -164,13 +164,13 @@ let sort_cmp_universes env pb s0 s1 (u, check) =
 
 (* [flex] should be true for constants, false for inductive types and
    constructors. *)
-let convert_instances ~flex u u' (s, check) =
-  (check.compare_instances ~flex u u' s, check)
+let convert_instances env ~flex u u' (s, check) =
+  (check.compare_instances env ~flex u u' s, check)
 
 exception MustExpand
 
-let convert_instances_cumul pb var u u' (s, check) =
-  (check.compare_cumul_instances pb var u u' s, check)
+let convert_instances_cumul env pb var u u' (s, check) =
+  (check.compare_cumul_instances env pb var u u' s, check)
 
 let get_cumulativity_constraints cv_pb variance u u' =
   match cv_pb with
@@ -209,8 +209,8 @@ let fail_check (infos : 'err conv_tab) (state, check) = match state with
 | Result.Error None -> raise NotConvertible
 | Result.Error (Some err) -> raise (NotConvertibleTrace (infos.err_ret err))
 
-let convert_inductives cv_pb ind nargs u1 u2 (s, check) =
-  convert_inductives_gen (check.compare_instances ~flex:false) check.compare_cumul_instances
+let convert_inductives env cv_pb ind nargs u1 u2 (s, check) =
+  convert_inductives_gen (check.compare_instances env ~flex:false) (check.compare_cumul_instances env)
     cv_pb ind nargs u1 u2 s, check
 
 let constructor_cumulativity_arguments (mind, ind, ctor) =
@@ -231,8 +231,8 @@ let convert_constructors_gen cmp_instances cmp_cumul (mind, ind, cns) nargs u1 u
       let variance = Array.make (snd (UVars.Instance.length u1)) UVars.Variance.Irrelevant in
       cmp_cumul CONV variance u1 u2 s
 
-let convert_constructors ctor nargs u1 u2 (s, check) =
-  convert_constructors_gen (check.compare_instances ~flex:false) check.compare_cumul_instances
+let convert_constructors env ctor nargs u1 u2 (s, check) =
+  convert_constructors_gen (check.compare_instances env ~flex:false) (check.compare_cumul_instances env)
     ctor nargs u1 u2 s, check
 
 let conv_table_key infos ~nargs k1 k2 cuniv =
@@ -244,7 +244,7 @@ let conv_table_key infos ~nargs k1 k2 cuniv =
     else
       let flex = evaluable_constant cst (info_env infos.cnv_inf)
         && RedFlags.red_set (info_flags infos.cnv_inf) (RedFlags.fCONST cst)
-      in fail_check infos @@ convert_instances ~flex u u' cuniv
+      in fail_check infos @@ convert_instances (info_env infos.cnv_inf) ~flex u u' cuniv
   | VarKey id, VarKey id' when Id.equal id id' -> cuniv
   | RelKey n, RelKey n' when Int.equal n n' -> cuniv
   | _ -> raise NotConvertible
@@ -625,12 +625,12 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
     | (FInd (ind1,u1 as pind1), FInd (ind2,u2 as pind2)) ->
       if Ind.CanOrd.equal ind1 ind2 then
         if UVars.Instance.is_empty u1 || UVars.Instance.is_empty u2 then
-          let cuniv = fail_check infos @@ convert_instances ~flex:false u1 u2 cuniv in
+          let cuniv = fail_check infos @@ convert_instances (info_env infos.cnv_inf) ~flex:false u1 u2 cuniv in
           convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
         else
           let mind = Environ.lookup_mind (fst ind1) (info_env infos.cnv_inf) in
           let nargs = same_args_size v1 v2 in
-          match fail_check infos @@ convert_inductives cv_pb (mind, snd ind1) nargs u1 u2 cuniv with
+          match fail_check infos @@ convert_inductives (info_env infos.cnv_inf) cv_pb (mind, snd ind1) nargs u1 u2 cuniv with
           | cuniv -> convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
           | exception MustExpand ->
             let env = info_env infos.cnv_inf in
@@ -648,11 +648,11 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
       let v2 = append_stack args2 v2 in
       if Int.equal j1 j2 && Ind.CanOrd.equal ind1 ind2 then
         if UVars.Instance.is_empty u1 || UVars.Instance.is_empty u2 then
-          let cuniv = fail_check infos @@ convert_instances ~flex:false u1 u2 cuniv in
+          let cuniv = fail_check infos @@ convert_instances (info_env infos.cnv_inf) ~flex:false u1 u2 cuniv in
           convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
         else
           let mind = Environ.lookup_mind (fst ind1) (info_env infos.cnv_inf) in
-          match fail_check infos @@ convert_constructors (mind, snd ind1, j1) nargs u1 u2 cuniv with
+          match fail_check infos @@ convert_constructors (info_env infos.cnv_inf) (mind, snd ind1, j1) nargs u1 u2 cuniv with
           | cuniv -> convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
           | exception MustExpand ->
             let env = info_env infos.cnv_inf in
@@ -746,7 +746,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
         let nargs = inductive_cumulativity_arguments ind in
         let u1 = CClosure.usubst_instance e1 u1 in
         let u2 = CClosure.usubst_instance e2 u2 in
-        fail_check infos @@ convert_inductives CONV ind nargs u1 u2 cuniv
+        fail_check infos @@ convert_inductives (info_env infos.cnv_inf) CONV ind nargs u1 u2 cuniv
       in
       let pms1 = mk_clos_vect e1 pms1 in
       let pms2 = mk_clos_vect e2 pms2 in
@@ -758,7 +758,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
     | FArray (u1,t1,ty1), FArray (u2,t2,ty2) ->
       let len = Parray.length_int t1 in
       if not (Int.equal len (Parray.length_int t2)) then raise NotConvertible;
-      let cuniv = fail_check infos @@ convert_instances_cumul CONV [|UVars.Variance.Irrelevant|] u1 u2 cuniv in
+      let cuniv = fail_check infos @@ convert_instances_cumul (info_env infos.cnv_inf) CONV [|UVars.Variance.Irrelevant|] u1 u2 cuniv in
       let el1 = el_stack lft1 v1 in
       let el2 = el_stack lft2 v2 in
       let cuniv = ccnv CONV l2r infos el1 el2 ty1 ty2 cuniv in
@@ -834,13 +834,13 @@ and convert_stacks ?(mask = [||]) l2r infos lft1 lft2 stk1 stk2 cuniv =
                 let mip = mind.Declarations.mind_packets.(snd ci1.ci_ind) in
                 let cu =
                   if UVars.Instance.is_empty u1 || UVars.Instance.is_empty u2 then
-                    convert_instances ~flex:false u1 u2 cu
+                    convert_instances (info_env infos.cnv_inf) ~flex:false u1 u2 cu
                   else
                     let u1 = CClosure.usubst_instance e1 u1 in
                     let u2 = CClosure.usubst_instance e2 u2 in
                     match mind.Declarations.mind_variance with
-                    | None -> convert_instances ~flex:false u1 u2 cu
-                    | Some variances -> convert_instances_cumul CONV variances u1 u2 cu
+                    | None -> convert_instances (info_env infos.cnv_inf) ~flex:false u1 u2 cu
+                    | Some variances -> convert_instances_cumul (info_env infos.cnv_inf) CONV variances u1 u2 cu
                 in
                 let cu = fail_check infos cu in
                 let pms1 = mk_clos_vect e1 pms1 in
@@ -966,14 +966,14 @@ let checked_sort_cmp_universes env pb s0 s1 univs =
   | CUMUL -> check_leq univs (Environ.qualities env) s0 s1
   | CONV -> check_eq univs (Environ.qualities env) s0 s1
 
-let check_convert_instances ~flex:_ u u' univs =
-  if UGraph.check_eq_instances univs u u' then Result.Ok univs
+let check_convert_instances env ~flex:_ u u' univs =
+  if UGraph.check_eq_instances (Environ.qualities env) univs u u' then Result.Ok univs
   else Result.Error None
 
 (* general conversion and inference functions *)
-let check_inductive_instances cv_pb variance u1 u2 univs =
+let check_inductive_instances env cv_pb variance u1 u2 univs =
   let qcsts, ucsts = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if Sorts.QCumulConstraints.trivial qcsts && UGraph.check_constraints ucsts univs
+  if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcsts) (Environ.qualities env) && UGraph.check_constraints ucsts univs
   then Result.Ok univs
   else Result.Error None
 

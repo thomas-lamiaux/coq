@@ -36,7 +36,7 @@ val initial_universes : t
 val initial_universes_with : t -> t
 
 (** Check equality of instances w.r.t. a universe graph *)
-val check_eq_instances : Instance.t check_function
+val check_eq_instances : QGraph.t -> t -> Instance.t -> Instance.t -> bool
 
 (** {6 ... } *)
 (** Merge of constraints in a universes graph.

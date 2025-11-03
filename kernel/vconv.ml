@@ -17,8 +17,8 @@ let fail_check state check box = match state with
 | Result.Error None -> raise NotConvertible
 | Result.Error (Some err) -> box.fail err
 
-let convert_instances ~flex u1 u2 (state, check, box) =
-  let state, check = Conversion.convert_instances ~flex u1 u2 (state, check) in
+let convert_instances env ~flex u1 u2 (state, check, box) =
+  let state, check = Conversion.convert_instances env ~flex u1 u2 (state, check) in
   fail_check state check box
 
 let sort_cmp_universes env pb s1 s2 (state, check, box) =
@@ -123,7 +123,7 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
           assert (0 < nargs args2);
           let u1 = uni_instance (arg args1 0) in
           let u2 = uni_instance (arg args2 0) in
-          let cu = convert_instances ~flex:false u1 u2 cu in
+          let cu = convert_instances env ~flex:false u1 u2 cu in
           conv_arguments env ~from:1 k args1 args2
             (conv_stack env k stk1' stk2' cu)
         | _, _ -> assert false (* Should not happen if problem is well typed *)
@@ -140,7 +140,7 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
           assert (0 < nargs args2);
           let u1 = uni_instance (arg args1 0) in
           let u2 = uni_instance (arg args2 0) in
-          let cu = convert_instances ~flex:false u1 u2 cu in
+          let cu = convert_instances env ~flex:false u1 u2 cu in
           conv_arguments env ~from:1 k args1 args2
             (conv_stack env k stk1' stk2' cu)
         | _, _ -> assert false (* Should not happen if problem is well typed *)
