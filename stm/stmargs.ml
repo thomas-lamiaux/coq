@@ -10,7 +10,7 @@
 
 let fatal_error exn =
   Topfmt.(in_phase ~phase:ParsingCommandLine print_err_exn exn);
-  let exit_code = if (CErrors.is_anomaly exn) then 129 else 1 in
+  let exit_code = CErrors.exit_code exn in
   exit exit_code
 
 let set_worker_id opt s =

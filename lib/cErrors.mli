@@ -25,8 +25,16 @@ val anomaly : ?loc:Loc.t -> ?info:Exninfo.info -> ?label:string -> Pp.t -> 'a
 (** Raise an anomaly, with an optional location and an optional
     label identifying the anomaly. *)
 
-val is_anomaly : exn -> bool
-(** Check whether a given exception is an anomaly.
+val exit_code : exn -> int
+(** Return [1] for most exceptions and [129] for exceptions which
+    would print the "Please report" message. *)
+
+val is_async : exn -> bool
+(** Whether the exception may have been raised asynchronously
+    (Timeout, stack overflow, etc). Avoid catching such exceptions at all costs! *)
+
+val is_sync_anomaly : exn -> bool
+(** Check whether a given exception is an anomaly and not asynchronous.
     This is mostly provided for compatibility. Please avoid doing specific
     tricks with anomalies thanks to it. See rather [noncritical] below. *)
 

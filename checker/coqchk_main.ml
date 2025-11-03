@@ -17,9 +17,9 @@ open Environ
 
 let () = at_exit flush_all
 
-let fatal_error info anomaly =
+let fatal_error info code =
   flush_all (); Format.eprintf "@[Fatal Error: @[%a@]@]@\n%!" Pp.pp_with info; flush_all ();
-  exit (if anomaly then 129 else 1)
+  exit code
 
 let rocq_root = Id.of_string "Corelib"
 let parse_dir s =
@@ -355,7 +355,7 @@ let parse_args argv =
 
     | "-coqlib" :: s :: rem ->
       if not (exists_dir s) then
-        fatal_error (str "Directory '" ++ str s ++ str "' does not exist") false;
+        fatal_error (str "Directory '" ++ str s ++ str "' does not exist") 1;
       set_coqlib s;
       parse rem
 
@@ -400,7 +400,7 @@ let parse_args argv =
         Flags.quiet := true; parse rem
 
     | s :: _ when s<>"" && s.[0]='-' ->
-        fatal_error (str "Unknown option " ++ str s) false
+        fatal_error (str "Unknown option " ++ str s) 1
     | s :: rem ->  add_compile s; parse rem
   in
   parse (List.tl (Array.to_list argv))
@@ -438,7 +438,7 @@ let init_with_argv argv =
     includes := [];
     make_senv ()
   with e ->
-    fatal_error (str "Error during initialization :" ++ (explain_exn e)) (is_anomaly e)
+    fatal_error (str "Error during initialization :" ++ (explain_exn e)) (CErrors.exit_code e)
 
 let init() = init_with_argv Sys.argv
 
@@ -448,7 +448,7 @@ let run senv =
     flush_all(); senv
   with e ->
     if CDebug.(get_flag misc) then Printexc.print_backtrace stderr;
-    fatal_error (explain_exn e) (is_anomaly e)
+    fatal_error (explain_exn e) (CErrors.exit_code e)
 
 let main () =
   let senv = init() in
