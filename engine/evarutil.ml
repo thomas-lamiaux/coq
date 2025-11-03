@@ -619,7 +619,7 @@ let clear_hyps2_in_evi env sigma hyps t concl ids =
    goal ([advance] is used to figure if a side effect has modified the
    goal) it terminates quickly. *)
 let rec advance sigma evk =
-  if not @@ Evd.is_defined sigma evk then Some evk
+  if Evd.is_undefined sigma evk then Some evk
   else
     match is_aliased_evar sigma evk with
     | Some evk -> advance sigma evk
