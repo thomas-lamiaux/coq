@@ -763,7 +763,7 @@ let pr_one_strtyp (qid, redef, (params, v)) =
           else
             spc() ++ surround (prlist_with_sep pr_comma (pr_rawtype_gen T5_r) typs)
         in
-        hov 2 (Ppvernac.pr_vernac_attributes atts ++ Id.print na ++ pptyps)
+        hov 2 (Ppvernac.pr_vernac_attributes atts ++ Id.print na.CAst.v ++ pptyps)
       in
       let ppctors = match ctors with
         | [] -> str "[ ]"

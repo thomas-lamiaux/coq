@@ -369,8 +369,8 @@ GRAMMAR EXTEND Gram
       | cs = LIST0 tac2alg_constructor SEP "|" -> { cs } ] ]
   ;
   tac2alg_constructor:
-    [ [ atts = quoted_attributes; c = Prim.ident -> { (atts, c, []) }
-      | atts = quoted_attributes; c = Prim.ident; "("; args = LIST0 ltac2_type SEP ","; ")" ->
+    [ [ atts = quoted_attributes; c = Prim.identref -> { (atts, c, []) }
+      | atts = quoted_attributes; c = Prim.identref; "("; args = LIST0 ltac2_type SEP ","; ")" ->
         { (atts, c, args) } ] ]
   ;
   tac2rec_fields:
