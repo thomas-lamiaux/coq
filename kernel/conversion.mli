@@ -48,7 +48,7 @@ val convert_instances : flex:bool -> UVars.Instance.t -> UVars.Instance.t ->
   'a * ('a, 'err) universe_compare -> ('a, 'err option) result * ('a, 'err) universe_compare
 
 (** This function never returns an non-empty error. *)
-val checked_universes : env -> (UGraph.t, 'err) universe_compare
+val checked_universes : (UGraph.t, 'err) universe_compare
 
 (** These two functions can only fail with unit *)
 val conv : constr extended_conversion_function

@@ -1216,7 +1216,7 @@ let add_mind ?typing_flags l mie senv =
 (** Insertion of module types *)
 
 let check_state senv =
-  (Environ.universes senv.env, Conversion.checked_universes senv.env)
+  (Environ.universes senv.env, Conversion.checked_universes)
 
 let vm_handler env univs c vmtab =
   let env = Environ.set_vm_library vmtab env in
