@@ -2000,14 +2000,6 @@ let () =
   declare_bool_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;
-      optkey   = ["Printing";"All"];
-      optread  = (fun () -> !Flags.raw_print);
-      optwrite = (fun b -> Flags.raw_print := b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
       optkey   = ["Kernel"; "Term"; "Sharing"];
       optread  = (fun () -> (Global.typing_flags ()).Declarations.share_reduction);
       optwrite = Global.set_share_reduction }
