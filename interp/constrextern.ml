@@ -92,10 +92,7 @@ let is_reserved_type na t =
 (* This governs printing of projections using the dot notation symbols *)
 let print_projections = ref false
 
-let print_meta_as_hole = ref false
-
 let with_universes f = Flags.with_option print_universes f
-let with_meta_as_hole f = Flags.with_option print_meta_as_hole f
 let without_symbols f = Flags.with_option print_no_symbol f
 
 (**********************************************************************)
@@ -1028,16 +1025,13 @@ let rec extern depth0 inctx scopes (eenv:extern_env) r =
 
   | GVar id -> extern_var ?loc id
 
-  | GEvar (n,[]) when !print_meta_as_hole -> CHole (None)
-
   | GEvar (n,l) ->
       extern_evar n (List.map (on_snd (extern depth false scopes eenv)) l)
 
   | GPatVar kind ->
-      if !print_meta_as_hole then CHole (None) else
-       (match kind with
-         | Evar_kinds.SecondOrderPatVar n -> CPatVar n
-         | Evar_kinds.FirstOrderPatVar n -> CEvar (CAst.make n,[]))
+    (match kind with
+     | Evar_kinds.SecondOrderPatVar n -> CPatVar n
+     | Evar_kinds.FirstOrderPatVar n -> CEvar (CAst.make n,[]))
 
   | GApp (f,args) ->
       (match DAst.get f with
