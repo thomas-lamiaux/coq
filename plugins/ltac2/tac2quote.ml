@@ -161,8 +161,8 @@ let of_preterm ?delimiters c =
   let c = quote_constr ?delimiters c in
   inj_wit ?loc wit_preterm c
 
-let of_open_constr_expected_istype ?delimiters c =
-  let {loc} as c = quote_constr ?delimiters c in
+let of_open_constr_expected_istype c =
+  let {loc} as c = quote_constr c in
   let mk e = CAst.make ?loc e in
   let c =
     let sc = Notation.current_type_scope_names () in
