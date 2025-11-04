@@ -223,8 +223,12 @@ let change_property_sort evd toSort princ princName =
           Term.decompose_prod (EConstr.Unsafe.to_constr (get_type decl))
         in
         let s = Constr.destSort ty in
-        Global.add_constraints @@
-          UnivSubst.enforce_leq_sort toSort s Univ.Constraints.empty;
+        let qcsts, ucsts = UnivSubst.enforce_leq_sort toSort s Sorts.QUConstraints.empty in
+        if not (Sorts.QCumulConstraints.trivial qcsts) then begin
+          let (l, _, r) = Sorts.QCumulConstraints.find_first (fun cst -> not @@ Sorts.QCumulConstraint.trivial cst) qcsts in
+          raise (QGraph.EliminationError (QualityInconsistency (Equal, l, r, None)))
+        end;
+        Global.add_constraints ucsts;
         Term.compose_prod args (Constr.mkSort toSort) )
   in
   let evd, princName_as_constr =

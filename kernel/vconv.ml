@@ -17,12 +17,12 @@ let fail_check state check box = match state with
 | Result.Error None -> raise NotConvertible
 | Result.Error (Some err) -> box.fail err
 
-let convert_instances env ~flex u1 u2 (state, check, box) =
-  let state, check = Conversion.convert_instances env ~flex u1 u2 (state, check) in
+let convert_instances ~flex u1 u2 (state, check, box) =
+  let state, check = Conversion.convert_instances ~flex u1 u2 (state, check) in
   fail_check state check box
 
-let sort_cmp_universes env pb s1 s2 (state, check, box) =
-  let state, check = Conversion.sort_cmp_universes env pb s1 s2 (state, check) in
+let sort_cmp_universes pb s1 s2 (state, check, box) =
+  let state, check = Conversion.sort_cmp_universes pb s1 s2 (state, check) in
   fail_check state check box
 
 let table_key_instance env = function
@@ -123,7 +123,7 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
           assert (0 < nargs args2);
           let u1 = uni_instance (arg args1 0) in
           let u2 = uni_instance (arg args2 0) in
-          let cu = convert_instances env ~flex:false u1 u2 cu in
+          let cu = convert_instances ~flex:false u1 u2 cu in
           conv_arguments env ~from:1 k args1 args2
             (conv_stack env k stk1' stk2' cu)
         | _, _ -> assert false (* Should not happen if problem is well typed *)
@@ -140,13 +140,13 @@ and conv_atom env pb k a1 stk1 a2 stk2 cu =
           assert (0 < nargs args2);
           let u1 = uni_instance (arg args1 0) in
           let u2 = uni_instance (arg args2 0) in
-          let cu = convert_instances env ~flex:false u1 u2 cu in
+          let cu = convert_instances ~flex:false u1 u2 cu in
           conv_arguments env ~from:1 k args1 args2
             (conv_stack env k stk1' stk2' cu)
         | _, _ -> assert false (* Should not happen if problem is well typed *)
     else raise NotConvertible
   | Asort s1, Asort s2 ->
-    sort_cmp_universes env pb s1 s2 cu
+    sort_cmp_universes pb s1 s2 cu
   | Asort _ , _ | Aind _, _ | Aid _, _ -> raise NotConvertible
 
 and conv_stack env k stk1 stk2 cu =
@@ -241,19 +241,20 @@ let vm_conv_gen (type err) cv_pb sigma env univs t1 t2 =
 let vm_conv cv_pb env t1 t2 =
   let univs = Environ.universes env in
   let elims = Environ.qualities env in
+  let state = elims, univs in
   let b =
     if cv_pb = CUMUL then Constr.leq_constr_univs elims univs t1 t2
     else Constr.eq_constr_univs elims univs t1 t2
   in
   if b then Result.Ok ()
   else
-    let state = (univs, checked_universes) in
-    let ans : (UGraph.t, 'a option) result =
+    let state = (state, checked_universes) in
+    let ans : (QGraph.t * UGraph.t, 'a option) result =
       NewProfile.profile "vm_conv" (fun () ->
           vm_conv_gen cv_pb (Genlambda.empty_evars env) env state t1 t2)
         ()
     in
     match ans with
-    | Result.Ok (_ : UGraph.t)-> Result.Ok ()
+    | Result.Ok (_ : QGraph.t * UGraph.t)-> Result.Ok ()
     | Result.Error None -> Result.Error ()
     | Result.Error (Some e) -> Empty.abort e

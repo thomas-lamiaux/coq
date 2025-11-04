@@ -27,12 +27,12 @@ let fail_check state check box = match state with
 | Result.Error None -> raise NotConvertible
 | Result.Error (Some err) -> box.fail err
 
-let convert_instances env ~flex u1 u2 (state, check, box) =
-  let state, check = Conversion.convert_instances env ~flex u1 u2 (state, check) in
+let convert_instances ~flex u1 u2 (state, check, box) =
+  let state, check = Conversion.convert_instances ~flex u1 u2 (state, check) in
   fail_check state check box
 
-let sort_cmp_universes env pb s1 s2 (state, check, box) =
-  let state, check = Conversion.sort_cmp_universes env pb s1 s2 (state, check) in
+let sort_cmp_universes pb s1 s2 (state, check, box) =
+  let state, check = Conversion.sort_cmp_universes pb s1 s2 (state, check) in
   fail_check state check box
 
 let rec conv_val env pb lvl v1 v2 cu =
@@ -103,13 +103,13 @@ and conv_atom env pb lvl a1 a2 cu =
     | Arel i1, Arel i2 ->
         if Int.equal i1 i2 then cu else raise NotConvertible
     | Aind (ind1,u1), Aind (ind2,u2) ->
-       if Ind.CanOrd.equal ind1 ind2 then convert_instances env ~flex:false u1 u2 cu
+       if Ind.CanOrd.equal ind1 ind2 then convert_instances ~flex:false u1 u2 cu
        else raise NotConvertible
     | Aconstant (c1,u1), Aconstant (c2,u2) ->
-       if Constant.CanOrd.equal c1 c2 then convert_instances env ~flex:true u1 u2 cu
+       if Constant.CanOrd.equal c1 c2 then convert_instances ~flex:true u1 u2 cu
        else raise NotConvertible
     | Asort s1, Asort s2 ->
-      sort_cmp_universes env pb s1 s2 cu
+      sort_cmp_universes pb s1 s2 cu
     | Avar id1, Avar id2 ->
         if Id.equal id1 id2 then cu else raise NotConvertible
     | Acase(a1,ac1,p1,bs1), Acase(a2,ac2,p2,bs2) ->
@@ -203,17 +203,18 @@ let native_conv_gen pb sigma env univs t1 t2 =
 let native_conv cv_pb sigma env t1 t2 =
   let univs = Environ.universes env in
   let elims = Environ.qualities env in
+  let state = elims, univs in
   let b =
     if cv_pb = CUMUL then Constr.leq_constr_univs elims univs t1 t2
     else Constr.eq_constr_univs elims univs t1 t2
   in
   if b then Result.Ok ()
   else
-    let state = (univs, checked_universes) in
+    let state = (state, checked_universes) in
     let t1 = Term.it_mkLambda_or_LetIn t1 (Environ.rel_context env) in
     let t2 = Term.it_mkLambda_or_LetIn t2 (Environ.rel_context env) in
     match native_conv_gen cv_pb sigma env state t1 t2 with
-    | Result.Ok (_ : UGraph.t) -> Result.Ok ()
+    | Result.Ok (_ : QGraph.t * UGraph.t) -> Result.Ok ()
     | Result.Error None -> Result.Error ()
     | Result.Error (Some _) ->
       (* checked_universes cannot raise this *)

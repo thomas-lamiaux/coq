@@ -84,50 +84,73 @@ let enforce_leq u v c =
   else enforce_leq (Universe.repr u) (Universe.repr v) c
 
 let get_algebraic = function
-| Prop | SProp | QSort _ -> assert false
+| Prop | SProp -> assert false
 | Set -> Universe.type0
-| Type u -> u
+| QSort (_, u) | Type u -> u
 
-let enforce_eq_sort s1 s2 cst = match s1, s2 with
+let is_impredicative_sort = function
+| Prop | SProp -> true
+| _ -> false
+(* Only used for universe level comparisons, so impredicative set is still fine *)
+
+let enforce_eq_sort s1 s2 (qcsts, ucsts as cst) = match s1, s2 with
+| QSort (q1, u1), s2 ->
+  let q2 = quality s2 in
+  let qcsts = QCumulConstraints.add QCumulConstraint.(QVar q1, Eq, q2) qcsts in
+  let ucsts = if is_impredicative_sort s2 then ucsts else enforce_eq u1 (get_algebraic s2) ucsts in
+  (qcsts, ucsts)
+| s1, QSort (q2, u2) ->
+  let q1 = quality s1 in
+  let qcsts = QCumulConstraints.add QCumulConstraint.(q1, Eq, QVar q2) qcsts in
+  let ucsts = if is_impredicative_sort s2 then ucsts else enforce_eq (get_algebraic s1) u2 ucsts in
+  (qcsts, ucsts)
 | (SProp, SProp) | (Prop, Prop) | (Set, Set) -> cst
-| (((Prop | Set | Type _ | QSort _) as s1), (Prop | SProp as s2))
-| ((Prop | SProp as s1), ((Prop | Set | Type _ | QSort _) as s2)) ->
+| (((Prop | Set | Type _) as s1), (Prop | SProp as s2))
+| ((Prop | SProp as s1), ((Prop | Set | Type _) as s2)) ->
   raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
 | (Set | Type _), (Set | Type _) ->
-  enforce_eq (get_algebraic s1) (get_algebraic s2) cst
-| QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then enforce_eq u1 u2 cst
-  else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
-| (QSort _, (Set | Type _)) | ((Set | Type _), QSort _) ->
-  raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
+  let ucsts' = enforce_eq (get_algebraic s1) (get_algebraic s2) ucsts in
+  if ucsts == ucsts' then cst else (qcsts, ucsts')
 
-let enforce_leq_sort s1 s2 cst = match s1, s2 with
+let enforce_leq_sort s1 s2 (qcsts, ucsts as cst) = match s1, s2 with
+| QSort (q1, u1), s2 ->
+  let q2 = quality s2 in
+  let qcsts = QCumulConstraints.add QCumulConstraint.(QVar q1, Leq, q2) qcsts in
+  let ucsts = if is_impredicative_sort s2 then ucsts else enforce_eq u1 (get_algebraic s2) ucsts in
+  (qcsts, ucsts)
+| s1, QSort (q2, u2) ->
+  let q1 = quality s1 in
+  let qcsts = QCumulConstraints.add QCumulConstraint.(q1, Leq, QVar q2) qcsts in
+  let ucsts = if is_impredicative_sort s2 then ucsts else enforce_eq (get_algebraic s1) u2 ucsts in
+  (qcsts, ucsts)
 | (SProp, SProp) | (Prop, Prop) | (Set, Set) -> cst
 | (Prop, (Set | Type _)) -> cst
-| (((Prop | Set | Type _ | QSort _) as s1), (Prop | SProp as s2))
-| ((SProp as s1), ((Prop | Set | Type _ | QSort _) as s2)) ->
+| (((Prop | Set | Type _) as s1), (Prop | SProp as s2))
+| ((SProp as s1), ((Prop | Set | Type _) as s2)) ->
   raise (UGraph.UniverseInconsistency (None, (Le, s1, s2, None)))
 | (Set | Type _), (Set | Type _) ->
-  enforce_leq (get_algebraic s1) (get_algebraic s2) cst
-| QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then enforce_leq u1 u2 cst
-  else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
-| (QSort _, (Set | Type _)) | ((Prop | Set | Type _), QSort _) ->
-  raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
+  let ucsts' = enforce_leq (get_algebraic s1) (get_algebraic s2) ucsts in
+  if ucsts == ucsts' then cst else (qcsts, ucsts')
 
 let enforce_leq_alg_sort s1 s2 g = match s1, s2 with
-| (SProp, SProp) | (Prop, Prop) | (Set, Set) -> Constraints.empty, g
-| (Prop, (Set | Type _)) -> Constraints.empty, g
-| (((Prop | Set | Type _ | QSort _) as s1), (Prop | SProp as s2))
-| ((SProp as s1), ((Prop | Set | Type _ | QSort _) as s2)) ->
+| QSort (q1, u1), s2 ->
+  let q2 = quality s2 in
+  let qcsts = QCumulConstraints.singleton QCumulConstraint.(QVar q1, Leq, q2) in
+  let ucsts, g = if is_impredicative_sort s2 then Constraints.empty, g else UGraph.enforce_leq_alg u1 (get_algebraic s2) g in
+  (qcsts, ucsts), g
+| s1, QSort (q2, u2) ->
+  let q1 = quality s1 in
+  let qcsts = QCumulConstraints.singleton QCumulConstraint.(q1, Leq, QVar q2) in
+  let ucsts, g = if is_impredicative_sort s2 then Constraints.empty, g else UGraph.enforce_leq_alg (get_algebraic s1) u2 g  in
+  (qcsts, ucsts), g
+| (SProp, SProp) | (Prop, Prop) | (Set, Set) -> QUConstraints.empty, g
+| (Prop, (Set | Type _)) -> QUConstraints.empty, g
+| (((Prop | Set | Type _) as s1), (Prop | SProp as s2))
+| ((SProp as s1), ((Prop | Set | Type _) as s2)) ->
   raise (UGraph.UniverseInconsistency (None, (Le, s1, s2, None)))
 | (Set | Type _), (Set | Type _) ->
-  UGraph.enforce_leq_alg (get_algebraic s1) (get_algebraic s2) g
-| QSort (q1, u1), QSort (q2, u2) ->
-  if QVar.equal q1 q2 then UGraph.enforce_leq_alg u1 u2 g
-  else raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
-| (QSort _, (Set | Type _)) | ((Prop | Set | Type _), QSort _) ->
-  raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
+  let ucsts, g = UGraph.enforce_leq_alg (get_algebraic s1) (get_algebraic s2) g in
+  (QCumulConstraints.empty, ucsts), g
 
 let enforce_univ_constraint (u,d,v) =
   match d with
