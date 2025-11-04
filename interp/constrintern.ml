@@ -1819,7 +1819,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
   let rec rcp_of_glob scopes x = DAst.(map_with_loc (fun ?loc -> function
     | GVar id -> RCPatAtom (Some (CAst.make ?loc id,scopes))
     | GHole _ -> RCPatAtom None
-    | GRef (g,_) -> RCPatCstr (g, in_patargs ?loc scopes g true false [] [])
+    | GRef (g,_) -> RCPatCstr (g, in_patargs ?loc scopes g ~expanded:true ~no_impl:false [] [])
     | GApp (r, l) ->
       begin match DAst.get r with
       | GRef (g,_) ->
@@ -1830,7 +1830,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
         let allscs = List.skipn nparams allscs in
         let l = List.skipn nparams l in
         let pl = List.map2 (fun sc a -> rcp_of_glob (sc,snd scopes) a) allscs l in
-        RCPatCstr (g, in_patargs ?loc scopes g true false (params@pl) [])
+        RCPatCstr (g, in_patargs ?loc scopes g ~expanded:true ~no_impl:false (params@pl) [])
       | _ ->
         CErrors.anomaly Pp.(str "Invalid return pattern from Notation.interp_prim_token_cases_pattern_expr.")
       end
@@ -1845,10 +1845,10 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
       | None ->
         (* deactivate implicit *)
         let ntnpats = if add_par_if_no_ntn_with_par then make_pars ?loc g else [] in
-        Some (g, in_patargs ?loc scopes g expanded true ntnpats pats)
+        Some (g, in_patargs ?loc scopes g ~expanded ~no_impl:true ntnpats pats)
       | Some ntnpats ->
         let ntnpats = if add_par_if_no_ntn_with_par && ntnpats = [] then make_pars ?loc g else ntnpats in
-        Some (g, in_patargs ?loc scopes g expanded no_impl ntnpats pats)
+        Some (g, in_patargs ?loc scopes g ~expanded ~no_impl ntnpats pats)
     with Not_found -> None
   and in_pat ({for_ind} as test_kind) scopes pt =
     let open CAst in
@@ -1865,7 +1865,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
         | None -> DAst.make ?loc @@ RCPatAtom None
         | Some (n, head, pl) ->
           let pars = make_pars ?loc head in
-          let pats = in_patargs ?loc scopes head true true pars pl in
+          let pats = in_patargs ?loc scopes head ~expanded:true ~no_impl:true pars pl in
           DAst.make ?loc @@ RCPatCstr(head, pats)
       end
     | CPatCstr (head, None, pl) ->
@@ -1926,8 +1926,8 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
   and in_pat_sc scopes x = in_pat test_kind_inner (x,snd scopes)
   and in_patargs ?loc scopes
     gr (* head of the pattern *)
-    expanded (* tell if comes from a notation (for error reporting) *)
-    no_impl (* tell if implicit are not expected (for asymmetric patterns, or @, or {| |} *)
+    ~expanded (* tell if comes from a notation (for error reporting) *)
+    ~no_impl (* tell if implicit are not expected (for asymmetric patterns, or @, or {| |} *)
     ntnpats (* prefix of patterns obtained by expansion of notations or parameter insertion *)
     pats (* user given patterns *)
     =
@@ -1987,7 +1987,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
       user_err ?loc (str "Notations with an applied head variable not supported in patterns.")
     | NRef (g,_) ->
       ensure_kind test_kind ?loc g;
-      DAst.make ?loc @@ RCPatCstr (g, in_patargs ?loc scopes g true false [] args)
+      DAst.make ?loc @@ RCPatCstr (g, in_patargs ?loc scopes g ~expanded:true ~no_impl:false [] args)
     | NApp (NRef (g,_),ntnpl) ->
       ensure_kind test_kind ?loc g;
       let ntnpl = List.map (in_not test_kind_inner loc scopes fullsubst []) ntnpl in
@@ -1995,7 +1995,7 @@ let drop_notations_pattern (test_kind_top,test_kind_inner) genv env pat =
         (* Convention: if notation is @f, encoded as NApp(Nref g,[]), then
            implicit arguments are not inherited *)
         ntnpl = [] in
-      DAst.make ?loc @@ RCPatCstr (g, in_patargs ?loc scopes g true no_impl ntnpl args)
+      DAst.make ?loc @@ RCPatCstr (g, in_patargs ?loc scopes g ~expanded:true ~no_impl ntnpl args)
     | NList (x,y,iter,terminator,revert) ->
       if not (List.is_empty args) then user_err ?loc
         (strbrk "Application of arguments to a recursive notation not supported in patterns.");
