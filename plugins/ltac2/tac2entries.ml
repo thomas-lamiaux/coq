@@ -309,7 +309,11 @@ let inline_rec_tactic tactics =
 
 let check_lowercase {loc;v=id} =
   if Tac2env.is_constructor (Libnames.qualid_of_ident id) then
-    user_err ?loc (str "The identifier " ++ Id.print id ++ str " must be lowercase")
+    user_err ?loc (str "The identifier " ++ Id.print id ++ str " must start with a lowercase letter.")
+
+let check_uppercase {loc;v=id} =
+  if not @@ Tac2env.is_constructor (Libnames.qualid_of_ident id) then
+    user_err ?loc (str "The identifier " ++ Id.print id ++ str " must start with an uppercase letter.")
 
 let pp_not_value_reason = function
   | MutString -> str "(it contains a string literal, and strings are mutable)"
@@ -405,24 +409,18 @@ let register_typedef ?(local = false) ?(abstract=false) isrec types =
         user_err ?loc (str "The type abbreviation " ++ Id.print id ++
           str " cannot be recursive")
     | CTydAlg cs ->
-      let same_name (_, id1, _) (_, id2, _) = Id.equal id1 id2 in
+      let same_name (_, id1, _) (_, id2, _) = Id.equal id1.v id2.v in
       let () = match List.duplicates same_name cs with
       | [] -> ()
       | (_, id, _) :: _ ->
-        user_err (str "Multiple definitions of the constructor " ++ Id.print id)
+        user_err (str "Multiple definitions of the constructor " ++ Id.print id.v)
       in
-      let () =
-        let check_uppercase_ident (_,id,_) =
-          if not (Tac2env.is_constructor_id id)
-          then user_err (str "Constructor name should start with an uppercase letter " ++ Id.print id)
-        in
-        List.iter check_uppercase_ident cs
-      in
+      let () = List.iter (fun (_,id,_) -> check_uppercase id) cs in
       let () =
         let check_existing_ctor (_, id, _) =
-          let (_, kn) = Lib.make_foname id in
+          let (_, kn) = Lib.make_foname id.v in
           try let _ = Tac2env.interp_constructor kn in
-            user_err (str "Constructor already defined in this module " ++ Id.print id)
+            user_err (str "Constructor already defined in this module " ++ Id.print id.v)
           with Not_found -> ()
         in
         List.iter check_existing_ctor cs
@@ -506,16 +504,16 @@ let register_open ?(local = false) qid (params, def) =
   | CTydOpn -> ()
   | CTydAlg def ->
     let () =
-      let same_name (_, id1, _) (_, id2, _) = Id.equal id1 id2 in
+      let same_name (_, id1, _) (_, id2, _) = Id.equal id1.v id2.v in
       let () = match List.duplicates same_name def with
         | [] -> ()
         | (_, id, _) :: _ ->
-          user_err (str "Multiple definitions of the constructor " ++ Id.print id)
+          user_err (str "Multiple definitions of the constructor " ++ Id.print id.v)
       in
       let check_existing_ctor (_, id, _) =
-          let (_, kn) = Lib.make_foname id in
+          let (_, kn) = Lib.make_foname id.v in
           try let _ = Tac2env.interp_constructor kn in
-            user_err (str "Constructor already defined in this module " ++ Id.print id)
+            user_err (str "Constructor already defined in this module " ++ Id.print id.v)
           with Not_found -> ()
       in
       let () = List.iter check_existing_ctor def in
@@ -529,11 +527,10 @@ let register_open ?(local = false) qid (params, def) =
       | _ -> assert false
     in
     let map (atts, id, tpe) =
-      if not (Tac2env.is_constructor_id id)
-      then user_err (str "Constructor name should start with an uppercase letter " ++ Id.print id) ;
+      let () = check_uppercase id in
       let warn = Attributes.parse Attributes.user_warns atts in
       let tpe = List.map intern_type tpe in
-      { edata_warn = warn; edata_name = id; edata_args = tpe }
+      { edata_warn = warn; edata_name = id.v; edata_args = tpe }
     in
     let def = List.map map def in
     let def = {

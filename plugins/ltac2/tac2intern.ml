@@ -1606,7 +1606,7 @@ let intern_typedef self (ids, t) : glb_quant_typedef =
     let map (atts, c, t) =
       let warn = Attributes.parse Attributes.user_warns atts in
       let t = List.map intern t in
-      (warn, c, t)
+      (warn, c.CAst.v, t)
     in
     let constrs = List.map map constrs in
     let getn (const, nonconst) (_, c, args) = match args with

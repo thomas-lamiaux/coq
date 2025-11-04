@@ -54,7 +54,7 @@ and raw_typexpr = raw_typexpr_r CAst.t
 
 type raw_typedef =
 | CTydDef of raw_typexpr option
-| CTydAlg of (Attributes.vernac_flags * uid * raw_typexpr list) list
+| CTydAlg of (Attributes.vernac_flags * lident * raw_typexpr list) list
 | CTydRec of (lid * mutable_flag * raw_typexpr) list
 | CTydOpn
 
