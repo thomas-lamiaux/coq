@@ -576,36 +576,28 @@ let constr_delimiters s arg =
       | _ -> syntax_class_fail s arg)
     arg
 
-let () = add_syntax_class "constr" (constr_delimiters "constr") begin function delimiters ->
-  let act e = Tac2quote.of_constr ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
-end
+let add_constr_classes (name,lname) quote =
+  let () =
+    let s = name in
+    add_syntax_class s (constr_delimiters s) begin function delimiters ->
+      let act e = quote ?delimiters:(Some delimiters) e in
+      Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
+    end
+  in
+  let () =
+    let s = lname in
+    add_syntax_class s (constr_delimiters s) begin function delimiters ->
+      let act e = quote ?delimiters:(Some delimiters) e in
+      Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
+    end
+  in
+  ()
 
-let () = add_syntax_class "lconstr" (constr_delimiters "lconstr") begin function delimiters ->
-  let act e = Tac2quote.of_constr ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
-end
+let () = add_constr_classes ("constr","lconstr") Tac2quote.of_constr
 
-let () = add_syntax_class "open_constr" (constr_delimiters "open_constr") begin function delimiters ->
-  let act e = Tac2quote.of_open_constr ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
-end
+let () = add_constr_classes ("open_constr","open_lconstr") Tac2quote.of_open_constr
 
-let () = add_syntax_class "open_lconstr" (constr_delimiters "open_lconstr") begin function delimiters ->
-  let act e = Tac2quote.of_open_constr ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
-end
-
-
-let () = add_syntax_class "preterm" (constr_delimiters "preterm") begin function delimiters ->
-  let act e = Tac2quote.of_preterm ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.constr, act)
-end
-
-let () = add_syntax_class "lpreterm" (constr_delimiters "lpreterm") begin function delimiters ->
-  let act e = Tac2quote.of_preterm ~delimiters e in
-  Tac2entries.SyntaxRule (Procq.Symbol.nterm Procq.Constr.lconstr, act)
-end
+let () = add_constr_classes ("preterm","lpreterm") Tac2quote.of_preterm
 
 let () = add_expr_syntax_class "ident" q_ident (fun id -> Tac2quote.of_anti Tac2quote.of_ident id)
 let () = add_expr_syntax_class "bindings" q_bindings Tac2quote.of_bindings
