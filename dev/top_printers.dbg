@@ -88,6 +88,7 @@ install_printer Top_printers.ppqconstraints
 install_printer Top_printers.ppuniverseconstraints
 install_printer Top_printers.ppuniverse_context_future
 install_printer Top_printers.ppuniverses
+install_printer Top_printers.ppqualities
 install_printer Top_printers.pp_partialfsubst
 install_printer Top_printers.pp_partialsubst
 install_printer Top_printers.ppnamedcontextval

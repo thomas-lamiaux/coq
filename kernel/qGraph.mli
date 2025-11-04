@@ -99,4 +99,6 @@ val qvar_domain : t -> QVar.Set.t
 
 val is_empty : t -> bool
 
+val pr_qualities : (Quality.t -> Pp.t) -> t -> Pp.t
+
 val explain_quality_inconsistency : (QVar.t -> Pp.t) -> explanation option -> Pp.t

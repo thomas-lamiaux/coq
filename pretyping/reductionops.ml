@@ -1336,6 +1336,7 @@ let infer_conv_gen conv_fun ?(catch_incon=true) ?(pb=Conversion.CUMUL)
       | None ->
         let x = EConstr.Unsafe.to_constr x in
         let y = EConstr.Unsafe.to_constr y in
+        let env = Environ.set_qualities (Evd.elim_graph sigma) env in
         let env = Environ.set_universes (Evd.universes sigma) env in
         (* First try conversion with postponed universe problems as a kind of FO
            approximation. This may result in unsatisfiable constraints even if

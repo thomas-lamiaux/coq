@@ -167,6 +167,7 @@ val ppqconstraints : Sorts.ElimConstraints.t -> unit
 val ppuniverseconstraints : UnivProblem.Set.t -> unit
 val ppuniverse_context_future : UVars.UContext.t Future.computation -> unit
 val ppuniverses : UGraph.t -> unit
+val ppqualities : QGraph.t -> unit
 
 val pp_partialfsubst : (CClosure.fconstr, Sorts.Quality.t, Univ.Universe.t) Partial_subst.t -> unit
 val pp_partialsubst : (EConstr.constr, Sorts.Quality.t, Univ.Universe.t) Partial_subst.t -> unit
