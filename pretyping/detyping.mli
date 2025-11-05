@@ -51,7 +51,7 @@ val detype : 'a delay -> ?isgoal:bool -> ?avoid:'g Namegen.Generator.input -> en
 
 val detype_sort : evar_map -> Sorts.t -> glob_sort
 
-val detype_rel_context : 'a delay -> constr option -> ?avoid:'g Namegen.Generator.input -> (names_context * env) ->
+val detype_rel_context : 'a delay -> ?avoid:'g Namegen.Generator.input -> (names_context * env) ->
   evar_map -> rel_context -> 'a glob_decl_g list
 
 val share_pattern_names :

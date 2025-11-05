@@ -1091,27 +1091,20 @@ and detype_binder d flags bk avoid env sigma decl c =
               else Some (detype d (nongoal flags) avoid env sigma ty) in
       GLetIn (na', rinfo, c, t, r)
 
-let detype_rel_context d flags where avoid env sigma sign =
-  let where = Option.map (fun c -> EConstr.it_mkLambda_or_LetIn c sign) where in
+let detype_rel_context d flags avoid env sigma sign =
   let rec aux avoid env = function
   | [] -> []
   | decl::rest ->
       let na = get_name decl in
       let t = get_type decl in
       let r = detype_relevance_info sigma (get_annot decl) in
-      let na',avoid' =
-        match where with
-        | None -> na,avoid
-        | Some c ->
-          compute_name sigma ~let_in:(is_local_def decl) ~pattern:false flags avoid env na c
-      in
       let b = match decl with
               | LocalAssum _ -> None
               | LocalDef (_,b,_) -> Some b
       in
       let b' = Option.map (detype d flags avoid env sigma) b in
       let t' = detype d flags avoid env sigma t in
-      (na',r,Explicit,b',t') :: aux avoid' (add_name (set_name na' decl) env) rest
+      (na,r,Explicit,b',t') :: aux avoid (add_name (set_name na decl) env) rest
   in aux avoid env (List.rev sign)
 
 let detype d ?(isgoal=false) ?avoid env sigma t =
@@ -1119,10 +1112,10 @@ let detype d ?(isgoal=false) ?avoid env sigma t =
   let avoid = Avoid.make ~fast:(fast_name_generation ()) avoid in
   detype d flags avoid (names_of_rel_context env, env) sigma t
 
-let detype_rel_context d where ?avoid env sigma sign =
+let detype_rel_context d ?avoid env sigma sign =
   let flags = { flg_isgoal = false; } in
   let avoid = Avoid.make ~fast:(fast_name_generation ()) avoid in
-  detype_rel_context d flags where avoid env sigma sign
+  detype_rel_context d flags avoid env sigma sign
 
 let detype_closed_glob ?isgoal ?avoid env sigma t =
   let convert_id cl id =

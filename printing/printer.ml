@@ -414,7 +414,7 @@ let pr_named_context env sigma ne_context =
 
 let pr_rel_context env sigma rel_context =
   let rel_context = EConstr.of_rel_context rel_context in
-  pr_binders env sigma (extern_rel_context None env sigma rel_context)
+  pr_binders env sigma (extern_rel_context env sigma rel_context)
 
 let pr_rel_context_of env sigma =
   pr_rel_context env sigma (rel_context env)
