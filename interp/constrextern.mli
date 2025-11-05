@@ -22,7 +22,10 @@ open Ltac_pretype
 (** Translation of pattern, cases pattern, glob_constr and term into syntax
    trees for printing *)
 
-type extern_env = Id.Set.t * UnivNames.universe_binders
+type extern_env = {
+  vars : Id.Set.t;
+  uvars : UnivNames.universe_binders;
+}
 val extern_env : env -> Evd.evar_map -> extern_env
 
 val extern_cases_pattern : Id.Set.t -> 'a cases_pattern_g -> cases_pattern_expr
