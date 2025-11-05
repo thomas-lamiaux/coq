@@ -107,17 +107,13 @@ let declare_reserved_type idl t =
 
 let find_reserved_type id = Id.Map.find (root_of_id id) !reserve_table
 
-let constr_key env c =
-  try mkRefKey env (fst @@ Constr.destRef (fst (Constr.decompose_app c)))
+let constr_key env evd c =
+  try mkRefKey env (fst @@ EConstr.destRef evd (fst (EConstr.decompose_app evd c)))
   with Constr.DestKO -> Oth
 
-let revert_reserved_type t =
+let revert_reserved_type env evd t =
   try
-    let env = Global.env () in
-    let t = EConstr.Unsafe.to_constr t in
-    let reserved = KeyMap.find (constr_key env t) !reserve_revtable in
-    let t = EConstr.of_constr t in
-    let evd = Evd.from_env env in
+    let reserved = KeyMap.find (constr_key env evd t) !reserve_revtable in
     let t = Detyping.detype Detyping.Now env evd t in
     (* pedrot: if [Notation_ops.match_notation_constr] may raise [Failure _]
         then I've introduced a bug... *)
@@ -133,4 +129,4 @@ let revert_reserved_type t =
     Name id
   with Not_found | Failure _ -> Anonymous
 
-let _ = Namegen.set_reserved_typed_name revert_reserved_type
+let () = Namegen.set_reserved_typed_name revert_reserved_type

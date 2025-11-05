@@ -136,7 +136,7 @@ let define_pure_evar_as_lambda env evd name evk =
   | _ -> error_not_product env evd typ in
   let avoid = Environ.ids_of_named_context_val (Evd.evar_hyps evi) in
   let id =
-    map_annot (fun na -> next_name_away_with_default_using_types "x" na avoid
+    map_annot (fun na -> next_name_away_with_default_using_types evenv evd "x" na avoid
       (Reductionops.whd_evar evd dom)) na
   in
   let newenv = push_named (LocalAssum (id, dom)) evenv in

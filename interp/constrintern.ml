@@ -2555,7 +2555,9 @@ let internalize globalenv env pattern_mode (_, ntnvars as lvar) c =
                     (add_name match_acc CAst.(make ?loc x)) (CAst.make ?loc x::var_acc)
                 | _ ->
                   let fresh =
-                    Namegen.next_name_away_with_default_using_types "iV" cano_name.binder_name forbidden_names (EConstr.of_constr ty) in
+                    Namegen.next_name_away_with_default_using_types globalenv (Evd.from_env globalenv)
+                      "iV" cano_name.binder_name forbidden_names (EConstr.of_constr ty)
+                  in
                   canonize_args t tt (Id.Set.add fresh forbidden_names)
                     ((fresh,c)::match_acc) ((CAst.make ?loc:(cases_pattern_loc c) @@ Name fresh)::var_acc)
                 end
