@@ -661,12 +661,6 @@ val fresh_array_instance : ?loc:Loc.t -> ?rigid:rigid
 val fresh_global : ?loc:Loc.t -> ?rigid:rigid -> ?names:einstance -> env ->
   evar_map -> GlobRef.t -> evar_map * econstr
 
-(********************************************************************)
-(* constr with holes and pending resolution of classes, conversion  *)
-(* problems, candidates, etc.                                       *)
-
-type open_constr = evar_map * econstr (* Special case when before is empty *)
-
 (** Partially constructed constrs. *)
 
 type unsolvability_explanation = SeveralInstancesFound of int

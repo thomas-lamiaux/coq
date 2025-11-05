@@ -140,7 +140,6 @@ val ppgoal_with_state : Proofview_monad.goal_with_state -> unit
 
 val pphintdb : Hints.Hint_db.t -> unit
 val ppproofview : Proofview.proofview -> unit
-val ppopenconstr : Evd.open_constr -> unit
 
 val pproof : Proof.t -> unit
 

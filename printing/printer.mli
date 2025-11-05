@@ -70,9 +70,6 @@ val pr_econstr_n_env    : ?inctx:bool -> ?scope:scope_name -> env -> evar_map ->
 val pr_etype_env        : ?goal_concl_style:bool -> env -> evar_map -> EConstr.types -> Pp.t
 val pr_letype_env       : ?goal_concl_style:bool -> env -> evar_map -> ?impargs:Glob_term.binding_kind list -> EConstr.types -> Pp.t
 
-val pr_open_constr_env  : ?inctx:bool -> ?scope:scope_name -> env -> evar_map -> open_constr -> Pp.t
-val pr_open_lconstr_env : ?inctx:bool -> ?scope:scope_name -> env -> evar_map -> open_constr -> Pp.t
-
 val pr_constr_under_binders_env  : env -> evar_map -> constr_under_binders -> Pp.t
 
 val pr_lconstr_under_binders_env : env -> evar_map -> constr_under_binders -> Pp.t

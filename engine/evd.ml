@@ -1490,10 +1490,6 @@ let get_extra_data evd = evd.extras
 let set_extra_data extras evd = { evd with extras }
 
 (*******************************************************************)
-
-type open_constr = evar_map * constr
-
-(*******************************************************************)
 (* The state monad with state an evar map. *)
 
 module MonadR =
