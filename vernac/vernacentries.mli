@@ -88,3 +88,5 @@ type t = {
 val def_attributes : t Attributes.attribute
 
 end
+
+val show_goal : Vernacexpr.goal_reference -> Proof.t -> Proof.t option option -> Pp.t

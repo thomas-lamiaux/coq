@@ -2528,6 +2528,12 @@ let vernac_bullet (bullet : Proof_bullet.t) ~pstate =
   Declare.Proof.map ~f:(fun p ->
     Proof_bullet.put p bullet) pstate
 
+let show_goal goalref proof oldp =
+  match goalref with
+    | OpenSubgoals -> pr_open_subgoals ~oldp proof
+    | NthGoal n -> pr_nth_open_subgoal ~oldp ~proof n
+    | GoalId id -> pr_goal_by_id ~oldp ~proof id
+
 (* Stack is needed due to show proof names, should deprecate / remove
    and take pstate *)
 let vernac_show ~pstate =
@@ -2544,12 +2550,7 @@ let vernac_show ~pstate =
   | Some pstate ->
     let proof = Declare.Proof.get pstate in
     begin function
-    | ShowGoal goalref ->
-      begin match goalref with
-        | OpenSubgoals -> pr_open_subgoals proof
-        | NthGoal n -> pr_nth_open_subgoal ~proof n
-        | GoalId id -> pr_goal_by_id ~proof id
-      end
+    | ShowGoal goalref -> show_goal goalref proof None
     | ShowExistentials -> show_top_evars ~proof
     | ShowUniverses -> show_universes ~proof
     (* Deprecate *)

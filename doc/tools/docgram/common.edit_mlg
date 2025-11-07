@@ -159,6 +159,7 @@ DELETE: [
 | test_lpar_id_rpar
 | test_lpar_idnum_coloneq
 | test_show_goal
+| test_show_natural
 | test_name_colon
 | test_pipe_closedcurly
 | ensure_fixannot
@@ -1557,6 +1558,10 @@ vernac_toplevel: [
 | REPLACE "Show" "Proof" "Diffs" OPT "removed" "."
 | WITH "Show" "Proof" OPT ( "Diffs" OPT "removed" )
 | DELETE vernac_control
+| DELETE "Show" "."
+| DELETE "Show" natural "."
+| REPLACE "Show" "Diffs" ident "."
+| WITH "Show" "Diffs" ident
 ]
 
 (* Pretend that control flags are commands *)

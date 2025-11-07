@@ -842,6 +842,7 @@ command: [
 | "Show" "Universes"
 | "Show" "Conjectures"
 | "Show" "Proof" OPT ( "Diffs" OPT "removed" )
+| "Show" "Diffs" ident
 | "Show" "Intro"
 | "Show" "Intros"
 | "Show" "Match" qualid
