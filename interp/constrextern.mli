@@ -51,7 +51,7 @@ val extern_constr_in_scope : ?inctx:bool -> scope_name ->
 val extern_reference : ?loc:Loc.t -> Id.Set.t -> GlobRef.t -> qualid
 val extern_type : ?goal_concl_style:bool -> env -> Evd.evar_map -> ?impargs:Glob_term.binding_kind list -> types -> constr_expr
 val extern_sort : Evd.evar_map -> Sorts.t -> sort_expr
-val extern_rel_context : constr option -> env -> Evd.evar_map ->
+val extern_rel_context : env -> Evd.evar_map ->
   rel_context -> local_binder_expr list
 
 (** Printing options *)

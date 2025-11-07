@@ -1655,8 +1655,8 @@ let extern_uninstantiated_pattern env sigma pat =
   let of_extra g = GGenarg g in
   extern_constr_pattern_gen of_extra env sigma pat
 
-let extern_rel_context where env sigma sign =
-  let a = detype_rel_context Detyping.Later where ([],env) sigma sign in
+let extern_rel_context env sigma sign =
+  let a = detype_rel_context Detyping.Later ([],env) sigma sign in
   let eenv = extern_env env sigma in
   let a = List.map (extended_glob_local_binder_of_decl) a in
   pi3 (extern_local_binder (init_depth()) ((constr_some_level,None),([],[])) eenv a)
