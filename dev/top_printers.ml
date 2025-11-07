@@ -245,8 +245,6 @@ let ppproofview p =
 
 let ppseff seff = pp (Safe_typing.debug_print_private_constants seff)
 
-let ppopenconstr (x : Evd.open_constr) =
-  let (evd,c) = x in pp (Termops.pr_evar_map (Some 2) (Global.env ()) evd ++ envpp pr_econstr_env c)
 (* spiwack: deactivated until a replacement is found
 let pppftreestate p = pp(print_pftreestate p)
 *)

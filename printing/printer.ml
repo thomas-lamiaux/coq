@@ -73,11 +73,6 @@ let pr_constr_env ?inctx ?scope env sigma c =
 let pr_lconstr_env ?inctx ?scope env sigma c =
   pr_leconstr_env ?inctx ?scope env sigma (EConstr.of_constr c)
 
-let pr_open_lconstr_env ?inctx ?scope env sigma (_,c) =
-  pr_leconstr_env ?inctx ?scope env sigma c
-let pr_open_constr_env ?inctx ?scope env sigma (_,c) =
-  pr_econstr_env ?inctx ?scope env sigma c
-
 let pr_constr_under_binders_env_gen pr env sigma (ids,c) =
   (* Warning: clashes can occur with variables of same name in env but *)
   (* we also need to preserve the actual names of the patterns *)

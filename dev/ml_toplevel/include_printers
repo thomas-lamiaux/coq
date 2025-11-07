@@ -21,7 +21,6 @@
 #install_printer (* pp_stdcmds *) Top_printers.pp;;
 #install_printer (* pattern *) Top_printers.pppattern;;
 #install_printer (* glob_constr *) Top_printers.ppglob_constr;;
-#install_printer (* open constr *) Top_printers.ppopenconstr;;
 #install_printer (* constr *) Top_printers.ppconstr;;
 #install_printer (* econstr *) Top_printers.ppeconstr;;
 #install_printer (* constraints *) Top_printers.ppconstraints;;

@@ -65,7 +65,6 @@ install_printer Top_printers.ppgoal
 install_printer Top_printers.ppgoal_with_state
 install_printer Top_printers.pphintdb
 install_printer Top_printers.ppproofview
-install_printer Top_printers.ppopenconstr
 install_printer Top_printers.pproof
 install_printer Top_printers.ppuni
 install_printer Top_printers.ppesorts
