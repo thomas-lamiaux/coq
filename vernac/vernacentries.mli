@@ -41,8 +41,6 @@ val vernac_require_interp
 (** Miscellaneous stuff *)
 val command_focus : unit Proof.focus_kind
 
-val allow_sprop_opt_name : string list
-
 (** pre-processing and validation of VernacInductive *)
 module Preprocessed_Mind_decl : sig
   type flags = ComInductive.flags
