@@ -38,7 +38,8 @@ let ml_loop fmt ?init_file () =
         ignore (Coq_byte_config.toploop_use_silently fmt f)
     end
   );
-  Coq_byte_config.compenv_handle_exit_with_status_0 (fun () -> Toploop.loop fmt)
+  Coq_byte_config.compenv_handle_exit_with_status_0 (fun () ->
+      Coq_byte_config.toploop_prep_and_loop fmt)
 
 let drop_setup () =
   let ppf = Format.std_formatter in
