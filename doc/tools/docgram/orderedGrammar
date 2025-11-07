@@ -1793,6 +1793,11 @@ ltac2_in_clause: [
 | LIST0 ltac2_hypident_occ SEP "," OPT ( "|-" OPT ltac2_concl_occ )      (* Ltac2 plugin *)
 ]
 
+ltac2_constr_synclass_arg: [
+| scope_key
+| "delimiters" "(" LIST1 scope_key SEP "," ")"
+]
+
 q_occurrences: [
 | OPT ltac2_occs      (* ltac2 plugin *)
 ]

@@ -570,11 +570,49 @@ let () = add_syntax_class_full "thunk" {
   end;
 }
 
-let constr_delimiters s arg =
-  List.map (function
-      | SexprRec (_, { v = Some s }, []) when Libnames.qualid_is_ident s -> Libnames.qualid_basename s
-      | _ -> syntax_class_fail s arg)
-    arg
+let warn_unqualified_delimiters =
+  let w = CWarnings.create_warning ~name:"deprecated-ltac2-unqualified-delimiters"
+      ~from:[CWarnings.CoreCategories.ltac2; Deprecation.Version.v9_2]
+      ()
+  in
+  CWarnings.create_in w
+    Pp.(fun (s,delims) ->
+        let delims () = prlist_with_sep pr_comma Id.print @@ List.rev delims in
+        fmt "Delimiter arguments to %s must be qualified using \"delimiters\"@
+(e.g. \"%s(delimiters(%t))\")@ unless there is a unique delimiter argument." s s delims)
+
+let delimiters_qid = Libnames.qualid_of_string "delimiters"
+
+let constr_delimiters s args =
+  let fail () = syntax_class_fail s args in
+  let extract_id = function
+    | SexprRec (_, { v = Some qid }, []) when Libnames.qualid_is_ident qid ->
+      Some (Libnames.qualid_basename qid)
+    | _ -> None
+  in
+  let force_id arg = match extract_id arg with
+    | Some id -> id
+    | None -> fail ()
+  in
+  let raw_delims, all_delims =
+    List.fold_left (fun (raw_delims,all_delims) arg ->
+        match extract_id arg with
+        | Some id -> id :: raw_delims, [id] :: all_delims
+        | None ->
+          match arg with
+          | SexprRec (_, { v = Some qid }, subargs) when Libnames.qualid_eq qid delimiters_qid ->
+            raw_delims, (List.map force_id subargs) :: all_delims
+          | _ -> fail ())
+      ([],[])
+      args
+  in
+  let all_delims = List.concat (List.rev all_delims) in
+  let () = match raw_delims, args with
+    | [], _ -> ()
+    | [delim], [arg] when Option.equal Id.equal (Some delim) (extract_id arg) -> ()
+    | _ -> warn_unqualified_delimiters (s,raw_delims)
+  in
+  List.rev all_delims
 
 let add_constr_classes (name,lname) quote =
   let () =
