@@ -19,7 +19,6 @@ open Pattern
 open Reductionops
 open Tacred
 open RedFlags
-open Libobject
 
 let warn_vm_disabled =
   CWarnings.create ~name:"vm-compute-disabled" ~category:CWarnings.CoreCategories.bytecode_compiler
@@ -84,6 +83,7 @@ let map_strategy f l =
   if List.is_empty l' then None else Some (false,l')
 
 let classify_strategy (local,_) =
+  let open Libobject in
   if local then Dispose else Substitute
 
 let disch_ref ref =
@@ -100,7 +100,8 @@ let discharge_strategy (local,obj) =
 
 type strategy_obj = bool * (Conv_oracle.level * Evaluable.t list) list
 
-let inStrategy : strategy_obj -> obj =
+let inStrategy : strategy_obj -> Libobject.obj =
+  let open Libobject in
   declare_object
     {(default_object "STRATEGY") with
      cache_function = cache_strategy;
@@ -127,10 +128,79 @@ let set_strategy local str =
 
 (* Generic reduction: reduction functions used in reduction tactics *)
 
-type red_expr = (constr, Evaluable.t, constr_pattern, int) red_expr_gen
+module User =
+struct
+
+type ('raw, 'glb) user_red_spec = {
+  ured_intern : Constrintern.ltac_sign -> 'raw -> 'glb;
+  ured_subst : Mod_subst.substitution -> 'glb -> 'glb;
+  ured_eval : 'glb -> e_reduction_function * cast_kind;
+  ured_rprint : Environ.env -> Evd.evar_map -> 'raw -> Pp.t;
+  ured_gprint : Environ.env -> Evd.evar_map -> 'glb -> Pp.t;
+}
+
+type 'a spec = Spec : ('raw, 'glb) user_red_spec -> ('raw * 'glb) spec
+
+module Dyn = Dyn.Make()
+
+module Map = Dyn.Map(struct type 'a t = 'a spec end)
+
+let map = ref Map.empty
+
+type ('a, 'b) user_red = UserRed : ('a * 'b) Dyn.tag -> ('a, 'b) user_red
+
+type 'a user_red_expr =
+| RawRed : ('a * 'b) Dyn.tag * 'a -> Genarg.rlevel user_red_expr
+| GlbRed : ('a * 'b) Dyn.tag * 'b -> Genarg.glevel user_red_expr
+
+let create (type raw glb) name (red : (raw, glb) user_red_spec) =
+  let tag : (raw * glb) Dyn.tag = Dyn.create name in
+  let () = map := Map.add tag (Spec red) !map in
+  UserRed tag
+
+let make (type a b) (tag : (a, b) user_red) (v : a) : Genarg.rlevel user_red_expr =
+  let UserRed tag = tag in
+  RawRed (tag, v)
+
+let get tag =
+  let (Spec decl) = Map.find tag !map in
+  decl
+
+end
+
+type 'a user_red_expr = 'a User.user_red_expr
+
+type raw_red_expr = Genarg.rlevel user_red_expr Genredexpr.raw_red_expr
+type glob_red_expr = Genarg.glevel user_red_expr Genredexpr.glob_red_expr
+type red_expr = (constr, Evaluable.t, constr_pattern, int, Genarg.glevel user_red_expr) red_expr_gen
 
 type red_expr_val =
-  (constr, Evaluable.t, constr_pattern, int, strength * RedFlags.reds) red_expr_gen0
+  (constr, Evaluable.t, constr_pattern, int, strength * RedFlags.reds, Genarg.glevel user_red_expr) red_expr_gen0
+
+let intern_user_red_expr ist usr =
+  let User.RawRed (tag, v) = usr in
+  let decl = User.get tag in
+  User.GlbRed (tag, decl.User.ured_intern ist v)
+
+let subst_user_red_expr subst usr =
+  let User.GlbRed (tag, v) = usr in
+  let decl = User.get tag in
+  User.GlbRed (tag, decl.User.ured_subst subst v)
+
+let eval_user_red_expr usr =
+  let User.GlbRed (tag, v) = usr in
+  let decl = User.get tag in
+  decl.User.ured_eval v
+
+let pr_raw_user_red_expr env sigma usr =
+  let User.RawRed (tag, v) = usr in
+  let decl = User.get tag in
+  decl.User.ured_rprint env sigma v
+
+let pr_glob_user_red_expr env sigma usr =
+  let User.GlbRed (tag, v) = usr in
+  let decl = User.get tag in
+  decl.User.ured_gprint env sigma v
 
 let make_flag_constant = function
   | Evaluable.EvalVarRef id -> [fVAR id]
@@ -245,7 +315,7 @@ let rec eval_red_expr env = function
   | e -> eval_red_expr env e
   | exception Not_found -> ExtraRedExpr s (* delay to runtime interpretation *)
   end
-| (Red | Hnf | Unfold _ | Fold _ | Pattern _ | CbvVm _ | CbvNative _) as e -> e
+| (Red | Hnf | Unfold _ | Fold _ | Pattern _ | CbvVm _ | CbvNative _ | UserRed _) as e -> e
 
 let red_product_exn env sigma c = match red_product env sigma c with
   | None -> user_err Pp.(str "No head constant to reduce.")
@@ -284,6 +354,7 @@ let reduction_of_red_expr_val = function
              (str "Unknown user-defined reduction \"" ++ str s ++ str "\"."))
   | CbvVm o -> (contextualize cbv_vm o, VMcast)
   | CbvNative o -> (contextualize cbv_native o, NATIVEcast)
+  | UserRed usr -> eval_user_red_expr usr
 
 let reduction_of_red_expr env r =
   reduction_of_red_expr_val (eval_red_expr env r)
@@ -347,7 +418,7 @@ let bind_red_expr_occurrences occs nbcl redexp =
         else
           CbvNative (Some (occs,c))
     | Red | Hnf | Cbv _ | Lazy _ | Cbn _
-    | ExtraRedExpr _ | Fold _ | Simpl (_,None) | CbvVm None | CbvNative None ->
+    | ExtraRedExpr _ | Fold _ | Simpl (_,None) | CbvVm None | CbvNative None | UserRed _ ->
         error_at_in_occurrences_not_supported ()
     | Unfold [] | Pattern [] ->
         assert false
@@ -369,8 +440,10 @@ let subst_red_expr subs =
     (subst_mps subs)
     (Tacred.subst_evaluable_reference subs)
     (Patternops.subst_pattern env sigma subs)
+    (subst_user_red_expr subs)
 
-let inReduction : bool * string * red_expr -> obj =
+let inReduction : bool * string * red_expr -> Libobject.obj =
+  let open Libobject in
   declare_object
     {(default_object "REDUCTION") with
      cache_function = (fun (_,s,e) -> decl_red_expr s e);
@@ -502,6 +575,7 @@ module Intern = struct
     | CbvVm o -> CbvVm (Option.map (intern_typed_pattern_or_ref_with_occurrences ist) o)
     | CbvNative o -> CbvNative (Option.map (intern_typed_pattern_or_ref_with_occurrences ist) o)
     | (Red | Hnf | ExtraRedExpr _ as r ) -> r
+    | UserRed usr -> UserRed (intern_user_red_expr ist.ltac_sign usr)
 
   let intern_constr env c =
     Constrintern.intern_gen WithoutTypeConstraint ~strict_check:true env (Evd.from_env env) c
@@ -524,14 +598,14 @@ end
 
 module Interp = struct
 
-  type ('constr,'evref,'pat) interp_env = {
+  type ('constr,'evref,'pat,'usr) interp_env = {
     interp_occurrence_var : lident -> int list;
     interp_constr : Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr;
     interp_constr_list : Environ.env -> Evd.evar_map -> 'constr -> Evd.evar_map * EConstr.constr list;
     interp_evaluable : Environ.env -> Evd.evar_map -> 'evref -> Evaluable.t;
     interp_pattern : Environ.env -> Evd.evar_map -> 'pat -> constr_pattern;
     interp_evaluable_or_pattern : Environ.env -> Evd.evar_map
-      -> 'evref -> (Evaluable.t, constr_pattern) Util.union
+      -> 'evref -> (Evaluable.t, constr_pattern) Util.union;
   }
 
   let interp_occurrences ist occs =
@@ -582,7 +656,7 @@ module Interp = struct
       sigma , CbvVm (Option.map (interp_closed_typed_pattern_with_occurrences ist env sigma) o)
     | CbvNative o ->
       sigma , CbvNative (Option.map (interp_closed_typed_pattern_with_occurrences ist env sigma) o)
-    | (Red |  Hnf | ExtraRedExpr _ as r) -> sigma , r
+    | (Red |  Hnf | ExtraRedExpr _  | UserRed _ as r) -> sigma , r
 
   let interp_constr env sigma c =
     let flags = Pretyping.all_and_fail_flags in

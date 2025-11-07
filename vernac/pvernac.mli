@@ -9,7 +9,7 @@
 (************************************************************************)
 
 open Procq
-open Genredexpr
+open Redexpr
 open Vernacexpr
 
 type proof_mode
