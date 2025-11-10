@@ -1165,9 +1165,12 @@ let make_nonalgebraic_variable evd u =
 (* Operations on constants              *)
 (****************************************)
 
-let lookup_constant env sigma c =
-  (* FIXME: do this more cleanly *)
-  if Environ.mem_constant c env then Environ.lookup_constant c env
+(* FIXME: do this more cleanly *)
+let lookup_constant env sigma c = match Environ.lookup_constant_opt c env with
+| Some cb -> cb
+| None ->
+  if Safe_typing.is_empty_private_constants sigma.effects.seff_private then
+    CErrors.anomaly Pp.(str "Constant " ++ Constant.print c ++ str" does not appear in the environment.")
   else
     let senv = get_senv_side_effects sigma.effects in
     Environ.lookup_constant c (Safe_typing.env_of_safe_env senv)
