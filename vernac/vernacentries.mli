@@ -11,7 +11,7 @@
 val check_may_eval :
   Environ.env ->
   Evd.evar_map ->
-  Genredexpr.raw_red_expr option ->
+  Redexpr.raw_red_expr option ->
   Constrexpr.constr_expr ->
   Pp.t
 

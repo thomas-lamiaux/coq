@@ -55,7 +55,7 @@ let map_flags f flags =
 
 let map_occs f (occ,e) = (occ,f e)
 
-let map_red_expr_gen f g h = function
+let map_red_expr_gen f g h i = function
   | Fold l -> Fold (List.map f l)
   | Pattern occs_l -> Pattern (List.map (map_occs f) occs_l)
   | Simpl (flags,occs_o) ->
@@ -67,3 +67,4 @@ let map_red_expr_gen f g h = function
   | CbvNative occs_o -> CbvNative (Option.map (map_occs (Util.map_union g h)) occs_o)
   | Cbn flags -> Cbn (map_flags g flags)
   | ExtraRedExpr _ | Red | Hnf as x -> x
+  | UserRed usr -> UserRed (i usr)

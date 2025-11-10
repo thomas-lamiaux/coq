@@ -41,6 +41,7 @@ let pr_constr_expr = pr_in_global_env pr_constr_expr
 let pr_lconstr_expr = pr_in_global_env pr_lconstr_expr
 let pr_binders = pr_in_global_env pr_binders
 let pr_constr_pattern_expr = pr_in_global_env pr_constr_pattern_expr
+let pr_user_red_expr = pr_in_global_env Redexpr.pr_raw_user_red_expr
 
 (* In principle this may use the env/sigma, in practice not sure if it
    does except through pr_constr_expr in beautify mode. *)
@@ -56,7 +57,7 @@ let pr_spc_lconstr =
 
 let pr_red_expr =
   Ppred.pr_red_expr
-    (pr_constr_expr, pr_lconstr_expr, pr_smart_global, pr_constr_expr, pr_or_var int)
+    (pr_constr_expr, pr_lconstr_expr, pr_smart_global, pr_constr_expr, pr_or_var int, pr_user_red_expr)
     keyword
 
 let pr_uconstraint (l, d, r) =

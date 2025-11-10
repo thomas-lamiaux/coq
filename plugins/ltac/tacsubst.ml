@@ -103,6 +103,7 @@ let subst_glob_red_expr subst =
     (subst_glob_constr subst)
     (subst_evaluable subst)
     (subst_glob_constr subst)
+    (Redexpr.subst_user_red_expr subst)
 
 let subst_raw_may_eval subst = function
   | ConstrEval (r,c) -> ConstrEval (subst_glob_red_expr subst r,subst_glob_constr subst c)

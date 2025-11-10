@@ -47,7 +47,7 @@ let pr_union pr1 pr2 = function
   | Inl a -> pr1 a
   | Inr b -> pr2 b
 
-let pr_red_expr (pr_constr,pr_lconstr,pr_ref,pr_pattern,prvar) keyword = function
+let pr_red_expr (pr_constr,pr_lconstr,pr_ref,pr_pattern,prvar,pruser) keyword = function
   | Red -> keyword "red"
   | Hnf -> keyword "hnf"
   | Simpl (f,o) -> keyword "simpl" ++ (pr_short_red_flag pr_ref f)
@@ -76,6 +76,7 @@ let pr_red_expr (pr_constr,pr_lconstr,pr_ref,pr_pattern,prvar) keyword = functio
     keyword "vm_compute" ++ pr_opt (pr_with_occurrences prvar (pr_union pr_ref pr_pattern) keyword) o
   | CbvNative o ->
     keyword "native_compute" ++ pr_opt (pr_with_occurrences prvar (pr_union pr_ref pr_pattern) keyword) o
+  | UserRed usr -> pruser usr
 
-let pr_red_expr_env env sigma (pr_constr,pr_lconstr,pr_ref,pr_pattern,prvar) =
-  pr_red_expr (pr_constr env sigma, pr_lconstr env sigma, pr_ref, pr_pattern env sigma,prvar)
+let pr_red_expr_env env sigma (pr_constr,pr_lconstr,pr_ref,pr_pattern,prvar,pruser) =
+  pr_red_expr (pr_constr env sigma, pr_lconstr env sigma, pr_ref, pr_pattern env sigma, prvar,pruser env sigma)

@@ -122,7 +122,7 @@ type 'a gen_atomic_tactic_expr =
       rec_flag * evars_flag * ('trm,'dtrm,'nam) induction_clause_list
 
   (* Conversion *)
-  | TacReduce of ('trm,'cst,'rpat,'occvar) red_expr_gen * 'nam clause_expr
+  | TacReduce of ('trm,'cst,'rpat,'occvar, 'lev Redexpr.user_red_expr) red_expr_gen * 'nam clause_expr
   | TacChange of check_flag * 'rpat option * 'dtrm * 'nam clause_expr
 
   (* Equality and inversion *)
@@ -152,15 +152,15 @@ constraint 'a = <
 
 (** Possible arguments of a tactic definition *)
 
-type ('a,'b,'c,'occvar) may_eval =
+type ('a,'b,'c,'occvar,'usr) may_eval =
   | ConstrTerm of 'a
-  | ConstrEval of ('a,'b,'c,'occvar) red_expr_gen * 'a
+  | ConstrEval of ('a,'b,'c,'occvar, 'usr) red_expr_gen * 'a
   | ConstrContext of Names.lident * 'a
   | ConstrTypeOf of 'a
 
 type 'a gen_tactic_arg =
   | TacGeneric     of string option * 'lev generic_argument
-  | ConstrMayEval  of ('trm,'cst,'rpat, 'occvar) may_eval
+  | ConstrMayEval  of ('trm,'cst,'rpat, 'occvar, 'lev Redexpr.user_red_expr) may_eval
   | Reference      of 'ref
   | TacCall    of ('ref * 'a gen_tactic_arg list) CAst.t
   | TacFreshId of string or_var list
@@ -378,8 +378,8 @@ type atomic_tactic_expr =
 
 (** Misc *)
 
-type raw_strategy = (constr_expr, Genredexpr.raw_red_expr, lident) Rewrite.strategy_ast
-type glob_strategy = (Genintern.glob_constr_and_expr, Genredexpr.glob_red_expr, Id.t) Rewrite.strategy_ast
+type raw_strategy = (constr_expr, Redexpr.raw_red_expr, lident) Rewrite.strategy_ast
+type glob_strategy = (Genintern.glob_constr_and_expr, Redexpr.glob_red_expr, Id.t) Rewrite.strategy_ast
 
 (** Traces *)
 

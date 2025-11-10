@@ -152,7 +152,7 @@ type option_setting =
 
 type definition_expr =
   | ProveBody of local_binder_expr list * constr_expr
-  | DefineBody of local_binder_expr list * Genredexpr.raw_red_expr option * constr_expr
+  | DefineBody of local_binder_expr list * Redexpr.raw_red_expr option * constr_expr
       * constr_expr option
 
 type notation_format =
@@ -481,9 +481,9 @@ type nonrec synpure_vernac_expr =
       (Conv_oracle.level * qualid or_by_notation list) list
   | VernacMemOption of Goptions.option_name * Goptions.table_value list
   | VernacPrintOption of Goptions.option_name
-  | VernacCheckMayEval of Genredexpr.raw_red_expr option * Goal_select.t option * constr_expr
+  | VernacCheckMayEval of Redexpr.raw_red_expr option * Goal_select.t option * constr_expr
   | VernacGlobalCheck of constr_expr
-  | VernacDeclareReduction of string * Genredexpr.raw_red_expr
+  | VernacDeclareReduction of string * Redexpr.raw_red_expr
   | VernacPrint of printable
   | VernacSearch of searchable * Goal_select.t option * qualid list search_restriction
   | VernacLocate of locatable
