@@ -409,15 +409,47 @@ let clenv_missing ce =
 
 (******************************************************************)
 
+let rec subst_meta sigma s c =
+  match kind sigma c with
+    | Meta i -> (try Int.Map.find i s with Not_found -> c)
+    | _ -> EConstr.map sigma (subst_meta sigma s) c
+
+let replace_clenv_metas env sigma clnv =
+  let module Metas = Unification.Meta in
+  let metam = clenv_meta_list clnv in
+  let sigma, metamap = List.fold_left (fun (sigma, metamap) mv ->
+    let tymeta = Metas.meta_ftype metam mv in
+    let ty = subst_meta sigma metamap tymeta.rebus in
+    let naming = match Metas.meta_name metam mv with
+      | Name na -> Namegen.IntroIdentifier na
+      | Anonymous -> Namegen.IntroAnonymous
+    in
+    let sigma, ev = Evarutil.new_evar ~naming env sigma ty in
+    sigma, Int.Map.add mv ev metamap)
+    (sigma, Int.Map.empty) (clenv_arguments clnv)
+  in
+  sigma, subst_meta sigma metamap
+
+exception ClenvCannotUnify of env * evar_map * clausenv * econstr * econstr * unification_error option
+
 let clenv_unify ?(flags=default_unify_flags ()) cv_pb t1 t2 clenv =
-  let metas = clenv.metam in
-  let metas, sigma = w_unify ~metas ~flags clenv.env clenv.evd cv_pb t1 t2 in
-  update_clenv_evd clenv sigma metas
+  try
+    let metas = clenv.metam in
+    let metas, sigma = w_unify ~metas ~flags clenv.env clenv.evd cv_pb t1 t2 in
+    update_clenv_evd clenv sigma metas
+  with Pretype_errors.(PretypeError (env, sigma, CannotUnify (t1, t2, reason))) as exn ->
+    let _, info = Exninfo.capture exn in
+    Exninfo.iraise (ClenvCannotUnify (env, sigma, clenv, t1, t2, reason), info)
+
 
 let clenv_unify_meta_types ?(flags=default_unify_flags ()) clenv =
-  let metas = clenv.metam in
-  let metas, sigma = w_unify_meta_types ~metas ~flags:flags clenv.env clenv.evd in
-  update_clenv_evd clenv sigma metas
+  try
+    let metas = clenv.metam in
+    let metas, sigma = w_unify_meta_types ~metas ~flags:flags clenv.env clenv.evd in
+    update_clenv_evd clenv sigma metas
+  with Pretype_errors.(PretypeError (env, sigma, CannotUnify (t1, t2, reason))) as exn ->
+    let _, info = Exninfo.capture exn in
+    Exninfo.iraise (ClenvCannotUnify (env, sigma, clenv, t1, t2, reason), info)
 
 let clenv_unique_resolver ?(flags=default_unify_flags ()) clenv concl =
   let metas = meta_handler clenv.metam in

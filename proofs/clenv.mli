@@ -77,6 +77,10 @@ val case_pf : ?with_evars:bool ->
 
 val clenv_pose_dependent_evars : ?with_evars:bool -> clausenv -> clausenv
 
+val replace_clenv_metas : env -> evar_map -> clausenv -> evar_map * (EConstr.constr -> EConstr.constr)
+
+exception ClenvCannotUnify of env * evar_map * clausenv * econstr * econstr * Pretype_errors.unification_error option
+
 (** {6 Pretty-print (debug only) } *)
 val pr_clenv : clausenv -> Pp.t
 

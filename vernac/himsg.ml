@@ -1738,6 +1738,9 @@ let rec vernac_interp_error_handler = function
     explain_type_error env (Evd.from_env env) te
   | PretypeError(ctx,sigma,te) ->
     explain_pretype_error ctx sigma te
+  | Clenv.ClenvCannotUnify (env, sigma, clenv, t1, t2, reason) ->
+    let sigma, f = Clenv.replace_clenv_metas env sigma clenv in
+    explain_pretype_error env sigma (CannotUnify (f t1, f t2, reason))
   | PrimNotations.PrimTokenNotationError(kind,ctx,sigma,te) ->
     explain_prim_token_notation_error kind ctx sigma te
   | Typeclasses_errors.TypeClassError(env, sigma, te) ->
