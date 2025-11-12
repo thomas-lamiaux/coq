@@ -99,10 +99,10 @@ val next_name_away  : Name.t -> Id.Set.t -> Id.t
 
 val next_name_away_with_default : string -> Name.t -> Id.Set.t -> Id.t
 
-val next_name_away_with_default_using_types : string -> Name.t ->
-  Id.Set.t -> types -> Id.t
+val next_name_away_with_default_using_types : Environ.env -> evar_map ->
+  string -> Name.t -> Id.Set.t -> types -> Id.t
 
-val set_reserved_typed_name : (types -> Name.t) -> unit
+val set_reserved_typed_name : (Environ.env -> evar_map -> types -> Name.t) -> unit
 
 (*********************************************************************
    Making name distinct for displaying *)

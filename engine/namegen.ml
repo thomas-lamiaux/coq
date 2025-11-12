@@ -437,13 +437,13 @@ let next_name_away_with_default default na avoid =
   let id = match na with Name id -> id | Anonymous -> Id.of_string default in
   next_ident_away id avoid
 
-let reserved_type_name = ref (fun t -> Anonymous)
+let reserved_type_name = ref (fun _ _ _ -> Anonymous)
 let set_reserved_typed_name f = reserved_type_name := f
 
-let next_name_away_with_default_using_types default na avoid t =
+let next_name_away_with_default_using_types env sigma default na avoid t =
   let id = match na with
     | Name id -> id
-    | Anonymous -> match !reserved_type_name t with
+    | Anonymous -> match !reserved_type_name env sigma t with
         | Name id -> id
         | Anonymous -> Id.of_string default in
   next_ident_away id avoid
