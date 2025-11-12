@@ -532,22 +532,22 @@ let export_side_effects eff =
   let export = get_roles export eff in
   List.iter register_side_effect export
 
+(* This is different from [export_side_effects] as the former properly declares
+   the body of opaque constants whereas this function keeps them as axioms, see
+   below. *)
 let register_side_effects pf =
-  (* TODO: factorize this with [register_side_effect] above *)
   let open Names in
   let pf, eff = Proof.purge_side_effects pf in
-  let export = Global.export_private_constants (Evd.seff_private eff) in
-  let iter (kn, body) =
-    let () = match body with
-    | None -> ()
-    | Some opaque -> Opaques.declare_private_opaque opaque
-    in
+  let () = Global.Internal.reset_safe_env (Evd.get_senv_side_effects eff) in
+  (* We do not have to register the opaque proofs because opaque private constants
+     have no body in the environment, see {!Safe_typing.add_private_constant}. *)
+  let iter kn =
     let gr = GlobRef.ConstRef kn in
     let id = Constant.label kn in
     let sp = Lib.make_path id in
     Nametab.push (Nametab.Until 1) sp gr
   in
-  let () = List.iter iter export in
+  let () = List.iter iter (Safe_typing.constants_of_private @@ Evd.seff_private eff) in
   pf, SideEff.make eff
 
 let record_aux env s_ty s_bo =
