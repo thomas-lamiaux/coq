@@ -485,19 +485,18 @@ module Search = struct
   (** Local hints *)
   let autogoal_cache = Summary.ref ~name:"autogoal_cache"
       (Libnames.dummy_full_path, true, Context.Named.empty, Hints.Modes.empty,
-       Hint_db.empty TransparentState.full true, Sorts.QVar.Set.empty)
+       Hint_db.empty TransparentState.full true, QGraph.initial_graph)
 
   let make_autogoal_hints only_classes (modes,st as mst) gl =
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let sign = EConstr.named_context env in
-    let qvars = QGraph.qvar_domain @@ Evd.elim_graph sigma in
+    let qvars = Evd.elim_graph sigma in
     let (dir, onlyc, sign', cached_modes, cached_hints, qvars') = !autogoal_cache in
     let cwd = Lib.cwd () in
     let eq c1 c2 = EConstr.eq_constr sigma c1 c2 in
     if Libnames.eq_full_path cwd dir &&
-         (onlyc == only_classes) &&
-           Sorts.QVar.Set.equal qvars qvars' &&
+         (onlyc == only_classes) && qvars == qvars' &&
              Context.Named.equal (ERelevance.equal sigma) eq sign sign' &&
                cached_modes == modes
     then cached_hints
