@@ -249,9 +249,15 @@ let solve_delta_kn resolve kn =
       Equiv (KerName.make new_mp l)
 
 let kn_of_delta resolve kn =
-  match solve_delta_kn resolve kn with
-  | Equiv kn -> kn
-  | Inline _ -> kn
+  match Deltamap.find_kn kn resolve with
+  | Equiv kn1 -> kn1
+  | exception Not_found | Inline _ ->
+    let mp,l = KerName.repr kn in
+    let new_mp = find_prefix resolve mp in
+    if mp == new_mp then
+      kn
+    else
+      (KerName.make new_mp l)
 
 let constant_of_delta_kn resolve kn =
   Constant.make kn (kn_of_delta resolve kn)
