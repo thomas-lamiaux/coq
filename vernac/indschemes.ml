@@ -230,8 +230,6 @@ let declare_one_induction_scheme ?loc ind =
   in
   let elims =
     List.filter (fun (sort,_) -> List.mem_f UnivGen.QualityOrSet.equal sort kelim)
-      (* NB: the order is important, it makes it so that _rec is
-         defined using _rect but _ind is not. *)
       [(UnivGen.QualityOrSet.qtype, "rect");
        (UnivGen.QualityOrSet.prop, "ind");
        (UnivGen.QualityOrSet.set, "rec");
