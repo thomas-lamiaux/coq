@@ -270,6 +270,10 @@ let string_of_genarg_arg (ArgumentType arg) =
          has no meaning user-side *)
       KerName.print key
 
+  let is_genarg tag wit =
+    let ArgT.Any tag = tag in
+    argument_type_eq (ArgumentType (ExtraArg tag)) wit
+
   let pr_alias_gen pr_gen lev key l =
     try
       let pp = KerName.Map.find key !prnotation_tab in
@@ -283,16 +287,28 @@ let string_of_genarg_arg (ArgumentType arg) =
       in
       let prods = pack pp.pptac_prods l in
       let p = pr_tacarg_using_rule pr_gen prods in
-      if pp.pptac_level > lev then surround p else hov 2 p
+      let last_lev =
+        let is_tactic_arg e = is_genarg e (ArgumentType wit_tactic) in
+        match CList.last prods with
+        | TacNonTerm (_, ((Uentry e, _), _)) when is_tactic_arg e -> 5
+        | TacNonTerm (_, ((Uentryl (e,lev), _), _)) when is_tactic_arg e -> lev
+        | _ -> 0 (* XXX handle tactic_list or some such thing? *)
+      in
+      if max last_lev pp.pptac_level > lev then surround p else hov 2 p
     with Not_found ->
       let pr _ = str "_" in
       KerName.print key ++ spc() ++ pr_sequence pr l ++ str" (* Generic printer *)"
 
-  let pr_farg prtac arg = prtac LevelSome (CAst.make (TacArg  arg))
+(* prods:
+  (Genarg.ArgT.any Extend.user_symbol * 'a) grammar_tactic_prod_item_expr
+  list =
+  [TacTerm "intuition";
+   TacNonTerm
+    (Some (4659,4668),
+     ((Extend.Uentry (Genarg.ArgT.Any tactic), <poly>), Some t))]
+ *)
 
-  let is_genarg tag wit =
-    let ArgT.Any tag = tag in
-    argument_type_eq (ArgumentType (ExtraArg tag)) wit
+  let pr_farg prtac arg = prtac LevelSome (CAst.make (TacArg  arg))
 
   let get_list : type l. l generic_argument -> l generic_argument list option =
   function (GenArg (wit, arg)) -> match wit with
@@ -1027,7 +1043,7 @@ let pr_let_clauses recflag pr_gen pr l =
             | TacArg (TacFreshId l) ->
               primitive "fresh" ++ pr_fresh_ids l, latom
             | TacArg (TacGeneric (isquot,arg)) ->
-              let p = pr.pr_generic env sigma (if Option.has_some isquot then ltop else LevelLe 0) arg in
+              let p = pr.pr_generic env sigma (if Option.has_some isquot then ltop else inherited) arg in
               (match isquot with Some name -> str name ++ str ":(" ++ p ++ str ")" | None -> p), latom
             | TacArg (TacCall {CAst.v=(f,[])}) ->
               pr.pr_reference f, latom
