@@ -476,7 +476,11 @@ let write_coq_byte_config_ml caml_version_nums o =
   pr "let compenv_handle_exit_with_status_0 f = %s\n"
     (if caml_version_nums >= [4;12;0]
      then "try f () with Compenv.Exit_with_status(0) -> ()"
-     else "f ()")
+     else "f ()");
+  pr "let toploop_prep_and_loop fmt = %s\n"
+    (if caml_version_nums >= [5;3;0]
+     then "ignore (Toploop.prepare fmt () : bool); Toploop.loop fmt"
+     else "Toploop.loop fmt")
 
 (** Build the [config/dune.c_flags] file *)
 let write_dune_c_flags cflags o =
