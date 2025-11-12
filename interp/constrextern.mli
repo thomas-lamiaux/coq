@@ -89,9 +89,6 @@ val with_universes : ('a -> 'b) -> 'a -> 'b
 (** This suppresses printing of primitive tokens and notations *)
 val without_symbols : ('a -> 'b) -> 'a -> 'b
 
-(** This prints metas as anonymous holes *)
-val with_meta_as_hole : ('a -> 'b) -> 'a -> 'b
-
 (** Probably shouldn't be used *)
 val empty_extern_env : extern_env
 
