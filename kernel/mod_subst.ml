@@ -237,25 +237,27 @@ let find_prefix resolve mp =
 
 (** Applying a resolver to a kernel name *)
 
-exception Change_equiv_to_inline of (int * constr UVars.univ_abstracted)
-
 let solve_delta_kn resolve kn =
-  try
-    match Deltamap.find_kn kn resolve with
-      | Equiv kn1 -> kn1
-      | Inline (lev, Some c) ->	raise (Change_equiv_to_inline (lev,c))
-      | Inline (_, None) -> raise Not_found
-  with Not_found ->
+  match Deltamap.find_kn kn resolve with
+  | Equiv _ | Inline (_, Some _) as v -> v
+  | exception Not_found | Inline (_, None) ->
+    let mp,l = KerName.repr kn in
+    let new_mp = find_prefix resolve mp in
+    if mp == new_mp then
+      Equiv kn
+    else
+      Equiv (KerName.make new_mp l)
+
+let kn_of_delta resolve kn =
+  match Deltamap.find_kn kn resolve with
+  | Equiv kn1 -> kn1
+  | exception Not_found | Inline _ ->
     let mp,l = KerName.repr kn in
     let new_mp = find_prefix resolve mp in
     if mp == new_mp then
       kn
     else
-      KerName.make new_mp l
-
-let kn_of_delta resolve kn =
-  try solve_delta_kn resolve kn
-  with Change_equiv_to_inline _ -> kn
+      (KerName.make new_mp l)
 
 let constant_of_delta_kn resolve kn =
   Constant.make kn (kn_of_delta resolve kn)
@@ -310,7 +312,7 @@ let subst_kn_delta subst kn =
   match subst_mp_opt subst mp with
      Some (mp',resolve) ->
       solve_delta_kn resolve (KerName.make mp' l)
-   | None -> kn
+   | None -> Equiv kn
 
 
 let subst_kn subst kn =
@@ -580,9 +582,7 @@ let gen_subst_delta_resolver dom subst resolver =
   let kn_apply_subst kkey hint rslv =
     let kkey' = if dom then subst_kn subst kkey else kkey in
     let hint' = match hint with
-      | Equiv kequ ->
-          (try Equiv (subst_kn_delta subst kequ)
-           with Change_equiv_to_inline (lev,c) -> Inline (lev,Some c))
+      | Equiv kequ -> subst_kn_delta subst kequ
       | Inline (lev,Some t) -> Inline (lev,Some (UVars.map_univ_abstracted (subst_mps subst) t))
       | Inline (_,None) -> hint
     in
@@ -600,9 +600,7 @@ let update_delta_resolver resolver1 resolver2 =
   in
   let kn_apply_rslv kkey hint1 rslv =
     let hint = match hint1 with
-      | Equiv kequ ->
-        (try Equiv (solve_delta_kn resolver2 kequ)
-         with Change_equiv_to_inline (lev,c) -> Inline (lev, Some c))
+      | Equiv kequ -> solve_delta_kn resolver2 kequ
       | Inline (_,Some _) -> hint1
       | Inline (_,None) ->
         (try Deltamap.find_kn kkey resolver2 with Not_found -> hint1)
