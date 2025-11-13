@@ -2132,6 +2132,11 @@ ltac2_induction_clause: [
 | WITH ltac2_destruction_arg ltac2_as_or_and_ipat ltac2_eqn_ipat OPT ltac2_clause  TAG Ltac2
 ]
 
+ltac2_constr_synclass_arg: [
+| scope_key
+| "delimiters" "(" LIST1 scope_key SEP "," ")"
+]
+
 starredidentref: [
 | EDIT identref ADD_OPT "*"
 | EDIT "Type" ADD_OPT "*"
