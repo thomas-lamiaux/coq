@@ -610,16 +610,28 @@ let reducible_construct sigma c = match EConstr.kind sigma c with
 | Int _ | Float _ | String _ | Array _ (* reduced by primitives *) -> true
 | _ -> false
 
+type eval_kind =
+| EvEval of evaluable_reference * EInstance.t
+| EvPrim of Constant.t
+| EvSymbol
+| EvNone
+
 let match_eval_ref env sigma constr stack =
   match EConstr.kind sigma constr with
   | Const (sp, u) ->
-     reduction_effect_hook env sigma sp
-        (lazy (EConstr.to_constr sigma (applist (constr,stack))));
-     if is_evaluable env sigma (EvalConstRef sp) then Some (EvalConst sp, u) else None
-  | Var id when is_evaluable env sigma (EvalVarRef id) -> Some (EvalVar id, EInstance.empty)
-  | Rel i -> Some (EvalRel i, EInstance.empty)
-  | Evar ev -> Some (EvalEvar ev, EInstance.empty)
-  | _ -> None
+    let () = reduction_effect_hook env sigma sp
+        (lazy (EConstr.to_constr sigma (applist (constr,stack)))) in
+    let cb = lookup_constant env sigma sp in
+    begin match cb.const_body with
+    | Def _ -> if is_transparent env (Evaluable.EvalConstRef sp) then EvEval (EvalConst sp, u) else EvNone
+    | Undef _ | OpaqueDef _ -> EvNone
+    | Primitive _ -> EvPrim sp
+    | Symbol _ -> EvSymbol
+    end
+  | Var id when is_evaluable_var env id -> EvEval (EvalVar id, EInstance.empty)
+  | Rel i -> EvEval (EvalRel i, EInstance.empty)
+  | Evar ev -> EvEval (EvalEvar ev, EInstance.empty)
+  | _ -> EvNone
 
 let match_eval_ref_value env sigma constr stack =
   match EConstr.kind sigma constr with
@@ -741,16 +753,6 @@ let make_simpl_reds env =
 (* The reductions that should be performed as part of the hnf tactic *)
 let make_hnf_reds env =
   make_reds env ReductionBehaviour.Db.empty
-
-(* TODO: write a more efficient check *)
-let is_primitive env sigma c =
-  Environ.mem_constant c env && Environ.is_primitive env c
-
-let is_symbol env sigma c =
-  let cb = EConstr.lookup_constant env sigma c in
-  match cb.Declarations.const_body with
-  | Declarations.Symbol _ -> true
-  | _ -> false
 
 (* [red_elim_const] contracts iota/fix/cofix redexes hidden behind
    constants by keeping the name of the constants in the recursive calls;
@@ -886,26 +888,9 @@ and whd_simpl_stack infos env sigma =
           | NotReducible -> s'
           end
 
-      | Const (cst, _) when is_primitive env sigma cst ->
-        let ans =
-            let args =
-              List.map_filter_i (fun i a ->
-                  match a with CPrimitives.Kwhnf -> Some i | _ -> None)
-                (CPrimitives.kind (Option.get (get_primitive env cst))) in
-            let* stack = reduce_params infos env sigma stack args in
-            Reduced (whd_const cst env sigma (applist (x, stack)), [])
-        in
-        begin match ans with
-        | Reduced s' -> s'
-        | NotReducible -> s'
-        end
-
-      | Const (cst, _) when is_symbol env sigma cst ->
-          whd_all env sigma (applist s'), []
-
       | _ ->
         match match_eval_ref env sigma x stack with
-        | Some (ref, u) ->
+        | EvEval (ref, u) ->
           let ans =
              let* sapp, nocase = red_elim_const infos env sigma ref u stack in
              let hd, _ as s'' = redrec sapp in
@@ -920,7 +905,22 @@ and whd_simpl_stack infos env sigma =
           | Reduced s' -> s'
           | NotReducible -> s'
           end
-        | None -> s'
+        | EvSymbol ->
+          whd_all env sigma (applist s'), []
+        | EvPrim cst ->
+          let args =
+            List.map_filter_i (fun i a ->
+                match a with CPrimitives.Kwhnf -> Some i | _ -> None)
+              (CPrimitives.kind (Option.get (get_primitive env cst))) in
+          let ans =
+            let* stack = reduce_params infos env sigma stack args in
+            Reduced (whd_const cst env sigma (applist (x, stack)), [])
+          in
+          begin match ans with
+          | Reduced s' -> s'
+          | NotReducible -> s'
+          end
+        | EvNone -> s'
   in
   redrec
 
@@ -987,7 +987,7 @@ and whd_construct infos env sigma c =
     let construct_infos = { infos with red_behavior = ReductionBehaviour.Db.empty; main_reds = infos.construct_reds } in
     whd_simpl_stack construct_infos env sigma c in
   match match_eval_ref env sigma constr cargs with
-  | Some (ref, u) ->
+  | EvEval (ref, u) ->
     (match compute_reference_coelimination infos env sigma ref u with
      | CoEliminationConstruct c -> Reduced (None, whd_stack_gen infos.main_reds env sigma (applist (c, cargs)))
      | CoEliminationPrimitive c -> Reduced (None, whd_stack_gen infos.main_reds env sigma (applist (c, cargs)))
@@ -1001,7 +1001,7 @@ and whd_construct infos env sigma c =
           so that possible internal iota-redexes are triggered *)
        whd_construct infos env sigma (c, cargs)
      | NotACoEliminationConstant -> NotReducible)
-  | None ->
+  | EvSymbol | EvPrim _ | EvNone ->
     if reducible_construct sigma constr then Reduced (None, (constr, cargs))
     else NotReducible
 
@@ -1052,13 +1052,13 @@ let try_red_product env sigma c =
         Reduced (simpfun c)
       | _ ->
         (match match_eval_ref env sigma x [] with
-        | Some (ref, u) ->
+        | EvEval (ref, u) ->
           (* TO DO: re-fold fixpoints after expansion *)
           (* to get true one-step reductions *)
           (match reference_opt_value cache env sigma ref u with
              | None -> NotReducible
              | Some c -> Reduced c)
-        | _ -> NotReducible)
+        | EvSymbol | EvPrim _ | EvNone -> NotReducible)
   in redrec env c
 
 let red_product env sigma c = match try_red_product env sigma c with
