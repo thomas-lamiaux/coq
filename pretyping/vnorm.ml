@@ -245,12 +245,13 @@ and nf_evar env sigma evk stk =
 and constr_type_of_idkey env sigma (idkey : Vmvalues.id_key) stk =
   match idkey with
   | ConstKey cst ->
-     let cbody = Environ.lookup_constant cst env in
+     let cbody = EConstr.lookup_constant env sigma cst in
      let nb_univs =
        UVars.AbstractContext.size (Declareops.constant_polymorphic_context cbody)
      in
      let mk u =
-       let pcst = (cst, u) in (mkConstU pcst, Typeops.type_of_constant_in env pcst)
+       let ty = subst_instance_constr u cbody.const_type in
+       (mkConstU (cst, u), ty)
      in
      nf_univ_args ~nb_univs mk env sigma stk
    | VarKey id ->

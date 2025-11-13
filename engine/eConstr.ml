@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+module CVars = Vars
+
 open CErrors
 open Util
 open Names
@@ -1220,6 +1222,21 @@ let fresh_global ?loc ?rigid ?names env sigma reference =
   evd, t
 
 let is_global = isRefX
+
+let lookup_constant = Evd.MiniEConstr.lookup_constant
+
+let constant_value_in env sigma (kn, u) =
+  let u = EInstance.unsafe_to_instance u in
+  let cb = lookup_constant env sigma kn in
+  match cb.const_body with
+  | Def l_body ->
+    of_constr (CVars.subst_instance_constr u l_body)
+  | OpaqueDef _ -> raise (NotEvaluableConst Opaque)
+  | Undef _ -> raise (NotEvaluableConst NoBody)
+  | Primitive p -> raise (NotEvaluableConst (IsPrimitive (u ,p)))
+  | Symbol b ->
+    let r = Environ.lookup_rewrite_rules kn env in
+    raise (NotEvaluableConst (HasRules (u, b, r)))
 
 (** Kind of type *)
 

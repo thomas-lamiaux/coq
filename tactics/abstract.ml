@@ -70,6 +70,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
     | (_ : named_declaration) -> true
     | exception Not_found ->
       Safe_typing.exists_objlabel id (Global.safe_env ()) ||
+      Evd.seff_mem_label id (Evd.eval_side_effects sigma) ||
       (* The local environment is OK when it comes to constants though,
          including those defined by [tclABSTRACT]. *)
       let kn = Lib.make_kn id in
@@ -87,7 +88,7 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
          tac)
     in
     let effs, sigma, lem, args, safe =
-      !declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac (Global.env ()) sigma concl
+      !declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl
     in
     let pose_tac = match name_op with
     | None -> Proofview.tclUNIT ()

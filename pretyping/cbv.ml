@@ -745,7 +745,8 @@ and cbv_value_cache info ref =
               | LocalDef (_, c, _) -> c
               | LocalAssum _ -> raise Not_found
             end
-          | ConstKey cst -> Environ.constant_value_in info.env cst
+          | ConstKey (cst, u) ->
+            EConstr.Unsafe.to_constr @@ EConstr.constant_value_in info.env info.sigma (cst, EConstr.EInstance.make u)
         in
         let v = cbv_stack_term info TOP (subs_id 0) body in
         Declarations.Def v

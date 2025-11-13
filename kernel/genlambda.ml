@@ -538,16 +538,13 @@ let optimize lam =
 
 (* Compiling constants *)
 
-let rec get_alias env kn =
-  let cb = lookup_constant kn env in
+let rec get_alias env sigma kn =
+  let cb = CClosure.lookup_constant_handler env sigma.evars_val kn in
   let tps = cb.const_body_code in
   match tps with
-  | None -> kn, [||]
-  | Some tps ->
-    match tps with
-    | Vmemitcodes.BCalias kn' -> get_alias env kn'
-    | Vmemitcodes.BCconstant -> kn, [||]
-    | Vmemitcodes.BCdefined (mask, _, _) -> kn, mask
+  | Vmemitcodes.BCalias kn' -> get_alias env sigma kn'
+  | Vmemitcodes.BCconstant -> kn, [||]
+  | Vmemitcodes.BCdefined (mask, _, _) -> kn, mask
 
 (* Translation of constructors *)
 
@@ -780,8 +777,8 @@ let rec lambda_of_constr cache env sigma c =
 and lambda_of_app cache env sigma f args =
   match kind f with
   | Const (kn, u as c) ->
-      let kn, mask = get_alias env kn in
-      let cb = lookup_constant kn env in
+      let kn, mask = get_alias env sigma kn in
+      let cb = CClosure.lookup_constant_handler env sigma.evars_val kn in
       begin match cb.const_body with
       | Primitive op -> lambda_of_prim env c op (lambda_of_args cache env sigma 0 args)
       | Def csubst -> (* TODO optimize if f is a proj and argument is known *)

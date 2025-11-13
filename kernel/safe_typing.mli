@@ -52,6 +52,8 @@ val debug_print_private_constants : private_constants -> Pp.t
 
 val empty_private_constants : private_constants
 val is_empty_private_constants : private_constants -> bool
+val length_private : private_constants -> int
+val pop_private : private_constants -> int -> private_constants * private_constants
 
 val concat_private : private_constants -> private_constants -> private_constants
 (** [concat_private e1 e2] adds the constants of [e1] to [e2], i.e. constants in
@@ -277,4 +279,5 @@ val mind_of_delta_kn_senv : safe_environment -> KerName.t -> MutInd.t
 val register_inline : Constant.t -> safe_transformer0
 val register_inductive : inductive -> 'a CPrimitives.prim_ind -> safe_transformer0
 
+val set_oracle : Conv_oracle.oracle -> safe_transformer0
 val set_strategy : Conv_oracle.evaluable -> Conv_oracle.level -> safe_transformer0

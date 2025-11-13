@@ -212,6 +212,11 @@ let fold_inductives f env acc =
 
 (* Global constants *)
 
+let lookup_constant_opt kn env =
+  match Cmap_env.find_opt kn env.env_constants with
+  | None -> None
+  | Some (cb, _, _) -> Some cb
+
 let lookup_constant_key kn env =
   match Cmap_env.find_opt kn env.env_constants with
   | Some v -> v

@@ -414,6 +414,8 @@ sig
   val is_empty : t -> bool
   val add : side_effect -> t -> t
   val concat : t -> t -> t
+  val length : t -> int
+  val pop : t -> int -> t * t
 end =
 struct
 
@@ -425,17 +427,26 @@ end
 
 module SeffSet = Set.Make(SeffOrd)
 
-type t = { seff : side_effect list; elts : SeffSet.t }
+type t = { seff : side_effect list; elts : SeffSet.t; len : int }
 (** Invariant: [seff] is a permutation of the elements of [elts] *)
 
 let repr eff = eff.seff
-let empty = { seff = []; elts = SeffSet.empty }
-let is_empty { seff; elts } = List.is_empty seff && SeffSet.is_empty elts
+let empty = { seff = []; elts = SeffSet.empty; len = 0 }
+let is_empty { seff; elts; _ } = List.is_empty seff && SeffSet.is_empty elts
 let add x es =
   if SeffSet.mem x es.elts then es
-  else { seff = x :: es.seff; elts = SeffSet.add x es.elts }
+  else { seff = x :: es.seff; elts = SeffSet.add x es.elts; len = es.len + 1 }
 let concat xes yes =
   List.fold_right add xes.seff yes
+
+let length eff = eff.len
+
+let pop eff n =
+  let () = assert (n <= eff.len) in
+  let top, rem = List.chop n eff.seff in
+  let fold accu x = SeffSet.remove x accu in
+  let elts = List.fold_left fold eff.elts top in
+  { seff = top; len = n; elts = SeffSet.of_list top }, { seff = rem; len = eff.len - n; elts }
 
 end
 
@@ -447,6 +458,9 @@ let debug_print_private_constants seff =
 
 let side_effects_of_private_constants l =
   List.rev (SideEffects.repr l)
+
+let length_private = SideEffects.length
+let pop_private = SideEffects.pop
 
 (* Only used to push in an Environ.env. *)
 let lift_constant c =
@@ -1792,6 +1806,9 @@ environment, and store for the future (instead of just its type)
 loaded by side-effect once and for all (like it is done in OCaml).
 Would this be correct with respect to undo's and stuff ?
 *)
+
+let set_oracle ts e =
+  { e with env = Environ.set_oracle e.env ts }
 
 let set_strategy k l e = { e with env =
    (Environ.set_oracle e.env

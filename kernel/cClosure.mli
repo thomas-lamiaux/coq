@@ -130,9 +130,13 @@ type evar_handler = {
   evar_irrelevant : constr pexistential -> bool;
   qnorm : Sorts.QVar.t -> Sorts.Quality.t;
   qvar_irrelevant : Sorts.QVar.t -> bool;
+  abstr_const : Constant.t -> (unit, (unit -> Vmemitcodes.to_patch) Vmemitcodes.pbody_code) Declarations.pconstant_body;
 }
 
 val default_evar_handler : env -> evar_handler
+val lookup_constant_handler : env -> evar_handler -> Constant.t ->
+  (unit, (unit -> Vmemitcodes.to_patch) Vmemitcodes.pbody_code) Declarations.pconstant_body
+
 val create_conv_infos :
   ?univs:UGraph.t -> ?evars:evar_handler -> reds -> env -> clos_infos
 val create_clos_infos :

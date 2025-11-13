@@ -74,7 +74,7 @@ val optimize : 'v lambda -> 'v lambda
 
 (** {5 Translation functions} *)
 
-val get_alias : Environ.env -> Constant.t -> Constant.t * bool array
+val get_alias : Environ.env -> evars -> Constant.t -> Constant.t * bool array
 
 module type S =
 sig

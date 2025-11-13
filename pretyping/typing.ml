@@ -8,6 +8,8 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+module CVars = Vars
+
 open CErrors
 open Util
 open Term
@@ -415,10 +417,12 @@ let judge_of_letin env sigma name defj typj j =
 
 let type_of_constant env sigma (c,u) =
   let open Declarations in
-  let cb = Environ.lookup_constant c env in
+  let cb = EConstr.lookup_constant env sigma c in
   let () = Reductionops.check_hyps_inclusion env sigma (GR.ConstRef c) cb.const_hyps in
   let u = EInstance.kind sigma u in
-  let ty, csts = Environ.constant_type env (c,u) in
+  let uctx = Declareops.constant_polymorphic_context cb in
+  let csts = UVars.AbstractContext.instantiate u uctx in
+  let ty = CVars.subst_instance_constr u cb.const_type in
   let sigma = Evd.add_constraints sigma csts in
   sigma, (EConstr.of_constr (rename_type env ty (GR.ConstRef c)))
 

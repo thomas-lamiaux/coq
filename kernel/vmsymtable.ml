@@ -266,24 +266,25 @@ let envcache_of_rel i envcache = {
 }
 
 let rec slot_for_getglobal env sigma kn envcache table =
-  let (cb,(_,rk),_) = lookup_constant_key kn env in
+  let cb = CClosure.lookup_constant_handler env sigma.Genlambda.evars_val kn in
+  let rk =
+    if Environ.mem_constant kn env then
+      let (_, (_, rk),_) = lookup_constant_key kn env in
+      rk
+    else
+      ref None
+  in
   try key rk
   with NotEvaluated ->
-(*    Pp.msgnl(str"not yet evaluated");*)
-    let pos =
-      match cb.const_body_code with
-      | None -> set_global (val_of_constant kn) table
-      | Some code ->
-        match code with
-        | BCdefined (_, index, patches) ->
-           let code = Environ.lookup_vm_code index env in
-           let code = (code, patches) in
-           let v = eval_to_patch env sigma code envcache table in
-           set_global v table
-        | BCalias kn' -> slot_for_getglobal env sigma kn' envcache table
-        | BCconstant -> set_global (val_of_constant kn) table
+    let pos = match cb.const_body_code with
+    | BCdefined (_, index, patches) ->
+      let code = index () in
+      let code = (code, patches) in
+      let v = eval_to_patch env sigma code envcache table in
+      set_global v table
+    | BCalias kn' -> slot_for_getglobal env sigma kn' envcache table
+    | BCconstant -> set_global (val_of_constant kn) table
     in
-(*Pp.msgnl(str"value stored at: "++int pos);*)
     rk := Some (CEphemeron.create pos);
     pos
 

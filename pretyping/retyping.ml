@@ -134,7 +134,7 @@ let betazetaevar_applist sigma n c l =
   stacklam n [] c l
 
 let type_of_constant env sigma (c,u) =
-  let cb = lookup_constant c env in
+  let cb = lookup_constant env sigma c in
   let () = check_hyps_inclusion env sigma (GlobRef.ConstRef c) cb.const_hyps in
   let ty = CVars.subst_instance_constr (EConstr.Unsafe.to_instance u) cb.const_type in
   EConstr.of_constr (rename_type env ty (GlobRef.ConstRef c))
@@ -421,6 +421,11 @@ let expand_projection env sigma pr c args =
     mkApp (mkConstU (Projection.constant pr,u),
            Array.of_list (ind_args @ (c :: args)))
 
+let relevance_of_constant env sigma (c, u) =
+  let u = Unsafe.to_instance u in
+  let decl = EConstr.lookup_constant env sigma c in
+  ERelevance.make @@ UVars.subst_instance_relevance u decl.const_relevance
+
 let relevance_of_projection_repr env (p, u) =
   ERelevance.make @@ Relevanceops.relevance_of_projection_repr env (p, EConstr.Unsafe.to_instance u)
 
@@ -442,8 +447,7 @@ let relevance_of_term env sigma c =
         aux (Range.cons r rels) bdy
       | App (c, _) -> aux rels c
       | Const (c,u) ->
-        let u = Unsafe.to_instance u in
-        ERelevance.make @@ Relevanceops.relevance_of_constant env (c,u)
+        relevance_of_constant env sigma (c, u)
       | Ind _ -> ERelevance.relevant
       | Construct (c,u) ->
         let u = Unsafe.to_instance u in

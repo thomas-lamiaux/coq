@@ -365,7 +365,7 @@ let coerce_to_evaluable_ref env sigma v =
     | Some c when isConst sigma c -> EvalConstRef (fst (destConst sigma c))
     | Some c when isVar sigma c -> EvalVarRef (destVar sigma c)
     | _ -> fail ()
-  in if Tacred.is_evaluable env ev then ev else fail ()
+  in if Tacred.is_evaluable env sigma ev then ev else fail ()
 
 let coerce_to_constr_list env v =
   let v = Value.to_list v in

@@ -1778,11 +1778,11 @@ let subst_all ?(flags=default_subst_tactic_flags) () =
       | Var x, Var y when Id.equal x y ->
           Proofview.tclUNIT ()
       | Var x', _ when not (Termops.local_occur_var sigma x' y) &&
-                      not (is_evaluable env (EvalVarRef x')) &&
+                      not (is_evaluable env sigma (EvalVarRef x')) &&
                       is_non_indirectly_dependent_section_variable gl x' ->
           subst_one flags.rewrite_dependent_proof x' (hyp,y,true)
       | _, Var y' when not (Termops.local_occur_var sigma y' x) &&
-                      not (is_evaluable env (EvalVarRef y')) &&
+                      not (is_evaluable env sigma (EvalVarRef y')) &&
                       is_non_indirectly_dependent_section_variable gl y' ->
           subst_one flags.rewrite_dependent_proof y' (hyp,x,false)
       | _ ->
