@@ -2486,7 +2486,7 @@ RENAME: [
 | ltac2_expr6 ltac2_expr
 | starredidentref starred_ident_ref
 | constr_pattern one_pattern
-| hints_path hints_regexp
+| hints_path_entry hints_regexp
 | clause_dft_concl occurrences
 | in_clause goal_occurrences
 | unfold_occ reference_occs

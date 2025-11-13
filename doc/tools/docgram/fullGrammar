@@ -639,7 +639,7 @@ command: [
 | "Declare" "Equivalent" "Keys" constr constr
 | "Print" "Equivalent" "Keys"
 | "infoH" tactic
-| "Hint" "Cut" "[" hints_path "]" opthints
+| "Hint" "Cut" "[" hints_path_entry "]" opthints
 | "Typeclasses" "Transparent" LIST1 reference
 | "Typeclasses" "Opaque" LIST1 reference
 | "Typeclasses" "eauto" ":=" debug eauto_search_strategy OPT natural
@@ -2112,15 +2112,23 @@ auto_using: [
 |
 ]
 
-hints_path: [
-| "(" hints_path ")"
-| hints_path "*"
+hints_path_entry: [
+| hints_path1
+]
+
+hints_path1: [
+| hints_path1 "*"
+| hints_path1 "|" hints_path0
+| hints_path1 hints_path0
+| hints_path0
+]
+
+hints_path0: [
+| "(" hints_path1 ")"
 | "emp"
 | "eps"
-| hints_path "|" hints_path
 | LIST1 global
 | "_"
-| hints_path hints_path
 ]
 
 opthints: [

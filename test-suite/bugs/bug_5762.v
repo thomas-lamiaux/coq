@@ -22,7 +22,7 @@ where "# v" := (f v).
 
 (* The following was working in 8.6 *)
 
-Reserved Notation "%% a" (at level 70).
+Reserved Notation "%% a" (at level 69).
 Record R :=
   {g : forall {A} (a:A), a=a where "%% x" := (g x);
    k : %% 0 = eq_refl}.

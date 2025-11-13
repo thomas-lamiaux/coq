@@ -4,6 +4,6 @@ Notation binder x := (binder_act :> x = x) (only parsing).
 
 #[local] Notation "'test{' x .. y } P" :=
   ((fun x => .. ((fun y => P), binder (fun y => I)) ..), binder (fun x => I))
-    (at level 0, x binder, y binder, only parsing).
+    (at level 1, x binder, y binder, only parsing).
 
 Check (test{(aa : nat) (bb : bool)} True).

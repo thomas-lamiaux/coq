@@ -21,7 +21,7 @@ val wit_auto_using :
 
 val auto_using : Constrexpr.constr_expr list Procq.Entry.t
 
-val wit_hints_path :
+val wit_hints_path_entry :
   Libnames.qualid Hints.hints_path_gen Genarg.vernac_genarg_type
 
 val hints_path : Libnames.qualid Hints.hints_path_gen Procq.Entry.t
