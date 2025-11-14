@@ -1258,17 +1258,24 @@ let register_struct atts str = match str with
 
 (** Toplevel exception *)
 
+let { Goptions.get = compact_bt } =
+  Goptions.declare_bool_option_and_ref ~key:["Ltac2";"Backtrace";"Compact"] ~value:true ()
+
 let pr_frame = function
-| FrAnon e -> str "Call {" ++ pr_glbexpr ~avoid:Id.Set.empty e ++ str "}"
+| FrAnon e ->
+  if compact_bt() then str "Call <fun>"
+  else str "Call {" ++ pr_glbexpr ~avoid:Id.Set.empty e ++ str "}"
 | FrLtac kn ->
   str "Call " ++ pr_tacref Id.Set.empty kn
 | FrPrim ml ->
   str "Prim <" ++ str ml.mltac_plugin ++ str ":" ++ str ml.mltac_tactic ++ str ">"
 | FrExtn (tag, arg) ->
-  let obj = Tac2env.interp_ml_object tag in
-  let env = Global.env () in
-  let sigma = Evd.from_env env in
-  str "Extn " ++ str (Tac2dyn.Arg.repr tag) ++ str ":" ++ spc () ++
+  if compact_bt() then fmt "Extn <%s>" (Tac2dyn.Arg.repr tag)
+  else
+    let obj = Tac2env.interp_ml_object tag in
+    let env = Global.env () in
+    let sigma = Evd.from_env env in
+    str "Extn " ++ str (Tac2dyn.Arg.repr tag) ++ str ":" ++ spc () ++
     obj.Tac2env.ml_print env sigma arg
 
 let () = register_handler begin function

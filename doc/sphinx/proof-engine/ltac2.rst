@@ -1854,6 +1854,13 @@ Debug
 
    When this :term:`flag` is set, toplevel failures will be printed with a backtrace.
 
+.. flag:: Ltac2 Backtrace Compact
+
+   This flag is on by default. When unset, anonymous functions and
+   quotations in the stack trace print their bodies.
+
+   This flag has no effect when :flag:`Ltac2 Backtrace` is not set.
+
 Profiling
 ---------
 
