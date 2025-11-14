@@ -37,6 +37,8 @@ CI will be run. You will receive an e-mail with a report of the failures if
 there are some.
 
 You can also run one CI target locally (using `make ci-somedev`).
+If using `bash` interactively you can update environment variables to use the locally
+built Rocq (i.e. setting PATH, OCAMLPATH etc) by sourcing `dev/ci/ci-env.sh`.
 
 See also [`test-suite/README.md`](../../test-suite/README.md) for information about adding new tests to the test-suite.
 
@@ -166,8 +168,8 @@ Advanced GitLab CI information
 ------------------------------
 
 GitLab CI is set up to use the "build artifact" feature to avoid
-rebuilding Rocq. In one job, Rocq is built with `./configure -prefix _install_ci`
-and `make install` is run, then the `_install_ci` directory
+rebuilding Rocq. In one job, Rocq is built with `./configure -relocatable`
+and `dune install --prefix=$(pwd)/_install_ci` is run, then the `_install_ci` directory
 persists to and is used by the next jobs.
 
 ### Artifacts
