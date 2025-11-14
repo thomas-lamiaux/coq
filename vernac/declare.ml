@@ -2278,14 +2278,15 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
   let body, typ, args = ProofEntry.shrink_entry sign body const.proof_entry_type in
   let senv = Evd.get_senv_side_effects (Evd.eval_side_effects sigma) in
   let senv = Safe_typing.set_oracle (Environ.oracle env) senv in
-  let cst, effs, senv =
+  let cst, effs, _senv =
     (* No side-effects in the entry, they already exist in the ambient environment *)
     let const = { const with proof_entry_body = body; proof_entry_type = typ } in
     declare_private_constant ~name ~opaque const (Evd.eval_side_effects sigma) senv
   in
+  let sigma = Evd.emit_side_effects effs sigma in
   let inst = instance_of_univs const.proof_entry_universes in
   let lem = EConstr.of_constr (Constr.mkConstU (cst, inst)) in
-  effs, sigma, lem, args, safe
+  sigma, lem, args, safe
 
 let get_goal_context pf i =
   let p = get pf in
