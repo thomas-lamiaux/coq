@@ -487,9 +487,9 @@ type 'doc todo_proofs =
 (* EJGA: would be nice maybe to have a version that performs extra
    cleanup in the case the computation raises? *)
 let save_library_base f sum lib proofs vmlib =
-  let open Memprof_coq.Resource_bind in
-  let& ch = Memprof_coq.Masking.with_resource ~acquire:raw_extern_library ~release:ObjFile.close_out f in
   try
+    let open Memprof_coq.Resource_bind in
+    let& ch = Memprof_coq.Masking.with_resource ~acquire:raw_extern_library ~release:ObjFile.close_out f in
     ObjFile.marshal_out_segment ch ~segment:summary_seg sum;
     ObjFile.marshal_out_segment ch ~segment:library_seg lib;
     ObjFile.marshal_out_segment ch ~segment:opaques_seg proofs;
