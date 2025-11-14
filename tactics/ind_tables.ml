@@ -282,21 +282,24 @@ let force_find_scheme kind (mind,i as ind) =
   | None ->
     let senv = Evd.get_senv_side_effects eff in
     try
-      match Hashtbl.find scheme_object_table kind with
+      let eff, ans = match Hashtbl.find scheme_object_table kind with
       | s,IndividualSchemeFunction (f, deps) ->
         let env = Safe_typing.env_of_safe_env senv in
         let deps = match deps with None -> [] | Some deps -> deps env ind in
         let sch = empty_schemes senv in
         let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
         let c, eff = define_individual_scheme_base kind s f ~internal:true None ind eff in
-        Proofview.tclEFFECTS eff.sch_eff <*> Proofview.tclUNIT c
+        eff, c
       | s,MutualSchemeFunction (f, deps) ->
         let env = Safe_typing.env_of_safe_env senv in
         let deps = match deps with None -> [] | Some deps -> deps env mind in
         let sch = empty_schemes senv in
         let eff = List.fold_left (fun eff dep -> declare_scheme_dependence eff dep) sch deps in
         let ca, eff = define_mutual_scheme_base kind s f ~internal:true [] mind eff in
-        Proofview.tclEFFECTS eff.sch_eff <*> Proofview.tclUNIT ca.(i)
+        eff, ca.(i)
+      in
+      let sigma = Evd.emit_side_effects eff.sch_eff sigma in
+      Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT ans
     with Rocqlib.NotFoundRef _ as e ->
       let e, info = Exninfo.capture e in
       Proofview.tclZERO ~info e

@@ -887,13 +887,6 @@ let tclENV = Env.get
 
 (** {7 Put-like primitives} *)
 
-
-let emit_side_effects eff x =
-  { x with solution = Evd.emit_side_effects eff x.solution }
-
-let tclEFFECTS eff =
-  Pv.modify (fun initial -> emit_side_effects eff initial)
-
 let mark_as_unsafe = Status.put false
 
 (** Gives up on the goal under focus. Reports an unsafe status. Proofs
