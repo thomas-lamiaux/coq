@@ -396,15 +396,13 @@ val empty_side_effects : side_effects
 val get_senv_side_effects : side_effects -> Safe_typing.safe_environment
 
 val set_side_effects : side_effects -> evar_map -> evar_map
+(** Replaces the side-effects of the evarmap. *)
 
 val emit_side_effects : side_effects -> evar_map -> evar_map
 (** Push a side-effect into the evar map. *)
 
 val eval_side_effects : evar_map -> side_effects
 (** Return the effects contained in the evar map. *)
-
-val drop_side_effects : evar_map -> evar_map
-(** This should not be used. For hacking purposes. *)
 
 val push_side_effects : Safe_typing.private_constants -> Safe_typing.safe_environment ->
   ?univs:UState.named_universes_entry -> ?role:side_effect_role -> side_effects -> side_effects

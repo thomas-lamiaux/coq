@@ -1133,7 +1133,7 @@ module Unsafe = struct
 
   let purge_side_effects pv =
     let effs = Evd.eval_side_effects pv.solution in
-    { pv with solution = Evd.drop_side_effects pv.solution }, effs
+    { pv with solution = Evd.set_side_effects Evd.empty_side_effects pv.solution }, effs
 
 end
 

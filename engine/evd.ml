@@ -1349,9 +1349,6 @@ let emit_side_effects eff evd =
   let effects = { effects with seff_safeenv = Some senv } in
   { evd with effects; universes = UState.emit_side_effects eff.seff_private evd.universes }
 
-let drop_side_effects evd =
-  { evd with effects = empty_side_effects; }
-
 let set_side_effects eff evd =
   { evd with effects = eff }
 
