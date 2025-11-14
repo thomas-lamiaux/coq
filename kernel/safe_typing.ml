@@ -886,7 +886,7 @@ let inline_private_constants env ((body, ctx), side_eff) =
   (body, ctx')
 
 let warn_failed_cert = CWarnings.create ~name:"failed-abstract-certificate"
-    ~category:CWarnings.CoreCategories.tactics ~default:CWarnings.Disabled
+    ~category:CWarnings.CoreCategories.tactics ~default:CWarnings.AsError
     Pp.(fun kn ->
         str "Certificate for private constant " ++
         Id.print (Constant.label kn) ++
