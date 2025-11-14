@@ -364,7 +364,8 @@ let precedence_of_position_and_level from_level = function
      | RightA, Right -> LevelLe n
      | LeftA, Left -> LevelLe n
      | LeftA, Right -> LevelLt n
-     | NonA, _ -> LevelLt n in
+     | NonA, _ -> LevelLt n
+     | BothA, _ -> assert false in
     {notation_subentry = InConstrEntry; notation_relative_level = prec; notation_position = Some b}
   | NumLevel n, b -> {notation_subentry = InConstrEntry; notation_relative_level = LevelLe n; notation_position = side b}
   | NextLevel, b -> {notation_subentry = InConstrEntry; notation_relative_level = LevelLt from_level; notation_position = side b}

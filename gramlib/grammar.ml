@@ -870,7 +870,8 @@ let print_levels ppf elev =
          | None -> ()
        end;
        begin match lev.assoc with
-           LeftA -> fprintf ppf "LEFTA"
+           BothA -> fprintf ppf "BOTHA"
+         | LeftA -> fprintf ppf "LEFTA"
          | RightA -> fprintf ppf "RIGHTA"
          | NonA -> fprintf ppf "NONA"
        end;
@@ -1399,11 +1400,7 @@ let rec start_parser_of_levels entry clevn =
       match lev.lprefix with
         DeadEnd -> p1
       | tree ->
-          let alevn =
-            match lev.assoc with
-              LeftA | NonA -> succ clevn
-            | RightA -> clevn
-          in
+          let alevn = if self_on_the_right lev.assoc then clevn else succ clevn in
           let p2 = parser_of_tree entry (succ clevn) alevn tree in
           match levs with
             [] ->
@@ -1455,15 +1452,11 @@ let rec continue_parser_of_levels entry clevn =
       match lev.lsuffix with
         DeadEnd -> p1
       | tree ->
-          let alevn =
-            match lev.assoc with
-              LeftA | NonA -> succ clevn
-            | RightA -> clevn
-          in
+          let alevn = if self_on_the_right lev.assoc then clevn else succ clevn in
           let p2 = parser_of_tree entry (succ clevn) alevn tree in
           fun gstate levfrom levn bp a strm ->
             let tolerance = match levfrom with
-              | Some levfrom when levfrom = clevn && lev.assoc <> LeftA -> Some true
+              | Some levfrom when levfrom = clevn && not (self_on_the_left lev.assoc) -> Some true
               | Some levfrom when levfrom < clevn -> Some false
               | _ -> None
             in

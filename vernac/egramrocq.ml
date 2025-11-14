@@ -82,6 +82,7 @@ let save_levels levels custom lev =
 let admissible_assoc = function
   | Gramlib.Gramext.LeftA, Some (Gramlib.Gramext.RightA | Gramlib.Gramext.NonA) -> false
   | Gramlib.Gramext.RightA, Some Gramlib.Gramext.LeftA -> false
+  | Gramlib.Gramext.BothA, _ | _, Some Gramlib.Gramext.BothA -> assert false
   | _ -> true
 
 let create_assoc = function
@@ -201,6 +202,7 @@ let camlp5_assoc =
   let open Gramlib.Gramext in function
     | Some NonA | Some RightA -> RightA
     | None | Some LeftA -> LeftA
+    | Some BothA -> assert false
 
 let assoc_eq al ar =
   let open Gramlib.Gramext in
@@ -208,6 +210,7 @@ let assoc_eq al ar =
   | NonA, NonA
   | RightA, RightA
   | LeftA, LeftA -> true
+  | BothA, _ | _, BothA -> assert false
   | _, _ -> false
 
 (** [adjust_level assoc fromlev prod] where [assoc] and [fromlev] are the name
@@ -249,6 +252,7 @@ let adjust_level custom assoc {notation_entry = custom'; notation_level = fromle
 (* Compute production name elsewhere *)
   | (NumLevel n,InternalProd) ->
     if fromlev = n + 1 then NextLevel else NumLevel n
+  | (_,BorderProd (_,Some BothA)) -> assert false
 
 type _ target =
 | ForConstr : constr_expr target
