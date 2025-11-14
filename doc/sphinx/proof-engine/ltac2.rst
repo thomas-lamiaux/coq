@@ -182,6 +182,11 @@ One can define new types with the following commands.
          Ltac2 Eval PositiveInt.get (PositiveInt.make 3).
          Fail Ltac2 Eval PositiveInt.get (PositiveInt.make -1).
 
+.. cmd:: Ltac2 Import Type @qualid as @ident
+
+   Declares :n:`@ident` as an alias of :n:`@qualid` (i.e. `Ltac2 Type @ident := @qualid`),
+   and also makes its constructors or projections to have names accessible from the current module.
+
 .. cmd:: Ltac2 @ external @ident : @ltac2_type := @string__plugin @string__function
    :name: Ltac2 external
 

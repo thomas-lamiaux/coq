@@ -701,6 +701,7 @@ command: [
 | "Number" "Notation" reference reference reference OPT number_options ":" preident
 | "String" "Notation" reference reference reference OPT string_option ":" preident
 | "Ltac2" ltac2_entry      (* ltac2 plugin *)
+| "Ltac2" "Import" "Type" reference "as" ident      (* ltac2 plugin *)
 | "Ltac2" "Custom" "Entry" identref      (* ltac2 plugin *)
 | "Ltac2" "Notation" ltac2def_syn      (* ltac2 plugin *)
 | "Ltac2" "Abbreviation" ltac2abbrev_syn      (* ltac2 plugin *)

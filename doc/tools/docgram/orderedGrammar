@@ -911,6 +911,7 @@ command: [
 | "Declare" "Right" "Step" one_term
 | "Number" "Notation" qualid qualid qualid OPT ( "(" LIST1 number_modifier SEP "," ")" ) ":" scope_name
 | "String" "Notation" qualid qualid qualid OPT ( "(" number_string_via ")" ) ":" scope_name
+| "Ltac2" "Import" "Type" qualid "as" ident      (* ltac2 plugin *)
 | "Ltac2" "Custom" "Entry" ident      (* ltac2 plugin *)
 | "Ltac2" "Notation" LIST1 ltac2_syntax_class OPT [ ":" natural | ":" qualid OPT [ "(" natural ")" ] ] ":=" ltac2_expr      (* ltac2 plugin *)
 | "SubClass" ident_decl def_body
