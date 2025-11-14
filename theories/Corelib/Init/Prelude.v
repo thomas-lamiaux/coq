@@ -9,6 +9,7 @@
 (************************************************************************)
 
 Require Export Notations.
+Require Export Equality.
 Require Export Logic.
 Require Export Datatypes.
 Require Export Specif.

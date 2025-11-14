@@ -2,6 +2,8 @@ Require Import Setoid.
 
 Definition mydef (A B : Type) := True.
 
+Scheme Rewriting for True.
+
 Goal (forall A B : Type, mydef A B) -> Type.
 intros.
 Fail rewrite <- H.
