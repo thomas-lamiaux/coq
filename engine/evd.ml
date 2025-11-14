@@ -1376,6 +1376,20 @@ let push_side_effects prv senv ?univs ?role effs =
     seff_safeenv = Some senv;
   }
 
+let push_side_effects ?role ?ts name de ctx effs =
+  let univs =
+    if Univ.Level.Set.is_empty (fst ctx) then None
+    else Some (UState.Monomorphic_entry ctx, UnivNames.empty_binders)
+  in
+  let senv = get_senv_side_effects effs in
+  let senv = match ts with
+  | None -> senv
+  | Some ts -> Safe_typing.set_oracle ts senv
+  in
+  let (kn, eff), senv = Safe_typing.add_private_constant name ctx de senv in
+  let effs = push_side_effects eff senv ?univs ?role effs in
+  kn, effs
+
 let seff_mem_label id effs =
   Id.Set.mem id effs.seff_labels
 
