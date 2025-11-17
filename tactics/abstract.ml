@@ -69,7 +69,6 @@ let cache_term_by_tactic_then ~opaque ~name_op ?(goal_type=None) tac tacK =
     let bad id = match lookup_named_val id section_sign with
     | (_ : named_declaration) -> true
     | exception Not_found ->
-      Safe_typing.exists_objlabel id (Global.safe_env ()) ||
       Evd.seff_mem_label id (Evd.eval_side_effects sigma) ||
       (* The local environment is OK when it comes to constants though,
          including those defined by [tclABSTRACT]. *)
