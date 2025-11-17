@@ -149,7 +149,7 @@ type conv_pb =
   | CUMUL
 
 type ('a, 'err) universe_compare = {
-  compare_sorts : env -> conv_pb -> Sorts.t -> Sorts.t -> 'a -> ('a, 'err option) result;
+  compare_sorts : conv_pb -> Sorts.t -> Sorts.t -> 'a -> ('a, 'err option) result;
   compare_instances: flex:bool -> UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
   compare_cumul_instances : conv_pb -> UVars.Variance.t array ->
     UVars.Instance.t -> UVars.Instance.t -> 'a -> ('a, 'err option) result;
@@ -159,8 +159,8 @@ type ('a, 'err) universe_state = 'a * ('a, 'err) universe_compare
 
 type ('a, 'err) generic_conversion_function = ('a, 'err) universe_state -> constr -> constr -> ('a, 'err option) result
 
-let sort_cmp_universes env pb s0 s1 (u, check) =
-  (check.compare_sorts env pb s0 s1 u, check)
+let sort_cmp_universes pb s0 s1 (u, check) =
+  (check.compare_sorts pb s0 s1 u, check)
 
 (* [flex] should be true for constants, false for inductive types and
    constructors. *)
@@ -404,7 +404,7 @@ and eqwhnf cv_pb l2r infos (lft1, (hd1, v1) as appr1) (lft2, (hd2, v2) as appr2)
                if not (is_empty_stack v1 && is_empty_stack v2) then
                  (* May happen because we convert application right to left *)
                  raise NotConvertible;
-              fail_check infos @@ sort_cmp_universes (info_env infos.cnv_inf) cv_pb s1 s2 cuniv
+              fail_check infos @@ sort_cmp_universes cv_pb s1 s2 cuniv
            | (Meta n, Meta m) ->
                if Int.equal n m
                then convert_stacks l2r infos lft1 lft2 v1 v2 cuniv
@@ -951,56 +951,47 @@ let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 
       | NotConvertibleTrace _ -> assert false
   end ()
 
-let check_eq qnorm univs elims u u' =
-  let u = Sorts.subst_quality qnorm u in
-  let u' = Sorts.subst_quality qnorm u' in
+let check_eq (elims, univs as state) u u' =
   if UGraph.check_eq_sort elims univs u u'
-  then Result.Ok univs
+  then Result.Ok state
   else Result.Error None
 
-let check_leq qnorm univs elims u u' =
-  let u = Sorts.subst_quality qnorm u in
-  let u' = Sorts.subst_quality qnorm u' in
+let check_leq (elims, univs as state) u u' =
   if UGraph.check_leq_sort elims univs u u'
-  then Result.Ok univs
+  then Result.Ok state
   else Result.Error None
 
-let checked_sort_cmp_universes qnorm env pb s0 s1 univs =
+let checked_sort_cmp_universes pb s0 s1 state =
   match pb with
-  | CUMUL -> check_leq qnorm univs (Environ.qualities env) s0 s1
-  | CONV -> check_eq qnorm univs (Environ.qualities env) s0 s1
+  | CUMUL -> check_leq state s0 s1
+  | CONV -> check_eq state s0 s1
 
-let check_convert_instances qnorm ~flex:_ u u' univs =
-  let u = UVars.Instance.subst_qualities qnorm u in
-  let u' =  UVars.Instance.subst_qualities qnorm u' in
-  if UGraph.check_eq_instances univs u u' then Result.Ok univs
+let check_convert_instances ~flex:_ u u' (elims, univs as state) =
+  if UGraph.check_eq_instances elims univs u u' then Result.Ok state
   else Result.Error None
 
 (* general conversion and inference functions *)
-let check_inductive_instances qnorm cv_pb variance u1 u2 univs =
-  let u1 = UVars.Instance.subst_qualities qnorm u1 in
-  let u2 =  UVars.Instance.subst_qualities qnorm u2 in
+let check_inductive_instances cv_pb variance u1 u2 (elims, univs as state) =
   let qcsts, ucsts = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if Sorts.QCumulConstraints.trivial qcsts && UGraph.check_constraints ucsts univs
-  then Result.Ok univs
+  if QGraph.check_constraints (Sorts.QCumulConstraints.to_elims qcsts) elims && UGraph.check_constraints ucsts univs
+  then Result.Ok state
   else Result.Error None
 
-let checked_universes qnorm =
-  { compare_sorts = checked_sort_cmp_universes qnorm;
-    compare_instances = check_convert_instances qnorm;
-    compare_cumul_instances = check_inductive_instances qnorm; }
+let checked_universes =
+  { compare_sorts = checked_sort_cmp_universes;
+    compare_instances = check_convert_instances;
+    compare_cumul_instances = check_inductive_instances; }
 
 let () =
   let conv infos tab a b =
     try
       let box = Empty.abort in
-      let univs = info_univs infos in
-      let qnorm = info_qnorm infos in
+      let state = info_elims infos, info_univs infos in
       let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box } in
-      let univs', _ = ccnv CONV false infos el_id el_id a b
-          (univs, checked_universes qnorm)
+      let state', _ = ccnv CONV false infos el_id el_id a b
+          (state, checked_universes)
       in
-      assert (univs==univs');
+      assert (state==state');
       true
     with
     | NotConvertible -> false
@@ -1008,28 +999,26 @@ let () =
   in
   CClosure.set_conv conv
 
-let checked_universes env =
-  checked_universes (CClosure.default_evar_handler env).qnorm
-
 let gen_conv ~typed cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=default_evar_handler env) t1 t2 =
   let univs = Environ.universes env in
   let elims = Environ.qualities env in
+  let state = elims, univs in
   let b =
     if cv_pb = CUMUL then leq_constr_univs elims univs t1 t2
     else eq_constr_univs elims univs t1 t2
   in
     if b then Result.Ok ()
-    else match clos_gen_conv ~typed reds cv_pb l2r evars env univs (univs, checked_universes env) t1 t2 with
-    | Result.Ok (_ : UGraph.t * (UGraph.t, Empty.t) universe_compare)-> Result.Ok ()
+    else match clos_gen_conv ~typed reds cv_pb l2r evars env univs (state, checked_universes) t1 t2 with
+    | Result.Ok (_ : 'a * ('a, Empty.t) universe_compare)-> Result.Ok ()
     | Result.Error None -> Result.Error ()
     | Result.Error (Some e) -> Empty.abort e
 
 let conv = gen_conv ~typed:false CONV
 let conv_leq = gen_conv ~typed:false CUMUL
 
-let generic_conv cv_pb ~l2r reds env ?(evars=default_evar_handler env) univs t1 t2 =
+let generic_conv cv_pb ~l2r reds env ?(evars=default_evar_handler env) state t1 t2 =
   let graph = Environ.universes env in
-  match clos_gen_conv ~typed:false reds cv_pb l2r evars env graph univs t1 t2 with
+  match clos_gen_conv ~typed:false reds cv_pb l2r evars env graph state t1 t2 with
   | Result.Ok (s, _) -> Result.Ok s
   | Result.Error e -> Result.Error e
 

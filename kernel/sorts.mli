@@ -150,6 +150,7 @@ module QCumulConstraint : sig
   type t = Quality.t * kind * Quality.t
 
   val trivial : t -> bool
+  val to_elim : t -> ElimConstraint.t
   val equal : t -> t -> bool
   val compare : t -> t -> int
   val pr : (QVar.t -> Pp.t) -> t -> Pp.t
@@ -160,6 +161,7 @@ module QCumulConstraints : sig
   include CSig.SetS with type elt = QCumulConstraint.t
   val pr : (QVar.t -> Pp.t) -> t -> Pp.t
   val trivial : t -> bool
+  val to_elims : t -> ElimConstraints.t
 end
 
 val enforce_eq_cumul_quality : Quality.t -> Quality.t -> QCumulConstraints.t -> QCumulConstraints.t
@@ -207,8 +209,6 @@ val univ_of_sort : t -> Univ.Universe.t
 val levels : t -> Univ.Level.Set.t
 
 val super : t -> t
-
-val subst_quality : (QVar.t -> Quality.t) -> t -> t
 
 val subst_fn : (QVar.t -> Quality.t) * (Univ.Universe.t -> Univ.Universe.t)
   -> t -> t

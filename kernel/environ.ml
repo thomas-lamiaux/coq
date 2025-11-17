@@ -494,7 +494,7 @@ let push_qualities qs env =
             (fun v -> QGraph.add_quality (Sorts.Quality.QVar v)) qs env.env_qualities in
   set_qualities g env
 
-let set_qualities qs env =
+let set_qvars qs env =
   let g = QGraph.initial_graph in
   let g = Sorts.QVar.Set.fold (fun v -> QGraph.add_quality (Sorts.Quality.QVar v)) qs g in
   { env with env_qualities = g }

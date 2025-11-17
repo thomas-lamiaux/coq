@@ -275,6 +275,32 @@ let qvar_domain g =
 
 let is_empty g = QVar.Set.is_empty (qvar_domain g)
 
+(* Pretty printing *)
+
+let pr_pmap sep pr map =
+  let cmp (u,_) (v,_) = Quality.compare u v in
+  Pp.prlist_with_sep sep pr (List.sort cmp (Quality.Map.bindings map))
+
+let pr_arc prq =
+  let open Pp in
+  function
+  | u, G.Node ltle ->
+    if Quality.Map.is_empty ltle then mt ()
+    else
+      prq u ++ str " " ++
+      v 0
+        (pr_pmap spc (fun (v, strict) ->
+              (if strict then str "< " else str "<= ") ++ prq v)
+            ltle) ++
+      fnl ()
+  | u, G.Alias v ->
+    prq u  ++ str " = " ++ prq v ++ fnl ()
+
+
+let repr g = G.repr g.graph
+
+let pr_qualities prq g = pr_pmap Pp.mt (pr_arc prq) (repr g)
+
 let explain_quality_inconsistency prv r =
   let open Pp in
   let pr_cst = function

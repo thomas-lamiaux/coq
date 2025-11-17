@@ -74,10 +74,11 @@ val named_context : env -> Constr.named_context
 val named_context_val : env -> named_context_val
 
 val set_universes : UGraph.t -> env -> env
+val set_qualities : QGraph.t -> env -> env
+val set_qvars : Sorts.QVar.Set.t -> env -> env
 
 val qualities : env -> QGraph.t
 val qvars : env -> Sorts.QVar.Set.t
-val set_qualities : Sorts.QVar.Set.t -> env -> env
 
 val typing_flags    : env -> typing_flags
 val is_impredicative_set : env -> bool

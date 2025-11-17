@@ -879,7 +879,6 @@ let get_senv_side_effects eff = match eff.seff_safeenv with
 
 let evar_handler sigma =
   let evar_expand ev = existential_expand_value0 sigma ev in
-  let qnorm q = UState.nf_qvar sigma.universes q in
   let qvar_irrelevant q = is_relevance_irrelevant sigma (Sorts.RelevanceVar q) in
   let evar_irrelevant (evk, _) = match find sigma evk with
   | EvarInfo evi -> is_relevance_irrelevant sigma evi.evar_relevance
@@ -905,7 +904,7 @@ let evar_handler sigma =
     in
     { cb with const_body = drop_opaque cb.const_body; const_body_code = drop_code cb.const_body_code }
   in
-  { CClosure.evar_expand; evar_irrelevant; evar_repack; qnorm; qvar_irrelevant; abstr_const }
+  { CClosure.evar_expand; evar_irrelevant; evar_repack; qvar_irrelevant; abstr_const }
 
 let existential_type_opt d (n, args) =
   match find_undefined d n with

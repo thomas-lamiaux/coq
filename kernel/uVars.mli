@@ -71,8 +71,6 @@ sig
   val levels : t -> Quality.Set.t * Level.Set.t
   (** The set of levels in the instance *)
 
-  val subst_qualities : (Sorts.QVar.t -> Quality.t) -> t -> t
-
   val subst_fn
     : (QVar.t -> Quality.t) * (Level.t -> Level.t)
     -> t -> t
