@@ -380,7 +380,7 @@ let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
         | Some true, None
         | Some false, Some _ ->
           begin match if is_eq then eq_elimination_ref true sort else None with
-          | Some r -> destConstRef r
+          | Some r -> r
           | None ->
              let c1 = destConstRef (Elimschemes.lookup_eliminator env ind_sp sort) in
              let mp,l = KerName.repr (Constant.canonical c1) in
@@ -389,12 +389,12 @@ let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
              if not (Environ.mem_constant c1' (Global.env ())) then
                user_err
                  (str "Cannot find rewrite principle " ++ Id.print l' ++ str ".");
-             c1'
+             Names.GlobRef.ConstRef c1'
           end
         | _ ->
            begin match if is_eq then eq_elimination_ref false sort else None with
-           | Some r -> destConstRef r
-           | None -> destConstRef (Elimschemes.lookup_eliminator env ind_sp sort)
+           | Some r -> r
+           | None -> Elimschemes.lookup_eliminator env ind_sp sort
            end
         end
       | _ ->
@@ -433,7 +433,7 @@ let leibniz_rewrite_ebindings_clause cls lft2rgt tac c ((_, hdcncl, _) as t) l w
   find_elim lft2rgt dep cls t >>= fun elim ->
   Proofview.tclENV >>= fun env ->
   Proofview.tclEVARMAP >>= fun sigma ->
-  let (sigma, elim) = Evd.fresh_global env sigma (ConstRef elim) in
+  let (sigma, elim) = Evd.fresh_global env sigma elim in
   Proofview.Unsafe.tclEVARS sigma <*>
   general_elim_clause with_evars frzevars tac cls c t l
   (match lft2rgt with None -> false | Some b -> b) elim
@@ -1044,7 +1044,7 @@ let ind_scheme_of_eq lbeq to_kind =
   (* use ind rather than case by compatibility *)
   let kind = Elimschemes.elim_scheme ~dep:false ~to_kind in
   find_scheme (Minimality to_kind) kind (destIndRef lbeq.eq) >>= fun c ->
-  Proofview.tclUNIT (GlobRef.ConstRef c)
+  Proofview.tclUNIT c
 
 let discrimination_pf e (lbeq,s,(t,t1,t2)) discriminator p_quality =
   build_rocq_I () >>= fun i ->
@@ -1269,13 +1269,11 @@ let inject_if_homogenous_dependent_pair ty =
     in
     let new_eq_args = [|pf_get_type_of gl ar1.(3);ar1.(3);ar2.(3)|] in
     find_scheme Equality (!eq_dec_scheme_kind_name()) ind >>= fun c ->
-    let c = if Global.is_polymorphic (ConstRef c)
-      then CErrors.anomaly Pp.(str "Unexpected univ poly in inject_if_homogenous_dependent_pair")
-      else UnsafeMonomorphic.mkConst c
-    in
+    let sigma, c = fresh_global env sigma c in
     (* cut with the good equality and prove the requested goal *)
     tclTHENLIST
       [
+       Proofview.Unsafe.tclEVARS sigma;
        intro;
        onLastHyp (fun hyp ->
         Tacticals.pf_constr_of_global Rocqlib.(lib_ref "core.eq.type") >>= fun ceq ->

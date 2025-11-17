@@ -423,7 +423,7 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
     | None -> ()
     | Some kind ->
       (* TODO locality *)
-      DeclareScheme.declare_scheme SuperGlobal (Ind_tables.scheme_kind_name kind) (ind,cst)
+      DeclareScheme.declare_scheme SuperGlobal (Ind_tables.scheme_kind_name kind) (ind, Names.GlobRef.ConstRef cst)
   in
   let () = List.iter2 declare listdecl l in
   let lrecnames = List.map (fun ({CAst.v},_,_,_) -> v) l in

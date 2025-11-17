@@ -358,7 +358,7 @@ let print_registered () =
 let print_registered_schemes () =
   let schemes = DeclareScheme.all_schemes() in
   let pr_one_scheme ind (kind, c) =
-    pr_global (ConstRef c) ++ str " registered as " ++ str kind ++ str " for " ++ pr_global (IndRef ind)
+    pr_global c ++ str " registered as " ++ str kind ++ str " for " ++ pr_global (IndRef ind)
   in
   let pr_schemes_of_ind (ind, schemes) =
     prlist_with_sep fnl (pr_one_scheme ind) (CString.Map.bindings schemes)
@@ -2456,17 +2456,13 @@ let vernac_register ~atts qid r =
       Rocqlib.register_ref local (Libnames.string_of_qualid n) gr
   | RegisterScheme { inductive; scheme_kind } ->
     let local = Attributes.parse hint_locality_default_superglobal atts in
-    let gr = match gr with
-      | ConstRef c -> c
-      | _ -> CErrors.user_err ?loc:qid.loc Pp.(str "Register Scheme: expecing a constant.")
-    in
     let scheme_kind_s = Libnames.string_of_qualid scheme_kind in
     let () = if not (Ind_tables.is_declared_scheme_object scheme_kind_s) then
         warn_unknown_scheme_kind ?loc:scheme_kind.loc scheme_kind
     in
     let ind = Smartlocate.global_inductive_with_alias inductive in
     Dumpglob.add_glob ?loc:inductive.loc (IndRef ind);
-    DeclareScheme.declare_scheme local scheme_kind_s (ind,gr)
+    DeclareScheme.declare_scheme local scheme_kind_s (ind, gr)
 
 let vernac_library_attributes atts =
   if Global.is_curmod_library () && not (Lib.sections_are_opened ()) then
