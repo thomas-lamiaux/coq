@@ -29,8 +29,8 @@ let template_default_univs_obj =
     classify_function = (fun _ -> Escape);
   }
 
-let add_template_default_univs kn =
-  match (Global.lookup_mind kn).mind_template with
+let add_template_default_univs env kn =
+  match (Environ.lookup_mind kn env).mind_template with
   | None -> ()
   | Some template ->
     let _, us = UVars.Instance.levels template.template_defaults in
