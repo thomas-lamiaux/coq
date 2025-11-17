@@ -458,7 +458,7 @@ let find_eq_data_decompose env sigma eqn =
 
 let find_this_eq_data_decompose env sigma eqn =
   let (lbeq,u,eq_args) =
-    try (*first_match (match_eq eqn) inversible_equalities*)
+    try
       find_eq_data env sigma eqn
     with PatternMatchingFailure ->
       user_err  (str "No primitive equality found.") in
