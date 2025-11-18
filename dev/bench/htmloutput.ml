@@ -53,6 +53,10 @@ let pp_memory ch = function
     if need_comma then
       Printf.fprintf ch " (%s%s%s%s)" minor_words major_words minor_collect major_collect
 
+let pp_instr ch = function
+  | None -> ()
+  | Some i -> Printf.fprintf ch ", %d instr" i
+
 let output ch ~vname ~data_files all_data =
 
 let out fmt = Printf.fprintf ch fmt in
@@ -153,7 +157,7 @@ Line: %d
 |} vname loc.line
     in
     let () = data |> Array.iteri (fun k d ->
-        out "Time%d: %ss%a\n" (k+1) d.time.str pp_memory d.memory)
+        out "Time%d: %ss%a%a\n" (k+1) d.time.str pp_instr d.instructions pp_memory d.memory)
     in
     let () = out {|">|} in
 
