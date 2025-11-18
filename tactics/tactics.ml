@@ -2104,11 +2104,7 @@ let declare_intro_decomp_eq f = intro_decomp_eq_function := f
 
 let my_find_eq_data_decompose env sigma t =
   try Some (find_eq_data_decompose env sigma t)
-  with e when is_sync_anomaly e
-    (* Hack in case equality is not yet defined... one day, maybe,
-       known equalities will be dynamically registered *)
-      -> None
-  | Constr_matching.PatternMatchingFailure -> None
+  with Constr_matching.PatternMatchingFailure -> None
 
 let intro_decomp_eq ?loc l thin tac id =
   Proofview.Goal.enter begin fun gl ->
