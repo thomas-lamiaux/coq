@@ -137,6 +137,10 @@ let mk_time start stop =
   { str;
     q = timeq; }
 
+let get_instr (lnum, l) =
+  let args = assoc "args" l in
+  YBU.(to_int @@ member "instr" args)
+
 let rec process_cmds acc = function
   | [] -> acc
   | end_event :: start_event :: rest ->
@@ -146,7 +150,8 @@ let rec process_cmds acc = function
     let src_chars = get_src_chars ~lnum:(fst start_event) hdr in
     let time = mk_time start_ts end_ts in
     let memory = mk_memory end_event in
-    process_cmds ((src_chars, { time; memory; }) :: acc) rest
+    let instructions = Some (get_instr end_event) in
+    process_cmds ((src_chars, { time; memory; instructions; }) :: acc) rest
   | [_] -> die "ill parenthesized events"
 
 let parse ~file =

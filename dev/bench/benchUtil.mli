@@ -31,7 +31,7 @@ type memory = {
   minor_collect : int;
 }
 
-type data = { time : measure; memory : memory option }
+type data = { time : measure; memory : memory option; instructions : int option }
 
 val dummy_data : data
 
