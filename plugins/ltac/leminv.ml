@@ -256,7 +256,7 @@ let lemInv id c =
   Proofview.Goal.enter begin fun gls ->
   let env = Proofview.Goal.env gls in
   let sigma = Proofview.Goal.sigma gls in
-  let clause = Clenv.mk_clenv_from env sigma (c, Tacmach.pf_get_type_of gls c) in
+  let clause = Clenv.mk_clenv_from env sigma (c, Retyping.get_type_of env sigma c) in
   let mv = let mvs = Clenv.clenv_arguments clause in
     if List.is_empty mvs then
       CErrors.user_err

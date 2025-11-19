@@ -927,9 +927,9 @@ let do_replace_lb handle aavoid narg p q =
 
   in
   Proofview.Goal.enter begin fun gl ->
-    let type_of_pq = Tacmach.pf_get_type_of gl p in
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
+    let type_of_pq = Retyping.get_type_of env sigma p in
     let (ind,u as indu),v = destruct_ind env sigma type_of_pq in
     let c = get_scheme handle (!lb_scheme_kind_aux ()) ind in
     let sigma , lb_type_of_p = Evd.fresh_global env sigma c in
@@ -981,7 +981,7 @@ let do_replace_bl handle (ind,u as indu) aavoid narg lft rgt =
         let sigma = Proofview.Goal.sigma gl in
         if EConstr.eq_constr sigma t1 t2 then aux q1 q2
         else (
-          let tt1 = Tacmach.pf_get_type_of gl t1 in
+          let tt1 = Retyping.get_type_of env sigma t1 in
           let (ind',u as indu),v = try destruct_ind env sigma tt1
           (* trick so that the good sequence is returned*)
                 with e when CErrors.noncritical e -> indu,[||]

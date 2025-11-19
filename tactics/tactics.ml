@@ -2561,8 +2561,9 @@ let forward b usetac ipat c =
   match usetac with
   | None ->
       Proofview.Goal.enter begin fun gl ->
-      let t = Tacmach.pf_get_type_of gl c in
+      let env = Proofview.Goal.env gl in
       let sigma = Proofview.Goal.sigma gl in
+      let t = Retyping.get_type_of env sigma c in
       let hd = head_ident sigma c in
       let assert_as =
         let naming,tac = prepare_intros_opt false IntroAnonymous MoveLast ipat in

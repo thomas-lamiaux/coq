@@ -32,6 +32,7 @@ val pf_concl : Proofview.Goal.t -> types
 (** This function does no type inference and expects an already well-typed term.
     It recomputes its type in the fastest way possible (no conversion is ever involved) *)
 val pf_get_type_of : Proofview.Goal.t -> constr -> types
+[@@ocaml.deprecated "(9.2) Use Retyping.get_type_of"]
 
 (** This function entirely type-checks the term and computes its type
     and the implied universe constraints. *)

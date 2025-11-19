@@ -112,7 +112,7 @@ let contradiction_term (c,lbind as cl) =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
-    let typ = Tacmach.pf_get_type_of gl c in
+    let typ = Retyping.get_type_of env sigma c in
     let _, ccl = whd_decompose_prod env sigma typ in
     if is_empty_type env sigma ccl then
       Tacticals.tclTHEN

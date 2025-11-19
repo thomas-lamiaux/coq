@@ -1267,7 +1267,7 @@ let inject_if_homogenous_dependent_pair ty =
         raise_notrace Exit
       | Some v -> v
     in
-    let new_eq_args = [|Tacmach.pf_get_type_of gl ar1.(3);ar1.(3);ar2.(3)|] in
+    let new_eq_args = [|Retyping.get_type_of env sigma ar1.(3);ar1.(3);ar2.(3)|] in
     find_scheme Equality (!eq_dec_scheme_kind_name()) ind >>= fun c ->
     let sigma, c = fresh_global env sigma c in
     (* cut with the good equality and prove the requested goal *)

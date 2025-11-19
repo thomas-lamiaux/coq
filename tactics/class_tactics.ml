@@ -1376,9 +1376,9 @@ let autoapply c i =
   in
   let flags = auto_unif_flags
     (Hints.Hint_db.transparent_state hintdb) in
-  let cty = Tacmach.pf_get_type_of gl c in
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let cty = Retyping.get_type_of env sigma c in
   let ce = Clenv.mk_clenv_from env sigma (c,cty) in
   Clenv.res_pf ~with_evars:true ~with_classes:false ~flags ce <*>
       Proofview.tclEVARMAP >>= (fun sigma ->

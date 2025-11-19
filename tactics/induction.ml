@@ -1025,9 +1025,10 @@ let find_induction_type env sigma isrec elim hyp0 sort = match elim with
   let (params, indices) = List.chop scheme.nparams args in
   sigma, (hd, params, indices), ElimUsing (hyp0, (e, elimt, indsign))
 
-let is_functional_induction elimc gl =
+let is_functional_induction elimc gl = (* XXX don't take a gl *)
+  let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let scheme = compute_elim_sig sigma (Tacmach.pf_get_type_of gl (fst elimc)) in
+  let scheme = compute_elim_sig sigma (Retyping.get_type_of env sigma (fst elimc)) in
   (* The test is not safe: with non-functional induction on non-standard
      induction scheme, this may fail *)
   Option.is_empty scheme.indarg
@@ -1035,7 +1036,7 @@ let is_functional_induction elimc gl =
 (* Instantiate all meta variables of elimclause using lid, some elts
    of lid are parameters (first ones), the other are
    arguments. Returns the clause obtained.  *)
-let recolle_clenv i params args elimclause gl =
+let recolle_clenv i params args elimclause gl = (* XXX don't take a gl *)
   let lindmv = Array.of_list (clenv_arguments elimclause) in
   let k = match i with None -> Array.length lindmv - List.length args | Some i -> i in
   (* parameters correspond to first elts of lid. *)
