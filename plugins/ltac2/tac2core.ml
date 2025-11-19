@@ -986,6 +986,12 @@ let () =
 let () =
   define "clear_err_info" (err @-> ret err) @@ fun (e,_) -> (e, Exninfo.null)
 
+let () = define "current_exninfo" (unit @-> tac exninfo) @@ fun () ->
+  return () >>= fun () ->
+  set_bt (Exninfo.reify())
+
+let () = define "message_of_exninfo" (exninfo @-> ret pp) CErrors.print_extra
+
 (** Control *)
 
 (** exn -> 'a *)
