@@ -51,3 +51,11 @@ Check id'@{Set} 0.
 Derive (X : Type) (l : list X) in (l = l) as foo_dep.
 exact (eq_refl (@nil unit)).
 Defined.
+
+(* goal naming *)
+Derive (X' : Type) in X' as X'_val.
+Proof.
+  [X']: exact nat.
+  Fail exact true.
+  exact 0.
+Defined.
