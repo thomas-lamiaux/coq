@@ -30,8 +30,8 @@ let eauto_unif_flags = auto_flags_of_state TransparentState.full
 let e_give_exact ?(flags=eauto_unif_flags) c =
   Proofview.Goal.enter begin fun gl ->
   let sigma, t1 = Tacmach.pf_type_of gl c in
-  let t2 = Tacmach.pf_concl gl in
-  if occur_existential sigma t1 || occur_existential sigma t2 then
+  let concl = Proofview.Goal.concl gl in
+  if occur_existential sigma t1 || occur_existential sigma concl then
     Tacticals.tclTHENLIST
       [Proofview.Unsafe.tclEVARS sigma;
        Clenv.unify ~flags ~cv_pb:CUMUL t1;
@@ -43,7 +43,7 @@ let e_assumption =
   Proofview.Goal.enter begin fun gl ->
     let hyps = Proofview.Goal.hyps gl in
     let sigma = Proofview.Goal.sigma gl in
-    let concl = Tacmach.pf_concl gl in
+    let concl = Proofview.Goal.concl gl in
     if List.is_empty hyps then
       Tacticals.tclZEROMSG (str "No applicable tactic.")
     else
@@ -106,11 +106,13 @@ let rec e_trivial_fail_db db_list local_db =
     e_trivial_fail_db db_list local_db
   end in
   Proofview.Goal.enter begin fun gl ->
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let secvars = compute_secvars gl in
   let tacl =
     e_assumption ::
-    (Tacticals.tclTHEN Tactics.intro next) ::
-    (e_trivial_resolve (Proofview.Goal.env gl) (Proofview.Goal.sigma gl) db_list local_db secvars (Tacmach.pf_concl gl))
+    (Tacticals.tclTHEN Tactics.intro next) :: (e_trivial_resolve env sigma db_list local_db secvars concl)
   in
   Tacticals.tclSOLVE tacl
   end

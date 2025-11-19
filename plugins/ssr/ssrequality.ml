@@ -477,6 +477,7 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma0 = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let sigma = resolve_typeclasses ~where:r ~fail:false env sigma in
   let r_n, evs, ucst = abs_evars env sigma0 (sigma, r) in
   let sigma0 = Evd.set_universe_context sigma0 ucst in
@@ -527,7 +528,7 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
       let error = Option.cata (fun (env, sigma, te) ->
           Pp.(fnl () ++ str "Type error was: " ++ Himsg.explain_pretype_error env sigma te))
           (Pp.mt ()) e in
-      if occur_existential sigma0 (Tacmach.pf_concl gl)
+      if occur_existential sigma0 concl
       then Tacticals.tclZEROMSG Pp.(str "Rewriting impacts evars" ++ error)
       else Tacticals.tclZEROMSG Pp.(str "Dependent type error in rewrite of "
         ++ pr_econstr_env env sigma0

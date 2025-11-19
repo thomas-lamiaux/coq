@@ -1437,11 +1437,11 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
                          tclIDTAC))) ])
     in
     let end_tac =
-      let open Tacmach in
       let open Tacticals in
       Proofview.Goal.enter (fun gl ->
           let sigma = Proofview.Goal.sigma gl in
-          match EConstr.kind sigma (pf_concl gl) with
+          let concl = Proofview.Goal.concl gl in
+          match EConstr.kind sigma concl with
           | App (f, _) when EConstr.eq_constr sigma f (well_founded ()) ->
             Auto.gen_auto None [] (Some [])
           | _ ->

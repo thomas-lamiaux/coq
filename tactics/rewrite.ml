@@ -1905,11 +1905,12 @@ let unification_rewrite l2r c1 c2 sigma prf car rel but env =
 
 let get_hyp gl (c,l) clause l2r =
   let env = Proofview.Goal.env gl in
-  let evars = Proofview.Goal.sigma gl in
-  let sigma, hi = decompose_applied_relation env evars (c,l) in
+  let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
+  let sigma, hi = decompose_applied_relation env sigma (c, l) in
   let but = match clause with
     | Some id -> Tacmach.pf_get_hyp_typ id gl
-    | None -> Reductionops.nf_evar evars (Tacmach.pf_concl gl)
+    | None -> Reductionops.nf_evar sigma concl
   in
   unification_rewrite l2r hi.c1 hi.c2 sigma hi.prf hi.car hi.rel but env
 

@@ -94,9 +94,10 @@ let endclausestac id_map clseq gl_id cl0 =
   let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let not_hyp' id = not (List.mem_assoc id id_map) in
   let orig_id id = try List.assoc id id_map with Not_found -> id in
-  let dc, c = EConstr.decompose_prod_decls sigma (pf_concl gl) in
+  let dc, c = EConstr.decompose_prod_decls sigma concl in
   let hide_goal = hidden_clseq clseq in
   let c_hidden =
     hide_goal && EConstr.eq_constr sigma c (EConstr.mkVar gl_id) in
@@ -117,7 +118,8 @@ let endclausestac id_map clseq gl_id cl0 =
   let utacs = List.map utac (Proofview.Goal.hyps gl) in
   let ugtac =
     Proofview.Goal.enter begin fun gl ->
-      convert_concl_no_check (unmark (pf_concl gl))
+      let concl = Proofview.Goal.concl gl in
+      convert_concl_no_check (unmark concl)
     end
   in
   let ctacs =

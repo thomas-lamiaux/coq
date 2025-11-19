@@ -569,8 +569,8 @@ let invIn k names ids id =
     let nb_prod_init = nb_prod sigma concl in
     let intros_replace_ids =
       Proofview.Goal.enter begin fun gl ->
-        let concl = pf_concl gl in
         let sigma = Proofview.Goal.sigma gl in
+        let concl = Proofview.Goal.concl gl in
         let nb_of_new_hyp =
           nb_prod sigma concl - (List.length hyps + nb_prod_init)
         in

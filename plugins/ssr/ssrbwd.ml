@@ -91,16 +91,16 @@ let mkRAppView ist env sigma rv gv =
   mkRApp rv (mkRHoles (abs nb_view_imps))
 
 let refine_interp_apply_view dbl ist gv =
-  let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
   let env = Proofview.Goal.env gl in
+  let concl = Proofview.Goal.concl gl in
   let pair i = List.map (fun x -> i, x) in
   let rv = intern_term ist env gv in
   let v = mkRAppView ist env sigma rv gv in
   let interp_with (dbl, hint) =
     let i = if dbl = Ssrview.AdaptorDb.Equivalence then 2 else 1 in
-    interp_refine env sigma ist ~concl:(pf_concl gl) (mkRApp hint (v :: mkRHoles i)) in
+    interp_refine env sigma ist ~concl (mkRApp hint (v :: mkRHoles i)) in
   let rec loop = function
   | [] -> Proofview.tclORELSE (apply_rconstr ~ist rv) (fun _ -> view_error "apply" gv)
   | h :: hs ->
@@ -135,7 +135,6 @@ let inner_ssrapplytac gviews (ggenl, gclr) ist =
      [], Tacticals.tclTHEN (genstac (ggenl,[]))
    else ggenl, (fun tac -> tac) in
  tclGENTAC (Proofview.Goal.enter (fun gl ->
- let open Tacmach in
   match gviews, ggenl with
   | v :: tl, [] ->
     let dbl =
@@ -150,7 +149,8 @@ let inner_ssrapplytac gviews (ggenl, gclr) ist =
   | [], [agens] ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
-    let clr', lemma = interp_agens ist env sigma ~concl:(pf_concl gl) agens in
+    let concl = Proofview.Goal.concl gl in
+    let clr', lemma = interp_agens ist env sigma ~concl agens in
     let sigma = Evd.merge_universe_context sigma (Evd.ustate (fst lemma)) in
     Tacticals.tclTHENLIST [Proofview.Unsafe.tclEVARS sigma; cleartac clr; refine_with ~beta:true lemma; cleartac clr']
   | _, _ ->

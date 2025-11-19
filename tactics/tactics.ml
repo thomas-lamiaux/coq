@@ -479,7 +479,8 @@ let e_change_in_concl ~cast ~check (redfun, sty) =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
-    match redfun env sigma (Tacmach.pf_concl gl) with
+    let concl = Proofview.Goal.concl gl in
+    match redfun env sigma concl with
     | NoChange -> Proofview.tclUNIT ()
     | Changed (sigma, c') ->
       Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
@@ -1830,11 +1831,11 @@ let vm_cast_no_check c = cast_no_check VMcast c
 let native_cast_no_check c = cast_no_check NATIVEcast c
 
 let exact_proof c =
-  let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
+  let concl = Proofview.Goal.concl gl in
   Refine.refine ~typecheck:false begin fun sigma ->
-    Constrintern.interp_casted_constr_evars ~flags:Pretyping.all_and_fail_flags env sigma c (pf_concl gl)
+    Constrintern.interp_casted_constr_evars ~flags:Pretyping.all_and_fail_flags env sigma c concl
   end
   end
 
@@ -2031,9 +2032,9 @@ let constructor_core with_evars cstr lbind =
 
 let constructor_tac with_evars expctdnumopt i lbind =
   Proofview.Goal.enter begin fun gl ->
-    let cl = Tacmach.pf_concl gl in
     let env = Proofview.Goal.env gl in
-    let ((ind,_),redcl) = Tacmach.pf_apply Tacred.reduce_to_quantified_ind gl cl in
+    let concl = Proofview.Goal.concl gl in
+    let ((ind,_),redcl) = Tacmach.pf_apply Tacred.reduce_to_quantified_ind gl concl in
     let nconstr = Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
     check_number_of_constructors expctdnumopt i nconstr;
     Tacticals.tclTHENLIST [
@@ -2060,9 +2061,9 @@ let any_constructor with_evars tacopt =
     if Int.equal i n then one_constr (ind,i)
     else Tacticals.tclORD (one_constr (ind,i)) (any_constr ind n (i + 1)) in
   Proofview.Goal.enter begin fun gl ->
-    let cl = Tacmach.pf_concl gl in
     let env = Proofview.Goal.env gl in
-    let (ind,_),redcl = Tacmach.pf_apply Tacred.reduce_to_quantified_ind gl cl in
+    let concl = Proofview.Goal.concl gl in
+    let (ind,_),redcl = Tacmach.pf_apply Tacred.reduce_to_quantified_ind gl concl in
     let nconstr =
       Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
     if Int.equal nconstr 0 then TacticErrors.no_constructors ();
@@ -2924,12 +2925,11 @@ let exfalso =
 let (forward_setoid_reflexivity, setoid_reflexivity) = Hook.make ()
 
 let maybe_betadeltaiota_concl allowred gl =
-  let concl = Tacmach.pf_concl gl in
+  let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   if not allowred then concl
-  else
-    let env = Proofview.Goal.env gl in
-    whd_all env sigma concl
+  else whd_all env sigma concl
 
 let reflexivity_red allowred =
   Proofview.Goal.enter begin fun gl ->

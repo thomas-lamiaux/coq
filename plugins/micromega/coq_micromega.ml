@@ -1536,6 +1536,7 @@ let micromega_order_change spec cert cert_typ env ff (*: unit Proofview.tactic*)
   (* todo : directly generate the proof term - or generalize before conversion? *)
   Proofview.Goal.enter (fun gl ->
     let sigma = Proofview.Goal.sigma gl in
+    let concl = Proofview.Goal.concl gl in
       Tacticals.tclTHENLIST
         [ Tactics.change_concl
             (set sigma
@@ -1547,8 +1548,7 @@ let micromega_order_change spec cert cert_typ env ff (*: unit Proofview.tactic*)
                ; ( "__varmap"
                  , vm
                  , EConstr.mkApp (Lazy.force rocq_VarMap, [|spec.typ|]) )
-               ; ("__wit", cert, cert_typ) ]
-               (Tacmach.pf_concl gl)) ])
+               ; ("__wit", cert, cert_typ) ] concl) ])
 
 (**
   * The datastructures that aggregate prover attributes.
@@ -1893,7 +1893,7 @@ let fresh_id avoid id gl =
 let clear_all_no_check =
   Proofview.Goal.enter (fun gl ->
       let env = Proofview.Goal.env gl in
-      let concl = Tacmach.pf_concl gl in
+      let concl = Proofview.Goal.concl gl in
       let env =
         Environ.reset_with_named_context Environ.empty_named_context_val env
       in
@@ -1905,7 +1905,7 @@ let micromega_gen parse_arith pre_process cnf spec dumpexpr prover tac =
   Proofview.Goal.enter (fun gl ->
       let sigma = Proofview.Goal.sigma gl in
       let genv = Proofview.Goal.env gl in
-      let concl = Tacmach.pf_concl gl in
+      let concl = Proofview.Goal.concl gl in
       let hyps = Tacmach.pf_hyps_types gl in
       try
         let hyps, concl, env =
@@ -2008,6 +2008,7 @@ let micromega_order_changer cert env ff =
   let vm = dump_varmap typ (vm_of_list env) in
   Proofview.Goal.enter (fun gl ->
     let sigma = Proofview.Goal.sigma gl in
+    let concl = Proofview.Goal.concl gl in
       Tacticals.tclTHENLIST
         [ Tactics.change_concl
             (set sigma
@@ -2017,8 +2018,7 @@ let micromega_order_changer cert env ff =
                      ( Lazy.force rocq_Formula
                      , [|formula_typ; Lazy.force rocq_IsProp|] ) )
                ; ("__varmap", vm, EConstr.mkApp (Lazy.force rocq_VarMap, [|typ|]))
-               ; ("__wit", cert, cert_typ) ]
-               (Tacmach.pf_concl gl))
+               ; ("__wit", cert, cert_typ) ] concl)
           (*      Tacticals.tclTHENLIST (List.map (fun id ->  (Tactics.introduction id)) ids)*)
         ])
 
@@ -2037,7 +2037,7 @@ let micromega_genr prover tac =
   Proofview.Goal.enter (fun gl ->
       let sigma = Proofview.Goal.sigma gl in
       let genv = Proofview.Goal.env gl in
-      let concl = Tacmach.pf_concl gl in
+      let concl = Proofview.Goal.concl gl in
       let hyps = Tacmach.pf_hyps_types gl in
       try
         let hyps, concl, env =
@@ -2434,7 +2434,8 @@ let exfalso_if_concl_not_Prop =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
-    if is_prop env sigma (Tacmach.pf_concl gl) then Tacticals.tclIDTAC
+    let concl = Proofview.Goal.concl gl in
+    if is_prop env sigma concl then Tacticals.tclIDTAC
     else Tactics.exfalso
   end
 

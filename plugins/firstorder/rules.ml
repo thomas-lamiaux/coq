@@ -37,20 +37,21 @@ let wrap ~flags n b continue seq =
   let nc = Proofview.Goal.hyps gls in
   let env = Proofview.Goal.env gls in
   let sigma = Proofview.Goal.sigma gls in
+  let concl = Proofview.Goal.concl gls in
   let rec aux i nc ctx=
     if i<=0 then seq else
       match nc with
           []->anomaly (Pp.str "Not the expected number of hyps.")
         | nd::q->
             let id = NamedDecl.get_id nd in
-            if occur_var env sigma id (pf_concl gls) ||
+            if occur_var env sigma id concl ||
               List.exists (occur_var_in_decl env sigma id) ctx then
                 (aux (i-1) q (nd::ctx))
             else
               add_formula ~flags ~hint:false env sigma (GlobRef.VarRef id) (NamedDecl.get_type nd) (aux (i-1) q (nd::ctx)) in
   let seq1=aux n nc [] in
   let seq2 =
-    if b then add_concl ~flags env sigma (pf_concl gls) seq1 else seq1
+    if b then add_concl ~flags env sigma concl seq1 else seq1
   in
   continue seq2
   end

@@ -645,7 +645,8 @@ let discharge_hyp (id', (id, mode)) =
   let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
-  let cl' = Vars.subst_var sigma id (Tacmach.pf_concl gl) in
+  let concl = Proofview.Goal.concl gl in
+  let cl' = Vars.subst_var sigma id concl in
   let decl = pf_get_hyp id gl in
   match decl, mode with
   | NamedDecl.LocalAssum _, _ | NamedDecl.LocalDef _, "(" ->
@@ -963,11 +964,11 @@ let anontac decl =
   end
 
 let rec intro_anon () =
-  let open Tacmach in
   let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
-  let d = List.hd (fst (EConstr.decompose_prod_n_decls sigma 1 (pf_concl gl))) in
+  let concl = Proofview.Goal.concl gl in
+  let d = List.hd (fst (EConstr.decompose_prod_n_decls sigma 1 concl)) in
   Proofview.tclORELSE (anontac d)
     (fun (err0, info) -> Proofview.tclORELSE
         (Tactics.red_in_concl <*> intro_anon ()) (fun _ -> Proofview.tclZERO ~info err0))

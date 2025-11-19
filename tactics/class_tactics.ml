@@ -254,7 +254,8 @@ let rec e_trivial_fail_db db_list local_db secvars =
     Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let tacs = e_trivial_resolve db_list local_db secvars env sigma (pf_concl gl) in
+    let concl = Proofview.Goal.concl gl in
+    let tacs = e_trivial_resolve db_list local_db secvars env sigma concl in
     tclFIRST (List.map (fun h -> h.hint_tac) tacs)
     end
   in

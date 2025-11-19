@@ -1444,7 +1444,8 @@ let zify_tac =
       let evd = Proofview.Goal.sigma gl in
       let env = Proofview.Goal.env gl in
       let sign = Environ.named_context env in
-      let evd, concl = trans_check_prop env evd (Tacmach.pf_concl gl) in
+      let concl = Proofview.Goal.concl gl in
+      let evd, concl = trans_check_prop env evd concl in
       let evd, hyps = trans_hyps env evd sign in
       let l = CstrTable.get () in
       Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evd)
@@ -1534,9 +1535,8 @@ let rec interp_pscripts l =
 
 let spec_of_hyps =
   Proofview.Goal.enter (fun gl ->
-      let terms =
-        Tacmach.pf_concl gl :: List.map snd (Tacmach.pf_hyps_types gl)
-      in
+      let concl = Proofview.Goal.concl gl in
+      let terms = concl :: List.map snd (Tacmach.pf_hyps_types gl) in
       let env = Proofview.Goal.env gl in
       let evd = Proofview.Goal.sigma gl in
       let s = fresh_subscript env in
@@ -1608,7 +1608,7 @@ let saturate =
   Proofview.Goal.enter (fun gl ->
       init_cache ();
       let table = CstrTable.HConstr.create 20 in
-      let concl = Tacmach.pf_concl gl in
+      let concl = Proofview.Goal.concl gl in
       let hyps = Tacmach.pf_hyps_types gl in
       let evd = Proofview.Goal.sigma gl in
       let env = Proofview.Goal.env gl in

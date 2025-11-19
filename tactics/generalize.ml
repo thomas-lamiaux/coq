@@ -73,7 +73,7 @@ let bring_hyps hyps =
     Proofview.Goal.enter begin fun gl ->
       let env = Proofview.Goal.env gl in
       let sigma = Proofview.Goal.sigma gl in
-      let concl = Tacmach.pf_concl gl in
+      let concl = Proofview.Goal.concl gl in
       let newcl = it_mkNamedProd_or_LetIn sigma concl hyps in
       let args = Context.Named.instance mkVar hyps in
       Refine.refine_with_principal ~typecheck:false begin fun sigma ->
@@ -159,6 +159,7 @@ let generalize_dep ?(with_let=false) c =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let sign = named_context_val env in
   let init_ids = ids_of_named_context (Global.named_context()) in
   let seek (d:named_declaration) (toquant:named_context) =
@@ -176,7 +177,7 @@ let generalize_dep ?(with_let=false) c =
           -> tothin@[id]
       | _ -> tothin
   in
-  let cl' = it_mkNamedProd_or_LetIn sigma (pf_concl gl) to_quantify in
+  let cl' = it_mkNamedProd_or_LetIn sigma concl to_quantify in
   let is_var, body = match EConstr.kind sigma c with
   | Var id ->
     let body = NamedDecl.get_value (pf_get_hyp id gl) in
@@ -202,10 +203,8 @@ let generalize_dep ?(with_let=false) c =
 let generalize_gen_let lconstr = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let newcl, evd =
-    List.fold_right_i (generalize_goal gl) 0 lconstr
-      (Tacmach.pf_concl gl, sigma)
-  in
+  let concl = Proofview.Goal.concl gl in
+  let newcl, evd = List.fold_right_i (generalize_goal gl) 0 lconstr (concl, sigma) in
   let (evd, _) = Typing.type_of env evd newcl in
   let map ((_, c, b),_) = if Option.is_empty b then Some c else None in
   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evd)
@@ -409,7 +408,7 @@ let abstract_args gl generalize_vars dep id defined f args =
   let open Context.Rel.Declaration in
   let sigma = Proofview.Goal.sigma gl in
   let env = Proofview.Goal.env gl in
-  let concl = Tacmach.pf_concl gl in
+  let concl = Proofview.Goal.concl gl in
   let hyps = Proofview.Goal.hyps gl in
   let dep = dep || local_occur_var sigma id concl in
   let avoid = ref Id.Set.empty in

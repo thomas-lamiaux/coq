@@ -189,11 +189,11 @@ let decompose l c =
   end
 
 let exact ist (c : Ltac_pretype.closed_glob_constr) =
-  let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let expected_type = Pretyping.OfType (pf_concl gl) in
+  let concl = Proofview.Goal.concl gl in
+  let expected_type = Pretyping.OfType concl in
   let sigma, c = Tacinterp.type_uconstr ~expected_type ist c env sigma in
   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (Tactics.exact_no_check c)
   end

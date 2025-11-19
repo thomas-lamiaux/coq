@@ -278,8 +278,9 @@ let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r eli
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    let concl = Proofview.Goal.concl gl in
     let typ = match cls with
-    | None -> pf_concl gl
+    | None -> concl
     | Some id -> pf_get_hyp_typ id gl
     in
     let ty = it_mkProd_or_LetIn (applist (eqn, args)) ctx in
@@ -1551,10 +1552,10 @@ let cutSubstInConcl l2r eqn =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let (lbeq,u,(t,e1,e2)) = pf_apply find_eq_data_decompose gl eqn in
-  let typ = pf_concl gl in
   let (e1,e2) = if l2r then (e1,e2) else (e2,e1) in
-  let (sigma, (typ, expected)) = subst_tuple_term env sigma e1 e2 typ in
+  let (sigma, (typ, expected)) = subst_tuple_term env sigma e1 e2 concl in
   tclTHEN (Proofview.Unsafe.tclEVARS sigma)
   (tclTHENFIRST
     (tclTHENLIST [

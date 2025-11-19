@@ -1090,7 +1090,7 @@ let apply_induction_in_context with_evars inhyps elim indvars names =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
-    let concl = Tacmach.pf_concl gl in
+    let concl = Proofview.Goal.concl gl in
     let hyp0 = match elim with
     | ElimUsing (hyp0, _) | ElimOver (hyp0, _) | CaseOver (hyp0, _) -> Some hyp0
     | ElimUsingList _ -> None
@@ -1228,8 +1228,8 @@ let clear_unselected_context id inhyps cls =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  if occur_var env sigma id (Tacmach.pf_concl gl) &&
-    cls.concl_occs == NoOccurrences
+  let concl = Proofview.Goal.concl gl in
+  if occur_var env sigma id concl && cls.concl_occs == NoOccurrences
   then error (MentionConclusionDependentOn id);
   match cls.onhyps with
   | Some hyps ->

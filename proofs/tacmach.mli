@@ -27,6 +27,7 @@ val pf_env : Proofview.Goal.t -> Environ.env
 [@@ocaml.deprecated "(9.2) Use Proofview.Goal.env"]
 
 val pf_concl : Proofview.Goal.t -> types
+[@@ocaml.deprecated "(9.2) Use Proofview.Goal.concl"]
 
 (** This function does no type inference and expects an already well-typed term.
     It recomputes its type in the fastest way possible (no conversion is ever involved) *)
