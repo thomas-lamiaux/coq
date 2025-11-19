@@ -2204,6 +2204,7 @@ let check_may_eval env sigma redexp rc =
       let env = Environ.push_qualities qs env in
       let env = Environ.push_context_set (us,csts) env in
       let c = EConstr.to_constr sigma c in
+      let env = Safe_typing.push_private_constants env (Evd.seff_private @@ Evd.eval_side_effects sigma) in
       (* OK to call kernel which does not support evars *)
       Environ.on_judgment EConstr.of_constr (Arguments_renaming.rename_typing env c)
   in
