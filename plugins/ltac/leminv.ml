@@ -23,7 +23,6 @@ open Evd
 open Printer
 open Reductionops
 open Inductiveops
-open Tacmach
 open Tacticals
 open Tactics
 open Context.Named.Declaration
@@ -257,7 +256,7 @@ let lemInv id c =
   Proofview.Goal.enter begin fun gls ->
   let env = Proofview.Goal.env gls in
   let sigma = Proofview.Goal.sigma gls in
-  let clause = Clenv.mk_clenv_from env sigma (c, pf_get_type_of gls c) in
+  let clause = Clenv.mk_clenv_from env sigma (c, Tacmach.pf_get_type_of gls c) in
   let mv = let mvs = Clenv.clenv_arguments clause in
     if List.is_empty mvs then
       CErrors.user_err
@@ -279,7 +278,7 @@ let lemInv_gen id c = try_intros_until (fun id -> lemInv id c) id
 
 let lemInvIn id c ids =
   Proofview.Goal.enter begin fun gl ->
-    let hyps = List.map (fun id -> pf_get_hyp id gl) ids in
+    let hyps = List.map (fun id -> Tacmach.pf_get_hyp id gl) ids in
     let intros_replace_ids =
       let concl = Proofview.Goal.concl gl in
       let sigma = Proofview.Goal.sigma gl in

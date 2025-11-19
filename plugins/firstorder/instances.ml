@@ -14,7 +14,6 @@ open CErrors
 open Util
 open EConstr
 open Vars
-open Tacmach
 open Tactics
 open Tacticals
 open Proofview.Notations
@@ -139,7 +138,7 @@ let left_instance_tac ~flags (inst,id) continue seq=
                [introf;
                 (pf_constr_of_global id >>= fun idc ->
                 Proofview.Goal.enter begin fun gl ->
-                  let id0 = List.nth (pf_ids_of_hyps gl) 0 in
+                  let id0 = List.nth (Tacmach.pf_ids_of_hyps gl) 0 in
                   Generalize.generalize [mkApp(idc, [|mkVar id0|])]
                 end);
                 introf;
@@ -186,7 +185,7 @@ let right_instance_tac ~flags inst continue seq=
         [tclTHENLIST
            [introf;
             Proofview.Goal.enter begin fun gl ->
-              let id0 = List.nth (pf_ids_of_hyps gl) 0 in
+              let id0 = List.nth (Tacmach.pf_ids_of_hyps gl) 0 in
               split (Tactypes.ImplicitBindings [mkVar id0])
             end;
             tclSOLVE [wrap ~flags 0 true continue (deepen seq)]];

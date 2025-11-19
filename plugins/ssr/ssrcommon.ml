@@ -642,12 +642,11 @@ let mkRefl env sigma t c =
 
 let discharge_hyp (id', (id, mode)) =
   let open EConstr in
-  let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
   let cl' = Vars.subst_var sigma id concl in
-  let decl = pf_get_hyp id gl in
+  let decl = Tacmach.pf_get_hyp id gl in
   match decl, mode with
   | NamedDecl.LocalAssum _, _ | NamedDecl.LocalDef _, "(" ->
     let id' = {(NamedDecl.get_annot decl) with binder_name = Name id'} in

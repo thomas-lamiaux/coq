@@ -258,10 +258,9 @@ let change_eq env sigma hyp_id (context : rel_context) x t end_of_type =
   in
   let prove_new_hyp =
     let open Tacticals in
-    let open Tacmach in
     tclTHEN (tclDO ctxt_size intro)
       (Proofview.Goal.enter (fun g ->
-           let all_ids = pf_ids_of_hyps g in
+           let all_ids = Tacmach.pf_ids_of_hyps g in
            let new_ids, _ = list_chop ctxt_size all_ids in
            let to_refine = applist (witness_fun, List.rev_map mkVar new_ids) in
            let evm, _ =

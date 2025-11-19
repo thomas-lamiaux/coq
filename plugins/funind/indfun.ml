@@ -14,7 +14,6 @@ open CErrors
 open Names
 open Constr
 open EConstr
-open Tacmach
 open Tacticals
 open Tactics
 open Induction
@@ -100,7 +99,7 @@ let functional_induction with_clean c princl pat =
           CErrors.user_err
             (str "functional induction must be used with a function") )
       | Some (princ, binding) ->
-        let sigma, princt = pf_type_of gl princ in
+        let sigma, princt = Tacmach.pf_type_of gl princ in
         Proofview.Unsafe.tclEVARS sigma
         <*> Proofview.tclUNIT (princ, binding, princt, args))
   >>= fun (princ, bindings, princ_type, args) ->
@@ -131,7 +130,7 @@ let functional_induction with_clean c princl pat =
           args Id.Set.empty
       in
       let old_idl =
-        List.fold_right Id.Set.add (pf_ids_of_hyps gl) Id.Set.empty
+        List.fold_right Id.Set.add (Tacmach.pf_ids_of_hyps gl) Id.Set.empty
       in
       let old_idl = Id.Set.diff old_idl princ_vars in
       let subst_and_reduce gl =
@@ -139,7 +138,7 @@ let functional_induction with_clean c princl pat =
           let idl =
             List.filter
               (fun id -> not (Id.Set.mem id old_idl))
-              (pf_ids_of_hyps gl)
+              (Tacmach.pf_ids_of_hyps gl)
           in
           let flag =
             Genredexpr.Cbv {Redops.all_flags with Genredexpr.rDelta = false}

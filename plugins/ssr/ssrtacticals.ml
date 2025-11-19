@@ -91,7 +91,6 @@ let hidetacs clseq idhide cl0 =
    convert_concl_no_check (EConstr.mkVar idhide)]
 
 let endclausestac id_map clseq gl_id cl0 =
-  let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
@@ -128,7 +127,7 @@ let endclausestac id_map clseq gl_id cl0 =
   let mktac itacs = Tacticals.tclTHENLIST (itacs @ utacs @ ugtac :: ctacs) in
   let itac (_, id) = Tactics.introduction id in
   if fits false (id_map, List.rev dc) then mktac (List.map itac id_map) else
-  let all_ids = ids_of_rel_context dc @ pf_ids_of_hyps gl in
+  let all_ids = ids_of_rel_context dc @ Tacmach.pf_ids_of_hyps gl in
   if List.for_all not_hyp' all_ids && not c_hidden then mktac [] else
   errorstrm Pp.(str "tampering with discharged assumptions of \"in\" tactical")
   end

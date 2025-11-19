@@ -147,14 +147,12 @@ let generalize_goal_gen env sigma ids i ((occs,c,b),na) t cl =
   mkProd_or_LetIn decl cl', sigma'
 
 let generalize_goal gl i ((occs,c,b),na as o) (cl,sigma) = (* XXX do not take gl *)
-  let open Tacmach in
   let env = Proofview.Goal.env gl in
-  let ids = pf_ids_of_hyps gl in
+  let ids = Tacmach.pf_ids_of_hyps gl in
   let sigma, t = Typing.type_of env sigma c in
   generalize_goal_gen env sigma ids i o t cl
 
 let generalize_dep ?(with_let=false) c =
-  let open Tacmach in
   let open Tacticals in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
@@ -180,7 +178,7 @@ let generalize_dep ?(with_let=false) c =
   let cl' = it_mkNamedProd_or_LetIn sigma concl to_quantify in
   let is_var, body = match EConstr.kind sigma c with
   | Var id ->
-    let body = NamedDecl.get_value (pf_get_hyp id gl) in
+    let body = NamedDecl.get_value (Tacmach.pf_get_hyp id gl) in
     let is_var = Option.is_empty body && not (List.mem id init_ids) in
     if with_let then is_var, body else is_var, None
   | _ -> false, None

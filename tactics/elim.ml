@@ -14,7 +14,6 @@ open Termops
 open EConstr
 open Inductiveops
 open Hipattern
-open Tacmach
 open Tacticals
 open Tactics
 
@@ -95,7 +94,7 @@ let rec general_decompose_aux recognizer id =
   let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let ((ind, u), t) = pf_apply Tacred.reduce_to_atomic_ind gl (pf_get_type_of gl (mkVar id)) in
+  let ((ind, u), t) = Tacmach.pf_apply Tacred.reduce_to_atomic_ind gl (Tacmach.pf_get_type_of gl (mkVar id)) in
   let _, args = decompose_app (Proofview.Goal.sigma gl) t in
   let rec_flag, mkelim =
     match (Environ.lookup_mind (fst ind) env).mind_packets.(snd ind).mind_record with
@@ -125,7 +124,7 @@ let tmphyp_name = Id.of_string "_TmpHyp"
 
 let general_decompose recognizer c =
   Proofview.Goal.enter begin fun gl ->
-  let typc = pf_get_type_of gl c in
+  let typc = Tacmach.pf_get_type_of gl c in
   tclTHENS (cut typc)
     [ intro_using_then tmphyp_name (fun id ->
           ifOnHyp recognizer (general_decompose_aux recognizer)

@@ -239,13 +239,12 @@ type hint_v = {
 (** Hack to properly solve dependent evars that are typeclasses *)
 let rec e_trivial_fail_db db_list local_db secvars =
   let open Tacticals in
-  let open Tacmach in
   let trivial_fail =
     Proofview.Goal.enter
     begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let d = NamedDecl.get_id @@ pf_last_hyp gl in
+    let d = NamedDecl.get_id @@ Tacmach.pf_last_hyp gl in
     let hints = push_resolve_hyp env sigma d local_db in
       e_trivial_fail_db db_list hints secvars
       end

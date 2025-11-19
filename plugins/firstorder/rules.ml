@@ -13,7 +13,6 @@ open Util
 open Names
 open EConstr
 open Vars
-open Tacmach
 open Tactics
 open Tacticals
 open Proofview.Notations
@@ -245,7 +244,7 @@ let ll_forall_tac ~flags prod backtrack id continue seq=
            (pf_constr_of_global id >>= fun idc ->
            Proofview.Goal.enter begin fun gls->
               let open EConstr in
-              let id0 = List.nth (pf_ids_of_hyps gls) 0 in
+              let id0 = List.nth (Tacmach.pf_ids_of_hyps gls) 0 in
               let term=mkApp(idc,[|mkVar(id0)|]) in
               tclTHEN (Generalize.generalize [term]) (clear [id0])
            end);

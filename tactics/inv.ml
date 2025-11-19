@@ -22,7 +22,6 @@ open Namegen
 open Inductiveops
 open Printer
 open Retyping
-open Tacmach
 open Tacticals
 open Tactics
 open Elim
@@ -392,7 +391,7 @@ let projectAndApply as_mode thin avoid id eqname names depids =
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     (* We only look at the type of hypothesis "id" *)
-    let hyp = pf_nf_evar gl (pf_get_hyp_typ id gl) in
+    let hyp = Tacmach.pf_nf_evar gl (Tacmach.pf_get_hyp_typ id gl) in
     let (t,t1,t2) = dest_nf_eq env sigma hyp in
     match (EConstr.kind sigma t1, EConstr.kind sigma t2) with
     | Var id1, _ -> generalizeRewriteIntros as_mode (subst_hyp true id) depids id1
@@ -488,7 +487,7 @@ let raw_inversion inv_kind id status names =
     let concl = Proofview.Goal.concl gl in
     let c = mkVar id in
     let ((ind, u), t) =
-      try pf_apply Tacred.reduce_to_atomic_ind gl (pf_get_type_of gl c)
+      try Tacmach.pf_apply Tacred.reduce_to_atomic_ind gl (Tacmach.pf_get_type_of gl c)
       with UserError _ ->
         let msg = str "The type of " ++ Id.print id ++ str " is not inductive." in
         CErrors.user_err  msg
@@ -563,7 +562,7 @@ let dinv_clear_tac id = dinv FullInversionClear None None (NamedHyp (CAst.make i
 
 let invIn k names ids id =
   Proofview.Goal.enter begin fun gl ->
-    let hyps = List.map (fun id -> pf_get_hyp id gl) ids in
+    let hyps = List.map (fun id -> Tacmach.pf_get_hyp id gl) ids in
     let concl = Proofview.Goal.concl gl in
     let sigma = Proofview.Goal.sigma gl in
     let nb_prod_init = nb_prod sigma concl in
