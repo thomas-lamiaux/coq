@@ -439,7 +439,7 @@ let cc_tactic depth additional_terms b =
       Proofview.tclORELSE (debug_congruence (fun () -> Pp.str "Goal solved, generating proof ...");
       match reason with
         Discrimination (i,ipac,j,jpac) ->
-        let p=build_proof (Tacmach.pf_env gl) sigma uf (`Discr (i,ipac,j,jpac)) in
+        let p=build_proof env sigma uf (`Discr (i,ipac,j,jpac)) in
         let cstr=(get_constructor_info uf ipac.cnode).ci_constr in
         discriminate_tac cstr p
       | Incomplete terms_to_complete ->
@@ -547,11 +547,11 @@ let simple_congruence_tac depth l =
 let mk_eq f c1 c2 k =
   Tacticals.pf_constr_of_global (Lazy.force f) >>= fun fc ->
   Proofview.Goal.enter begin fun gl ->
-    let open Tacmach in
-    let evm, ty = pf_apply type_of gl c1 in
-    let evm, ty = Evarsolve.refresh_universes (Some false) (pf_env gl) evm ty in
+    let env = Proofview.Goal.env gl in
+    let evm, ty = Tacmach.pf_apply type_of gl c1 in
+    let evm, ty = Evarsolve.refresh_universes (Some false) env evm ty in
     let term = mkApp (fc, [| ty; c1; c2 |]) in
-    let evm, _ =  type_of (pf_env gl) evm term in
+    let evm, _ =  type_of env evm term in
     Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm) (k term)
     end
 

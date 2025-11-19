@@ -1892,10 +1892,10 @@ let fresh_id avoid id gl =
 
 let clear_all_no_check =
   Proofview.Goal.enter (fun gl ->
+      let env = Proofview.Goal.env gl in
       let concl = Tacmach.pf_concl gl in
       let env =
-        Environ.reset_with_named_context Environ.empty_named_context_val
-          (Tacmach.pf_env gl)
+        Environ.reset_with_named_context Environ.empty_named_context_val env
       in
       Refine.refine_with_principal ~typecheck:false (fun sigma ->
           let sigma, ev = Evarutil.new_evar env sigma concl in
@@ -1904,7 +1904,7 @@ let clear_all_no_check =
 let micromega_gen parse_arith pre_process cnf spec dumpexpr prover tac =
   Proofview.Goal.enter (fun gl ->
       let sigma = Proofview.Goal.sigma gl in
-      let genv = Tacmach.pf_env gl in
+      let genv = Proofview.Goal.env gl in
       let concl = Tacmach.pf_concl gl in
       let hyps = Tacmach.pf_hyps_types gl in
       try
@@ -2036,7 +2036,7 @@ let micromega_genr prover tac =
   in
   Proofview.Goal.enter (fun gl ->
       let sigma = Proofview.Goal.sigma gl in
-      let genv = Tacmach.pf_env gl in
+      let genv = Proofview.Goal.env gl in
       let concl = Tacmach.pf_concl gl in
       let hyps = Tacmach.pf_hyps_types gl in
       try
@@ -2433,10 +2433,9 @@ let nlinear_Z =
 let exfalso_if_concl_not_Prop =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
-      Tacmach.(
-        if is_prop (pf_env gl) sigma (pf_concl gl) then
-          Tacticals.tclIDTAC
-        else Tactics.exfalso)
+    let env = Proofview.Goal.env gl in
+    if is_prop env sigma (Tacmach.pf_concl gl) then Tacticals.tclIDTAC
+    else Tactics.exfalso
   end
 
 let micromega_gen parse_arith pre_process cnf spec dumpexpr prover tac =

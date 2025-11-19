@@ -154,13 +154,14 @@ let left_instance_tac ~flags (inst,id) continue seq=
             if not @@ Unify.Item.is_ground c then
               (pf_constr_of_global id >>= fun idc ->
                 Proofview.Goal.enter begin fun gl->
+                  let env = Proofview.Goal.env gl in
                   let sigma = Proofview.Goal.sigma gl in
-                  let (evmap, rc, ot) = mk_open_instance (pf_env gl) sigma id idc c in
+                  let (evmap, rc, ot) = mk_open_instance env sigma id idc c in
                   let gt=
                     it_mkLambda_or_LetIn
                       (mkApp(idc,[|ot|])) rc in
                   let evmap, _ =
-                    try Typing.type_of (pf_env gl) evmap gt
+                    try Typing.type_of env evmap gt
                     with e when CErrors.noncritical e ->
                       user_err Pp.(str "Untypable instance, maybe higher-order non-prenex quantification") in
                   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evmap)

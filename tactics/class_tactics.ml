@@ -155,12 +155,11 @@ let auto_unif_flags ?(allowed_evars = Evarsolve.AllowedEvars.all) st =
 }
 
 let e_give_exact flags h =
-  let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let sigma, c = Hints.fresh_hint env sigma h in
-  let (sigma, t1) = Typing.type_of (pf_env gl) sigma c in
+  let (sigma, t1) = Typing.type_of env sigma c in
   Proofview.Unsafe.tclEVARS sigma <*>
   Clenv.unify ~flags ~cv_pb:CUMUL t1 <*> exact_no_check c
   end
@@ -253,10 +252,10 @@ let rec e_trivial_fail_db db_list local_db secvars =
   in
   let trivial_resolve =
     Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let tacs = e_trivial_resolve db_list local_db secvars
-                                 (pf_env gl) sigma (pf_concl gl) in
-      tclFIRST (List.map (fun h -> h.hint_tac) tacs)
+    let tacs = e_trivial_resolve db_list local_db secvars env sigma (pf_concl gl) in
+    tclFIRST (List.map (fun h -> h.hint_tac) tacs)
     end
   in
   let tacl =

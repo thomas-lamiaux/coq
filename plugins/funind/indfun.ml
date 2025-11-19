@@ -42,6 +42,7 @@ let choose_dest_or_ind scheme_info args =
 let functional_induction with_clean c princl pat =
   let open Proofview.Notations in
   Proofview.Goal.enter_one (fun gl ->
+      let env = Proofview.Goal.env gl in
       let sigma = Proofview.Goal.sigma gl in
       let f, args = decompose_app_list sigma c in
       match princl with
@@ -57,7 +58,7 @@ let functional_induction with_clean c princl pat =
               | None ->
                 user_err
                   ( str "Cannot find induction information on "
-                  ++ Termops.pr_global_env (pf_env gl) (ConstRef c') )
+                  ++ Termops.pr_global_env env (ConstRef c') )
             in
             match elimination_sort_of_goal gl with
             | Qual (QConstant QSProp) -> finfo.sprop_lemma
@@ -69,7 +70,7 @@ let functional_induction with_clean c princl pat =
             (* then we get the principle *)
             match princ_option with
             | Some princ ->
-              Evd.fresh_global (pf_env gl) sigma (GlobRef.ConstRef princ)
+              Evd.fresh_global env sigma (GlobRef.ConstRef princ)
             | None ->
               (*i If there is not default lemma defined then,
                       we cross our finger and try to find a lemma named f_ind
@@ -88,11 +89,11 @@ let functional_induction with_clean c princl pat =
                 | None ->
                   user_err
                     ( str "Cannot find induction principle for "
-                    ++ Termops.pr_global_env (pf_env gl) (ConstRef c') )
+                    ++ Termops.pr_global_env env (ConstRef c') )
               in
-              Evd.fresh_global (pf_env gl) sigma princ_ref
+              Evd.fresh_global env sigma princ_ref
           in
-          let princt = Retyping.get_type_of (pf_env gl) sigma princ in
+          let princt = Retyping.get_type_of env sigma princ in
           Proofview.Unsafe.tclEVARS sigma
           <*> Proofview.tclUNIT (princ, Tactypes.NoBindings, princt, args)
         | _ ->

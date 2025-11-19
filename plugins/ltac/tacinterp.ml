@@ -21,7 +21,6 @@ open Util
 open Names
 open Nameops
 open Libnames
-open Tacmach
 open Tactic_debug
 open Constrexpr
 open Termops
@@ -813,8 +812,9 @@ let interp_constr_may_eval ist env sigma c =
 let message_of_value v =
   let pr_with_env pr =
     Ftactic.enter begin fun gl ->
+      let env = Proofview.Goal.env gl in
       let sigma = Proofview.Goal.sigma gl in
-      Ftactic.return (pr (pf_env gl) sigma)
+      Ftactic.return (pr env sigma)
     end
   in
   let open Genprint in
@@ -1151,9 +1151,10 @@ and eval_tactic_ist ist tac : unit Proofview.tactic =
       do_profile stack
         (catch_error_tac stack begin
       Proofview.Goal.enter begin fun gl ->
+        let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
         Abstract.tclABSTRACT
-        (Option.map (interp_ident ist (pf_env gl) sigma) ido) (interp_tactic ist t)
+        (Option.map (interp_ident ist env sigma) ido) (interp_tactic ist t)
       end end)
   | TacThen (t1,t) ->
       Tacticals.tclTHEN (interp_tactic ist t1) (interp_tactic ist t)
@@ -1294,8 +1295,9 @@ and interp_tacarg ist arg : Val.t Ftactic.t =
       interp_app loc ist fv largs
   | TacFreshId l ->
       Ftactic.enter begin fun gl ->
+        let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
-        let id = interp_fresh_id ist (pf_env gl) sigma l in
+        let id = interp_fresh_id ist env sigma l in
         Ftactic.return (in_gen (topwit wit_intro_pattern) (CAst.make @@ IntroNaming (IntroIdentifier id)))
       end
   | TacPretype c ->
@@ -1362,7 +1364,7 @@ and interp_app loc ist fv largs : Val.t Ftactic.t =
         match generic_val_print v with
         | TopPrinterBasic _ -> call_debug None
         | TopPrinterNeedsContext _ | TopPrinterNeedsContextAndLevel _ ->
-          Proofview.Goal.enter (fun gl -> call_debug (Some (pf_env gl, Proofview.Goal.sigma gl)))
+          Proofview.Goal.enter (fun gl -> call_debug (Some (Proofview.Goal.env gl, Proofview.Goal.sigma gl)))
       end <*>
       if List.is_empty lval then Ftactic.return v else interp_app loc ist v lval
     else
@@ -1717,7 +1719,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
       (* spiwack: until the tactic is in the monad *)
       Proofview.Trace.name_tactic (fun () -> Pp.str"<mutual fix>") begin
       Proofview.Goal.enter begin fun gl ->
-        let env = pf_env gl in
+        let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
         let f sigma (id,n,c) =
           let (sigma,c_interp) = interp_type ist env sigma c in
@@ -1733,7 +1735,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
       (* spiwack: until the tactic is in the monad *)
       Proofview.Trace.name_tactic (fun () -> Pp.str"<mutual cofix>") begin
       Proofview.Goal.enter begin fun gl ->
-        let env = pf_env gl in
+        let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
         let f sigma (id,c) =
           let (sigma,c_interp) = interp_type ist env sigma c in
@@ -1841,15 +1843,17 @@ and interp_atomic ist tac : unit Proofview.tactic =
   (* Conversion *)
   | TacReduce (r,cl) ->
       Proofview.Goal.enter begin fun gl ->
+        let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
-        let (sigma,r_interp) = interp_red_expr ist (pf_env gl) sigma r in
+        let (sigma,r_interp) = interp_red_expr ist env sigma r in
         Tacticals.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
-        (Tactics.reduce r_interp (interp_clause ist (pf_env gl) sigma cl))
+        (Tactics.reduce r_interp (interp_clause ist env sigma cl))
       end
   | TacChange (check,None,c,cl) ->
       (* spiwack: until the tactic is in the monad *)
       Proofview.Trace.name_tactic (fun () -> Pp.str"<change>") begin
       Proofview.Goal.enter begin fun gl ->
+        let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
         let is_onhyps = match cl.onhyps with
           | None | Some [] -> true
@@ -1869,7 +1873,7 @@ and interp_atomic ist tac : unit Proofview.tactic =
             then Changed (interp_type ist env sigma c)
             else Changed (interp_constr ist env sigma c)
         in
-        Tactics.change ~check None c_interp (interp_clause ist (pf_env gl) sigma cl)
+        Tactics.change ~check None c_interp (interp_clause ist env sigma cl)
       end
       end
   | TacChange (check,Some op,c,cl) ->

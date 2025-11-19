@@ -1226,7 +1226,9 @@ let induction_without_atomization isrec with_evars elim names lid =
 (* assume that no occurrences are selected *)
 let clear_unselected_context id inhyps cls =
   Proofview.Goal.enter begin fun gl ->
-  if occur_var (Tacmach.pf_env gl) (Proofview.Goal.sigma gl) id (Tacmach.pf_concl gl) &&
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  if occur_var env sigma id (Tacmach.pf_concl gl) &&
     cls.concl_occs == NoOccurrences
   then error (MentionConclusionDependentOn id);
   match cls.onhyps with
@@ -1236,7 +1238,7 @@ let clear_unselected_context id inhyps cls =
         if Id.List.mem id' inhyps then (* if selected, do not erase *) None
         else
           (* erase if not selected and dependent on id or selected hyps *)
-          let test id = occur_var_in_decl (Tacmach.pf_env gl) (Proofview.Goal.sigma gl) id d in
+          let test id = occur_var_in_decl env sigma id d in
           if List.exists test (id::inhyps) then Some id' else None in
       let ids = List.map_filter to_erase (Proofview.Goal.hyps gl) in
       clear ids

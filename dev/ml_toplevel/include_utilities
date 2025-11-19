@@ -37,4 +37,4 @@ let current_goal () = get_nth_goal 1;;
 *)
 
 let pf_e gl s = 
-  Constrintern.interp_constr (Tacmach.pf_env gl) (Proofview.Goal.sigma gl) (parse_constr s)
+  Constrintern.interp_constr (Proofview.Goal.env gl) (Proofview.Goal.sigma gl) (parse_constr s)

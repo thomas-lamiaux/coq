@@ -380,11 +380,10 @@ let id_map_redex _ sigma ~before:_ ~after = sigma, after
     ⊢ c_ty ≡ EQN rdx_ty rdx new_rdx
 *)
 let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty new_rdx dir (sigma, c) c_ty =
-  let open Tacmach in
   let open Tacticals in
   Proofview.Goal.enter begin fun gl ->
 (*   ppdebug(lazy(str"sigma@pirrel_rewrite=" ++ pr_evar_map None sigma)); *)
-  let env = pf_env gl in
+  let env = Proofview.Goal.env gl in
   let beta = Reductionops.clos_norm_flags RedFlags.beta env sigma in
   let sigma, new_rdx = map_redex env sigma ~before:rdx ~after:new_rdx in
   let sigma, elim =

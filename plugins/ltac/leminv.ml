@@ -261,7 +261,7 @@ let lemInv id c =
   let mv = let mvs = Clenv.clenv_arguments clause in
     if List.is_empty mvs then
       CErrors.user_err
-        Pp.(hov 0 (pr_econstr_env (pf_env gls) sigma c ++ spc ()
+        Pp.(hov 0 (pr_econstr_env env sigma c ++ spc ()
                    ++ str "does not refer to an inversion lemma."))
     else List.last mvs
   in
@@ -272,7 +272,7 @@ let lemInv id c =
     | Failure _ | UserError _ ->
          user_err
            (str "Cannot refine current goal with the lemma " ++
-              pr_leconstr_env (pf_env gls) sigma c ++ str ".")
+              pr_leconstr_env env sigma c ++ str ".")
   end
 
 let lemInv_gen id c = try_intros_until (fun id -> lemInv id c) id

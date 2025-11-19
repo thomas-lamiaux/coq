@@ -213,7 +213,7 @@ let assert_is_conv (ctx, concl) =
   Proofview.Goal.enter begin fun gl ->
     Proofview.tclORELSE (convert_concl ~check:true (EConstr.it_mkProd_or_LetIn concl ctx))
     (fun _ -> Tacticals.tclZEROMSG (str "Given proof term is not of type " ++
-      pr_econstr_env (Tacmach.pf_env gl) (Proofview.Goal.sigma gl) (EConstr.mkArrow (EConstr.mkVar (Id.of_string "_")) ERelevance.relevant concl)))
+      pr_econstr_env (Proofview.Goal.env gl) (Proofview.Goal.sigma gl) (EConstr.mkArrow (EConstr.mkVar (Id.of_string "_")) ERelevance.relevant concl)))
   end
 
 let push_goals gs =
@@ -433,10 +433,10 @@ let sufftac ist ((((clr, pats),binders),simpl), ((_, c), hint)) =
     end
   in
   let ctac =
-    let open Tacmach in
     Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
-    let sigma, _, ty, _ = pf_interp_ty (pf_env gl) sigma ist c in
+    let env = Proofview.Goal.env gl in
+    let sigma, _, ty, _ = pf_interp_ty env sigma ist c in
     Proofview.Unsafe.tclEVARS sigma <*> basesufftac ty
   end in
   Tacticals.tclTHENS ctac [htac; Tacticals.tclTHEN (cleartac clr) (introstac (binders@simpl))]

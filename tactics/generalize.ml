@@ -146,9 +146,9 @@ let generalize_goal_gen env sigma ids i ((occs,c,b),na) t cl =
   in
   mkProd_or_LetIn decl cl', sigma'
 
-let generalize_goal gl i ((occs,c,b),na as o) (cl,sigma) =
+let generalize_goal gl i ((occs,c,b),na as o) (cl,sigma) = (* XXX do not take gl *)
   let open Tacmach in
-  let env = pf_env gl in
+  let env = Proofview.Goal.env gl in
   let ids = pf_ids_of_hyps gl in
   let sigma, t = Typing.type_of env sigma c in
   generalize_goal_gen env sigma ids i o t cl
@@ -157,9 +157,9 @@ let generalize_dep ?(with_let=false) c =
   let open Tacmach in
   let open Tacticals in
   Proofview.Goal.enter begin fun gl ->
-  let env = pf_env gl in
-  let sign = named_context_val env in
+  let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
+  let sign = named_context_val env in
   let init_ids = ids_of_named_context (Global.named_context()) in
   let seek (d:named_declaration) (toquant:named_context) =
     if List.exists (fun d' -> occur_var_in_decl env sigma (NamedDecl.get_id d') d) toquant
@@ -408,7 +408,7 @@ let is_defined_variable env id =
 let abstract_args gl generalize_vars dep id defined f args =
   let open Context.Rel.Declaration in
   let sigma = Proofview.Goal.sigma gl in
-  let env = Tacmach.pf_env gl in
+  let env = Proofview.Goal.env gl in
   let concl = Tacmach.pf_concl gl in
   let hyps = Proofview.Goal.hyps gl in
   let dep = dep || local_occur_var sigma id concl in

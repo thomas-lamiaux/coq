@@ -1023,7 +1023,7 @@ let rec build_discriminator env sigma true_0 false_0 pos c = function
 
 let gen_absurdity id =
   Proofview.Goal.enter begin fun gl ->
-  let env = pf_env gl in
+  let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let hyp_typ = pf_get_hyp_typ id gl in
   if is_empty_type env sigma hyp_typ

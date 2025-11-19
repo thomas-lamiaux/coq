@@ -1904,8 +1904,8 @@ let unification_rewrite l2r c1 c2 sigma prf car rel but env =
   abs, sigma, res, Sorts.is_prop sort
 
 let get_hyp gl (c,l) clause l2r =
+  let env = Proofview.Goal.env gl in
   let evars = Proofview.Goal.sigma gl in
-  let env = Tacmach.pf_env gl in
   let sigma, hi = decompose_applied_relation env evars (c,l) in
   let but = match clause with
     | Some id -> Tacmach.pf_get_hyp_typ id gl

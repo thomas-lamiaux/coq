@@ -478,7 +478,8 @@ let bind_change_occurrences occs = function
 let e_change_in_concl ~cast ~check (redfun, sty) =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
-    match redfun (Tacmach.pf_env gl) sigma (Tacmach.pf_concl gl) with
+    let env = Proofview.Goal.env gl in
+    match redfun env sigma (Tacmach.pf_concl gl) with
     | NoChange -> Proofview.tclUNIT ()
     | Changed (sigma, c') ->
       Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma)
@@ -836,7 +837,7 @@ let rec intro_then_gen name_flag move_flag ~force ~dep tac =
   let open Context.Rel.Declaration in
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
-    let env = Tacmach.pf_env gl in
+    let env = Proofview.Goal.env gl in
     let concl = Proofview.Goal.concl gl in
     match EConstr.kind sigma concl with
     | Prod (name,t,u) when not dep || not (noccurn sigma 1 u) ->
@@ -1831,8 +1832,9 @@ let native_cast_no_check c = cast_no_check NATIVEcast c
 let exact_proof c =
   let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
+  let env = Proofview.Goal.env gl in
   Refine.refine ~typecheck:false begin fun sigma ->
-    Constrintern.interp_casted_constr_evars ~flags:Pretyping.all_and_fail_flags (pf_env gl) sigma c (pf_concl gl)
+    Constrintern.interp_casted_constr_evars ~flags:Pretyping.all_and_fail_flags env sigma c (pf_concl gl)
   end
   end
 
@@ -2934,7 +2936,7 @@ let reflexivity_red allowred =
   (* PL: usual reflexivity don't perform any reduction when searching
      for an equality, but we may need to do some when called back from
      inside setoid_reflexivity (see Optimize cases in setoid_replace.ml). *)
-    let env = Tacmach.pf_env gl in
+    let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let concl = maybe_betadeltaiota_concl allowred gl in
     match match_with_equality_type env sigma concl with
@@ -3118,7 +3120,7 @@ let constr_eq ~strict x y =
   let fail ~info = Tacticals.tclFAIL ~info (str "Not equal") in
   let fail_universes ~info = Tacticals.tclFAIL ~info (str "Not equal (due to universes)") in
   Proofview.Goal.enter begin fun gl ->
-    let env = Tacmach.pf_env gl in
+    let env = Proofview.Goal.env gl in
     let evd = Proofview.Goal.sigma gl in
       match EConstr.eq_constr_universes env evd x y with
       | Some csts ->
@@ -3156,7 +3158,7 @@ let unify ?(state=TransparentState.full) x y =
       merge_unify_flags = core_flags;
       subterm_unify_flags = { core_flags with modulo_delta = TransparentState.empty } }
     in
-    let _, sigma = w_unify (Tacmach.pf_env gl) sigma Conversion.CONV ~flags x y in
+    let _, sigma = w_unify env sigma Conversion.CONV ~flags x y in
     Proofview.Unsafe.tclEVARS sigma
   with e when noncritical e ->
     let e, info = Exninfo.capture e in

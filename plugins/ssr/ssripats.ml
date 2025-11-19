@@ -996,10 +996,10 @@ let ssrabstract dgens =
     ] in
   let interp_gens { gens } ~conclusion = Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
+    let env = Proofview.Goal.env gl in
      let open Ssrmatching in
-     let open Tacmach in
      let ipats = List.map (fun (_,cp) ->
-       match id_of_pattern sigma (interp_cpattern (pf_env gl) sigma cp None) with
+       match id_of_pattern sigma (interp_cpattern env sigma cp None) with
        | None -> IPatAnon (One None)
        | Some id -> IPatId id)
        (List.tl gens) in

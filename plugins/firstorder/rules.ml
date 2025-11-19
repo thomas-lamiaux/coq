@@ -35,7 +35,7 @@ let wrap ~flags n b continue seq =
   Proofview.Goal.enter begin fun gls ->
   Control.check_for_interrupt ();
   let nc = Proofview.Goal.hyps gls in
-  let env = pf_env gls in
+  let env = Proofview.Goal.env gls in
   let sigma = Proofview.Goal.sigma gls in
   let rec aux i nc ctx=
     if i<=0 then seq else
@@ -133,7 +133,8 @@ let arrow_tac ~flags backtrack continue seq=
 
 let left_and_tac ~flags ind backtrack id continue seq =
   Proofview.Goal.enter begin fun gl ->
-  let n=(construct_nhyps (pf_env gl) ind).(0) in
+  let env = Proofview.Goal.env gl in
+  let n = (construct_nhyps env ind).(0) in
    tclIFTHENELSE
      (tclTHENLIST
       [(pf_constr_of_global id >>= simplest_elim);
@@ -145,7 +146,8 @@ let left_and_tac ~flags ind backtrack id continue seq =
 
 let left_or_tac ~flags ind backtrack id continue seq =
   Proofview.Goal.enter begin fun gl ->
-  let v=construct_nhyps (pf_env gl) ind in
+  let env = Proofview.Goal.env gl in
+  let v = construct_nhyps env ind in
   let f n=
     tclTHENLIST
       [clear_global id;
@@ -166,8 +168,9 @@ let left_false_tac id=
 
 let ll_ind_tac ~flags (ind,u as indu) largs backtrack id continue seq =
   Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-     let rcs=ind_hyps (pf_env gl) sigma 0 indu largs in
+    let rcs = ind_hyps env sigma 0 indu largs in
      let vargs=Array.of_list largs in
              (* construire le terme  H->B, le generaliser etc *)
      let myterm idc i=
@@ -223,7 +226,8 @@ let forall_tac ~flags backtrack continue seq=
 
 let left_exists_tac ~flags ind backtrack id continue seq =
   Proofview.Goal.enter begin fun gl ->
-  let n=(construct_nhyps (pf_env gl) ind).(0) in
+  let env = Proofview.Goal.env gl in
+  let n = (construct_nhyps env ind).(0) in
     tclIFTHENELSE
       (Tacticals.pf_constr_of_global id >>= simplest_elim)
       (tclTHENLIST [clear_global id;

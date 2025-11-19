@@ -102,7 +102,7 @@ let e_exact flags h =
 let rec e_trivial_fail_db db_list local_db =
   let next = Proofview.Goal.enter begin fun gl ->
     let d = NamedDecl.get_id @@ Tacmach.pf_last_hyp gl in
-    let local_db = push_resolve_hyp (Tacmach.pf_env gl) (Proofview.Goal.sigma gl) d local_db in
+    let local_db = push_resolve_hyp (Proofview.Goal.env gl) (Proofview.Goal.sigma gl) d local_db in
     e_trivial_fail_db db_list local_db
   end in
   Proofview.Goal.enter begin fun gl ->
@@ -110,7 +110,7 @@ let rec e_trivial_fail_db db_list local_db =
   let tacl =
     e_assumption ::
     (Tacticals.tclTHEN Tactics.intro next) ::
-    (e_trivial_resolve (Tacmach.pf_env gl) (Proofview.Goal.sigma gl) db_list local_db secvars (Tacmach.pf_concl gl))
+    (e_trivial_resolve (Proofview.Goal.env gl) (Proofview.Goal.sigma gl) db_list local_db secvars (Tacmach.pf_concl gl))
   in
   Tacticals.tclSOLVE tacl
   end
@@ -381,7 +381,7 @@ let gen_eauto ?debug ?depth lems dbs =
 
 let autounfolds ids csts prjs gl cls =
   let hyps = Tacmach.pf_ids_of_hyps gl in
-  let env = Tacmach.pf_env gl in
+  let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let ids = List.filter (fun id -> List.mem id hyps && Tacred.is_evaluable env sigma (EvalVarRef id)) ids in
   let csts = List.filter (fun cst -> Tacred.is_evaluable env sigma (EvalConstRef cst)) csts in

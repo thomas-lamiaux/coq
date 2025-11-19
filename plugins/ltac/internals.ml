@@ -26,7 +26,7 @@ let assert_succeeds tac =
 
 let mytclWithHoles tac with_evars c =
   Proofview.Goal.enter begin fun gl ->
-    let env = Tacmach.pf_env gl in
+    let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     let sigma',c = Tactics.force_destruction_arg with_evars env sigma c in
     Tacticals.tclWITHHOLES with_evars (tac with_evars (Some c)) sigma'
@@ -191,9 +191,10 @@ let decompose l c =
 let exact ist (c : Ltac_pretype.closed_glob_constr) =
   let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
+  let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let expected_type = Pretyping.OfType (pf_concl gl) in
-  let sigma, c = Tacinterp.type_uconstr ~expected_type ist c (pf_env gl) sigma in
+  let sigma, c = Tacinterp.type_uconstr ~expected_type ist c env sigma in
   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (Tactics.exact_no_check c)
   end
 
