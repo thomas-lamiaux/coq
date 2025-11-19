@@ -127,8 +127,8 @@ let mk_open_instance env sigma id idc c =
 let left_instance_tac ~flags (inst,id) continue seq=
   let open EConstr in
   Proofview.Goal.enter begin fun gl ->
-  let sigma = project gl in
   let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   match inst with
       Phantom dom->
         if lookup env sigma (id,None) seq then
@@ -154,7 +154,8 @@ let left_instance_tac ~flags (inst,id) continue seq=
             if not @@ Unify.Item.is_ground c then
               (pf_constr_of_global id >>= fun idc ->
                 Proofview.Goal.enter begin fun gl->
-                  let (evmap, rc, ot) = mk_open_instance (pf_env gl) (project gl) id idc c in
+                  let sigma = Proofview.Goal.sigma gl in
+                  let (evmap, rc, ot) = mk_open_instance (pf_env gl) sigma id idc c in
                   let gt=
                     it_mkLambda_or_LetIn
                       (mkApp(idc,[|ot|])) rc in
@@ -204,7 +205,8 @@ let instance_tac ~flags (hd, AnyId id) = match id with
 let quantified_tac ~flags lf backtrack continue seq =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let insts=give_instances env (project gl) lf seq in
+  let sigma = Proofview.Goal.sigma gl in
+  let insts = give_instances env sigma lf seq in
     tclORELSE
       (tclFIRST (List.map (fun inst->instance_tac ~flags inst continue seq) insts))
       backtrack

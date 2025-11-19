@@ -94,7 +94,7 @@ let introduction id =
   Proofview.Goal.enter begin fun gl ->
     let concl = Proofview.Goal.concl gl in
     let relevance = Proofview.Goal.relevance gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let hyps = named_context_val (Proofview.Goal.env gl) in
     let env = Proofview.Goal.env gl in
     let () = if mem_named_context_val id hyps then
@@ -130,7 +130,7 @@ let convert_concl ~cast ~check ty k =
 let convert_hyp ~check ~reorder d =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let ty = Proofview.Goal.concl gl in
     let sign = convert_hyp ~check ~reorder env sigma d in
     let env = reset_with_named_context sign env in
@@ -161,7 +161,7 @@ let clear_gen fail = function
     let ids = List.fold_right Id.Set.add ids Id.Set.empty in
     (* clear_hyps_in_evi does not require nf terms *)
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
     let (sigma, hyps, concl) =
       try clear_hyps_in_evi env sigma (named_context_val env) concl ids
@@ -204,7 +204,7 @@ let apply_clear_request clear_flag dft c =
 let move_hyp id dest =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let ty = Proofview.Goal.concl gl in
     let sign = named_context_val env in
     let sign' = move_hyp_in_named_context env sigma id dest sign in
@@ -320,7 +320,7 @@ let find_name mayrepl decl naming gl = match naming with
   | NamingAvoid idl ->
       (* This case must be compatible with [find_intro_names] below. *)
       let env = Proofview.Goal.env gl in
-      let sigma = Tacmach.project gl in
+      let sigma = Proofview.Goal.sigma gl in
       new_fresh_id idl (default_id env sigma decl) gl
   | NamingBasedOn (id,idl) -> new_fresh_id idl id gl
   | NamingMustBe {CAst.loc;v=id} ->
@@ -367,7 +367,7 @@ let clear_hyps2 env sigma ids sign t cl =
 let internal_cut ?(check=true) replace id t =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
     let sign = named_context_val env in
     let r = Retyping.relevance_of_type env sigma t in
@@ -513,7 +513,7 @@ let e_change_in_hyps ~check ~reorder f args = match args with
 | _ :: _ ->
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let (env, sigma) = match reorder with
     | LocalHypConv ->
       (* If the reduction function is known not to depend on the named
@@ -835,7 +835,7 @@ let build_intro_tac id dest tac = match dest with
 let rec intro_then_gen name_flag move_flag ~force ~dep tac =
   let open Context.Rel.Declaration in
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let env = Tacmach.pf_env gl in
     let concl = Proofview.Goal.concl gl in
     match EConstr.kind sigma concl with
@@ -1049,7 +1049,7 @@ let lookup_hypothesis_as_renamed env sigma ccl = function
 let lookup_hypothesis_as_renamed_gen red h gl =
   let env = Proofview.Goal.env gl in
   let rec aux ccl =
-    match lookup_hypothesis_as_renamed env (Tacmach.project gl) ccl h with
+    match lookup_hypothesis_as_renamed env (Proofview.Goal.sigma gl) ccl h with
       | None when red ->
         begin match red_product env (Proofview.Goal.sigma gl) ccl with
         | None -> None
@@ -1173,7 +1173,7 @@ let force_destruction_arg with_evars env sigma c =
 let cut c =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
     (* Backward compat: ensure that [c] is well-typed. Plus we need to
        know the relevance *)
@@ -1296,7 +1296,7 @@ let general_elim_clause0 with_evars flags (submetas, c, ty) elim =
 let general_elim_clause_in0 with_evars flags id (submetas, c, ty) elimc =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let elimt = Retyping.get_type_of env sigma elimc in
   let i = index_of_ind_arg sigma elimt in
   let elimclause = mk_clenv_from env sigma (elimc, elimt) in
@@ -1328,7 +1328,7 @@ let general_elim_clause_in0 with_evars flags id (submetas, c, ty) elimc =
 let general_elim with_evars clear_flag (c, lbindc) elim =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let ct = Retyping.get_type_of env sigma c in
   let id = try Some (destVar sigma c) with DestKO -> None in
   let t = try snd (reduce_to_quantified_ind env sigma ct) with UserError _ -> ct in
@@ -1524,7 +1524,7 @@ let make_projection env sigma params cstr sign elim i n c (ind, u) =
 let descend_in_conjunctions avoid tac (err, info) c =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   try
     let t = Retyping.get_type_of env sigma c in
     let ((ind,u),t) = reduce_to_quantified_ind env sigma t in
@@ -1546,7 +1546,7 @@ let descend_in_conjunctions avoid tac (err, info) c =
           (List.init n (fun i (err, info) ->
             Proofview.Goal.enter begin fun gl ->
             let env = Proofview.Goal.env gl in
-            let sigma = Tacmach.project gl in
+            let sigma = Proofview.Goal.sigma gl in
             match make_projection env sigma params cstr sign elim i n c (ind, u) with
             | None ->
               Proofview.tclZERO ~info err
@@ -1576,13 +1576,13 @@ let general_apply ?(with_classes=true) ?(respect_opaque=false) with_delta with_d
     clear_flag {CAst.loc;v=(c,lbind : EConstr.constr with_bindings)} =
   Proofview.Goal.enter begin fun gl ->
   let concl = Proofview.Goal.concl gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let id = try Some (destVar sigma c) with DestKO -> None in
   let concl_nprod = nb_prod_modulo_zeta sigma concl in
   let rec try_main_apply with_destruct c =
     Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let ts =
       if respect_opaque then Conv_oracle.get_transp_state (oracle env)
       else TransparentState.full
@@ -1735,8 +1735,8 @@ let apply_in_once ?(respect_opaque = false) with_delta
   let rec aux ?err idstoclear with_destruct c =
     Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
-    let idc = try Some (destVar (Tacmach.project gl) c) with DestKO -> None in
+    let sigma = Proofview.Goal.sigma gl in
+    let idc = try Some (destVar (Proofview.Goal.sigma gl) c) with DestKO -> None in
     let ts =
       if respect_opaque then Conv_oracle.get_transp_state (oracle env)
       else TransparentState.full
@@ -1850,7 +1850,7 @@ let assumption =
   | decl::rest ->
     let t = NamedDecl.get_type decl in
     let concl = Proofview.Goal.concl gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let ans =
       if only_eq then
         if EConstr.eq_constr sigma t concl then Some sigma
@@ -1901,7 +1901,7 @@ let clear_body idl =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let concl = Proofview.Goal.concl gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let ctx = named_context env in
     let ids = Id.Set.of_list idl in
     (* We assume the context to respect dependencies *)
@@ -1971,7 +1971,7 @@ let keep hyps =
   Proofview.Goal.enter begin fun gl ->
   Proofview.tclENV >>= fun env ->
   let ccl = Proofview.Goal.concl gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let cl,_ =
     fold_named_context_reverse (fun (clear,keep) decl ->
       let decl = EConstr.of_named_decl decl in
@@ -2151,7 +2151,7 @@ let rewrite_hyp_then with_evars thin l2r id tac =
     List.filter (fun {CAst.v=id} -> not (Id.equal id id')) thin in
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let {uj_type=t} = Typing.judge_of_variable env id in
     let t = whd_all env sigma t in
     let eqtac, thin = match match_with_equality_type env sigma t with
@@ -2559,7 +2559,7 @@ let forward b usetac ipat c =
   | None ->
       Proofview.Goal.enter begin fun gl ->
       let t = Tacmach.pf_get_type_of gl c in
-      let sigma = Tacmach.project gl in
+      let sigma = Proofview.Goal.sigma gl in
       let hd = head_ident sigma c in
       let assert_as =
         let naming,tac = prepare_intros_opt false IntroAnonymous MoveLast ipat in
@@ -2923,7 +2923,7 @@ let (forward_setoid_reflexivity, setoid_reflexivity) = Hook.make ()
 
 let maybe_betadeltaiota_concl allowred gl =
   let concl = Tacmach.pf_concl gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   if not allowred then concl
   else
     let env = Proofview.Goal.env gl in
@@ -2935,7 +2935,7 @@ let reflexivity_red allowred =
      for an equality, but we may need to do some when called back from
      inside setoid_reflexivity (see Optimize cases in setoid_replace.ml). *)
     let env = Tacmach.pf_env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let concl = maybe_betadeltaiota_concl allowred gl in
     match match_with_equality_type env sigma concl with
     | None ->
@@ -3066,7 +3066,7 @@ let prove_transitivity hdcncl eq_kind t =
         mkApp (hdcncl, [| typ; c1; t |]), mkApp (hdcncl, [| typ; t; c2 |])
       | HeterogenousEq (typ1,c1,typ2,c2) ->
         let env = Proofview.Goal.env gl in
-        let sigma = Tacmach.project gl in
+        let sigma = Proofview.Goal.sigma gl in
         let typt = Retyping.get_type_of env sigma t in
         mkApp(hdcncl, [| typ1; c1; typt ;t |]),
         mkApp(hdcncl, [| typt; t; typ2; c2 |])
@@ -3119,7 +3119,7 @@ let constr_eq ~strict x y =
   let fail_universes ~info = Tacticals.tclFAIL ~info (str "Not equal (due to universes)") in
   Proofview.Goal.enter begin fun gl ->
     let env = Tacmach.pf_env gl in
-    let evd = Tacmach.project gl in
+    let evd = Proofview.Goal.sigma gl in
       match EConstr.eq_constr_universes env evd x y with
       | Some csts ->
         if strict then

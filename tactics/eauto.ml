@@ -102,7 +102,7 @@ let e_exact flags h =
 let rec e_trivial_fail_db db_list local_db =
   let next = Proofview.Goal.enter begin fun gl ->
     let d = NamedDecl.get_id @@ Tacmach.pf_last_hyp gl in
-    let local_db = push_resolve_hyp (Tacmach.pf_env gl) (Tacmach.project gl) d local_db in
+    let local_db = push_resolve_hyp (Tacmach.pf_env gl) (Proofview.Goal.sigma gl) d local_db in
     e_trivial_fail_db db_list local_db
   end in
   Proofview.Goal.enter begin fun gl ->
@@ -110,7 +110,7 @@ let rec e_trivial_fail_db db_list local_db =
   let tacl =
     e_assumption ::
     (Tacticals.tclTHEN Tactics.intro next) ::
-    (e_trivial_resolve (Tacmach.pf_env gl) (Tacmach.project gl) db_list local_db secvars (Tacmach.pf_concl gl))
+    (e_trivial_resolve (Tacmach.pf_env gl) (Proofview.Goal.sigma gl) db_list local_db secvars (Tacmach.pf_concl gl))
   in
   Tacticals.tclSOLVE tacl
   end
@@ -467,7 +467,7 @@ let unfold_head env sigma (ids, csts, prjs) c =
 let autounfold_one db cl =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
   let st =
     List.fold_left (fun (i,c,p) dbname ->

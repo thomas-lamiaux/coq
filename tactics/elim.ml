@@ -136,7 +136,7 @@ let general_decompose recognizer c =
 
 let head_in indl t gl =
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   try
     let ity,_ = extract_mrectype sigma t in
     List.exists (fun i -> Environ.QInd.equal env (fst i) (fst ity)) indl

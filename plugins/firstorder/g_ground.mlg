@@ -67,8 +67,9 @@ let gen_ground_tac ist taco ids bases =
       in
       let startseq k =
         Proofview.Goal.enter begin fun gl ->
-        let seq=empty_seq (ground_depth ()) in
-        let seq, sigma = extend_with_ref_list ~flags (pf_env gl) (project gl) ids seq in
+        let sigma = Proofview.Goal.sigma gl in
+        let seq = empty_seq (ground_depth ()) in
+        let seq, sigma = extend_with_ref_list ~flags (pf_env gl) sigma ids seq in
         let seq, sigma = extend_with_auto_hints ~flags (pf_env gl) sigma bases seq in
         tclTHEN (Proofview.Unsafe.tclEVARS sigma) (k seq)
         end

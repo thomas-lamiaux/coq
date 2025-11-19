@@ -243,7 +243,7 @@ let solveEqBranch rectype =
       Proofview.Goal.enter begin fun gl ->
         let concl = pf_concl gl in
         let env = Proofview.Goal.env gl in
-        let sigma = project gl in
+        let sigma = Proofview.Goal.sigma gl in
         match_eqdec env sigma concl >>= fun (dty, lhs, rhs,_) ->
           let (mib,mip) = Inductive.lookup_mind_specif env rectype in
           let nparams   = mib.mind_nparams in
@@ -271,7 +271,7 @@ let decideGralEquality =
       Proofview.Goal.enter begin fun gl ->
         let concl = pf_concl gl in
         let env = Proofview.Goal.env gl in
-        let sigma = project gl in
+        let sigma = Proofview.Goal.sigma gl in
         match_eqdec env sigma concl >>= fun (dty, c1, c2, typ as data) ->
         let headtyp = hd_app sigma (pf_whd_compute gl typ) in
         begin match EConstr.kind sigma headtyp with

@@ -966,7 +966,8 @@ let rec intro_anon () =
   let open Tacmach in
   let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
-  let d = List.hd (fst (EConstr.decompose_prod_n_decls (project gl) 1 (pf_concl gl))) in
+  let sigma = Proofview.Goal.sigma gl in
+  let d = List.hd (fst (EConstr.decompose_prod_n_decls sigma 1 (pf_concl gl))) in
   Proofview.tclORELSE (anontac d)
     (fun (err0, info) -> Proofview.tclORELSE
         (Tactics.red_in_concl <*> intro_anon ()) (fun _ -> Proofview.tclZERO ~info err0))

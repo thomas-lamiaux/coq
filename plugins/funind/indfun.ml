@@ -42,7 +42,7 @@ let choose_dest_or_ind scheme_info args =
 let functional_induction with_clean c princl pat =
   let open Proofview.Notations in
   Proofview.Goal.enter_one (fun gl ->
-      let sigma = project gl in
+      let sigma = Proofview.Goal.sigma gl in
       let f, args = decompose_app_list sigma c in
       match princl with
       | None -> (
@@ -69,7 +69,7 @@ let functional_induction with_clean c princl pat =
             (* then we get the principle *)
             match princ_option with
             | Some princ ->
-              Evd.fresh_global (pf_env gl) (project gl) (GlobRef.ConstRef princ)
+              Evd.fresh_global (pf_env gl) sigma (GlobRef.ConstRef princ)
             | None ->
               (*i If there is not default lemma defined then,
                       we cross our finger and try to find a lemma named f_ind
@@ -90,7 +90,7 @@ let functional_induction with_clean c princl pat =
                     ( str "Cannot find induction principle for "
                     ++ Termops.pr_global_env (pf_env gl) (ConstRef c') )
               in
-              Evd.fresh_global (pf_env gl) (project gl) princ_ref
+              Evd.fresh_global (pf_env gl) sigma princ_ref
           in
           let princt = Retyping.get_type_of (pf_env gl) sigma princ in
           Proofview.Unsafe.tclEVARS sigma
@@ -104,8 +104,8 @@ let functional_induction with_clean c princl pat =
         <*> Proofview.tclUNIT (princ, binding, princt, args))
   >>= fun (princ, bindings, princ_type, args) ->
   Proofview.Goal.enter (fun gl ->
-      let sigma = project gl in
-      let princ_infos = compute_elim_sig (project gl) princ_type in
+      let sigma = Proofview.Goal.sigma gl in
+      let princ_infos = compute_elim_sig sigma princ_type in
       let args_as_induction_constr =
         let c_list = if princ_infos.farg_in_concl then [c] else [] in
         if List.length args + List.length c_list = 0 then

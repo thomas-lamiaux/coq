@@ -93,12 +93,13 @@ let mkRAppView ist env sigma rv gv =
 let refine_interp_apply_view dbl ist gv =
   let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
+  let sigma = Proofview.Goal.sigma gl in
   let pair i = List.map (fun x -> i, x) in
   let rv = intern_term ist (pf_env gl) gv in
-  let v = mkRAppView ist (pf_env gl) (project gl) rv gv in
+  let v = mkRAppView ist (pf_env gl) sigma rv gv in
   let interp_with (dbl, hint) =
     let i = if dbl = Ssrview.AdaptorDb.Equivalence then 2 else 1 in
-    interp_refine (pf_env gl) (project gl) ist ~concl:(pf_concl gl) (mkRApp hint (v :: mkRHoles i)) in
+    interp_refine (pf_env gl) sigma ist ~concl:(pf_concl gl) (mkRApp hint (v :: mkRHoles i)) in
   let rec loop = function
   | [] -> Proofview.tclORELSE (apply_rconstr ~ist rv) (fun _ -> view_error "apply" gv)
   | h :: hs ->
@@ -124,8 +125,8 @@ let apply_top_tac =
 let inner_ssrapplytac gviews (ggenl, gclr) ist =
   let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
-
- let clr = interp_hyps ist (pf_env gl) (project gl) gclr in
+  let sigma = Proofview.Goal.sigma gl in
+ let clr = interp_hyps ist (pf_env gl) sigma gclr in
  let vtac gv i = refine_interp_apply_view i ist gv in
  let ggenl, tclGENTAC =
    if gviews <> [] && ggenl <> [] then

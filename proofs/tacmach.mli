@@ -21,6 +21,8 @@ open Evd
 val pf_apply : (env -> evar_map -> 'a) -> Proofview.Goal.t -> 'a
 
 val project : Proofview.Goal.t -> Evd.evar_map
+[@@ocaml.deprecated "(9.2) Use Proofview.Goal.sigma"]
+
 val pf_env : Proofview.Goal.t -> Environ.env
 val pf_concl : Proofview.Goal.t -> types
 

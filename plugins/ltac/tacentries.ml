@@ -703,7 +703,7 @@ let dummy_id = Id.of_string "_"
 let lift_constr_tac_to_ml_tac vars tac =
   let tac _ ist = Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let map = function
     | Anonymous -> None
     | Name id ->

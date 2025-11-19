@@ -689,7 +689,7 @@ let ltac_ring_structure e =
 
 let ring_lookup (f : Value.t) lH rl t =
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
     let rl = make_args_list sigma rl t in
     let e = find_ring_structure env sigma rl in
@@ -968,7 +968,7 @@ let ltac_field_structure e =
 
 let field_lookup (f : Value.t) lH rl t =
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
     let rl = make_args_list sigma rl t in
     let e = find_field_structure env sigma rl in

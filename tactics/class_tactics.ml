@@ -158,7 +158,7 @@ let e_give_exact flags h =
   let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let sigma, c = Hints.fresh_hint env sigma h in
   let (sigma, t1) = Typing.type_of (pf_env gl) sigma c in
   Proofview.Unsafe.tclEVARS sigma <*>
@@ -172,7 +172,7 @@ let unify_resolve ~with_evars flags h diff = match diff with
   let () = assert (Option.is_empty (fst @@ hint_as_term @@ h)) in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let sigma, c = Hints.fresh_hint env sigma h in
   let clenv = Clenv.mk_clenv_from_n env sigma diff (c, ty) in
   Clenv.res_pf ~with_evars ~with_classes:false ~flags clenv
@@ -186,7 +186,7 @@ let with_prods nprods h f =
     Proofview.Goal.enter begin fun gl ->
       if Option.has_some (fst @@ hint_as_term h) || Int.equal nprods 0 then f None
       else
-        let sigma = Tacmach.project gl in
+        let sigma = Proofview.Goal.sigma gl in
         let ty = Retyping.get_type_of (Proofview.Goal.env gl) sigma (snd @@ hint_as_term h) in
         let diff = nb_prod sigma ty - nprods in
         if (>=) diff 0 then f (Some (diff, ty))
@@ -245,17 +245,17 @@ let rec e_trivial_fail_db db_list local_db secvars =
     Proofview.Goal.enter
     begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let d = NamedDecl.get_id @@ pf_last_hyp gl in
     let hints = push_resolve_hyp env sigma d local_db in
       e_trivial_fail_db db_list hints secvars
       end
   in
   let trivial_resolve =
-    Proofview.Goal.enter
-    begin fun gl ->
+    Proofview.Goal.enter begin fun gl ->
+    let sigma = Proofview.Goal.sigma gl in
     let tacs = e_trivial_resolve db_list local_db secvars
-                                 (pf_env gl) (project gl) (pf_concl gl) in
+                                 (pf_env gl) sigma (pf_concl gl) in
       tclFIRST (List.map (fun h -> h.hint_tac) tacs)
     end
   in

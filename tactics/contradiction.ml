@@ -58,7 +58,7 @@ let filter_hyp f tac =
 
 let contradiction_context =
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
     let rec seek_neg l = match l with
       | [] ->
@@ -110,7 +110,7 @@ let is_negation_of env sigma typ t =
 
 let contradiction_term (c,lbind as cl) =
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
     let typ = Tacmach.pf_get_type_of gl c in
     let _, ccl = whd_decompose_prod env sigma typ in

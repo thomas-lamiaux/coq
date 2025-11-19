@@ -35,8 +35,8 @@ let wrap ~flags n b continue seq =
   Proofview.Goal.enter begin fun gls ->
   Control.check_for_interrupt ();
   let nc = Proofview.Goal.hyps gls in
-  let env=pf_env gls in
-  let sigma = project gls in
+  let env = pf_env gls in
+  let sigma = Proofview.Goal.sigma gls in
   let rec aux i nc ctx=
     if i<=0 then seq else
       match nc with
@@ -166,7 +166,8 @@ let left_false_tac id=
 
 let ll_ind_tac ~flags (ind,u as indu) largs backtrack id continue seq =
   Proofview.Goal.enter begin fun gl ->
-     let rcs=ind_hyps (pf_env gl) (project gl) 0 indu largs in
+    let sigma = Proofview.Goal.sigma gl in
+     let rcs=ind_hyps (pf_env gl) sigma 0 indu largs in
      let vargs=Array.of_list largs in
              (* construire le terme  H->B, le generaliser etc *)
      let myterm idc i=

@@ -159,7 +159,7 @@ let generalize_dep ?(with_let=false) c =
   Proofview.Goal.enter begin fun gl ->
   let env = pf_env gl in
   let sign = named_context_val env in
-  let sigma = project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let init_ids = ids_of_named_context (Global.named_context()) in
   let seek (d:named_declaration) (toquant:named_context) =
     if List.exists (fun d' -> occur_var_in_decl env sigma (NamedDecl.get_id d') d) toquant
@@ -184,8 +184,7 @@ let generalize_dep ?(with_let=false) c =
     if with_let then is_var, body else is_var, None
   | _ -> false, None
   in
-  let cl'',evd = generalize_goal gl 0 ((AllOccurrences,c,body),Anonymous)
-    (cl',project gl) in
+  let cl'',evd = generalize_goal gl 0 ((AllOccurrences,c,body),Anonymous) (cl', sigma) in
   (* Check that the generalization is indeed well-typed *)
   let evd =
     (* No need to retype for variables, term is statically well-typed *)
@@ -202,9 +201,10 @@ let generalize_dep ?(with_let=false) c =
 (**  *)
 let generalize_gen_let lconstr = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   let newcl, evd =
     List.fold_right_i (generalize_goal gl) 0 lconstr
-      (Tacmach.pf_concl gl,Tacmach.project gl)
+      (Tacmach.pf_concl gl, sigma)
   in
   let (evd, _) = Typing.type_of env evd newcl in
   let map ((_, c, b),_) = if Option.is_empty b then Some c else None in
@@ -407,7 +407,7 @@ let is_defined_variable env id =
 
 let abstract_args gl generalize_vars dep id defined f args =
   let open Context.Rel.Declaration in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let env = Tacmach.pf_env gl in
   let concl = Tacmach.pf_concl gl in
   let hyps = Proofview.Goal.hyps gl in
@@ -498,7 +498,7 @@ let abstract_generalize ?(generalize_vars=true) ?(force_dep=false) id =
   let open Context.Named.Declaration in
   Proofview.Goal.enter begin fun gl ->
   Rocqlib.(check_required_library jmeq_module_name);
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let (f, args, def, id, oldid) =
     let oldid = Tacmach.pf_get_new_id id gl in
       match Tacmach.pf_get_hyp id gl with

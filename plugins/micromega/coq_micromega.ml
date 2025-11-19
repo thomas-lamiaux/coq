@@ -1903,7 +1903,7 @@ let clear_all_no_check =
 
 let micromega_gen parse_arith pre_process cnf spec dumpexpr prover tac =
   Proofview.Goal.enter (fun gl ->
-      let sigma = Tacmach.project gl in
+      let sigma = Proofview.Goal.sigma gl in
       let genv = Tacmach.pf_env gl in
       let concl = Tacmach.pf_concl gl in
       let hyps = Tacmach.pf_hyps_types gl in
@@ -1975,7 +1975,7 @@ Tacticals.tclTHEN
 
 let micromega_wit_gen pre_process cnf spec prover wit_id ff =
   Proofview.Goal.enter (fun gl ->
-      let sigma = Tacmach.project gl in
+      let sigma = Proofview.Goal.sigma gl in
       try
         let spec = Lazy.force spec in
         let undump_cstr = undump_cstr spec.undump_coeff in
@@ -2035,7 +2035,7 @@ let micromega_genr prover tac =
       ; coeff_eq = Mc.qeq_bool }
   in
   Proofview.Goal.enter (fun gl ->
-      let sigma = Tacmach.project gl in
+      let sigma = Proofview.Goal.sigma gl in
       let genv = Tacmach.pf_env gl in
       let concl = Tacmach.pf_concl gl in
       let hyps = Tacmach.pf_hyps_types gl in
@@ -2431,11 +2431,13 @@ let nlinear_Z =
   *)
 
 let exfalso_if_concl_not_Prop =
-  Proofview.Goal.enter (fun gl ->
+  Proofview.Goal.enter begin fun gl ->
+    let sigma = Proofview.Goal.sigma gl in
       Tacmach.(
-        if is_prop (pf_env gl) (project gl) (pf_concl gl) then
+        if is_prop (pf_env gl) sigma (pf_concl gl) then
           Tacticals.tclIDTAC
-        else Tactics.exfalso))
+        else Tactics.exfalso)
+  end
 
 let micromega_gen parse_arith pre_process cnf spec dumpexpr prover tac =
   Tacticals.tclTHEN exfalso_if_concl_not_Prop
