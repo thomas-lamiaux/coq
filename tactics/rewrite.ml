@@ -954,10 +954,8 @@ let fold_match ?(force=false) env sigma c =
         else case_nodep)
     in
     match Ind_tables.lookup_scheme sk ci.ci_ind with
-    | Some cst ->
-        dep, pred, cst
-    | None ->
-      raise Not_found
+    | Some (ConstRef cst) -> dep, pred, cst
+    | None | Some _ -> raise Not_found
   in
   let app =
     let sk = if Global.is_polymorphic (ConstRef sk)

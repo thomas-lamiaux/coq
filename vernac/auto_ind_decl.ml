@@ -527,7 +527,7 @@ let build_beq_scheme env handle kn =
         match find_ind_env_lift env_lift ind' with
         | Some (_,recparamsctx,n) -> Some (Term.it_mkLambda_or_LetIn (mkRel n) (translate_context env_lift recparamsctx))
         | None ->
-            try Some (mkConstU (get_scheme handle (!beq_scheme_kind_aux()) ind',u))
+            try Some (Constr.mkRef (get_scheme handle (!beq_scheme_kind_aux()) ind',u))
             with Not_found -> raise(EqNotFound ind')
       end
     | Const (kn,u as cst) ->
@@ -932,7 +932,7 @@ let do_replace_lb handle aavoid narg p q =
     let env = Tacmach.pf_env gl in
     let (ind,u as indu),v = destruct_ind env sigma type_of_pq in
     let c = get_scheme handle (!lb_scheme_kind_aux ()) ind in
-    let sigma , lb_type_of_p = Evd.fresh_global env sigma (GlobRef.ConstRef c) in
+    let sigma , lb_type_of_p = Evd.fresh_global env sigma c in
        let lb_args = Array.append (Array.append
                           v
                           (Array.Smart.map (fun x -> do_arg env sigma indu x 1) v))
@@ -989,7 +989,7 @@ let do_replace_bl handle (ind,u as indu) aavoid narg lft rgt =
              then Tacticals.tclTHENLIST [Equality.replace t1 t2; Auto.default_auto ; aux q1 q2 ]
              else (
                let c = get_scheme handle (!bl_scheme_kind_aux ()) ind' in
-               let sigma , bl_t1 = Evd.fresh_global env sigma (GlobRef.ConstRef c) in
+               let sigma , bl_t1 = Evd.fresh_global env sigma c in
                let bl_args =
                         Array.append (Array.append
                           v
@@ -1061,7 +1061,7 @@ let avoid_of_list_id list_id =
 let eqI handle (ind,u) list_id =
   let eA = Array.of_list((List.map (fun (s,_,_,_) -> mkVar s) list_id)@
                            (List.map (fun (_,seq,_,_)-> mkVar seq) list_id ))
-  and e = mkConstU (get_scheme handle beq_scheme_kind ind,u)
+  and e = Constr.mkRef (get_scheme handle beq_scheme_kind ind,u)
   in mkApp(e,eA)
 
 (**********************************************************************)
@@ -1449,9 +1449,9 @@ let compute_dec_tact handle (ind,u) lnamesparrec nparrec =
              from using univ monomorphic f_equal and the like *)
           let env, sigma = Proofview.Goal.(env gl, sigma gl) in
           let c = get_scheme handle bl_scheme_kind ind in
-          let sigma , blI = Evd.fresh_global env sigma (GlobRef.ConstRef c) in
+          let sigma , blI = Evd.fresh_global env sigma c in
           let c = get_scheme handle lb_scheme_kind ind in
-          let sigma , lbI = Evd.fresh_global env sigma (GlobRef.ConstRef c) in
+          let sigma , lbI = Evd.fresh_global env sigma c in
           Tacticals.tclTHENLIST [
               Proofview.Unsafe.tclEVARS sigma;
 

@@ -254,9 +254,7 @@ let sym_scheme_kind =
 
 let const_of_scheme kind env handle ind ctx =
   let sym_scheme = match local_lookup_scheme handle kind ind with Some cst -> cst | None -> assert false in
-  let sym, ctx = with_context_set ctx
-    (UnivGen.fresh_constant_instance env sym_scheme) in
-    mkConstU sym, ctx
+  with_context_set ctx (UnivGen.fresh_global_instance env sym_scheme)
 
 let build_sym_involutive_scheme env handle ind =
   let (ind,u as indu), ctx = UnivGen.fresh_inductive_instance env ind in

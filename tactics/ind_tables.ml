@@ -124,7 +124,7 @@ let redeclare_schemes { sch_eff = eff } =
       accu
     with Not_found ->
       let old = try String.Map.find kind accu with Not_found -> [] in
-      String.Map.add kind ((ind, c) :: old) accu
+      String.Map.add kind ((ind, GlobRef.ConstRef c) :: old) accu
   in
   let schemes = Cmap_env.fold fold (Evd.seff_roles eff) String.Map.empty in
   let iter kind defs = List.iter (DeclareScheme.declare_scheme SuperGlobal kind) defs in
@@ -140,7 +140,7 @@ let local_lookup_scheme eff kind ind = match lookup_scheme kind ind with
   in
   (* Inefficient O(n), but the number of locally declared schemes is small and
      this is very rarely called *)
-  try let _ = Cmap_env.iter iter (Evd.seff_roles eff) in None with Found c -> Some c
+  try let _ = Cmap_env.iter iter (Evd.seff_roles eff) in None with Found c -> Some (GlobRef.ConstRef c)
 
 let local_check_scheme kind ind { sch_eff = eff } =
   Option.has_some (local_lookup_scheme eff kind ind)
@@ -296,7 +296,7 @@ let force_find_scheme kind (mind,i as ind) =
         eff, ca.(i)
       in
       let sigma = Evd.emit_side_effects eff.sch_eff sigma in
-      Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT ans
+      Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT (GlobRef.ConstRef ans)
     with Rocqlib.NotFoundRef _ as e ->
       let e, info = Exninfo.capture e in
       Proofview.tclZERO ~info e

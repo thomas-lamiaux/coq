@@ -57,13 +57,12 @@ let kind_searcher env = Decls.(function
     let schemes = DeclareScheme.all_schemes () in
     let schemes = lazy begin
       Indmap_env.fold (fun _ schemes acc ->
-          CString.Map.fold (fun _ c acc -> Cset.add c acc) schemes acc)
-        schemes Cset.empty
+          CString.Map.fold (fun _ c acc ->
+            GlobRef.Set_env.add c acc) schemes acc)
+        schemes GlobRef.Set_env.empty
     end
     in
-    Inr (function
-        | ConstRef c -> Cset.mem c (Lazy.force schemes)
-        | _ -> false)
+    Inr (fun x -> GlobRef.Set_env.mem x (Lazy.force schemes))
   | IsDefinition Instance ->
     let instances = Typeclasses.all_instances () in
     Inr (fun gr -> List.exists (fun c -> Environ.QGlobRef.equal env c.Typeclasses.is_impl gr) instances))

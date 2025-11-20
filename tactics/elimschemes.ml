@@ -143,7 +143,7 @@ let lookup_eliminator env ind s =
       (if nodep_scheme_first then [false;true] else [true;false])
   in
   match List.find_map (fun scheme -> lookup_scheme scheme ind) schemes with
-  | Some c -> Names.GlobRef.ConstRef c
+  | Some c -> c
   | None ->
     (* XXX also lookup_scheme at less precise sort? eg if s=set try to_kind:qtype *)
     lookup_eliminator_by_name env ind s

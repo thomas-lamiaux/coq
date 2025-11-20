@@ -23,12 +23,12 @@ let cache_scheme (kind,l) =
 
 let subst_one_scheme subst (ind,const) =
   (* Remark: const is a def: the result of substitution is a constant *)
-  (Mod_subst.subst_ind subst ind, Mod_subst.subst_constant subst const)
+  (Mod_subst.subst_ind subst ind, Globnames.subst_global_reference subst const)
 
 let subst_scheme (subst,(kind,l)) =
   (kind, subst_one_scheme subst l)
 
-let inScheme : Libobject.locality * (string * (inductive * Constant.t)) -> Libobject.obj =
+let inScheme : Libobject.locality * (string * (inductive * GlobRef.t)) -> Libobject.obj =
   let open Libobject in
   declare_object @@ object_with_locality "SCHEME"
     ~cache:cache_scheme

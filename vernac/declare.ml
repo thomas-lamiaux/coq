@@ -517,7 +517,7 @@ let register_side_effect (c, body, role, univs) =
   in
   match role with
   | None -> ()
-  | Some (Evd.Schema (ind, kind)) -> DeclareScheme.declare_scheme SuperGlobal kind (ind,c)
+  | Some (Evd.Schema (ind, kind)) -> DeclareScheme.declare_scheme SuperGlobal kind (ind, GlobRef.ConstRef c)
 
 let get_roles export eff =
   let eff = SideEff.obj eff in
