@@ -1232,14 +1232,9 @@ and extern_local_binder depth scopes eenv = function
          (na::assums,na::ids,
           CLocalAssum([CAst.make na],extern_relevance_info eenv.uvars r,Default bk,ty) :: l))
 
-    | GLocalPattern ((p,_),_,bk,ty) ->
-      let ty =
-        if eenv.flags.raw then Some (extern_typ depth scopes eenv ty) else None in
+    | GLocalPattern ((p,_),_,bk,_) ->
       let p = mkCPatOr (List.map (extern_cases_pattern ~flags:eenv.flags eenv.vars) p) in
       let (assums,ids,l) = extern_local_binder depth scopes eenv l in
-      let p = match ty with
-        | None -> p
-        | Some ty -> CAst.make @@ (CPatCast (p,ty)) in
       (assums,ids, CLocalPattern p :: l)
 
 and extern_eqn depth inctx scopes eenv {CAst.loc;v=(ids,pll,c)} =
