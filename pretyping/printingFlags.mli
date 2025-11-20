@@ -53,11 +53,24 @@ module Extern : sig
     val current_ignore_raw : unit -> t
   end
 
+  module Records : sig
+    type t
+
+    val make_raw : t -> t
+
+    val current : unit -> t
+
+    val current_ignore_raw : unit -> t
+
+    (** Tells whether record syntax should be used for some record. If
+        the inductive is not a record, the result is meaningless. *)
+    val use_record_syntax : t -> Names.inductive -> bool
+  end
+
   type t = {
     (* This tells to skip types if a variable has this type by default *)
     use_implicit_types : bool;
-    records : bool;
-    force_record_constructors : bool;
+    records : Records.t;
     implicits : bool;
     (** When [implicits] is on then [implicits_explicit_args] tells
         how implicit args are printed. If on, implicit args are
@@ -104,3 +117,13 @@ val current_ignore_raw : unit -> t
 val raw_print : bool ref
 
 val print_universes : bool ref
+
+module PrintingInductiveMake (_ : sig
+    val encode : Environ.env -> Libnames.qualid -> Names.inductive
+    val member_message : Pp.t -> bool -> Pp.t
+    val field : string
+    val title : string
+  end)
+  : Goptions.RefConvertArg
+    with type t = Names.inductive
+     and module Set = Names.Indset_env

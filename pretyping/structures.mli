@@ -35,6 +35,9 @@ val subst : Mod_subst.substitution -> t -> t
 (** refreshes nparams, e.g. after section discharging *)
 val rebuild : Environ.env -> t -> t
 
+(** Tells whether the inductive corresponds to a structure. *)
+val mem : Environ.env -> Names.inductive -> bool
+
 (** [find isp] returns the Structure.t associated to the
    inductive path [isp] if it corresponds to a structure, otherwise
    it fails with [Not_found] *)

@@ -9,7 +9,6 @@
 (************************************************************************)
 
 (*i*)
-open Pp
 open CErrors
 open Util
 open Names
@@ -52,49 +51,6 @@ let is_reserved_type ~flags na t =
       in
       true
     with Not_found | No_match -> false
-
-(**********************************************************************)
-(* Control printing of records *)
-
-let is_record indsp =
-  try
-    let _ = Structure.find (Global.env ()) indsp in
-    true
-  with Not_found -> false
-
-let encode_record r =
-  let indsp = Nametab.global_inductive r in
-  if not (is_record indsp) then
-    user_err ?loc:r.CAst.loc
-      (str "This type is not a structure type.");
-  indsp
-
-module PrintingRecordRecord =
-  PrintingInductiveMake (struct
-    let encode _env = encode_record
-    let field = "Record"
-    let title = "Types leading to pretty-printing using record notation: "
-    let member_message s b =
-      str "Terms of " ++ s ++
-      str
-      (if b then " are printed using record notation"
-      else " are not printed using record notation")
-  end)
-
-module PrintingRecordConstructor =
-  PrintingInductiveMake (struct
-    let encode _env = encode_record
-    let field = "Constructor"
-    let title = "Types leading to pretty-printing using constructor form: "
-    let member_message s b =
-      str "Terms of " ++ s ++
-      str
-      (if b then " are printed using constructor form"
-      else " are not printed using constructor form")
-  end)
-
-module PrintingRecord = Goptions.MakeRefTable(PrintingRecordRecord)
-module PrintingConstructor = Goptions.MakeRefTable(PrintingRecordConstructor)
 
 (**********************************************************************)
 (* Various externalisation functions *)
@@ -301,15 +257,11 @@ let pattern_printable_in_both_syntax ~flags (ind,_ as c) =
   ) impl_st
 
 let extern_record_pattern ~flags cstrsp args =
+  if not (ExternFlags.Records.use_record_syntax flags.ExternFlags.records (fst cstrsp))
+  then None
+  else
   try
-    if flags.ExternFlags.force_record_constructors then raise_notrace Exit;
     let projs = Structure.find_projections (Global.env ()) (fst cstrsp) in
-    if PrintingRecord.active (fst cstrsp) then
-      ()
-    else if PrintingConstructor.active (fst cstrsp) then
-      raise_notrace Exit
-    else if not flags.ExternFlags.records then
-      raise_notrace Exit;
     let rec ip projs args acc =
       match projs, args with
       | [], [] -> acc
@@ -582,15 +534,11 @@ let is_start_implicit = function
 
 let extern_record ~flags ref args =
   try
-    if flags.ExternFlags.force_record_constructors then raise_notrace Exit;
     let cstrsp = match ref with GlobRef.ConstructRef c -> c | _ -> raise Not_found in
+    if not (ExternFlags.Records.use_record_syntax flags.ExternFlags.records (fst cstrsp))
+    then None
+    else
     let struc = Structure.find (Global.env ()) (fst cstrsp) in
-    if PrintingRecord.active (fst cstrsp) then
-      ()
-    else if PrintingConstructor.active (fst cstrsp) then
-      raise_notrace Exit
-    else if not flags.ExternFlags.records then
-      raise_notrace Exit;
     let projs = struc.Structure.projections in
     let rec cut args n =
       if Int.equal n 0 then args

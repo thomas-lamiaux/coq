@@ -24,7 +24,6 @@ open Glob_term
 open Glob_ops
 open Termops
 open Namegen
-open Libnames
 open Globnames
 open Mod_subst
 open Context.Rel.Declaration
@@ -244,28 +243,8 @@ let encode_tuple env ({CAst.loc} as r) =
       (str "This type cannot be seen as a tuple type.");
   x
 
-module PrintingInductiveMake =
-  functor (Test : sig
-     val encode : Environ.env -> qualid -> inductive
-     val member_message : Pp.t -> bool -> Pp.t
-     val field : string
-     val title : string
-  end) ->
-  struct
-    type t = inductive
-    module Set = Indset_env
-    let encode env ind = Environ.QInd.canonize env (Test.encode env ind)
-    let subst subst obj = subst_ind subst obj
-    let check_local _ _ = ()
-    let discharge (i:t) = i
-    let printer ind = Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind)
-    let key = ["Printing";Test.field]
-    let title = Test.title
-    let member_message x = Test.member_message (printer x)
-  end
-
 module PrintingCasesIf =
-  PrintingInductiveMake (struct
+  PrintingFlags.PrintingInductiveMake (struct
     let encode = encode_bool
     let field = "If"
     let title = "Types leading to pretty-printing of Cases using a `if' form:"
@@ -277,7 +256,7 @@ module PrintingCasesIf =
   end)
 
 module PrintingCasesLet =
-  PrintingInductiveMake (struct
+  PrintingFlags.PrintingInductiveMake (struct
     let encode = encode_tuple
     let field = "Let"
     let title =
