@@ -416,7 +416,7 @@ let universes c = c.certif_univs
 end
 
 type side_effect = {
-  seff_certif : Certificate.t;
+  seff_certif : Certificate.t CEphemeron.key;
   seff_constant : Constant.t;
   seff_body : HConstr.t option * (Constr.t, Vmemitcodes.body_code option) Declarations.pconstant_body;
   seff_univs : Univ.ContextSet.t;
@@ -898,14 +898,20 @@ let warn_failed_cert = CWarnings.create ~name:"failed-abstract-certificate"
 let check_signatures senv sl =
   match sl with
   | [] -> Ok Univ.ContextSet.empty
-  | (firstkn, first) :: rest ->
-    if not (Certificate.compatible senv first) then Error firstkn
+  | (firstkn,first) :: rest ->
+    match CEphemeron.get first with
+    | exception CEphemeron.InvalidKey -> Error None
+    | first ->
+    if not (Certificate.compatible senv first) then Error (Some firstkn)
     else
       let is_direct_ancestor curmb (kn, mb) =
-        let mb = Certificate.safe_extend ~src:curmb ~dst:mb in
-        match mb with
-        | None -> Error kn
-        | Some mb -> Ok mb
+        match CEphemeron.get mb with
+        | exception CEphemeron.InvalidKey -> Error None
+        | mb ->
+          let mb = Certificate.safe_extend ~src:curmb ~dst:mb in
+          match mb with
+          | None -> Error (Some kn)
+          | Some mb -> Ok mb
       in
       let accu = List.fold_left_error is_direct_ancestor first rest in
       match accu with
@@ -917,9 +923,10 @@ let check_signatures senv sl =
 let check_signatures senv sl =
   match check_signatures senv sl with
   | Ok univs -> Some univs
-  | Error kn ->
-    let () = warn_failed_cert kn in
+  | Error None ->
+    (* don't warn when the issue is an invalid ephemeron *)
     None
+  | Error (Some kn) -> warn_failed_cert kn; None
 
 type side_effect_declaration =
 | DefinitionEff : Entries.definition_entry -> side_effect_declaration
@@ -1182,7 +1189,7 @@ let add_private_constant l uctx decl senv : (Constant.t * private_constants) * s
   in
   let senv = add_constant_aux senv ?hbody (kn, dcb) in
   let eff =
-    let from_env = Certificate.make senv in
+    let from_env = CEphemeron.create (Certificate.make senv) in
     let eff = {
       seff_certif = from_env;
       seff_constant = kn;
