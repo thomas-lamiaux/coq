@@ -10,7 +10,6 @@
 
 module Detype : sig
   type t = {
-    raw : bool;
     universes : bool;
     (** Should we print hidden sort quality variables? *)
     qualities : bool;
@@ -24,9 +23,15 @@ module Detype : sig
     primproj_params : bool;
     unfolded_primproj_as_match : bool;
     match_paramunivs : bool;
+    always_regular_match_style : bool;
+    nonpropositional_letin_types : bool;
   }
 
+  val make_raw : t -> t
+
   val current : unit -> t
+
+  val current_ignore_raw : unit -> t
 end
 
 module Extern : sig

@@ -99,7 +99,7 @@ let without_implicit_declarations f () =
 
 let full_detype_flags () =
   let flags = PrintingFlags.Detype.current() in
-  { flags with raw = true; universes = true; }
+  PrintingFlags.Detype.make_raw { flags with universes = true; }
 
 let full_extern_flags () =
   let flags = PrintingFlags.Extern.current() in

@@ -162,7 +162,6 @@ let { Goptions.get = print_float } =
 
 module Detype = struct
   type t = {
-    raw : bool;
     universes : bool;
     qualities : bool;
     relevances : bool;
@@ -174,10 +173,12 @@ module Detype = struct
     primproj_params : bool;
     unfolded_primproj_as_match : bool;
     match_paramunivs : bool;
+    always_regular_match_style : bool;
+    (* XXX is there a better word than "nonpropositional"? *)
+    nonpropositional_letin_types : bool;
   }
 
-  let current () = {
-    raw = !raw_print;
+  let current_ignore_raw () = {
     universes = !print_universes;
     qualities = print_sort_quality();
     relevances = print_relevances();
@@ -189,7 +190,24 @@ module Detype = struct
     primproj_params = print_primproj_params();
     unfolded_primproj_as_match = print_unfolded_primproj_asmatch();
     match_paramunivs = print_match_paramunivs();
+
+    (* not yet exposed (except through Printing All) *)
+    always_regular_match_style = false;
+    nonpropositional_letin_types = false;
   }
+
+  let make_raw flags = {
+    flags with
+    synth_match_return = false;
+    always_regular_match_style = true;
+    matching = false;
+    nonpropositional_letin_types = true;
+  }
+
+  let current () =
+    let flags = current_ignore_raw () in
+    if !raw_print then make_raw flags else flags
+
 end
 
 module Extern = struct
