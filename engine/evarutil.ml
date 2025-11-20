@@ -248,8 +248,14 @@ let csubst_subst sigma { csubst_len = k; csubst_var = v; csubst_rel = s } c =
   let c = if k = 0 && Id.Map.is_empty v then c else subst 0 c in
   EConstr.of_constr c
 
-type ext_named_context =
-  csubst * Id.Set.t * named_context_val
+type ext_named_context = {
+  ext_subst : csubst;
+  ext_avoid : Id.Set.t;
+  ext_ctx : named_context_val;
+}
+
+let ext_named_context_val ext = ext.ext_ctx
+let ext_csubst ext = ext.ext_subst
 
 let push_var id { csubst_len = n; csubst_var = v; csubst_rel = s; csubst_rev = r } =
   let s = Int.Map.add n (Constr.mkVar id) s in
@@ -290,7 +296,7 @@ type naming_mode = VarSet.t
 
 let push_rel_decl_to_named_context
   ~hypnaming
-  sigma decl ((subst, avoid, nc) : ext_named_context) =
+  sigma decl (ext : ext_named_context) =
   let open EConstr in
   let open Vars in
   let map_decl f d =
@@ -316,7 +322,7 @@ let push_rel_decl_to_named_context
   let id =
     (* id_of_name_using_hdchar only depends on the rel context which is empty
         here *)
-    next_ident_away (id_of_name_using_hdchar empty_env sigma (RelDecl.get_type decl) na) avoid
+    next_ident_away (id_of_name_using_hdchar empty_env sigma (RelDecl.get_type decl) na) ext.ext_avoid
   in
   match extract_if_neq id na with
   | Some id0 ->
@@ -325,21 +331,27 @@ let push_rel_decl_to_named_context
           incorrect. We revert to a less robust behaviour where
           the new binder has name [id]. Which amounts to the same
           behaviour than when [id=id0]. *)
-      let d = decl |> NamedDecl.of_rel_decl (fun _ -> id) |> map_decl (csubst_subst sigma subst) in
-      (push_var id subst, Id.Set.add id avoid, push_named_context_val d nc)
+      let d = decl |> NamedDecl.of_rel_decl (fun _ -> id) |> map_decl (csubst_subst sigma ext.ext_subst) in
+      { ext_subst = push_var id ext.ext_subst;
+        ext_avoid = Id.Set.add id ext.ext_avoid;
+        ext_ctx = push_named_context_val d ext.ext_ctx }
     else
       (* spiwack: if [id<>id0], rather than introducing a new
           binding named [id], we will keep [id0] (the name given
           by the user) and rename [id0] into [id] in the named
           context. Unless [id] is a section variable. *)
-      let subst = update_var id0 id subst in
+      let subst = update_var id0 id ext.ext_subst in
       let d = decl |> NamedDecl.of_rel_decl (fun _ -> id0) |> map_decl (csubst_subst sigma subst) in
-      let nc = replace_var_named_declaration id0 id nc in
-      let avoid = Id.Set.add id (Id.Set.add id0 avoid) in
-      (push_var id0 subst, avoid, push_named_context_val d nc)
+      let nc = replace_var_named_declaration id0 id ext.ext_ctx in
+      let avoid = Id.Set.add id (Id.Set.add id0 ext.ext_avoid) in
+      { ext_subst = push_var id0 subst;
+        ext_avoid = avoid;
+        ext_ctx = push_named_context_val d nc }
   | None ->
-    let d = decl |> NamedDecl.of_rel_decl (fun _ -> id) |> map_decl (csubst_subst sigma subst) in
-    (push_var id subst, Id.Set.add id avoid, push_named_context_val d nc)
+    let d = decl |> NamedDecl.of_rel_decl (fun _ -> id) |> map_decl (csubst_subst sigma ext.ext_subst) in
+    { ext_subst = push_var id ext.ext_subst;
+      ext_avoid = Id.Set.add id ext.ext_avoid;
+      ext_ctx = push_named_context_val d ext.ext_ctx }
 
 let csubst_instance subst ctx =
   let fold decl accu = match Id.Map.find (NamedDecl.get_id decl) subst.csubst_rev with
@@ -349,12 +361,12 @@ let csubst_instance subst ctx =
   in
   List.fold_right fold ctx SList.empty
 
-let ext_rev_subst (subst, _, _) id0 =
+let ext_rev_subst { ext_subst = subst } id0 =
   match Id.Map.find id0 subst.csubst_rev with
   | SRel n -> EConstr.mkRel (subst.csubst_len - n)
   | SVar id -> EConstr.mkVar id
 
-let default_ext_instance (subst, _, ctx) =
+let default_ext_instance { ext_subst = subst; ext_ctx = ctx } =
   csubst_instance subst (named_context_of_val ctx)
 
 let push_rel_context_to_named_context ~hypnaming env sigma typ =
@@ -369,11 +381,18 @@ let push_rel_context_to_named_context ~hypnaming env sigma typ =
     (* move the rel context to a named context and extend the named instance *)
     (* with vars of the rel context *)
     (* We do keep the instances corresponding to local definition (see above) *)
-    let (subst, _, env) as ext =
+    let init = { ext_subst = empty_csubst; ext_avoid = avoid; ext_ctx = ctx } in
+    let ext =
       Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context ~hypnaming sigma d acc)
-        (rel_context env) ~init:(empty_csubst, avoid, ctx) in
+        (rel_context env) ~init in
     let inst = default_ext_instance ext in
-    (env, csubst_subst sigma subst typ, inst, subst)
+    (ext.ext_ctx, csubst_subst sigma ext.ext_subst typ, inst, ext.ext_subst)
+
+let ext_named_context_of_env ~hypnaming env sigma =
+  let avoid = Environ.ids_of_named_context_val (Environ.named_context_val env) in
+  let init = { ext_subst = empty_csubst; ext_avoid = avoid; ext_ctx = named_context_val env } in
+  Context.Rel.fold_outside (fun d acc -> push_rel_decl_to_named_context ~hypnaming sigma d acc)
+    (EConstr.rel_context env) ~init
 
 (*------------------------------------*
  * Entry points to define new evars   *
