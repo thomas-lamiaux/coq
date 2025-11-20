@@ -1525,6 +1525,7 @@ let do_build_inductive evd (funconstants : pconstant list)
       template = Some false;
       finite = Finite;
       mode = None;
+      schemes = Default;
     }
     in
     without_implicit_declarations
