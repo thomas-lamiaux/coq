@@ -26,7 +26,10 @@ let check_allowed_binders = function
 let rec fill_assumptions env sigma = function
   | [] -> sigma, env, []
   | LocalAssum (na,t) :: ctx ->
-    let sigma, ev = Evarutil.new_evar env sigma ~src:(Loc.tag @@ Evar_kinds.GoalEvar) ~typeclass_candidate:false t in
+    let sigma, ev = Evarutil.new_evar env sigma ~src:(Loc.tag @@ Evar_kinds.GoalEvar)
+        ~naming:(IntroIdentifier na.binder_name)
+        ~typeclass_candidate:false t
+    in
     let decl = LocalDef (na,ev,t) in
     let sigma, env, ctx = fill_assumptions (EConstr.push_named decl env) sigma ctx in
     sigma, env, decl :: ctx
