@@ -213,22 +213,33 @@ end
 module Extern = struct
   module FactorizeEqns = struct
     type t = {
-      raw : bool;
       factorize_match_patterns : bool;
       allow_match_default_clause : bool;
     }
 
-    let current () = {
-      raw = !raw_print;
+    let current_ignore_raw () = {
       factorize_match_patterns = print_factorize_match_patterns();
       allow_match_default_clause = !print_allow_match_default_clause;
     }
+
+    (* all flags are overridden, but for forwards compat we still take
+       the base flags *)
+    let make_raw _flags = {
+      factorize_match_patterns = false;
+      allow_match_default_clause = false;
+    }
+
+    let current () =
+      let flags = current_ignore_raw() in
+      if !raw_print then make_raw flags else flags
   end
 
   type t = {
-    raw : bool;
     use_implicit_types : bool;
     records : bool;
+    (* XXX include the Printing Record & Printing Constructor tables
+       here instead of force_record_constructors? *)
+    force_record_constructors : bool;
     implicits : bool;
     implicits_explicit_args : bool;
     implicits_defensive : bool;
@@ -242,8 +253,7 @@ module Extern = struct
     (* XXX depth? *)
   }
 
-  let current () = {
-    raw = !raw_print;
+  let current_ignore_raw () = {
     use_implicit_types = print_use_implicit_types();
     records = get_record_print();
     implicits = !print_implicits;
@@ -255,8 +265,28 @@ module Extern = struct
     raw_literals = !print_raw_literal;
     projections = !print_projections;
     float = print_float();
-    factorize_eqns = FactorizeEqns.current();
+    factorize_eqns = FactorizeEqns.current_ignore_raw();
+
+    (* not yet exposed (except through Printing All) *)
+    force_record_constructors = false;
   }
+
+  let make_raw flags = {
+    flags with
+    use_implicit_types = false;
+    implicits = true;
+    implicits_explicit_args = false;
+    coercions = true;
+    force_record_constructors = true;
+    raw_literals = true;
+    notations = false;
+    projections = false;
+    factorize_eqns = FactorizeEqns.make_raw flags.factorize_eqns;
+  }
+
+  let current () =
+    let flags = current_ignore_raw() in
+    if !raw_print then make_raw flags else flags
 end
 
 
@@ -265,7 +295,17 @@ type t = {
   extern : Extern.t;
 }
 
+let make_raw flags = {
+  detype = Detype.make_raw flags.detype;
+  extern = Extern.make_raw flags.extern;
+}
+
 let current () = {
   detype = Detype.current();
   extern = Extern.current();
+}
+
+let current_ignore_raw () = {
+  detype = Detype.current_ignore_raw();
+  extern = Extern.current_ignore_raw();
 }

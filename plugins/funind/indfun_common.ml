@@ -103,9 +103,7 @@ let full_detype_flags () =
 
 let full_extern_flags () =
   let flags = PrintingFlags.Extern.current() in
-  { flags with raw = true; factorize_eqns = {
-        flags.factorize_eqns with
-        allow_match_default_clause = false } }
+  PrintingFlags.Extern.make_raw flags
 
 let extern_env_full_printing () =
   Constrextern.empty_extern_env ~flags:(full_extern_flags())

@@ -40,7 +40,7 @@ module NamedDecl = Context.Named.Declaration
 let hole = CAst.make @@ CHole (None)
 
 let is_reserved_type ~flags na t =
-  not flags.ExternFlags.raw && flags.ExternFlags.use_implicit_types &&
+  flags.ExternFlags.use_implicit_types &&
   match na with
   | Anonymous -> false
   | Name id ->
@@ -222,8 +222,8 @@ let drop_implicits_in_patt ~flags cst nb_expl ?(tags=[]) args =
   in
   let try_impls_fit (imps,args,tags) =
     if not !Constrintern.parsing_explicit &&
-       ((flags.ExternFlags.raw || flags.ExternFlags.implicits) &&
-        List.exists is_status_implicit imps)
+       flags.ExternFlags.implicits &&
+       List.exists is_status_implicit imps
        (* Note: !print_implicits_explicit_args=true not supported for patterns *)
     then None
     else impls_fit [] (imps,args,tags)
@@ -296,13 +296,13 @@ let pattern_printable_in_both_syntax ~flags (ind,_ as c) =
   List.exists (fun (_,impls) ->
     (List.length impls >= nb_params) &&
       let params,args = Util.List.chop nb_params impls in
-      not flags.ExternFlags.raw && not flags.ExternFlags.implicits &&
+      not flags.ExternFlags.implicits &&
       (List.for_all is_status_implicit params)&&(List.for_all (fun x -> not (is_status_implicit x)) args)
   ) impl_st
 
 let extern_record_pattern ~flags cstrsp args =
   try
-    if flags.ExternFlags.raw then raise_notrace Exit;
+    if flags.ExternFlags.force_record_constructors then raise_notrace Exit;
     let projs = Structure.find_projections (Global.env ()) (fst cstrsp) in
     if PrintingRecord.active (fst cstrsp) then
       ()
@@ -333,7 +333,7 @@ let extern_record_pattern ~flags cstrsp args =
 (* Better to use extern_glob_constr composed with injection/retraction ?? *)
 let rec extern_cases_pattern_in_scope ~flags ((custom,(lev_after:int option)),scopes as allscopes) vars pat =
   try
-    if !Flags.in_debugger || flags.ExternFlags.raw || flags.ExternFlags.raw_literals then raise No_match;
+    if !Flags.in_debugger || flags.ExternFlags.raw_literals then raise No_match;
     let (na,p,key) = uninterp_prim_token_cases_pattern ~print_float:flags.float pat scopes in
     match availability_of_entry_coercion custom constr_lowest_level with
       | None -> raise No_match
@@ -343,7 +343,7 @@ let rec extern_cases_pattern_in_scope ~flags ((custom,(lev_after:int option)),sc
           (insert_pat_alias ?loc (insert_pat_delimiters ?loc (CAst.make ?loc @@ CPatPrim p) key) na)
   with No_match ->
     try
-      if !Flags.in_debugger || flags.ExternFlags.raw || not flags.ExternFlags.notations then raise No_match;
+      if !Flags.in_debugger || not flags.ExternFlags.notations then raise No_match;
       extern_notation_pattern ~flags allscopes vars pat
         (uninterp_cases_pattern_notations (Global.env ()) pat)
     with No_match ->
@@ -483,7 +483,7 @@ let extern_ind_pattern_in_scope ~flags (custom,scopes as allscopes) vars ind arg
     CAst.make @@ CPatCstr (c, Some args, [])
   else
     try
-      if flags.ExternFlags.raw || not flags.ExternFlags.notations || Inductiveops.inductive_has_local_defs (Global.env()) ind
+      if not flags.ExternFlags.notations || Inductiveops.inductive_has_local_defs (Global.env()) ind
         then raise No_match;
       extern_notation_ind_pattern ~flags allscopes vars ind args
           (uninterp_ind_pattern_notations (Global.env ()) ind)
@@ -511,7 +511,7 @@ let is_gvar id c = match DAst.get c with
 | _ -> false
 
 let is_projection ~flags nargs r =
-  if not !Flags.in_debugger && not flags.ExternFlags.raw && flags.ExternFlags.projections then
+  if not !Flags.in_debugger && flags.ExternFlags.projections then
     try
       match r with
       | GlobRef.ConstRef c ->
@@ -546,7 +546,6 @@ let adjust_implicit_arguments ~flags inctx n args impl =
     | a::args, imp::impl when is_status_implicit imp ->
         let tail = exprec (args,impl) in
         let visible =
-          flags.ExternFlags.raw ||
           (flags.ExternFlags.implicits && flags.ExternFlags.implicits_explicit_args) ||
           (is_needed_for_correct_partial_application tail imp) ||
           (flags.ExternFlags.implicits_defensive &&
@@ -583,7 +582,7 @@ let is_start_implicit = function
 
 let extern_record ~flags ref args =
   try
-    if flags.ExternFlags.raw then raise_notrace Exit;
+    if flags.ExternFlags.force_record_constructors then raise_notrace Exit;
     let cstrsp = match ref with GlobRef.ConstructRef c -> c | _ -> raise Not_found in
     let struc = Structure.find (Global.env ()) (fst cstrsp) in
     if PrintingRecord.active (fst cstrsp) then
@@ -633,9 +632,9 @@ let extern_global impl f us =
 let extern_applied_ref ~flags inctx impl (cf,f) us args =
   try
     if not !Constrintern.parsing_explicit &&
-       ((flags.ExternFlags.raw ||
-         (flags.ExternFlags.implicits && not flags.ExternFlags.implicits_explicit_args)) &&
-        List.exists is_status_implicit impl)
+       flags.ExternFlags.implicits &&
+       not flags.ExternFlags.implicits_explicit_args &&
+       List.exists is_status_implicit impl
     then raise Expl;
     let impl = if !Constrintern.parsing_explicit then [] else impl in
     let n = List.length args in
@@ -706,7 +705,7 @@ let match_coercion_app c = match DAst.get c with
 
 let remove_one_coercion ~flags inctx c =
   try match match_coercion_app c with
-  | Some (loc,r,args) when not (flags.ExternFlags.raw || flags.ExternFlags.coercions) ->
+  | Some (loc,r,args) when not flags.ExternFlags.coercions ->
       let nargs = List.length args in
       (match Coercionops.hide_coercion r with
           | Some nparams when
@@ -1242,7 +1241,6 @@ and extern_eqn depth inctx scopes eenv {CAst.loc;v=(ids,pll,c)} =
   make ?loc (pll,extern depth inctx scopes eenv c)
 
 and extern_notations depth inctx scopes eenv nargs t =
-  if eenv.flags.raw then raise No_match;
   try extern_possible_prim_token ~flags:eenv.flags scopes t
   with No_match ->
     if not eenv.flags.notations then raise No_match;

@@ -408,7 +408,7 @@ let lookup_index_as_renamed env sigma t n =
 let rec join_eqns ~flags (ids,rhs as x) patll = function
   | ({CAst.loc; v=(ids',patl',rhs')} as eqn')::rest ->
     let open ExternFlags.FactorizeEqns in
-     if not flags.raw && flags.factorize_match_patterns &&
+     if flags.factorize_match_patterns &&
         List.eq_set Id.equal ids ids' && glob_constr_eq rhs rhs'
      then
        join_eqns  ~flags x (patl'::patll) rest
@@ -455,7 +455,7 @@ let factorize_eqns ~flags eqns =
   let mk_anon patl = List.map (fun _ -> DAst.make @@ PatVar Anonymous) patl in
   let open CAst in
   let open ExternFlags.FactorizeEqns in
-  if not flags.raw && flags.allow_match_default_clause && eqns <> [] then
+  if flags.allow_match_default_clause && eqns <> [] then
     match select_default_clause eqns with
     (* At least two clauses and the last one is disjunctive with no variables *)
     | Some {loc=gloc;v=([],patl::_::_,rhs)}, (_::_ as eqns) ->
