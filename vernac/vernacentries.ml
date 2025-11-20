@@ -1864,9 +1864,9 @@ let vernac_reserve bl =
     let env = Global.env() in
     let sigma = Evd.from_env env in
     let t,ctx = Constrintern.interp_type env sigma c in
-    let t = Flags.without_option Detyping.print_universes (fun () ->
-        Detyping.detype Detyping.Now env (Evd.from_ctx ctx) t)
-        ()
+    let t =
+      let flags = { (PrintingFlags.Detype.current()) with universes = false } in
+      Detyping.detype Detyping.Now ~flags env (Evd.from_ctx ctx) t
     in
     let t,_ = Notation_ops.notation_constr_of_glob_constr (default_env ()) t in
     Reserve.declare_reserved_type idl t)
@@ -1944,70 +1944,6 @@ let () =
   declare_bool_option
     { optstage = Summary.Stage.Interp;
       optdepr  = None;
-      optkey   = ["Printing";"Coercions"];
-      optread  = (fun () -> !Constrextern.print_coercions);
-      optwrite = (fun b ->  Constrextern.print_coercions := b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Parentheses"];
-      optread  = (fun () -> !Constrextern.print_parentheses);
-      optwrite = (fun b ->  Constrextern.print_parentheses := b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Implicit"];
-      optread  = (fun () -> !Constrextern.print_implicits);
-      optwrite = (fun b ->  Constrextern.print_implicits := b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Implicit";"Defensive"];
-      optread  = (fun () -> !Constrextern.print_implicits_defensive);
-      optwrite = (fun b ->  Constrextern.print_implicits_defensive := b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Projections"];
-      optread  = (fun () -> !Constrextern.print_projections);
-      optwrite = (fun b ->  Constrextern.print_projections := b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Notations"];
-      optread  = (fun () -> not !Constrextern.print_no_symbol);
-      optwrite = (fun b ->  Constrextern.print_no_symbol := not b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Raw";"Literals"];
-      optread  = (fun () -> !Constrextern.print_raw_literal);
-      optwrite = (fun b ->  Constrextern.print_raw_literal := b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"All"];
-      optread  = (fun () -> !Flags.raw_print);
-      optwrite = (fun b -> Flags.raw_print := b) }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
       optkey   = ["Kernel"; "Term"; "Sharing"];
       optread  = (fun () -> (Global.typing_flags ()).Declarations.share_reduction);
       optwrite = Global.set_share_reduction }
@@ -2035,14 +1971,6 @@ let () =
       optkey   = ["Printing";"Width"];
       optread  = Topfmt.get_margin;
       optwrite = Topfmt.set_margin }
-
-let () =
-  declare_bool_option
-    { optstage = Summary.Stage.Interp;
-      optdepr  = None;
-      optkey   = ["Printing";"Universes"];
-      optread  = (fun () -> !Detyping.print_universes);
-      optwrite = (fun b -> Detyping.print_universes:=b) }
 
 let () =
   (* no summary: handled as part of the debug state *)
@@ -2285,6 +2213,11 @@ let print_about_hyp_globs ~pstate ?loc ref_or_by_not udecl glopt =
     let sigma, env = get_current_or_global_context ~pstate in
     Prettyp.print_about env sigma ref_or_by_not udecl
 
+let prglob_without_notations env sigma c =
+  let flags = PrintingFlags.Extern.current() in
+  let flags = { flags with notations = false } in
+  pr_glob_constr_env ~flags env sigma c
+
 let vernac_print =
   let no_state f =
     Vernactypes.(typed_vernac_gen ignore_state (fun _ -> no_state, f ()))
@@ -2360,11 +2293,11 @@ let vernac_print =
   | PrintHintDb -> with_proof_env @@ fun env sigma ->
     Hints.pr_searchtable env sigma
   | PrintScopes -> with_proof_env @@ fun env sigma ->
-    Notation.pr_scopes (Constrextern.without_symbols (pr_glob_constr_env env sigma))
+    Notation.pr_scopes (prglob_without_notations env sigma)
   | PrintScope s -> with_proof_env @@ fun env sigma ->
-    Notation.pr_scope (Constrextern.without_symbols (pr_glob_constr_env env sigma)) s
+    Notation.pr_scope (prglob_without_notations env sigma) s
   | PrintVisibility s -> with_proof_env @@ fun env sigma ->
-    Notation.pr_visibility (Constrextern.without_symbols (pr_glob_constr_env env sigma)) s
+    Notation.pr_visibility (prglob_without_notations env sigma) s
   | PrintAbout (ref_or_by_not,udecl,glnumopt) -> with_pstate @@
     print_about_hyp_globs ref_or_by_not udecl glnumopt
   | PrintImplicit qid -> with_proof_env @@ fun env _sigma ->
@@ -2405,7 +2338,7 @@ let vernac_locate ~pstate query =
   | LocateAny {v=ByNotation (ntn, sc)} (* TODO : handle Ltac notations *)
   | LocateTerm {v=ByNotation (ntn, sc)} ->
     Notation.locate_notation
-      (Constrextern.without_symbols (pr_glob_constr_env env sigma)) ntn sc
+      (prglob_without_notations env sigma) ntn sc
   | LocateLibrary qid -> print_located_library qid
   | LocateModule qid -> Prettyp.print_located_module env qid
   | LocateOther (s, qid) -> Prettyp.print_located_other env s qid

@@ -128,9 +128,9 @@ let rec display_expr_eq c1 c2 =
   | _ ->
     Constrexpr_ops.constr_expr_eq_gen display_expr_eq c1 c2
 
-let safe_extern_constr env sigma t =
+let safe_extern_constr ~flags env sigma t =
   Printer.safe_extern_wrapper begin fun env sigma () ->
-    Constrextern.extern_constr env sigma t
+    Constrextern.extern_constr ~flags env sigma t
   end env sigma ()
 
 (** Tries to realize when the two terms, albeit different are printed the same. *)
@@ -138,8 +138,8 @@ let display_eq ~flags env sigma t1 t2 =
   (* terms are canonized, then their externalisation is compared syntactically *)
   let t1 = canonize_constr sigma t1 in
   let t2 = canonize_constr sigma t2 in
-  let ct1 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t1) () in
-  let ct2 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t2) () in
+  let ct1 = safe_extern_constr ~flags env sigma t1 in
+  let ct2 = safe_extern_constr ~flags env sigma t2 in
   match ct1, ct2 with
   | None, None -> false
   | Some _, None | None, Some _ -> false
@@ -157,23 +157,26 @@ let rec pr_explicit_aux env sigma t1 t2 = function
     (* The two terms are the same from the user point of view *)
     pr_explicit_aux env sigma t1 t2 rem
   else
-    let ct1 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t1) () in
-    let ct2 = Flags.with_options flags (fun () -> safe_extern_constr env sigma t2) () in
+    let ct1 = safe_extern_constr ~flags env sigma t1 in
+    let ct2 = safe_extern_constr ~flags env sigma t2 in
     let pr = function
     | None -> str "??"
-    | Some c -> Ppconstr.pr_lconstr_expr env sigma c
+    | Some c -> Ppconstr.pr_lconstr_expr ~flags:(Ppconstr.of_printing_flags flags) env sigma c
     in
     pr ct1, pr ct2
 
-let explicit_flags =
-  let open Constrextern in
-  let open Detyping in
-  [ []; (* First, try with the current flags *)
-    [print_implicits]; (* Then with implicit *)
-    [print_universes]; (* Then with universes *)
-    [print_universes; print_implicits]; (* With universes AND implicits *)
-    [print_implicits; print_coercions; print_no_symbol]; (* Then more! *)
-    [print_universes; print_implicits; print_coercions; print_no_symbol] (* and more! *) ]
+let explicit_flags () =
+  let open PrintingFlags in
+  let with_implicits flags = { flags with extern = { flags.extern with implicits = true } } in
+  let with_universes flags = { flags with detype = { flags.detype with universes = true } } in
+  let with_coe_nosymb flags = { flags with extern = { flags.extern with coercions = true; notations = false } } in
+  let flags = PrintingFlags.current() in
+  [ flags; (* First, try with the current flags *)
+    with_implicits flags; (* Then with implicit *)
+    with_universes flags; (* Then with universes *)
+    with_universes @@ with_implicits flags; (* With universes AND implicits *)
+    with_implicits @@ with_coe_nosymb flags; (* Then more! *)
+    with_universes @@ with_implicits @@ with_coe_nosymb flags (* and more! *) ]
 
 let with_diffs pm pn =
   if not (Proof_diffs.show_diffs ()) then pm, pn else
@@ -188,7 +191,7 @@ let with_diffs pm pn =
     pm, pn
 
 let pr_explicit env sigma t1 t2 =
-  let p1, p2 = pr_explicit_aux env sigma t1 t2 explicit_flags in
+  let p1, p2 = pr_explicit_aux env sigma t1 t2 (explicit_flags()) in
   let p1, p2 = with_diffs p1 p2 in
   quote p1, quote p2
 
@@ -241,7 +244,7 @@ let explain_elim_arity env sigma ind c okinds =
     | None | Some AlwaysSquashed -> pp ()
     | Some (SometimesSquashed _) ->
       (* universe instance matters, so print it regardless of Printing Universes *)
-      Flags.with_option Detyping.print_universes pp ()
+      Flags.with_option PrintingFlags.print_universes pp ()
   in
   let pc = Option.map (pr_leconstr_env env sigma) c in
   let msg = match okinds with
@@ -249,7 +252,7 @@ let explain_elim_arity env sigma ind c okinds =
     | Some sp ->
       let ppt ?(ppunivs=false) () =
         let pp () = pr_leconstr_env env sigma (mkSort (ESorts.make sp)) in
-        if ppunivs then Flags.with_option Detyping.print_universes pp ()
+        if ppunivs then Flags.with_option PrintingFlags.print_universes pp ()
         else pp ()
       in
       let env = Environ.set_qualities (Evd.elim_graph sigma) env in
@@ -561,7 +564,7 @@ let explain_ill_formed_fix_body env sigma names i = function
           | Anonymous -> str "the " ++ pr_nth i ++ str " definition" in
      str "Recursive call to " ++ called ++ str " has not enough arguments"
   | FixpointOnNonEliminable (s, s') ->
-  let pr_sort u = quote @@ Flags.with_option Detyping.print_universes (Printer.pr_sort sigma) u in
+  let pr_sort u = quote @@ Flags.with_option PrintingFlags.print_universes (Printer.pr_sort sigma) u in
     fmt "Cannot define a fixpoint@ with principal argument living in sort %t@ \
          to produce a value in sort %t@ because %t does not eliminate to %t"
       (fun () -> pr_sort s)
@@ -1527,7 +1530,7 @@ let error_large_non_prop_inductive_not_in_type () =
 
 let error_inductive_missing_constraints env (us,ind_univ) =
   let sigma = Evd.from_env env in
-  let pr_sort u = Flags.with_option Detyping.print_universes (Printer.pr_sort sigma) u in
+  let pr_sort u = Flags.with_option PrintingFlags.print_universes (Printer.pr_sort sigma) u in
   str "Missing universe constraint declared for inductive type:" ++ spc()
   ++ v 0 (prlist_with_sep spc (fun u ->
       hov 0 (pr_sort u ++ str " <= " ++ pr_sort ind_univ))
