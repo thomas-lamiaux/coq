@@ -26,7 +26,6 @@ open Libnames
 open Globnames
 open Reductionops
 open Retyping
-open Tacmach
 open Logic
 open Hipattern
 open Tacticals
@@ -211,14 +210,14 @@ let rewrite_keyed_unif_flags = {
 let tclNOTSAMEGOAL tac =
   let goal gl = Proofview.Goal.goal gl in
   Proofview.Goal.enter begin fun gl ->
-    let sigma = project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let ev = goal gl in
     tac >>= fun () ->
     Proofview.Goal.goals >>= fun gls ->
     let check accu gl' =
       gl' >>= fun gl' ->
       let accu = accu || Proofview.Progress.goal_equal
-                            ~evd:sigma ~extended_evd:(project gl') ev (goal gl')
+                            ~evd:sigma ~extended_evd:(Proofview.Goal.sigma gl') ev (goal gl')
       in
       Proofview.tclUNIT accu
     in
@@ -278,9 +277,10 @@ let general_elim_clause with_evars frzevars tac cls c (ctx, eqn, args) l l2r eli
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
+    let concl = Proofview.Goal.concl gl in
     let typ = match cls with
-    | None -> pf_concl gl
-    | Some id -> pf_get_hyp_typ id gl
+    | None -> concl
+    | Some id -> Tacmach.pf_get_hyp_typ id gl
     in
     let ty = it_mkProd_or_LetIn (applist (eqn, args)) ctx in
     let eqclause = Clenv.make_clenv_binding env sigma (c, ty) l in
@@ -362,7 +362,7 @@ let find_scheme kind scheme_name ind =
 let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
   Proofview.Goal.enter_one begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let is_global_exists gr c = match Rocqlib.lib_ref_opt gr with
     | Some gr -> isRefX env sigma gr c
     | None -> false
@@ -423,7 +423,7 @@ let find_elim lft2rgt dep cls ((_, hdcncl, _) as t) =
 
 let type_of_clause cls gl = match cls with
   | None -> Proofview.Goal.concl gl
-  | Some id -> pf_get_hyp_typ id gl
+  | Some id -> Tacmach.pf_get_hyp_typ id gl
 
 let leibniz_rewrite_ebindings_clause cls lft2rgt tac c ((_, hdcncl, _) as t) l with_evars frzevars dep_proof_ok =
   Proofview.Goal.enter begin fun gl ->
@@ -461,7 +461,7 @@ let general_rewrite ~where:cls ~l2r:lft2rgt occs ~freeze:frzevars ~dep:dep_proof
     rewrite_side_tac (Hook.get forward_general_setoid_rewrite_clause cls lft2rgt occs (c,l) ~new_goals:[]) tac)
   else
     Proofview.Goal.enter begin fun gl ->
-      let sigma = Tacmach.project gl in
+      let sigma = Proofview.Goal.sigma gl in
       let env = Proofview.Goal.env gl in
     let ctype = get_type_of env sigma c in
     let rels, t = decompose_prod_decls sigma (whd_betaiotazeta env sigma ctype) in
@@ -550,7 +550,7 @@ let general_rewrite_clause l2r with_evars ?tac c cl =
         in
         let do_hyps =
           Proofview.Goal.enter begin fun gl ->
-            do_hyps_atleastonce (pf_ids_of_hyps gl)
+            do_hyps_atleastonce (Tacmach.pf_ids_of_hyps gl)
           end
         in
         if cl.concl_occs == NoOccurrences then do_hyps else
@@ -560,7 +560,7 @@ let general_rewrite_clause l2r with_evars ?tac c cl =
 
 let apply_special_clear_request clear_flag f =
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
     try
       let (sigma, (c, bl)) = f env sigma in
@@ -579,7 +579,7 @@ type multi =
 let general_multi_rewrite with_evars l cl tac =
   let do1 l2r f =
     Proofview.Goal.enter begin fun gl ->
-      let sigma = Tacmach.project gl in
+      let sigma = Proofview.Goal.sigma gl in
       let env = Proofview.Goal.env gl in
       let (sigma, c) = f env sigma in
       tclWITHHOLES with_evars
@@ -646,13 +646,13 @@ let replace_core clause l2r eq =
 
 let replace_using_leibniz clause c1 c2 l2r unsafe try_prove_eq_opt =
   Proofview.Goal.enter begin fun gl ->
-  let get_type_of = pf_apply get_type_of gl in
+  let get_type_of = Tacmach.pf_apply get_type_of gl in
   let t1 = get_type_of c1
   and t2 = get_type_of c2 in
   let evd =
-    if unsafe then Some (Tacmach.project gl)
+    if unsafe then Some (Proofview.Goal.sigma gl)
     else
-      try Some (Evarconv.unify_delay (Proofview.Goal.env gl) (Tacmach.project gl) t1 t2)
+      try Some (Evarconv.unify_delay (Proofview.Goal.env gl) (Proofview.Goal.sigma gl) t1 t2)
       with Evarconv.UnableToUnify _ -> None
   in
   match evd with
@@ -1023,9 +1023,9 @@ let rec build_discriminator env sigma true_0 false_0 pos c = function
 
 let gen_absurdity id =
   Proofview.Goal.enter begin fun gl ->
-  let env = pf_env gl in
-  let sigma = project gl in
-  let hyp_typ = pf_get_hyp_typ id gl in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let hyp_typ = Tacmach.pf_get_hyp_typ id gl in
   if is_empty_type env sigma hyp_typ
   then
     simplest_elim (mkVar id)
@@ -1132,7 +1132,7 @@ let onEquality with_evars tac (c,lbindc) =
 
 let onNegatedEquality with_evars tac =
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let ccl = Proofview.Goal.concl gl in
     let env = Proofview.Goal.env gl in
     match EConstr.kind sigma (hnf_constr0 env sigma ccl) with
@@ -1242,8 +1242,8 @@ let inject_if_homogenous_dependent_pair ty =
   Proofview.Goal.enter begin fun gl ->
   try
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
-    let eq,u,(t,t1,t2) = pf_apply find_this_eq_data_decompose gl ty in
+    let sigma = Proofview.Goal.sigma gl in
+    let eq,u,(t,t1,t2) = Tacmach.pf_apply find_this_eq_data_decompose gl ty in
     (* fetch the informations of the  pair *)
     let sigTconstr   = Rocqlib.(lib_ref "core.sigT.type") in
     let existTconstr = Rocqlib.lib_ref    "core.sigT.intro" in
@@ -1254,20 +1254,20 @@ let inject_if_homogenous_dependent_pair ty =
         hd2,ar2 = decompose_app sigma t2 in
     if not (isRefX env sigma existTconstr hd1) then raise_notrace Exit;
     if not (isRefX env sigma existTconstr hd2) then raise_notrace Exit;
-    let (ind, _), _ = try pf_apply find_mrectype gl ar1.(0) with Not_found -> raise_notrace Exit in
+    let (ind, _), _ = try Tacmach.pf_apply find_mrectype gl ar1.(0) with Not_found -> raise_notrace Exit in
     (* check if the user has declared the dec principle *)
     (* and compare the fst arguments of the dep pair *)
     (* Note: should work even if not an inductive type, but the table only *)
     (* knows inductive types *)
     if not (Option.has_some (Ind_tables.lookup_scheme (!eq_dec_scheme_kind_name()) ind) &&
-            pf_apply is_conv gl ar1.(2) ar2.(2)) then raise_notrace Exit;
+            Tacmach.pf_apply is_conv gl ar1.(2) ar2.(2)) then raise_notrace Exit;
     let inj2 = match lib_ref_opt "core.eqdep_dec.inj_pair2" with
       | None ->
         warn_inject_no_eqdep_dec (env,ind);
         raise_notrace Exit
       | Some v -> v
     in
-    let new_eq_args = [|pf_get_type_of gl ar1.(3);ar1.(3);ar2.(3)|] in
+    let new_eq_args = [|Retyping.get_type_of env sigma ar1.(3);ar1.(3);ar2.(3)|] in
     find_scheme Equality (!eq_dec_scheme_kind_name()) ind >>= fun c ->
     let sigma, c = fresh_global env sigma c in
     (* cut with the good equality and prove the requested goal *)
@@ -1551,10 +1551,10 @@ let cutSubstInConcl l2r eqn =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let (lbeq,u,(t,e1,e2)) = pf_apply find_eq_data_decompose gl eqn in
-  let typ = pf_concl gl in
+  let concl = Proofview.Goal.concl gl in
+  let (lbeq,u,(t,e1,e2)) = Tacmach.pf_apply find_eq_data_decompose gl eqn in
   let (e1,e2) = if l2r then (e1,e2) else (e2,e1) in
-  let (sigma, (typ, expected)) = subst_tuple_term env sigma e1 e2 typ in
+  let (sigma, (typ, expected)) = subst_tuple_term env sigma e1 e2 concl in
   tclTHEN (Proofview.Unsafe.tclEVARS sigma)
   (tclTHENFIRST
     (tclTHENLIST [
@@ -1568,8 +1568,8 @@ let cutSubstInHyp l2r eqn id =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let (lbeq,u,(t,e1,e2)) = pf_apply find_eq_data_decompose gl eqn in
-  let typ = pf_get_hyp_typ id gl in
+  let (lbeq,u,(t,e1,e2)) = Tacmach.pf_apply find_eq_data_decompose gl eqn in
+  let typ = Tacmach.pf_get_hyp_typ id gl in
   let (e1,e2) = if l2r then (e1,e2) else (e2,e1) in
   let (sigma, (typ, expected)) = subst_tuple_term env sigma e1 e2 typ in
   tclTHEN (Proofview.Unsafe.tclEVARS sigma)
@@ -1598,7 +1598,7 @@ let cutSubstClause l2r eqn cls =
 
 let substClause l2r c cls =
   Proofview.Goal.enter begin fun gl ->
-  let eq = pf_apply get_type_of gl c in
+  let eq = Tacmach.pf_apply get_type_of gl c in
   tclTHENS (cutSubstClause l2r eq cls)
     [Proofview.tclUNIT (); exact_no_check c]
   end
@@ -1633,17 +1633,17 @@ let restrict_to_eq_and_identity env eq = (* compatibility *)
 exception FoundHyp of (Id.t * constr * bool)
 
 (* tests whether hyp [c] is [x = t] or [t = x], [x] not occurring in [t] *)
-let is_eq_x gl x d =
+let is_eq_x env sigma x d =
   let id = NamedDecl.get_id d in
   try
-    let is_var id c = match EConstr.kind (project gl) c with
+    let is_var id c = match EConstr.kind sigma c with
     | Var id' -> Id.equal id id'
     | _ -> false
     in
-    let c = pf_nf_evar gl (NamedDecl.get_type d) in
-    let (_,lhs,rhs) = pi3 (pf_apply find_eq_data_decompose gl c) in
-    if (is_var x lhs) && not (local_occur_var (project gl) x rhs) then raise (FoundHyp (id,rhs,true));
-    if (is_var x rhs) && not (local_occur_var (project gl) x lhs) then raise (FoundHyp (id,lhs,false))
+    let c = nf_evar sigma (NamedDecl.get_type d) in
+    let (_,lhs,rhs) = pi3 (find_eq_data_decompose env sigma c) in
+    if (is_var x lhs) && not (local_occur_var sigma x rhs) then raise (FoundHyp (id,rhs,true));
+    if (is_var x rhs) && not (local_occur_var sigma x lhs) then raise (FoundHyp (id,lhs,false))
   with Constr_matching.PatternMatchingFailure ->
     ()
 
@@ -1651,7 +1651,7 @@ exception FoundDepInGlobal of Id.t option * GlobRef.t
 
 let test_non_indirectly_dependent_section_variable gl x =
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let hyps = Proofview.Goal.hyps gl in
   let concl = Proofview.Goal.concl gl in
   List.iter (fun decl ->
@@ -1683,7 +1683,7 @@ let is_non_indirectly_dependent_section_variable gl z =
 
 let subst_one dep_proof_ok x (hyp,rhs,dir) =
   Proofview.Goal.enter begin fun gl ->
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let hyps = Proofview.Goal.hyps gl in
   let concl = Proofview.Goal.concl gl in
   (* The set of hypotheses using x *)
@@ -1716,7 +1716,9 @@ let subst_one dep_proof_ok x (hyp,rhs,dir) =
 
 let subst_one_var dep_proof_ok x =
   Proofview.Goal.enter begin fun gl ->
-    let decl = pf_get_hyp x gl in
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let decl = Tacmach.pf_get_hyp x gl in
     (* If x has a body, simply replace x with body and clear x *)
     if is_local_def decl then tclTHEN (unfold_body x) (clear [x]) else
       (* Find a non-recursive definition for x *)
@@ -1724,7 +1726,7 @@ let subst_one_var dep_proof_ok x =
         try
           (* [is_eq_x] ensures nf_evar on its side *)
           let hyps = Proofview.Goal.hyps gl in
-          let test hyp _ = is_eq_x gl x hyp in
+          let test hyp _ = is_eq_x env sigma x hyp in
           Context.Named.fold_outside test ~init:() hyps;
           user_err
             (str "Cannot find any non-recursive equality over " ++ Id.print x ++
@@ -1767,10 +1769,10 @@ let subst_all ?(flags=default_subst_tactic_flags) () =
   let process hyp =
     Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = project gl in
-    let c = pf_get_hyp hyp gl |> NamedDecl.get_type in
+    let sigma = Proofview.Goal.sigma gl in
+    let c = Tacmach.pf_get_hyp hyp gl |> NamedDecl.get_type in
     try
-      let lbeq,u,(_,x,y) = pf_apply find_eq_data_decompose gl c in
+      let lbeq,u,(_,x,y) = Tacmach.pf_apply find_eq_data_decompose gl c in
       if flags.only_leibniz then restrict_to_eq_and_identity env lbeq.eq;
       match EConstr.kind sigma x, EConstr.kind sigma y with
       | Var x, Var y when Id.equal x y ->
@@ -1798,21 +1800,21 @@ let subst_all ?(flags=default_subst_tactic_flags) () =
 
 let cond_eq_term_left c t gl =
   try
-    let (_,x,_) = pi3 (pf_apply find_eq_data_decompose gl t) in
-    if pf_conv_x gl c x then true else failwith "not convertible"
+    let (_,x,_) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
+    if Tacmach.pf_conv_x gl c x then true else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 
 let cond_eq_term_right c t gl =
   try
-    let (_,_,x) = pi3 (pf_apply find_eq_data_decompose gl t) in
-    if pf_conv_x gl c x then false else failwith "not convertible"
+    let (_,_,x) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
+    if Tacmach.pf_conv_x gl c x then false else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 
 let cond_eq_term c t gl =
   try
-    let (_,x,y) = pi3 (pf_apply find_eq_data_decompose gl t) in
-    if pf_conv_x gl c x then true
-    else if pf_conv_x gl c y then false
+    let (_,x,y) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
+    if Tacmach.pf_conv_x gl c x then true
+    else if Tacmach.pf_conv_x gl c y then false
     else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 

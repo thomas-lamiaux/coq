@@ -14,7 +14,6 @@ open CErrors
 open Names
 open Constr
 open EConstr
-open Tacmach
 open Tacticals
 open Tactics
 open Induction
@@ -42,7 +41,8 @@ let choose_dest_or_ind scheme_info args =
 let functional_induction with_clean c princl pat =
   let open Proofview.Notations in
   Proofview.Goal.enter_one (fun gl ->
-      let sigma = project gl in
+      let env = Proofview.Goal.env gl in
+      let sigma = Proofview.Goal.sigma gl in
       let f, args = decompose_app_list sigma c in
       match princl with
       | None -> (
@@ -57,7 +57,7 @@ let functional_induction with_clean c princl pat =
               | None ->
                 user_err
                   ( str "Cannot find induction information on "
-                  ++ Termops.pr_global_env (pf_env gl) (ConstRef c') )
+                  ++ Termops.pr_global_env env (ConstRef c') )
             in
             match elimination_sort_of_goal gl with
             | Qual (QConstant QSProp) -> finfo.sprop_lemma
@@ -69,7 +69,7 @@ let functional_induction with_clean c princl pat =
             (* then we get the principle *)
             match princ_option with
             | Some princ ->
-              Evd.fresh_global (pf_env gl) (project gl) (GlobRef.ConstRef princ)
+              Evd.fresh_global env sigma (GlobRef.ConstRef princ)
             | None ->
               (*i If there is not default lemma defined then,
                       we cross our finger and try to find a lemma named f_ind
@@ -88,24 +88,24 @@ let functional_induction with_clean c princl pat =
                 | None ->
                   user_err
                     ( str "Cannot find induction principle for "
-                    ++ Termops.pr_global_env (pf_env gl) (ConstRef c') )
+                    ++ Termops.pr_global_env env (ConstRef c') )
               in
-              Evd.fresh_global (pf_env gl) (project gl) princ_ref
+              Evd.fresh_global env sigma princ_ref
           in
-          let princt = Retyping.get_type_of (pf_env gl) sigma princ in
+          let princt = Retyping.get_type_of env sigma princ in
           Proofview.Unsafe.tclEVARS sigma
           <*> Proofview.tclUNIT (princ, Tactypes.NoBindings, princt, args)
         | _ ->
           CErrors.user_err
             (str "functional induction must be used with a function") )
       | Some (princ, binding) ->
-        let sigma, princt = pf_type_of gl princ in
+        let sigma, princt = Tacmach.pf_type_of gl princ in
         Proofview.Unsafe.tclEVARS sigma
         <*> Proofview.tclUNIT (princ, binding, princt, args))
   >>= fun (princ, bindings, princ_type, args) ->
   Proofview.Goal.enter (fun gl ->
-      let sigma = project gl in
-      let princ_infos = compute_elim_sig (project gl) princ_type in
+      let sigma = Proofview.Goal.sigma gl in
+      let princ_infos = compute_elim_sig sigma princ_type in
       let args_as_induction_constr =
         let c_list = if princ_infos.farg_in_concl then [c] else [] in
         if List.length args + List.length c_list = 0 then
@@ -130,7 +130,7 @@ let functional_induction with_clean c princl pat =
           args Id.Set.empty
       in
       let old_idl =
-        List.fold_right Id.Set.add (pf_ids_of_hyps gl) Id.Set.empty
+        List.fold_right Id.Set.add (Tacmach.pf_ids_of_hyps gl) Id.Set.empty
       in
       let old_idl = Id.Set.diff old_idl princ_vars in
       let subst_and_reduce gl =
@@ -138,7 +138,7 @@ let functional_induction with_clean c princl pat =
           let idl =
             List.filter
               (fun id -> not (Id.Set.mem id old_idl))
-              (pf_ids_of_hyps gl)
+              (Tacmach.pf_ids_of_hyps gl)
           in
           let flag =
             Genredexpr.Cbv {Redops.all_flags with Genredexpr.rDelta = false}

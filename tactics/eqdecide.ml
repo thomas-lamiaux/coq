@@ -27,7 +27,6 @@ open Auto
 open Constr_matching
 open Hipattern
 open Proofview.Notations
-open Tacmach
 open Tactypes
 
 (* This file contains the implementation of the tactics ``Decide
@@ -135,7 +134,7 @@ let idy = Id.of_string "y"
 
 let mkGenDecideEqGoal rectype ops g =
   let sigma = Proofview.Goal.sigma g in
-  let hypnames = pf_ids_set_of_hyps g in
+  let hypnames = Tacmach.pf_ids_set_of_hyps g in
   let xname    = next_ident_away idx hypnames in
   let yname    = next_ident_away idy (Id.Set.add xname hypnames) in
   (mkNamedProd sigma (make_annot xname ERelevance.relevant) rectype
@@ -228,7 +227,7 @@ let rec solveArg hyps dty largs rargs = match largs, rargs with
   ]
 | a1 :: largs, a2 :: rargs ->
   Proofview.Goal.enter begin fun gl ->
-  let sigma, rectype = pf_type_of gl a1 in
+  let sigma, rectype = Tacmach.pf_type_of gl a1 in
   let tac hyp = solveArg (hyp :: hyps) dty largs rargs in
   let subtacs =
     if dty.eqonleft then [eqCase tac;diseqCase hyps dty.eqonleft;default_auto]
@@ -241,9 +240,9 @@ let solveEqBranch rectype =
   Proofview.tclORELSE
     begin
       Proofview.Goal.enter begin fun gl ->
-        let concl = pf_concl gl in
         let env = Proofview.Goal.env gl in
-        let sigma = project gl in
+        let sigma = Proofview.Goal.sigma gl in
+        let concl = Proofview.Goal.concl gl in
         match_eqdec env sigma concl >>= fun (dty, lhs, rhs,_) ->
           let (mib,mip) = Inductive.lookup_mind_specif env rectype in
           let nparams   = mib.mind_nparams in
@@ -269,11 +268,11 @@ let decideGralEquality =
   Proofview.tclORELSE
     begin
       Proofview.Goal.enter begin fun gl ->
-        let concl = pf_concl gl in
         let env = Proofview.Goal.env gl in
-        let sigma = project gl in
+        let sigma = Proofview.Goal.sigma gl in
+        let concl = Proofview.Goal.concl gl in
         match_eqdec env sigma concl >>= fun (dty, c1, c2, typ as data) ->
-        let headtyp = hd_app sigma (pf_whd_compute gl typ) in
+        let headtyp = hd_app sigma (Tacmach.pf_whd_compute gl typ) in
         begin match EConstr.kind sigma headtyp with
         | Ind (mi,_) -> Proofview.tclUNIT mi
         | _ -> tclZEROMSG (Pp.str"This decision procedure only works for inductive objects.")
@@ -306,7 +305,7 @@ let compare c1 c2 =
   pf_constr_of_global (lib_ref "core.eq.type") >>= fun eqc ->
   pf_constr_of_global (lib_ref "core.not.type") >>= fun notc ->
   Proofview.Goal.enter begin fun gl ->
-  let sigma, rectype = pf_type_of gl c1 in
+  let sigma, rectype = Tacmach.pf_type_of gl c1 in
   let ops = (opc,eqc,notc) in
   let decide = mkDecideEqGoal true ops rectype c1 c2 in
   tclTHEN (Proofview.Unsafe.tclEVARS sigma)

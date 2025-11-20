@@ -23,7 +23,6 @@ open Evd
 open Printer
 open Reductionops
 open Inductiveops
-open Tacmach
 open Tacticals
 open Tactics
 open Context.Named.Declaration
@@ -256,11 +255,12 @@ let add_inversion_lemma_exn ~poly na com comsort bool tac =
 let lemInv id c =
   Proofview.Goal.enter begin fun gls ->
   let env = Proofview.Goal.env gls in
-  let clause = Clenv.mk_clenv_from env (project gls) (c, pf_get_type_of gls c) in
+  let sigma = Proofview.Goal.sigma gls in
+  let clause = Clenv.mk_clenv_from env sigma (c, Retyping.get_type_of env sigma c) in
   let mv = let mvs = Clenv.clenv_arguments clause in
     if List.is_empty mvs then
       CErrors.user_err
-        Pp.(hov 0 (pr_econstr_env (pf_env gls) (project gls) c ++ spc ()
+        Pp.(hov 0 (pr_econstr_env env sigma c ++ spc ()
                    ++ str "does not refer to an inversion lemma."))
     else List.last mvs
   in
@@ -271,17 +271,17 @@ let lemInv id c =
     | Failure _ | UserError _ ->
          user_err
            (str "Cannot refine current goal with the lemma " ++
-              pr_leconstr_env (pf_env gls) (project gls) c ++ str ".")
+              pr_leconstr_env env sigma c ++ str ".")
   end
 
 let lemInv_gen id c = try_intros_until (fun id -> lemInv id c) id
 
 let lemInvIn id c ids =
   Proofview.Goal.enter begin fun gl ->
-    let hyps = List.map (fun id -> pf_get_hyp id gl) ids in
+    let hyps = List.map (fun id -> Tacmach.pf_get_hyp id gl) ids in
     let intros_replace_ids =
       let concl = Proofview.Goal.concl gl in
-      let sigma = project gl in
+      let sigma = Proofview.Goal.sigma gl in
       let nb_of_new_hyp = nb_prod sigma concl - List.length ids in
       if nb_of_new_hyp < 1  then
         intros_replacing ids

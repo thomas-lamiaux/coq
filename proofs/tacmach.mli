@@ -21,12 +21,18 @@ open Evd
 val pf_apply : (env -> evar_map -> 'a) -> Proofview.Goal.t -> 'a
 
 val project : Proofview.Goal.t -> Evd.evar_map
+[@@ocaml.deprecated "(9.2) Use Proofview.Goal.sigma"]
+
 val pf_env : Proofview.Goal.t -> Environ.env
+[@@ocaml.deprecated "(9.2) Use Proofview.Goal.env"]
+
 val pf_concl : Proofview.Goal.t -> types
+[@@ocaml.deprecated "(9.2) Use Proofview.Goal.concl"]
 
 (** This function does no type inference and expects an already well-typed term.
     It recomputes its type in the fastest way possible (no conversion is ever involved) *)
 val pf_get_type_of : Proofview.Goal.t -> constr -> types
+[@@ocaml.deprecated "(9.2) Use Retyping.get_type_of"]
 
 (** This function entirely type-checks the term and computes its type
     and the implied universe constraints. *)

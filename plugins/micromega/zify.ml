@@ -801,7 +801,7 @@ module CstrTable = struct
      *)
   let gen_cstr table =
     Proofview.Goal.enter (fun gl ->
-        let evd = Tacmach.project gl in
+        let evd = Proofview.Goal.sigma gl in
         (* Build the table of existing hypotheses *)
         let has_hyp =
           let hyps_table = HConstr.create 20 in
@@ -816,7 +816,7 @@ module CstrTable = struct
         (* Add the constraint (cstr k) if it is not already present *)
         let gen k cstr =
           Proofview.Goal.enter (fun gl ->
-              let env = Tacmach.pf_env gl in
+              let env = Proofview.Goal.env gl in
               let term = EConstr.mkApp (cstr, [|k|]) in
               let types = get_type_of env evd term in
               if has_hyp types then Tacticals.tclIDTAC
@@ -1346,8 +1346,8 @@ let trans_hyp h t0 prfp =
   | IProof -> Tacticals.tclIDTAC (* Should detect before *)
   | CProof t' ->
     Proofview.Goal.enter (fun gl ->
-        let env = Tacmach.pf_env gl in
-        let evd = Tacmach.project gl in
+        let env = Proofview.Goal.env gl in
+        let evd = Proofview.Goal.sigma gl in
         let t' = Reductionops.nf_betaiota env evd t' in
         Tactics.change_in_hyp ~check:true None
           (Tactics.make_change_arg t')
@@ -1355,8 +1355,8 @@ let trans_hyp h t0 prfp =
   | TProof (t', prf) ->
     Tacticals.(
       Proofview.Goal.enter (fun gl ->
-          let env = Tacmach.pf_env gl in
-          let evd = Tacmach.project gl in
+          let env = Proofview.Goal.env gl in
+          let evd = Proofview.Goal.sigma gl in
           let target = Reductionops.nf_betaiota env evd t' in
           let h' = Tactics.fresh_id_in_env Id.Set.empty h env in
           let prf =
@@ -1373,14 +1373,14 @@ let trans_concl prfp =
   | IProof -> Tacticals.tclIDTAC
   | CProof t ->
     Proofview.Goal.enter (fun gl ->
-        let env = Tacmach.pf_env gl in
-        let evd = Tacmach.project gl in
+        let env = Proofview.Goal.env gl in
+        let evd = Proofview.Goal.sigma gl in
         let t' = Reductionops.nf_betaiota env evd t in
         Tactics.change_concl t')
   | TProof (t, prf) ->
     Proofview.Goal.enter (fun gl ->
-        let env = Tacmach.pf_env gl in
-        let evd = Tacmach.project gl in
+        let env = Proofview.Goal.env gl in
+        let evd = Proofview.Goal.sigma gl in
         let typ = get_type_of env evd prf in
         match EConstr.kind evd typ with
         | App (c, a) when Array.length a = 2 ->
@@ -1394,7 +1394,7 @@ let tclTHENOpt e tac tac' =
 
 let elim_binding x t ty =
   Proofview.Goal.enter (fun gl ->
-      let env = Tacmach.pf_env gl in
+      let env = Proofview.Goal.env gl in
       let h =
         Tactics.fresh_id_in_env Id.Set.empty (Nameops.add_prefix "heq_" x) env
       in
@@ -1407,8 +1407,8 @@ let do_let tac (h : Constr.named_declaration) =
   | Context.Named.Declaration.LocalAssum _ -> Tacticals.tclIDTAC
   | Context.Named.Declaration.LocalDef (id, t, ty) ->
     Proofview.Goal.enter (fun gl ->
-        let env = Tacmach.pf_env gl in
-        let evd = Tacmach.project gl in
+        let env = Proofview.Goal.env gl in
+        let evd = Proofview.Goal.sigma gl in
         try
           let x = id.Context.binder_name in
           ignore
@@ -1422,7 +1422,7 @@ let do_let tac (h : Constr.named_declaration) =
 
 let iter_let_aux tac =
   Proofview.Goal.enter (fun gl ->
-      let env = Tacmach.pf_env gl in
+      let env = Proofview.Goal.env gl in
       let sign = Environ.named_context env in
       init_cache ();
       Tacticals.tclMAP (do_let tac) sign)
@@ -1441,10 +1441,11 @@ let zify_tac =
       Rocqlib.check_required_library ["Stdlib"; "micromega"; "ZifyClasses"];
       Rocqlib.check_required_library ["Stdlib"; "micromega"; "ZifyInst"];
       init_cache ();
-      let evd = Tacmach.project gl in
-      let env = Tacmach.pf_env gl in
+      let evd = Proofview.Goal.sigma gl in
+      let env = Proofview.Goal.env gl in
       let sign = Environ.named_context env in
-      let evd, concl = trans_check_prop env evd (Tacmach.pf_concl gl) in
+      let concl = Proofview.Goal.concl gl in
+      let evd, concl = trans_check_prop env evd concl in
       let evd, hyps = trans_hyps env evd sign in
       let l = CstrTable.get () in
       Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evd)
@@ -1534,11 +1535,10 @@ let rec interp_pscripts l =
 
 let spec_of_hyps =
   Proofview.Goal.enter (fun gl ->
-      let terms =
-        Tacmach.pf_concl gl :: List.map snd (Tacmach.pf_hyps_types gl)
-      in
-      let env = Tacmach.pf_env gl in
-      let evd = Tacmach.project gl in
+      let concl = Proofview.Goal.concl gl in
+      let terms = concl :: List.map snd (Tacmach.pf_hyps_types gl) in
+      let env = Proofview.Goal.env gl in
+      let evd = Proofview.Goal.sigma gl in
       let s = fresh_subscript env in
       let env =
         List.fold_left
@@ -1608,10 +1608,10 @@ let saturate =
   Proofview.Goal.enter (fun gl ->
       init_cache ();
       let table = CstrTable.HConstr.create 20 in
-      let concl = Tacmach.pf_concl gl in
+      let concl = Proofview.Goal.concl gl in
       let hyps = Tacmach.pf_hyps_types gl in
-      let evd = Tacmach.project gl in
-      let env = Tacmach.pf_env gl in
+      let evd = Proofview.Goal.sigma gl in
+      let env = Proofview.Goal.env gl in
       let rec sat t =
         match EConstr.kind evd t with
         | App (c, args) ->

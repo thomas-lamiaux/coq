@@ -26,7 +26,6 @@ open Declarations
 open Reductionops
 open Tacred
 open Genredexpr
-open Tacmach
 open Logic
 open Clenv
 open Tacticals
@@ -153,7 +152,7 @@ let onOpenInductionArg env sigma tac = function
         (Tacticals.onLastHyp
            (fun c ->
              Proofview.Goal.enter begin fun gl ->
-             let sigma = Tacmach.project gl in
+             let sigma = Proofview.Goal.sigma gl in
              tac clear_flag (Some sigma,(c,NoBindings))
              end))
   | clear_flag,ElimOnIdent {CAst.v=id} ->
@@ -161,7 +160,7 @@ let onOpenInductionArg env sigma tac = function
       Tacticals.tclTHEN
         (try_intros_until_id_check id)
         (Proofview.Goal.enter begin fun gl ->
-         let sigma = Tacmach.project gl in
+         let sigma = Proofview.Goal.sigma gl in
          tac clear_flag (Some sigma,(mkVar id,NoBindings))
         end)
 
@@ -1026,9 +1025,10 @@ let find_induction_type env sigma isrec elim hyp0 sort = match elim with
   let (params, indices) = List.chop scheme.nparams args in
   sigma, (hd, params, indices), ElimUsing (hyp0, (e, elimt, indsign))
 
-let is_functional_induction elimc gl =
-  let sigma = Tacmach.project gl in
-  let scheme = compute_elim_sig sigma (Tacmach.pf_get_type_of gl (fst elimc)) in
+let is_functional_induction elimc gl = (* XXX don't take a gl *)
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let scheme = compute_elim_sig sigma (Retyping.get_type_of env sigma (fst elimc)) in
   (* The test is not safe: with non-functional induction on non-standard
      induction scheme, this may fail *)
   Option.is_empty scheme.indarg
@@ -1036,7 +1036,7 @@ let is_functional_induction elimc gl =
 (* Instantiate all meta variables of elimclause using lid, some elts
    of lid are parameters (first ones), the other are
    arguments. Returns the clause obtained.  *)
-let recolle_clenv i params args elimclause gl =
+let recolle_clenv i params args elimclause gl = (* XXX don't take a gl *)
   let lindmv = Array.of_list (clenv_arguments elimclause) in
   let k = match i with None -> Array.length lindmv - List.length args | Some i -> i in
   (* parameters correspond to first elts of lid. *)
@@ -1047,7 +1047,7 @@ let recolle_clenv i params args elimclause gl =
   List.fold_right
     (fun e acc ->
       let x, i = e in
-      let y = pf_get_hyp_typ x gl in
+      let y = Tacmach.pf_get_hyp_typ x gl in
       let elimclause' = clenv_instantiate i acc (mkVar x, y) in
       elimclause')
     (List.rev clauses)
@@ -1060,7 +1060,7 @@ let recolle_clenv i params args elimclause gl =
 let induction_tac with_evars params indvars (elim, elimt) =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let clause, bindings, index = match elim with
   | ElimConstant c ->
     let i = index_of_ind_arg sigma elimt in
@@ -1090,7 +1090,7 @@ let apply_induction_in_context with_evars inhyps elim indvars names =
   Proofview.Goal.enter begin fun gl ->
     let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
-    let concl = Tacmach.pf_concl gl in
+    let concl = Proofview.Goal.concl gl in
     let hyp0 = match elim with
     | ElimUsing (hyp0, _) | ElimOver (hyp0, _) | CaseOver (hyp0, _) -> Some hyp0
     | ElimUsingList _ -> None
@@ -1226,8 +1226,10 @@ let induction_without_atomization isrec with_evars elim names lid =
 (* assume that no occurrences are selected *)
 let clear_unselected_context id inhyps cls =
   Proofview.Goal.enter begin fun gl ->
-  if occur_var (Tacmach.pf_env gl) (Tacmach.project gl) id (Tacmach.pf_concl gl) &&
-    cls.concl_occs == NoOccurrences
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
+  if occur_var env sigma id concl && cls.concl_occs == NoOccurrences
   then error (MentionConclusionDependentOn id);
   match cls.onhyps with
   | Some hyps ->
@@ -1236,7 +1238,7 @@ let clear_unselected_context id inhyps cls =
         if Id.List.mem id' inhyps then (* if selected, do not erase *) None
         else
           (* erase if not selected and dependent on id or selected hyps *)
-          let test id = occur_var_in_decl (Tacmach.pf_env gl) (Tacmach.project gl) id d in
+          let test id = occur_var_in_decl env sigma id d in
           if List.exists test (id::inhyps) then Some id' else None in
       let ids = List.map_filter to_erase (Proofview.Goal.hyps gl) in
       clear ids
@@ -1454,7 +1456,7 @@ let induction_gen_l isrec with_evars elim names lc =
 
             | _ ->
                 Proofview.Goal.enter begin fun gl ->
-                let sigma, t = pf_apply Typing.type_of gl c in
+                let sigma, t = Tacmach.pf_apply Typing.type_of gl c in
                 let x = id_of_name_using_hdchar (Proofview.Goal.env gl) sigma t Anonymous in
                 let id = new_fresh_id Id.Set.empty x gl in
                 let newl' = List.map (fun r -> replace_term sigma c (mkVar id) r) l' in
@@ -1483,7 +1485,7 @@ let induction_destruct isrec with_evars (lc,elim) =
   | [c,(eqname,names as allnames),cls] ->
     Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     match elim with
     | Some elim when is_functional_induction elim gl ->
       (* Standard induction on non-standard induction schemes *)
@@ -1502,7 +1504,7 @@ let induction_destruct isrec with_evars (lc,elim) =
   | _ ->
     Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     match elim with
     | None ->
       (* Several arguments, without "using" clause *)
@@ -1518,7 +1520,7 @@ let induction_destruct isrec with_evars (lc,elim) =
         (Tacticals.tclMAP (fun (a,b,cl) ->
           Proofview.Goal.enter begin fun gl ->
           let env = Proofview.Goal.env gl in
-          let sigma = Tacmach.project gl in
+          let sigma = Proofview.Goal.sigma gl in
           onOpenInductionArg env sigma (fun clear_flag a ->
             induction_gen ~clear_flag ~isrec:false ~with_evars None (a,b) cl) a
           end) l)

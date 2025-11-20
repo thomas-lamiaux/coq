@@ -12,7 +12,6 @@ open Formula
 open Sequent
 open Rules
 open Instances
-open Tacmach
 open Tacticals
 
 let get_flags () =
@@ -30,11 +29,13 @@ let ground_tac ~flags solver startseq =
   Proofview.Goal.enter begin fun gl ->
   let rec toptac skipped seq =
     Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
     tclORELSE (axiom_tac ~flags seq)
       begin
         try
-          let (hd, seq1) = take_formula (pf_env gl) (project gl) seq
-          and re_add s=re_add_formula_list (project gl) skipped s in
+          let (hd, seq1) = take_formula env sigma seq
+          and re_add s=re_add_formula_list sigma skipped s in
           let continue=toptac []
           and backtrack =toptac (hd::skipped) seq1 in
           let AnyFormula hd = hd in
@@ -55,7 +56,7 @@ let ground_tac ~flags solver startseq =
                           or_tac ~flags backtrack continue (re_add seq1)
                       | Rfalse->backtrack
                       | Rexists(i,dom,triv)->
-                          let (lfp, seq2) = collect_quantified (pf_env gl) (project gl) seq in
+                          let (lfp, seq2) = collect_quantified env sigma seq in
                           let backtrack2=toptac (lfp@skipped) seq2 in
                             if Sequent.has_fuel seq then
                               quantified_tac ~flags lfp backtrack2
@@ -75,7 +76,7 @@ let ground_tac ~flags solver startseq =
                           left_or_tac ~flags ind backtrack
                           (get_id hd) continue (re_add seq1)
                       | Lforall (_,_,_)->
-                          let (lfp, seq2) = collect_quantified (pf_env gl) (project gl) seq in
+                          let (lfp, seq2) = collect_quantified env sigma seq in
                           let backtrack2=toptac (lfp@skipped) seq2 in
                             if Sequent.has_fuel seq then
                               quantified_tac ~flags lfp backtrack2

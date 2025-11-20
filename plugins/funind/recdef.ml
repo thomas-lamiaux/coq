@@ -1418,30 +1418,29 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
     let h_num = ref (-1) in
     let env = Global.env () in
     let start_tac =
-      let open Tacmach in
       let open Tacticals in
       Proofview.Goal.enter (fun gl ->
-          let hid = next_ident_away_in_goal h_id (pf_ids_of_hyps gl) in
+          let hid = next_ident_away_in_goal h_id (Tacmach.pf_ids_of_hyps gl) in
           observe_tclTHENLIST
             (fun _ _ -> mt ())
             [ Generalize.generalize [lemma]
             ; Simple.intro hid
             ; Proofview.Goal.enter (fun gl ->
-                  let ids = pf_ids_of_hyps gl in
+                  let ids = Tacmach.pf_ids_of_hyps gl in
                   tclTHEN
                     (Elim.h_decompose_and (mkVar hid))
                     (Proofview.Goal.enter (fun gl ->
-                         let ids' = pf_ids_of_hyps gl in
+                         let ids' = Tacmach.pf_ids_of_hyps gl in
                          lid := List.rev (List.subtract Id.equal ids' ids);
                          if List.is_empty !lid then lid := [hid];
                          tclIDTAC))) ])
     in
     let end_tac =
-      let open Tacmach in
       let open Tacticals in
       Proofview.Goal.enter (fun gl ->
-          let sigma = project gl in
-          match EConstr.kind sigma (pf_concl gl) with
+          let sigma = Proofview.Goal.sigma gl in
+          let concl = Proofview.Goal.concl gl in
+          match EConstr.kind sigma concl with
           | App (f, _) when EConstr.eq_constr sigma f (well_founded ()) ->
             Auto.gen_auto None [] (Some [])
           | _ ->

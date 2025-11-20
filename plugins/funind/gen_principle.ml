@@ -583,7 +583,6 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
   let open Constr in
   let open EConstr in
   let open Context.Rel.Declaration in
-  let open Tacmach in
   let open Tactics in
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
@@ -604,7 +603,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
         Termops.nb_prod (Proofview.Goal.sigma g) (Proofview.Goal.concl g) - 2
       in
       let args_names = generate_fresh_id (Id.of_string "x") [] nb_fun_args in
-      let ids = args_names @ pf_ids_of_hyps g in
+      let ids = args_names @ Tacmach.pf_ids_of_hyps g in
       (* Since we cannot ensure that the functional principle is defined in the
          environment and due to the bug #1174, we will need to pose the principle
          using a name
@@ -655,7 +654,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
         let constructor_args g =
           List.fold_right
             (fun hid acc ->
-              let type_of_hid = pf_get_hyp_typ hid g in
+              let type_of_hid = Tacmach.pf_get_hyp_typ hid g in
               let sigma = Proofview.Goal.sigma g in
               match EConstr.kind sigma type_of_hid with
               | Prod (_, _, t') -> (
@@ -774,7 +773,7 @@ let prove_fun_correct evd graphs_constr schemes lemmas_types_infos i :
                   (Id.Set.of_list avoid)
               in
               (p :: bindings, id :: avoid))
-            ([], pf_ids_of_hyps g)
+            ([], Tacmach.pf_ids_of_hyps g)
             princ_infos.params (List.rev params)
         in
         let lemmas_bindings =
@@ -879,7 +878,6 @@ let rec intros_with_rewrite () =
 and intros_with_rewrite_aux () : unit Proofview.tactic =
   let open Constr in
   let open EConstr in
-  let open Tacmach in
   let open Tactics in
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
@@ -893,7 +891,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
             Reductionops.is_conv (Proofview.Goal.env g) (Proofview.Goal.sigma g)
               args.(1) args.(2)
           then
-            let id = pf_get_new_id (Id.of_string "y") g in
+            let id = Tacmach.pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST [Simple.intro id; thin [id]; intros_with_rewrite ()]
           else if
             isVar sigma args.(1)
@@ -912,7 +910,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
                          [ ( Locus.AllOccurrences
                            , Evaluable.EvalVarRef (destVar sigma args.(1)) ) ]
                          (destVar sigma args.(1), Locus.InHyp)))
-                  (pf_ids_of_hyps g)
+                  (Tacmach.pf_ids_of_hyps g)
               ; intros_with_rewrite () ]
           else if
             isVar sigma args.(2)
@@ -931,24 +929,24 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
                          [ ( Locus.AllOccurrences
                            , Evaluable.EvalVarRef (destVar sigma args.(2)) ) ]
                          (destVar sigma args.(2), Locus.InHyp)))
-                  (pf_ids_of_hyps g)
+                  (Tacmach.pf_ids_of_hyps g)
               ; intros_with_rewrite () ]
           else if isVar sigma args.(1) then
-            let id = pf_get_new_id (Id.of_string "y") g in
+            let id = Tacmach.pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
               [ Simple.intro id
               ; generalize_dependent_of (destVar sigma args.(1)) id
               ; tclTRY (Equality.rewriteLR (mkVar id))
               ; intros_with_rewrite () ]
           else if isVar sigma args.(2) then
-            let id = pf_get_new_id (Id.of_string "y") g in
+            let id = Tacmach.pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
               [ Simple.intro id
               ; generalize_dependent_of (destVar sigma args.(2)) id
               ; tclTRY (Equality.rewriteRL (mkVar id))
               ; intros_with_rewrite () ]
           else
-            let id = pf_get_new_id (Id.of_string "y") g in
+            let id = Tacmach.pf_get_new_id (Id.of_string "y") g in
             tclTHENLIST
               [ Simple.intro id
               ; tclTRY (Equality.rewriteLR (mkVar id))
@@ -968,7 +966,7 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
                 Locusops.onConcl
             ; intros_with_rewrite () ]
         | _ ->
-          let id = pf_get_new_id (Id.of_string "y") g in
+          let id = Tacmach.pf_get_new_id (Id.of_string "y") g in
           tclTHENLIST [Simple.intro id; intros_with_rewrite ()] )
       | LetIn _ ->
         tclTHENLIST
@@ -981,7 +979,6 @@ and intros_with_rewrite_aux () : unit Proofview.tactic =
 let rec reflexivity_with_destruct_cases () =
   let open Constr in
   let open EConstr in
-  let open Tacmach in
   let open Tactics in
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
@@ -1016,7 +1013,7 @@ let rec reflexivity_with_destruct_cases () =
             | Some id ->
               Proofview.Goal.enter (fun g ->
                   match
-                    EConstr.kind (Proofview.Goal.sigma g) (pf_get_hyp_typ id g)
+                    EConstr.kind (Proofview.Goal.sigma g) (Tacmach.pf_get_hyp_typ id g)
                   with
                   | App (eq, [|_; t1; t2|])
                     when EConstr.eq_constr (Proofview.Goal.sigma g) eq eq_ind ->
@@ -1047,7 +1044,6 @@ let rec reflexivity_with_destruct_cases () =
 let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
     unit Proofview.tactic =
   let open EConstr in
-  let open Tacmach in
   let open Tactics in
   let open Tacticals in
   Proofview.Goal.enter (fun g ->
@@ -1078,7 +1074,7 @@ let prove_fun_complete funcs graphs schemes lemmas_types_infos i :
           let args_names =
             generate_fresh_id (Id.of_string "x") [] nb_fun_args
           in
-          let ids = args_names @ pf_ids_of_hyps g in
+          let ids = args_names @ Tacmach.pf_ids_of_hyps g in
           (* and fresh names for res H and the principle (cf bug bug #1174) *)
           let res, hres, graph_principle_id =
             match generate_fresh_id (Id.of_string "z") ids 3 with

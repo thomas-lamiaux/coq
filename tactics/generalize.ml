@@ -73,7 +73,7 @@ let bring_hyps hyps =
     Proofview.Goal.enter begin fun gl ->
       let env = Proofview.Goal.env gl in
       let sigma = Proofview.Goal.sigma gl in
-      let concl = Tacmach.pf_concl gl in
+      let concl = Proofview.Goal.concl gl in
       let newcl = it_mkNamedProd_or_LetIn sigma concl hyps in
       let args = Context.Named.instance mkVar hyps in
       Refine.refine_with_principal ~typecheck:false begin fun sigma ->
@@ -146,20 +146,19 @@ let generalize_goal_gen env sigma ids i ((occs,c,b),na) t cl =
   in
   mkProd_or_LetIn decl cl', sigma'
 
-let generalize_goal gl i ((occs,c,b),na as o) (cl,sigma) =
-  let open Tacmach in
-  let env = pf_env gl in
-  let ids = pf_ids_of_hyps gl in
+let generalize_goal gl i ((occs,c,b),na as o) (cl,sigma) = (* XXX do not take gl *)
+  let env = Proofview.Goal.env gl in
+  let ids = Tacmach.pf_ids_of_hyps gl in
   let sigma, t = Typing.type_of env sigma c in
   generalize_goal_gen env sigma ids i o t cl
 
 let generalize_dep ?(with_let=false) c =
-  let open Tacmach in
   let open Tacticals in
   Proofview.Goal.enter begin fun gl ->
-  let env = pf_env gl in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let sign = named_context_val env in
-  let sigma = project gl in
   let init_ids = ids_of_named_context (Global.named_context()) in
   let seek (d:named_declaration) (toquant:named_context) =
     if List.exists (fun d' -> occur_var_in_decl env sigma (NamedDecl.get_id d') d) toquant
@@ -176,16 +175,15 @@ let generalize_dep ?(with_let=false) c =
           -> tothin@[id]
       | _ -> tothin
   in
-  let cl' = it_mkNamedProd_or_LetIn sigma (pf_concl gl) to_quantify in
+  let cl' = it_mkNamedProd_or_LetIn sigma concl to_quantify in
   let is_var, body = match EConstr.kind sigma c with
   | Var id ->
-    let body = NamedDecl.get_value (pf_get_hyp id gl) in
+    let body = NamedDecl.get_value (Tacmach.pf_get_hyp id gl) in
     let is_var = Option.is_empty body && not (List.mem id init_ids) in
     if with_let then is_var, body else is_var, None
   | _ -> false, None
   in
-  let cl'',evd = generalize_goal gl 0 ((AllOccurrences,c,body),Anonymous)
-    (cl',project gl) in
+  let cl'',evd = generalize_goal gl 0 ((AllOccurrences,c,body),Anonymous) (cl', sigma) in
   (* Check that the generalization is indeed well-typed *)
   let evd =
     (* No need to retype for variables, term is statically well-typed *)
@@ -202,10 +200,9 @@ let generalize_dep ?(with_let=false) c =
 (**  *)
 let generalize_gen_let lconstr = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let newcl, evd =
-    List.fold_right_i (generalize_goal gl) 0 lconstr
-      (Tacmach.pf_concl gl,Tacmach.project gl)
-  in
+  let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
+  let newcl, evd = List.fold_right_i (generalize_goal gl) 0 lconstr (concl, sigma) in
   let (evd, _) = Typing.type_of env evd newcl in
   let map ((_, c, b),_) = if Option.is_empty b then Some c else None in
   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evd)
@@ -407,9 +404,9 @@ let is_defined_variable env id =
 
 let abstract_args gl generalize_vars dep id defined f args =
   let open Context.Rel.Declaration in
-  let sigma = Tacmach.project gl in
-  let env = Tacmach.pf_env gl in
-  let concl = Tacmach.pf_concl gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let env = Proofview.Goal.env gl in
+  let concl = Proofview.Goal.concl gl in
   let hyps = Proofview.Goal.hyps gl in
   let dep = dep || local_occur_var sigma id concl in
   let avoid = ref Id.Set.empty in
@@ -498,7 +495,7 @@ let abstract_generalize ?(generalize_vars=true) ?(force_dep=false) id =
   let open Context.Named.Declaration in
   Proofview.Goal.enter begin fun gl ->
   Rocqlib.(check_required_library jmeq_module_name);
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let (f, args, def, id, oldid) =
     let oldid = Tacmach.pf_get_new_id id gl in
       match Tacmach.pf_get_hyp id gl with

@@ -561,7 +561,8 @@ END
 
 let vmexacttac pf =
   Goal.enter begin fun gl ->
-  exact_no_check (EConstr.mkCast (pf, vmCast, Tacmach.pf_concl gl))
+  let concl = Proofview.Goal.concl gl in
+  exact_no_check (EConstr.mkCast (pf, vmCast, concl))
   end
 
 }

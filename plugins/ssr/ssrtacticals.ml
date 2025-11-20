@@ -91,32 +91,34 @@ let hidetacs clseq idhide cl0 =
    convert_concl_no_check (EConstr.mkVar idhide)]
 
 let endclausestac id_map clseq gl_id cl0 =
-  let open Tacmach in
   Proofview.Goal.enter begin fun gl ->
+  let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let not_hyp' id = not (List.mem_assoc id id_map) in
   let orig_id id = try List.assoc id id_map with Not_found -> id in
-  let dc, c = EConstr.decompose_prod_decls (project gl) (pf_concl gl) in
+  let dc, c = EConstr.decompose_prod_decls sigma concl in
   let hide_goal = hidden_clseq clseq in
   let c_hidden =
-    hide_goal && EConstr.eq_constr (project gl) c (EConstr.mkVar gl_id) in
+    hide_goal && EConstr.eq_constr sigma c (EConstr.mkVar gl_id) in
   let rec fits forced = function
   | (id, _) :: ids, decl :: dc' when RelDecl.get_name decl = Name id ->
     fits true (ids, dc')
   | ids, dc' ->
     forced && ids = [] && (not hide_goal || dc' = [] && c_hidden) in
-  let rec unmark c = match EConstr.kind (project gl) c with
+  let rec unmark c = match EConstr.kind sigma c with
   | Var id when hidden_clseq clseq && id = gl_id -> cl0
   | Prod ({binder_name=Name id} as na, t, c') when List.mem_assoc id id_map ->
     EConstr.mkProd ({na with binder_name=Name (orig_id id)}, unmark t, unmark c')
   | LetIn ({binder_name=Name id} as na, v, t, c') when List.mem_assoc id id_map ->
     EConstr.mkLetIn ({na with binder_name=Name (orig_id id)}, unmark v, unmark t, unmark c')
-  | _ -> EConstr.map (project gl) unmark c in
+  | _ -> EConstr.map sigma unmark c in
   let utac hyp =
     Tactics.convert_hyp ~check:false ~reorder:false (NamedDecl.map_constr unmark hyp) in
   let utacs = List.map utac (Proofview.Goal.hyps gl) in
   let ugtac =
     Proofview.Goal.enter begin fun gl ->
-      convert_concl_no_check (unmark (pf_concl gl))
+      let concl = Proofview.Goal.concl gl in
+      convert_concl_no_check (unmark concl)
     end
   in
   let ctacs =
@@ -125,7 +127,7 @@ let endclausestac id_map clseq gl_id cl0 =
   let mktac itacs = Tacticals.tclTHENLIST (itacs @ utacs @ ugtac :: ctacs) in
   let itac (_, id) = Tactics.introduction id in
   if fits false (id_map, List.rev dc) then mktac (List.map itac id_map) else
-  let all_ids = ids_of_rel_context dc @ pf_ids_of_hyps gl in
+  let all_ids = ids_of_rel_context dc @ Tacmach.pf_ids_of_hyps gl in
   if List.for_all not_hyp' all_ids && not c_hidden then mktac [] else
   errorstrm Pp.(str "tampering with discharged assumptions of \"in\" tactical")
   end

@@ -210,13 +210,10 @@ let litteral_of_constr b env sigma term =
 
 (* store all equalities from the context *)
 
-let make_prb gls depth additional_terms b =
-  let open Tacmach in
-  let env=pf_env gls in
-  let sigma=project gls in
+let make_prb env sigma concl depth additional_terms b =
   let state = empty env sigma depth in
   let pos_hyps = ref [] in
-  let neg_hyps =ref [] in
+  let neg_hyps = ref [] in
     List.iter
       (fun c ->
          let t = decompose_term env sigma c in
@@ -242,11 +239,11 @@ let make_prb gls depth additional_terms b =
                  neg_hyps:=(id,nh):: !neg_hyps
              | `Rule patts -> add_quant state id true patts
              | `Nrule patts -> add_quant state id false patts
-         end) (Proofview.Goal.hyps gls);
+         end) (named_context env);
     begin
-      match atom_of_constr b env sigma (pf_concl gls) with
+      match atom_of_constr b env sigma concl with
           `Eq (t,a,b) -> add_disequality state Goal a b
-        |	`Other g ->
+        | `Other g ->
                   List.iter
               (fun (idp,ph) ->
                  add_disequality state (HeqG idp) ph g) !pos_hyps
@@ -275,7 +272,7 @@ let refresh_type env evm ty =
 let type_and_refresh c =
   Proofview.Goal.enter_one ~__LOC__ begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let evm = Tacmach.project gl in
+    let evm = Proofview.Goal.sigma gl in
     (* XXX is get_type_of enough? *)
     let evm, ty = Typing.type_of env evm c in
     let evm, ty = refresh_type env evm ty in
@@ -412,7 +409,7 @@ let discriminate_tac cstru p =
   Proofview.Goal.enter begin fun gl ->
     let lhs=constr_of_term p.p_lhs and rhs=constr_of_term p.p_rhs in
     let env = Proofview.Goal.env gl in
-    let evm = Tacmach.project gl in
+    let evm = Proofview.Goal.sigma gl in
     let evm, intype = Typing.type_of env evm lhs in
     let evm, intype = refresh_type env evm intype in
     let hid = Tacmach.pf_get_new_id (Id.of_string "Heq") gl in
@@ -426,10 +423,12 @@ let discriminate_tac cstru p =
 
 let cc_tactic depth additional_terms b =
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let concl = Proofview.Goal.concl gl in
     Rocqlib.(check_required_library logic_module_name);
     let _ = debug_congruence (fun () -> Pp.str "Reading goal ...") in
-    let state = make_prb gl depth additional_terms b in
+    let state = make_prb env sigma concl depth additional_terms b in
     let _ = debug_congruence (fun () -> Pp.str "Problem built, solving ...") in
     let sol = execute true state in
     let _ = debug_congruence (fun () -> Pp.str "Computation completed.") in
@@ -440,7 +439,7 @@ let cc_tactic depth additional_terms b =
       Proofview.tclORELSE (debug_congruence (fun () -> Pp.str "Goal solved, generating proof ...");
       match reason with
         Discrimination (i,ipac,j,jpac) ->
-        let p=build_proof (Tacmach.pf_env gl) sigma uf (`Discr (i,ipac,j,jpac)) in
+        let p=build_proof env sigma uf (`Discr (i,ipac,j,jpac)) in
         let cstr=(get_constructor_info uf ipac.cnode).ci_constr in
         discriminate_tac cstr p
       | Incomplete terms_to_complete ->
@@ -548,11 +547,11 @@ let simple_congruence_tac depth l =
 let mk_eq f c1 c2 k =
   Tacticals.pf_constr_of_global (Lazy.force f) >>= fun fc ->
   Proofview.Goal.enter begin fun gl ->
-    let open Tacmach in
-    let evm, ty = pf_apply type_of gl c1 in
-    let evm, ty = Evarsolve.refresh_universes (Some false) (pf_env gl) evm ty in
+    let env = Proofview.Goal.env gl in
+    let evm, ty = Tacmach.pf_apply type_of gl c1 in
+    let evm, ty = Evarsolve.refresh_universes (Some false) env evm ty in
     let term = mkApp (fc, [| ty; c1; c2 |]) in
-    let evm, _ =  type_of (pf_env gl) evm term in
+    let evm, _ =  type_of env evm term in
     Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm) (k term)
     end
 
@@ -560,7 +559,7 @@ let f_equal =
   Proofview.Goal.enter begin fun gl ->
     let concl = Proofview.Goal.concl gl in
     let env = Proofview.Goal.env gl in
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let cut_eq c1 c2 =
         Tacticals.tclTHENS
           (mk_eq _eq c1 c2 Tactics.cut)

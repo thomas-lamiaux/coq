@@ -173,7 +173,7 @@ let pf_apply ?(catch_exceptions=false) f =
     f env sigma
   | [gl] ->
     gl >>= fun gl ->
-    f (Proofview.Goal.env gl) (Tacmach.project gl)
+    f (Proofview.Goal.env gl) (Proofview.Goal.sigma gl)
   | _ :: _ :: _ ->
     throw Tac2ffi.err_notfocussed
 

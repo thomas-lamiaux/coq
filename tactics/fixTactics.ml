@@ -39,7 +39,7 @@ let rec check_mutind env sigma k cl = match EConstr.kind sigma (strip_outer_cast
 
 let mutual_fix f n others = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
   let () = check_mutind env sigma n concl in
   let all = (f, n, concl) :: others in
@@ -87,7 +87,7 @@ let rec check_is_mutcoind env sigma cl =
 
 let mutual_cofix f others = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
   let all = (f, concl) :: others in
   List.iter (fun (_, c) -> check_is_mutcoind env sigma c) all;

@@ -18,7 +18,6 @@ open Declarations
 open Tactypes
 open Proofview
 open Proofview.Notations
-open Tacmach
 
 module RelDecl = Context.Rel.Declaration
 module NamedDecl = Context.Named.Declaration
@@ -468,7 +467,7 @@ let tclWITHHOLES accept_unresolved_holes tac sigma =
 
 let tactic_of_delayed d =
   Proofview.Goal.enter_one ~__LOC__ @@ fun gl ->
-  let sigma, v = pf_apply d gl in
+  let sigma, v = Tacmach.pf_apply d gl in
   Proofview.Unsafe.tclEVARS sigma <*>
   tclUNIT v
 
@@ -529,7 +528,7 @@ let nLastHyps gl n = List.map mkVar (nLastHypsId gl n)
 let ifOnHyp pred tac1 tac2 id =
   Proofview.Goal.enter begin fun gl ->
   let typ = Tacmach.pf_get_hyp_typ id gl in
-  if pf_apply pred gl (id,typ) then
+  if Tacmach.pf_apply pred gl (id,typ) then
     tac1 id
   else
     tac2 id
@@ -581,12 +580,12 @@ let onAllHypsAndConcl tac =
 let elimination_sort_of_goal gl =
   (* Retyping will expand evars anyway. *)
   let c = Proofview.Goal.concl gl in
-  pf_apply Retyping.get_sort_quality_of gl c
+  Tacmach.pf_apply Retyping.get_sort_quality_of gl c
 
 let elimination_sort_of_hyp id gl =
   (* Retyping will expand evars anyway. *)
-  let c = pf_get_hyp_typ id gl in
-  pf_apply Retyping.get_sort_quality_of gl c
+  let c = Tacmach.pf_get_hyp_typ id gl in
+  Tacmach.pf_apply Retyping.get_sort_quality_of gl c
 
 let elimination_sort_of_clause id gl = match id with
 | None -> elimination_sort_of_goal gl

@@ -14,7 +14,6 @@ open CErrors
 open Util
 open EConstr
 open Vars
-open Tacmach
 open Tactics
 open Tacticals
 open Proofview.Notations
@@ -127,8 +126,8 @@ let mk_open_instance env sigma id idc c =
 let left_instance_tac ~flags (inst,id) continue seq=
   let open EConstr in
   Proofview.Goal.enter begin fun gl ->
-  let sigma = project gl in
   let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   match inst with
       Phantom dom->
         if lookup env sigma (id,None) seq then
@@ -139,7 +138,7 @@ let left_instance_tac ~flags (inst,id) continue seq=
                [introf;
                 (pf_constr_of_global id >>= fun idc ->
                 Proofview.Goal.enter begin fun gl ->
-                  let id0 = List.nth (pf_ids_of_hyps gl) 0 in
+                  let id0 = List.nth (Tacmach.pf_ids_of_hyps gl) 0 in
                   Generalize.generalize [mkApp(idc, [|mkVar id0|])]
                 end);
                 introf;
@@ -154,12 +153,14 @@ let left_instance_tac ~flags (inst,id) continue seq=
             if not @@ Unify.Item.is_ground c then
               (pf_constr_of_global id >>= fun idc ->
                 Proofview.Goal.enter begin fun gl->
-                  let (evmap, rc, ot) = mk_open_instance (pf_env gl) (project gl) id idc c in
+                  let env = Proofview.Goal.env gl in
+                  let sigma = Proofview.Goal.sigma gl in
+                  let (evmap, rc, ot) = mk_open_instance env sigma id idc c in
                   let gt=
                     it_mkLambda_or_LetIn
                       (mkApp(idc,[|ot|])) rc in
                   let evmap, _ =
-                    try Typing.type_of (pf_env gl) evmap gt
+                    try Typing.type_of env evmap gt
                     with e when CErrors.noncritical e ->
                       user_err Pp.(str "Untypable instance, maybe higher-order non-prenex quantification") in
                   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evmap)
@@ -184,7 +185,7 @@ let right_instance_tac ~flags inst continue seq=
         [tclTHENLIST
            [introf;
             Proofview.Goal.enter begin fun gl ->
-              let id0 = List.nth (pf_ids_of_hyps gl) 0 in
+              let id0 = List.nth (Tacmach.pf_ids_of_hyps gl) 0 in
               split (Tactypes.ImplicitBindings [mkVar id0])
             end;
             tclSOLVE [wrap ~flags 0 true continue (deepen seq)]];
@@ -204,7 +205,8 @@ let instance_tac ~flags (hd, AnyId id) = match id with
 let quantified_tac ~flags lf backtrack continue seq =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let insts=give_instances env (project gl) lf seq in
+  let sigma = Proofview.Goal.sigma gl in
+  let insts = give_instances env sigma lf seq in
     tclORELSE
       (tclFIRST (List.map (fun inst->instance_tac ~flags inst continue seq) insts))
       backtrack

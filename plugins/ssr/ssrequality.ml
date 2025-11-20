@@ -380,11 +380,10 @@ let id_map_redex _ sigma ~before:_ ~after = sigma, after
     ⊢ c_ty ≡ EQN rdx_ty rdx new_rdx
 *)
 let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty new_rdx dir (sigma, c) c_ty =
-  let open Tacmach in
   let open Tacticals in
   Proofview.Goal.enter begin fun gl ->
 (*   ppdebug(lazy(str"sigma@pirrel_rewrite=" ++ pr_evar_map None sigma)); *)
-  let env = pf_env gl in
+  let env = Proofview.Goal.env gl in
   let beta = Reductionops.clos_norm_flags RedFlags.beta env sigma in
   let sigma, new_rdx = map_redex env sigma ~before:rdx ~after:new_rdx in
   let sigma, elim =
@@ -478,6 +477,7 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma0 = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
   let sigma = resolve_typeclasses ~where:r ~fail:false env sigma in
   let r_n, evs, ucst = abs_evars env sigma0 (sigma, r) in
   let sigma0 = Evd.set_universe_context sigma0 ucst in
@@ -528,7 +528,7 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
       let error = Option.cata (fun (env, sigma, te) ->
           Pp.(fnl () ++ str "Type error was: " ++ Himsg.explain_pretype_error env sigma te))
           (Pp.mt ()) e in
-      if occur_existential sigma0 (Tacmach.pf_concl gl)
+      if occur_existential sigma0 concl
       then Tacticals.tclZEROMSG Pp.(str "Rewriting impacts evars" ++ error)
       else Tacticals.tclZEROMSG Pp.(str "Dependent type error in rewrite of "
         ++ pr_econstr_env env sigma0

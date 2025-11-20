@@ -128,7 +128,7 @@ let instantiate_tac_by_name id c =
 let let_evar name typ =
   let src = (Loc.tag Evar_kinds.GoalEvar) in
   Proofview.Goal.enter begin fun gl ->
-    let sigma = Tacmach.project gl in
+    let sigma = Proofview.Goal.sigma gl in
     let env = Proofview.Goal.env gl in
     let sigma, _ = Typing.sort_of env sigma typ in
     let id = match name with

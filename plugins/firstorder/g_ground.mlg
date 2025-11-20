@@ -14,7 +14,6 @@ open Ltac_plugin
 open Sequent
 open Ground
 open Goptions
-open Tacmach
 open Tacticals
 open Tacinterp
 open Stdarg
@@ -67,9 +66,11 @@ let gen_ground_tac ist taco ids bases =
       in
       let startseq k =
         Proofview.Goal.enter begin fun gl ->
-        let seq=empty_seq (ground_depth ()) in
-        let seq, sigma = extend_with_ref_list ~flags (pf_env gl) (project gl) ids seq in
-        let seq, sigma = extend_with_auto_hints ~flags (pf_env gl) sigma bases seq in
+        let sigma = Proofview.Goal.sigma gl in
+        let env = Proofview.Goal.env gl in
+        let seq = empty_seq (ground_depth ()) in
+        let seq, sigma = extend_with_ref_list ~flags env sigma ids seq in
+        let seq, sigma = extend_with_auto_hints ~flags env sigma bases seq in
         tclTHEN (Proofview.Unsafe.tclEVARS sigma) (k seq)
         end
       in

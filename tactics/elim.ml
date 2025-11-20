@@ -14,7 +14,6 @@ open Termops
 open EConstr
 open Inductiveops
 open Hipattern
-open Tacmach
 open Tacticals
 open Tactics
 
@@ -95,8 +94,9 @@ let rec general_decompose_aux recognizer id =
   let open Proofview.Notations in
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
-  let ((ind, u), t) = pf_apply Tacred.reduce_to_atomic_ind gl (pf_get_type_of gl (mkVar id)) in
-  let _, args = decompose_app (Proofview.Goal.sigma gl) t in
+  let sigma = Proofview.Goal.sigma gl in
+  let ((ind, u), t) = Tacred.reduce_to_atomic_ind env sigma (Retyping.get_type_of env sigma (mkVar id)) in
+  let _, args = decompose_app sigma t in
   let rec_flag, mkelim =
     match (Environ.lookup_mind (fst ind) env).mind_packets.(snd ind).mind_record with
     | NotRecord -> true, Elim
@@ -125,7 +125,9 @@ let tmphyp_name = Id.of_string "_TmpHyp"
 
 let general_decompose recognizer c =
   Proofview.Goal.enter begin fun gl ->
-  let typc = pf_get_type_of gl c in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let typc = Retyping.get_type_of env sigma c in
   tclTHENS (cut typc)
     [ intro_using_then tmphyp_name (fun id ->
           ifOnHyp recognizer (general_decompose_aux recognizer)
@@ -136,7 +138,7 @@ let general_decompose recognizer c =
 
 let head_in indl t gl =
   let env = Proofview.Goal.env gl in
-  let sigma = Tacmach.project gl in
+  let sigma = Proofview.Goal.sigma gl in
   try
     let ity,_ = extract_mrectype sigma t in
     List.exists (fun i -> Environ.QInd.equal env (fst i) (fst ity)) indl

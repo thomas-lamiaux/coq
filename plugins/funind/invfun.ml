@@ -12,7 +12,6 @@ open Util
 open Names
 open Constr
 open EConstr
-open Tacmach
 open Tactics
 open Tacticals
 open Indfun_common
@@ -31,8 +30,8 @@ open UnsafeMonomorphic
 let revert_graph kn post_tac hid =
   Proofview.Goal.enter (fun gl ->
       let env = Proofview.Goal.env gl in
-      let sigma = project gl in
-      let typ = pf_get_hyp_typ hid gl in
+      let sigma = Proofview.Goal.sigma gl in
+      let typ = Tacmach.pf_get_hyp_typ hid gl in
       match EConstr.kind sigma typ with
       | App (i, args) when isInd sigma i ->
         let ((kn', num) as ind'), u = destInd sigma i in
@@ -84,10 +83,10 @@ let revert_graph kn post_tac hid =
 let functional_inversion kn hid fconst f_correct =
   Proofview.Goal.enter (fun gl ->
       let old_ids =
-        List.fold_right Id.Set.add (pf_ids_of_hyps gl) Id.Set.empty
+        List.fold_right Id.Set.add (Tacmach.pf_ids_of_hyps gl) Id.Set.empty
       in
-      let sigma = project gl in
-      let type_of_h = pf_get_hyp_typ hid gl in
+      let sigma = Proofview.Goal.sigma gl in
+      let type_of_h = Tacmach.pf_get_hyp_typ hid gl in
       match EConstr.kind sigma type_of_h with
       | App (eq, args) when EConstr.eq_constr sigma eq (make_eq ()) ->
         let pre_tac, f_args, res =
@@ -109,7 +108,7 @@ let functional_inversion kn hid fconst f_correct =
                 let new_ids =
                   List.filter
                     (fun id -> not (Id.Set.mem id old_ids))
-                    (pf_ids_of_hyps gl)
+                    (Tacmach.pf_ids_of_hyps gl)
                 in
                 tclMAP (revert_graph kn pre_tac) (hid :: new_ids)) ]
       | _ -> tclFAILn 1 Pp.(mt ()))
@@ -136,9 +135,10 @@ let invfun qhyp f =
   match f with
   | Some f -> invfun qhyp f
   | None ->
-    let tac_action hid gl =
-      let sigma = project gl in
-      let hyp_typ = pf_get_hyp_typ hid gl in
+    let tac_action hid =
+      Proofview.Goal.enter begin fun gl ->
+      let sigma = Proofview.Goal.sigma gl in
+      let hyp_typ = Tacmach.pf_get_hyp_typ hid gl in
       match EConstr.kind sigma hyp_typ with
       | App (eq, args) when EConstr.eq_constr sigma eq (make_eq ()) -> (
         let f1, _ = decompose_app sigma args.(1) in
@@ -192,5 +192,6 @@ let invfun qhyp f =
                 ++ str " must contain at least one Function") )
       | _ ->
         CErrors.user_err Pp.(Ppconstr.pr_id hid ++ str " must be an equality ")
+      end
     in
-    try_intros_until (tac_action %> Proofview.Goal.enter) qhyp
+    try_intros_until tac_action qhyp

@@ -216,7 +216,7 @@ module Btauto = struct
       let concl = Proofview.Goal.concl gl in
       let eq = Lazy.force eq in
       let concl = EConstr.Unsafe.to_constr concl in
-      let t = decomp_term (Tacmach.project gl) concl in
+      let t = decomp_term (Proofview.Goal.sigma gl) concl in
       match t with
       | App (c, [|typ; p; _|]) when c === eq ->
       (* should be an equality [@eq poly ?p (Cst false)] *)
@@ -231,7 +231,8 @@ module Btauto = struct
     Proofview.Goal.enter begin fun gl ->
       let concl = Proofview.Goal.concl gl in
       let concl = EConstr.Unsafe.to_constr concl in
-      let sigma = Tacmach.project gl in
+      let genv = Proofview.Goal.env gl in
+      let sigma = Proofview.Goal.sigma gl in
       let eq = Lazy.force eq in
       let bool = Lazy.force Bool.typ in
       let t = decomp_term sigma concl in
@@ -239,8 +240,8 @@ module Btauto = struct
       | App (c, [|typ; tl; tr|])
           when typ === bool && c === eq ->
           let env = Env.empty () in
-          let fl = Bool.quote env (Tacmach.pf_env gl) sigma tl in
-          let fr = Bool.quote env (Tacmach.pf_env gl) sigma tr in
+          let fl = Bool.quote env genv sigma tl in
+          let fr = Bool.quote env genv sigma tr in
           let env = Env.to_list env in
           let fl = reify env fl in
           let fr = reify env fr in
