@@ -813,7 +813,7 @@ let print_full_pure_atomic access env sigma mp lobj =
       let mind = Global.mind_of_delta_kn kn in
       let mib = Global.lookup_mind mind in
       Printmod.pr_mutual_inductive_body (Global.env()) mind mib None ++
-      str "." ++ fnl () ++ fnl ()
+      fnl () ++ fnl ()
     end @@
     DynHandleF.empty
   in
