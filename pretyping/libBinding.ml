@@ -36,7 +36,7 @@ struct
   type state =
     { env : env;
       sigma : evar_map;
-      names : Id.Set.t;
+      names : Nameops.Fresh.t;
       subst : Esubst.lift;
     }
 
@@ -56,7 +56,7 @@ struct
   let make env sigma = {
     env = env;
     sigma = sigma;
-    names = Id.Set.of_list @@ Termops.ids_of_rel_context @@ rel_context env;
+    names = Nameops.Fresh.of_list @@ Termops.ids_of_rel_context @@ rel_context env;
     subst = Esubst.el_id;
   }
 
@@ -80,7 +80,7 @@ struct
   let add_names names decl =
     match get_name decl with
     | Anonymous -> names
-    | Name id -> Id.Set.add id names
+    | Name id -> Nameops.Fresh.add id names
 
   let fresh_key s = List.length (state_context s)
 
@@ -161,11 +161,12 @@ let naming_hd_fresh decl =
   let* env = get_env in
   let* sigma = get_sigma in
   let* names = get_names in
-  let name_or_hd = named_hd env sigma (RelDecl.get_type decl) (RelDecl.get_name decl) in
-  let new_id = next_name_away name_or_hd names in
-  return @@ set_name (Name new_id) decl
+  let id = id_of_name_using_hdchar env sigma (RelDecl.get_type decl) (RelDecl.get_name decl) in
+  let id = Namegen.mangle_id id in
+  let id, avoid = Nameops.Fresh.fresh id names in
+  return @@ set_name (Name id) decl
 
-  let naming_hd_fresh_dep dep = if dep then naming_hd_fresh else naming_id
+let naming_hd_fresh_dep dep = if dep then naming_hd_fresh else naming_id
 
 (* ************************************************************************** *)
 (*                            Fold Functions                                  *)

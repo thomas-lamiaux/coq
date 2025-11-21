@@ -55,7 +55,7 @@ module State :
 
     val get_env : Environ.env t
     val get_sigma : evar_map t
-    val get_names : Id.Set.t t
+    val get_names : Nameops.Fresh.t t
     val get_state : state t
 
     (** Create a new state out of an environment [env] and evar_map [sigma] with:
