@@ -192,6 +192,7 @@ let cook_inductive info mib =
     mind_univ_hyps = univ_hyps;
     mind_nparams = mib.mind_nparams + nnewparams;
     mind_nparams_rec = mib.mind_nparams_rec + nnewparams;
+    mind_params_rec_strpos = mib.mind_params_rec_strpos;
     mind_params_ctxt;
     mind_universes;
     mind_template;
