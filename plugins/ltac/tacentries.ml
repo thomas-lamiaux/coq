@@ -292,20 +292,20 @@ let inTacticGrammar : tactic_grammar_obj * Tacenv.alias_tactic -> obj =
 
 let cache_tactic_syntax tobj =
   let key = tobj.tacobj_key in
-  extend_tactic_grammar key tobj.tacobj_forml tobj.tacobj_tacgram;
+  extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram;
   Pptactic.declare_notation_tactic_pprule key (pprule tobj.tacobj_tacgram)
 
 let open_tactic_syntax tobj =
   let key = tobj.tacobj_key in
   if not tobj.tacobj_local then
-    extend_tactic_grammar key tobj.tacobj_forml tobj.tacobj_tacgram
+    extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram
 
 let load_tactic_syntax i tobj =
   let key = tobj.tacobj_key in
   (* Only add the printing and interpretation rules. *)
   Pptactic.declare_notation_tactic_pprule key (pprule tobj.tacobj_tacgram);
   if Int.equal i 1 && not tobj.tacobj_local then
-    extend_tactic_grammar key tobj.tacobj_forml tobj.tacobj_tacgram
+    extend_tactic_grammar ~ignore_kw:false key tobj.tacobj_forml tobj.tacobj_tacgram
 
 let subst_tactic_syntax (subst, tobj) =
   { tobj with
@@ -425,7 +425,7 @@ let interp_add_ml_tactic_notation (name, level, prods, data) =
 
 let ltac_quotations = ref String.Set.empty
 
-let create_ltac_quotation ~plugin name cast (e, l) =
+let create_ltac_quotation ~plugin name cast (e, l) : unit =
   let () =
     if String.Set.mem name !ltac_quotations then
       failwith ("Ltac quotation " ^ name ^ " already registered")
@@ -452,7 +452,7 @@ let create_ltac_quotation ~plugin name cast (e, l) =
   let action _ v _ _ _ loc = cast (Some loc, v) in
   let gram = [Procq.Production.make rule action] in
   let plugin_uid = (plugin, "tacquot:"^name) in
-  Egramml.grammar_extend ~plugin_uid Pltac.tactic_value (Procq.Reuse (None, gram))
+  Egramml.grammar_extend ~ignore_kw:false ~plugin_uid Pltac.tactic_value (Procq.Reuse (None, gram))
 
 (** Command *)
 
@@ -923,7 +923,7 @@ match arg.arg_interp with
     Ftactic.return (Geninterp.Val.inject tag v)
   end)
 
-let argument_extend (type a b c) ~plugin ~name (arg : (a, b, c) tactic_argument) =
+let argument_extend (type a b c) ~plugin ~name ~ignore_kw (arg : (a, b, c) tactic_argument) =
   let wit = Genarg.create_arg name in
   let () = Genintern.register_intern0 wit (intern_fun name arg) in
   let () = Gensubst.register_subst0 wit (subst_fun arg) in
@@ -943,7 +943,8 @@ let argument_extend (type a b c) ~plugin ~name (arg : (a, b, c) tactic_argument)
   | Vernacextend.Arg_rules rules ->
     let e = Procq.create_generic_entry2 name (Genarg.rawwit wit) in
     let plugin_uid = (plugin, "argextend:"^name) in
-    let () = Egramml.grammar_extend ~plugin_uid e (Procq.Fresh (Gramlib.Gramext.First, [None, Some RightA, rules])) in
+    let () = Egramml.grammar_extend ~plugin_uid ~ignore_kw
+        e (Procq.Fresh (Gramlib.Gramext.First, [None, Some RightA, rules])) in
     e
   in
   let (rpr, gpr, tpr) = arg.arg_printer in

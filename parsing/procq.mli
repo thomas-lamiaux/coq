@@ -214,7 +214,7 @@ val epsilon_value : ('a -> 'self) -> ('self, _, 'a) Symbol.t -> 'self option
 
 (** {5 Extending the parser without synchronization} *)
 
-val grammar_extend : 'a Entry.t -> 'a extend_statement -> unit
+val grammar_extend : ignore_kw:bool -> 'a Entry.t -> 'a extend_statement -> unit
 (** Extend the grammar of Rocq, without synchronizing it with the backtracking
     mechanism. This means that grammar extensions defined this way will survive
     an undo. *)
@@ -248,7 +248,7 @@ val create_grammar_command : string -> 'a grammar_extension -> 'a grammar_comman
 (** Create a new grammar-modifying command with the given name. The extension
     function is called to generate the rules for a given data. *)
 
-val extend_grammar_command : 'a grammar_command -> 'a -> unit
+val extend_grammar_command : ignore_kw:bool -> 'a grammar_command -> 'a -> unit
 (** Extend the grammar of Rocq with the given data. *)
 
 (** {6 Extension with parsing entries} *)
@@ -289,9 +289,6 @@ val parser_summary_tag : frozen_t Summary.Dyn.tag
 (** Parsing state handling *)
 val freeze : unit -> frozen_t
 val unfreeze : frozen_t -> unit
-
-(** for ssr hack *)
-val unfreeze_only_keywords : frozen_t -> unit
 
 val get_keyword_state : unit -> CLexer.keyword_state
 

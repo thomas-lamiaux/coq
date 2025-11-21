@@ -981,7 +981,7 @@ let rules = [
   )
 ] in
 
-  Egramml.grammar_extend ~plugin_uid:("rocq-runtime.plugins.ltac2", "g_ltac2.mlg:adhoc1")
+  Egramml.grammar_extend ~ignore_kw:false ~plugin_uid:("rocq-runtime.plugins.ltac2", "g_ltac2.mlg:adhoc1")
     Procq.Constr.term (Procq.Reuse (Some"0", rules))
 
 

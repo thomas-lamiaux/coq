@@ -650,4 +650,4 @@ let extend_constr_notation ng state =
 let constr_grammar : one_notation_grammar grammar_command =
   create_grammar_command "Notation" { gext_fun = extend_constr_notation; gext_eq = (==) (* FIXME *) }
 
-let extend_constr_grammar ntn = extend_grammar_command constr_grammar ntn
+let extend_constr_grammar ntn = extend_grammar_command ~ignore_kw:false constr_grammar ntn

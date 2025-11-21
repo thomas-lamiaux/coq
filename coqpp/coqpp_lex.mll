@@ -129,6 +129,8 @@ rule extend = parse
 | "LEFTA" { LEFTA }
 | "RIGHTA" { RIGHTA }
 | "NONA" { NONA }
+| "IGNORE" { IGNORE }
+| "KEYWORDS" { KEYWORDS }
 (** Standard *)
 | ident { IDENT (Lexing.lexeme lexbuf) }
 | qualid { QUALID (Lexing.lexeme lexbuf) }

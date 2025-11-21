@@ -73,6 +73,7 @@ let rhs_loc n =
 %token BANGBRACKET HASHBRACKET LBRACKET RBRACKET PIPE ARROW FUN COMMA EQUAL STAR
 %token LPAREN RPAREN COLON SEMICOLON
 %token GLOBAL TOP FIRST LAST BEFORE AFTER LEVEL LEFTA RIGHTA NONA
+%token IGNORE KEYWORDS
 %token EOF
 
 %type <Coqpp_ast.t> file
@@ -95,6 +96,7 @@ nodes:
 node:
 | CODE { Code $1 }
 | COMMENT { Comment $1 }
+| IGNORE KEYWORDS { IgnoreKeywords }
 | declare_plugin { $1 }
 | grammar_extend { $1 }
 | vernac_extend { $1 }

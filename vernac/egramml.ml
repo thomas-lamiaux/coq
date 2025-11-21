@@ -106,11 +106,11 @@ let extend_vernac = Procq.create_grammar_command "VernacExtend" {
     gext_eq = (==); (* FIXME *)
   }
 
-let extend_vernac_command_grammar ~undoable s =
-  if undoable then Procq.extend_grammar_command extend_vernac s
+let extend_vernac_command_grammar ~undoable ~ignore_kw s =
+  if undoable then Procq.extend_grammar_command ~ignore_kw extend_vernac s
   else
     let Extend (nt, r) = extend_vernac_command_grammar s in
-    grammar_extend nt r
+    grammar_extend ~ignore_kw nt r
 
 let grammar_exts = Hashtbl.create 21
 
@@ -125,11 +125,11 @@ let extend_grammar = Procq.create_grammar_command "GrammarExtend" {
     gext_eq = (==); (* FIXME *)
   }
 
-let grammar_extend ?plugin_uid nt r = match plugin_uid with
+let grammar_extend ?plugin_uid ~ignore_kw nt r = match plugin_uid with
   | None ->
-    Procq.grammar_extend nt r
+    Procq.grammar_extend ~ignore_kw nt r
   | Some (plugin,uid) ->
     let uid = plugin^":"^uid in
     declare_grammar_ext ~uid (Extend (nt, r));
     Mltop.add_init_function plugin (fun () ->
-        Procq.extend_grammar_command extend_grammar uid)
+        Procq.extend_grammar_command ~ignore_kw extend_grammar uid)

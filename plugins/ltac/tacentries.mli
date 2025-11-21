@@ -169,5 +169,6 @@ type ('a, 'b, 'c) tactic_argument = {
   arg_printer : ('a, 'b, 'c) argument_printer;
 }
 
-val argument_extend : plugin:string -> name:string -> ('a, 'b, 'c) tactic_argument ->
+val argument_extend : plugin:string -> name:string -> ignore_kw:bool ->
+  ('a, 'b, 'c) tactic_argument ->
   ('a, 'b, 'c) Genarg.genarg_type * 'a Procq.Entry.t
