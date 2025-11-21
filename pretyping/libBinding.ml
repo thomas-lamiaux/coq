@@ -37,7 +37,7 @@ struct
     { env : env;
       sigma : evar_map;
       names : Id.Set.t;
-      subst : constr list;
+      subst : Esubst.lift;
     }
 
   type 'a t = state -> 'a
@@ -57,12 +57,12 @@ struct
     env = env;
     sigma = sigma;
     names = Id.Set.of_list @@ Termops.ids_of_rel_context @@ rel_context env;
-    subst = []
+    subst = Esubst.el_id;
   }
 
   let state_context s = EConstr.of_rel_context @@ Environ.rel_context s.env
 
-  let weaken c s = Vars.substl s.subst c
+  let weaken c s = Vars.exliftn s.subst c
 
   let weaken_rel c s = RelDecl.map_constr (fun c -> weaken c s) c
 
@@ -70,7 +70,7 @@ struct
     let nb_cxt = List.length cxt in
     List.mapi (fun i x ->
       let n = nb_cxt - i -1 in
-      let weak x = Vars.substnl s.subst n x in
+      let weak x = Vars.exliftn (Esubst.el_liftn n s.subst) x in
       match x with
       | LocalAssum (na, ty) -> LocalAssum (na, weak ty)
       | LocalDef (na, bd, ty) -> LocalDef (na, weak bd, weak ty)
@@ -88,7 +88,7 @@ struct
   let s' = { s with
       env = EConstr.push_rel decl s.env ;
       names = add_names s.names decl;
-      subst = mkRel 1 :: List.map (Vars.lift 1) s.subst
+      subst = Esubst.el_lift s.subst;
     } in
   (s', fresh_key s)
 
@@ -96,7 +96,7 @@ struct
     let s' = { s with
       env = EConstr.push_rel decl s.env ;
       names = add_names s.names decl;
-      subst = List.map (Vars.lift 1) s.subst
+      subst = Esubst.el_shft 1 (Esubst.el_lift s.subst);
     } in
   (s', fresh_key s)
 
@@ -133,11 +133,6 @@ struct
         acc ++ str "var | " ++ str (string_of_int (List.length (Environ.rel_context s.env) - i)) ++ str " | " ++
         print_constr s.env s.sigma (RelDecl.get_type x)
       ) 0 (state_context s) (str "")
-
-  let print_substitution print_constr s =
-      List.fold_right (fun x acc ->
-          acc ++ print_constr s.env s.sigma x
-        ) s.subst (str "")
 
 end
 

@@ -146,9 +146,6 @@ module State :
 
     (** Print function for debugging. *)
     val print_state : (Environ.env -> evar_map -> constr -> Pp.t) -> Pp.t t
-
-    (** Print function for debugging. *)
-    val print_substitution : (Environ.env -> evar_map -> constr -> Pp.t) -> Pp.t t
   end
 
 open State

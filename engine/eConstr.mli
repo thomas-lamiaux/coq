@@ -379,6 +379,7 @@ type instance = t array
 type instance_list = t list
 type substl = t list
 
+val exliftn : Esubst.lift -> t -> t
 val lift : int -> t -> t
 val liftn : int -> int -> t -> t
 val substnl : substl -> int -> t -> t
