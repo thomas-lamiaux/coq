@@ -249,6 +249,7 @@ let subst_mind_body subst mib =
     mind_univ_hyps = UVars.Instance.empty;
     mind_nparams = mib.mind_nparams;
     mind_nparams_rec = mib.mind_nparams_rec;
+    mind_params_rec_ctxt = Context.Rel.map (subst_mps subst) mib.mind_params_rec_ctxt;
     mind_params_rec_strpos = mib.mind_params_rec_strpos;
     mind_params_ctxt = Context.Rel.map (subst_mps subst) mib.mind_params_ctxt;
     mind_packets = Array.Smart.map (subst_mind_packet subst) mib.mind_packets ;

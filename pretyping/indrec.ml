@@ -359,22 +359,10 @@ let view_arg kname mdecl t : arg State.t =
       end
   | _ -> return @@ ArgIsCst (cxt, hd, iargs)
 
-(* seperate uparams and nuparams *)
-let chop_letin n l =
-  let rec goto i acc = function
-    | h :: t ->
-      begin match h with
-      | LocalAssum _ -> if Int.equal i 0 then (List.rev acc, h::t) else goto (pred i) (h :: acc) t
-      | LocalDef _ -> goto i (h :: acc) t
-      end
-    | [] -> if Int.equal i 0 then (List.rev acc, []) else failwith "goto"
-  in
-  goto n [] l
-
 let get_params_sep sigma mdecl u =
   let (sigma, up_params) = paramdecls_fresh_template sigma (mdecl, u) in
-  let (uparams, nuparams) = chop_letin mdecl.mind_nparams_rec @@ List.rev up_params in
-  (sigma, List.rev uparams, List.rev nuparams)
+  let (nuparams, uparams) = List.chop (List.length up_params - List.length mdecl.mind_params_rec_ctxt) up_params in
+  (sigma, uparams, nuparams)
 
 let closure_uparams binder s uparams = closure_context_sep binder Old s uparams
 let closure_nuparams binder s nuparams = closure_context_sep binder Old s nuparams
