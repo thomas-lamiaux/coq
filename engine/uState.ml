@@ -284,10 +284,12 @@ let collapse ?(except=QSet.empty) m =
 
 let pr prqvar_opt ({ qmap; elims; rigid } as m) =
   let open Pp in
+  (* Print the QVar using its name if any, e.g. "α1" or "s" *)
   let prqvar q = match prqvar_opt q with
     | None -> QVar.raw_pr q
     | Some qid -> Libnames.pr_qualid qid
   in
+  (* Print the "body" of the QVar, e.g. "α1 := Type", "α2 >= Prop" *)
   let prbody u = function
   | None ->
     if is_above_prop m u then str " >= Prop"
@@ -298,12 +300,15 @@ let pr prqvar_opt ({ qmap; elims; rigid } as m) =
     let q = Quality.pr prqvar q in
     str " := " ++ q
   in
+  (* Print the "name" (given by the user) of the Qvar, e.g. "(named s)" *)
   let prqvar_name q =
     match prqvar_opt q with
-    | None -> mt()
+    | None -> mt ()
     | Some qid -> str " (named " ++ Libnames.pr_qualid qid ++ str ")"
   in
-  h (prlist_with_sep fnl (fun (u, v) -> QVar.raw_pr u ++ prbody u v ++ prqvar_name u) (QMap.bindings qmap) ++ str " |= " ++ QGraph.pr prqvar elims)
+  let prqvar_full (q1, q2) = QVar.raw_pr q1 ++ prbody q1 q2 ++ prqvar_name q1 in
+  hov 0 (prlist_with_sep fnl prqvar_full (QMap.bindings qmap) ++
+    str " |=" ++ brk (1, 2) ++ hov 0 (QGraph.pr_qualities (Quality.pr prqvar) elims))
 
 let elims m = m.elims
 
@@ -703,6 +708,7 @@ let process_constraints uctx cstrs =
     Sorts.subst_fn ((qnormalize sorts), subst_univs_universe normalize) s
   in
   let nf_constraint sorts = function
+    | QElimTo (a, b) -> QElimTo (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | QLeq (a, b) -> QLeq (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | QEq (a, b) -> QEq (Quality.subst (qnormalize sorts) a, Quality.subst (qnormalize sorts) b)
     | ULub (u, v) -> ULub (level_subst_of normalize u, level_subst_of normalize v)
@@ -787,6 +793,7 @@ let process_constraints uctx cstrs =
       match cst with
     | QEq (a, b) -> unify_quality univs CONV (mk a) (mk b) local
     | QLeq (a, b) -> unify_quality univs CUMUL (mk a) (mk b) local
+    | QElimTo (a, b) -> { local with local_cst = PConstraints.add_quality (a, ElimTo, b) local.local_cst }
     | ULe (l, r) ->
       let local = unify_quality univs CUMUL l r local in
       let l = normalize_sort local.local_sorts l in
@@ -902,20 +909,22 @@ let problem_of_univ_constraints cstrs =
       in UnivProblem.Set.add cstr' acc)
     cstrs UnivProblem.Set.empty
 
+let problem_of_elim_constraints cstrs =
+  ElimConstraints.fold (fun (l, k, r) pbs ->
+      let open ElimConstraint in
+      match k with
+      | ElimTo -> UnivProblem.Set.add (QElimTo (l, r)) pbs
+      | Equal -> UnivProblem.Set.add (QEq (l, r)) pbs)
+    cstrs UnivProblem.Set.empty
+
 let add_univ_constraints uctx cstrs =
   let cstrs = problem_of_univ_constraints cstrs in
   add_constraints ~src:Static uctx cstrs
 
 let add_poly_constraints ?src uctx (qcstrs, ucstrs) =
-  let ucstrs = problem_of_univ_constraints ucstrs in
-  (* XXX when elimination constraints become available in unification we should
-     rely on it rather than playing this little dance *)
-  let fold (s1, pb, s2) (qeq, qelm) = match pb with
-  | ElimConstraint.ElimTo -> (qeq, ElimConstraints.add (s1, pb, s2) qelm)
-  | ElimConstraint.Equal -> (UnivProblem.Set.add (QEq (s1, s2)) qeq, qelm)
-  in
-  let qeq, qcstrs = ElimConstraints.fold fold qcstrs (UnivProblem.Set.empty, ElimConstraints.empty) in
-  let uctx = add_constraints ?src uctx (UnivProblem.Set.union ucstrs qeq) in
+  let lvl_pbs = problem_of_univ_constraints ucstrs in
+  let elim_pbs = problem_of_elim_constraints qcstrs in
+  let uctx = add_constraints ?src uctx (UnivProblem.Set.union lvl_pbs elim_pbs) in
   let local = on_snd (fun cst -> PConstraints.union cst (PConstraints.of_qualities qcstrs)) uctx.local in
   let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints ?src uctx qcstrs cst) uctx.sort_variables in
   { uctx with local; sort_variables }
@@ -945,6 +954,10 @@ let check_constraint uctx (c:UnivProblem.t) =
         | QConstant QProp, QVar q -> QState.is_above_prop uctx.sort_variables q
         | (QConstant _ | QVar _), _ -> false
       end
+  | QElimTo (a, b) ->
+    let a = nf_quality uctx a in
+    let b = nf_quality uctx b in
+    Inductive.eliminates_to (QState.elims uctx.sort_variables) a b
   | ULe (u,v) -> UGraph.check_leq_sort (elim_graph uctx) uctx.universes u v
   | UEq (u,v) -> UGraph.check_eq_sort (elim_graph uctx) uctx.universes u v
   | ULub (u,v) -> UGraph.check_eq_level uctx.universes u v

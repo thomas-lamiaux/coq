@@ -283,20 +283,19 @@ let is_allowed_elimination sigma ((_,mip) as specif,u) s =
       s
 
 let make_allowed_elimination_actions sigma s =
-  Inductive.
-  { not_squashed = Some sigma
+  Inductive.{
+    not_squashed = Some sigma
   ; squashed_to_set_below = Some sigma
   ; squashed_to_set_above = (
     try Some (Evd.set_leq_sort sigma s ESorts.set)
     with UGraph.UniverseInconsistency _ -> None)
-  ; squashed_to_quality =
-      fun indq -> let sq = EConstr.ESorts.quality sigma s in
-               if Inductive.eliminates_to (Evd.elim_graph sigma) indq sq
-               then Some sigma
-               else
-                 let mk q = ESorts.make @@ Sorts.make q Univ.Universe.type0 in
-                 try Some (Evd.set_leq_sort sigma (mk sq) (mk indq))
-                 with UGraph.UniverseInconsistency _ -> None }
+  ; squashed_to_quality = fun indq ->
+      let sq = EConstr.ESorts.quality sigma s in
+      if Inductive.eliminates_to (Evd.elim_graph sigma) indq sq
+      then Some sigma
+      else
+        try Some (Evd.set_elim_to sigma indq sq)
+        with QGraph.EliminationError _ | UGraph.UniverseInconsistency _ -> None }
 
 let make_allowed_elimination sigma ((_,mip) as specif,u) s =
   match mip.mind_record with
