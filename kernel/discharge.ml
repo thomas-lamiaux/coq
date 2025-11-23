@@ -162,7 +162,6 @@ let cook_inductive env kn info mib =
   let nnewparams = Context.Rel.nhyps new_params_rec in
   (* new uniform parameters *)
   let nparams_rec = mib.mind_nparams_rec + nnewparams in
-  let params_rec_ctxt = mib.mind_params_rec_ctxt @ new_params_rec in
   (* new parameters *)
   let nparams = mib.mind_nparams + nnewparams in
   let params_ctxt = cook_rel_context cache mib.mind_params_ctxt in
@@ -196,7 +195,7 @@ let cook_inductive env kn info mib =
   (* When closing a section, the strict positivty of uniform parameters must be recomputed.
      Parameters that are section variables are uniform by design, but this imposes
      no condition on the positiveness of the parameters. *)
-  let (nuparams, _) = List.chop (List.length params_ctxt - List.length params_rec_ctxt) params_ctxt in
+  let (uparams, nuparams) = Declareops.split_uparans_nuparams nparams_rec params_ctxt in
   let inds = Array.map (fun ind ->
       let (indices, _) = List.chop (List.length ind.mind_arity_ctxt - nparams) ind.mind_arity_ctxt in
       let ctors = Array.map (fun (args, hd) ->
@@ -207,7 +206,7 @@ let cook_inductive env kn info mib =
       (indices, ctors)
     ) mind_packets in
 
-  let params_rec_strpos = Indtypes.compute_params_rec_strpos env kn params_rec_ctxt nuparams nparams_rec nparams inds in
+  let params_rec_strpos = Indtypes.compute_params_rec_strpos env kn uparams nuparams nparams_rec nparams inds in
 
   {
     mind_packets;
@@ -216,7 +215,6 @@ let cook_inductive env kn info mib =
     mind_univ_hyps = univ_hyps;
     mind_nparams = nparams;
     mind_nparams_rec = nparams_rec;
-    mind_params_rec_ctxt = params_rec_ctxt;
     mind_params_rec_strpos = params_rec_strpos;
     mind_params_ctxt = params_ctxt;
     mind_universes;

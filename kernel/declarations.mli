@@ -269,12 +269,7 @@ type mutual_inductive_body = {
 
     mind_nparams_rec : int;  (** Number of recursively uniform (i.e. ordinary) parameters *)
 
-    mind_params_rec_ctxt : Constr.rel_context;
-    (** The context of recursively uniform (i.e. ordinary) parameters.
-        Let-ins between the last uniform parameter and the first non-uniform
-        parameter are included in the uniform parameters. *)
-
-    mind_params_rec_strpos : bool list; (** Whether a uniform parameter is uniform or not. Reads as a context, and include let-in. *)
+    mind_params_rec_strpos : bool list; (** Whether a uniform parameter is uniform or not. Same size as [mind_nparams_rec] *)
 
     mind_params_ctxt : Constr.rel_context;  (** The context of parameters (includes let-in declaration) *)
 

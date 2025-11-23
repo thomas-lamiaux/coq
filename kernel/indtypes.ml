@@ -393,32 +393,6 @@ let check_positivity ~chkpos kn names env_ar_par paramsctxt finite inds =
   in (nmr',Rtree.mk_rec irecargs)
 
 
-
-
-
-
-(************************************************************************)
-(************************************************************************)
-
-let chop_letin n l =
-  let rec goto i acc = function
-    | h :: t ->
-      begin match h with
-      | LocalAssum _ -> if Int.equal i 0 then (List.rev acc, h::t) else goto (pred i) (h :: acc) t
-      | LocalDef _ -> goto i (h :: acc) t
-      end
-    | [] -> if Int.equal i 0 then (List.rev acc, []) else failwith "goto"
-  in
-  goto n [] l
-
-(** Split parameters between uniform parameters and non-uniform parameters given
-    the number of uniform parameters not including let-ins.
-    Let-ins between the last uniform parameter and the first non-uniform parameter
-    are included in the uniform parameters. *)
-let split_uparans_nuparams nparams_rec params_ctxt =
-  let (uparams, nuparams) = chop_letin nparams_rec @@ List.rev params_ctxt in
-  (List.rev uparams, List.rev nuparams)
-
 (************************************************************************)
 (************************************************************************)
 (* Computes which uniform parameters are strictly positive *)
@@ -619,7 +593,7 @@ let compute_projections ind ~nparamargs ~nf_lc ~consnrealdecls =
   Array.of_list (List.rev rs),
   Array.of_list (List.rev pbs)
 
-let build_inductive env ~sec_univs names prv univs template variance uparams_cxt
+let build_inductive env ~sec_univs names prv univs template variance
     paramsctxt kn isrecord isfinite inds nmr params_rec_strpos recargs =
   let ntypes = Array.length inds in
   (* Compute the set of used section variables *)
@@ -707,7 +681,6 @@ let build_inductive env ~sec_univs names prv univs template variance uparams_cxt
     mind_univ_hyps = univ_hyps;
     mind_nparams = nparamargs;
     mind_nparams_rec = nmr;
-    mind_params_rec_ctxt = uparams_cxt;
     mind_params_rec_strpos = params_rec_strpos;
     mind_params_ctxt = paramsctxt;
     mind_packets = packets;
@@ -739,14 +712,13 @@ let check_inductive env ~sec_univs kn mie =
       (Array.map (fun ((_,lc),(indices,_),_) -> Context.Rel.nhyps indices,lc) inds)
   in
   (* Seperate uparams and nuparams *)
-  let (uparams_ctxt, nuparams_ctxt) = split_uparans_nuparams nmr paramsctxt in
+  let (uparams_ctxt, nuparams_ctxt) = Declareops.split_uparans_nuparams nmr paramsctxt in
   (* Compute which uniform parameters are strictly positive *)
   let params_rec_strpos = compute_params_rec_strpos env kn uparams_ctxt nuparams_ctxt nmr (Context.Rel.nhyps paramsctxt)
       (Array.map (fun (_, x, _) -> x) inds) in
   (* Build the inductive packets *)
   let mib =
     build_inductive env ~sec_univs names mie.mind_entry_private univs template variance
-      uparams_ctxt paramsctxt kn record mie.mind_entry_finite
-      inds nmr params_rec_strpos recargs
+      paramsctxt kn record mie.mind_entry_finite inds nmr params_rec_strpos recargs
   in
   mib, why_not_prim_record

@@ -344,7 +344,7 @@ let view_arg kn mdecl t : arg State.t =
 
 let get_params_sep sigma mdecl u =
   let (sigma, up_params) = paramdecls_fresh_template sigma (mdecl, u) in
-  let (nuparams, uparams) = List.chop (List.length up_params - List.length mdecl.mind_params_rec_ctxt) up_params in
+  let (nuparams, uparams) = Declareops.split_uparans_nuparams mdecl.mind_nparams_rec up_params in
   (sigma, uparams, nuparams)
 
 let closure_uparams binder s uparams = closure_context_sep binder Old s uparams
