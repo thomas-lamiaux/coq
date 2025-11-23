@@ -269,6 +269,9 @@ val closure_context_sep : binder -> freshness -> naming_scheme -> rel_context ->
 val closure_context_sep_opt : binder -> freshness -> naming_scheme -> rel_context ->
   (access_key list * access_key list * access_key list -> (constr option) t) -> (constr option) t
 
+val closure_context_sep_opt_prod : binder -> freshness -> naming_scheme -> rel_context ->
+  (access_key list * access_key list * access_key list -> ('a * constr) option t) -> ('a * constr) option t
+
 (** [reads cxt binder cc_letin cc_var] go through a context [cxt],
     apply [binder] to each context declaration [decl] to it,
     then apply [cc_letin] if [decl] is a [LetIn], and [cc_var] otherwise.   *)

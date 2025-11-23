@@ -534,7 +534,7 @@ let compute_params_rec_strpos env kn uparams nuparams nparams_rec nparams inds :
   let check_strpos = check_strpos (List.length uparams) in
   let check_strpos_context = check_strpos_context (List.length uparams) in
   (* They must be arities [forall ..., sort X] *)
-  let init_value = List.map (fun decl -> isArity @@ get_type decl) uparams in
+  let init_value = List.map (fun decl -> isArity @@ get_type decl) uparams in (* TO FIX: size should be nparams_rec *)
   (* They must not appear in non-uniform parameters *)
   let env = push_rel_context uparams env in
   let (env, strpos_nuparams) = check_strpos_context env init_value nuparams in

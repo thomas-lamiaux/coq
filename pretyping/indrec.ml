@@ -333,29 +333,31 @@ let dbg = CDebug.create ~name:"generate_recursors" ()
 type arg =
   (* pos_ind, constant context, inst_nuparams inst_indices *)
   | ArgIsInd of int * rel_context * constr array * constr array
+  (* kn_nested, pos_nested, inst_uparams, inst_nuparams_indices *)
+  | ArgIsNested of MutInd.t * int * EInstance.t * mutual_inductive_body * one_inductive_body * rel_context * constr array * constr array
   (* constant context, hd, args (maybe empty) *)
   | ArgIsCst of rel_context * constr * constr array
 
-(* Decompose the argument in [it_Prod_or_LetIn local, X]
-  where [X] is Ind, nested or a constant *)
-let view_arg kname mdecl t : arg State.t =
+(* Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is Ind, nested or a constant *)
+let view_arg kn mdecl t : arg State.t =
   let* env = get_env in
   let* sigma = get_sigma in
   let (cxt, hd) = Reductionops.whd_decompose_prod_decls env sigma t in
   let (hd, iargs) = decompose_app sigma hd in
   match kind sigma hd with
-  (* If it is nested *)
-  | Ind ((kname_indb, pos_indb), _) ->
+  | Ind ((kn_ind, pos_ind), u_ind) ->
     (* If it is the inductive *)
-    if kname = kname_indb
+    if kn = kn_ind
     then let (_, local_nuparams_indices) = Array.chop mdecl.mind_nparams_rec iargs in
          let (local_nuparams, local_indices) = Array.chop (mdecl.mind_nparams - mdecl.mind_nparams_rec) local_nuparams_indices in
-         return @@ ArgIsInd (pos_indb, cxt, local_nuparams, local_indices)
-    (* 2.2 If it is nested *)
+         return @@ ArgIsInd (pos_ind, cxt, local_nuparams, local_indices)
+    (* if there is no argument, it cannot be nested *)
     else if Array.length iargs = 0 then return @@ ArgIsCst (cxt, hd, iargs)
+    (* If it is nested *)
     else begin
-      (* NESTED NOT TREATED FOR THE MOMENT *)
-      return @@ ArgIsCst (cxt, hd, iargs)
+      let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
+      let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
+      return @@ ArgIsNested (kn_ind, pos_ind, u_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices)
       end
   | _ -> return @@ ArgIsCst (cxt, hd, iargs)
 
@@ -415,29 +417,77 @@ let closure_preds kn u ind_bodies binder key_uparams nuparams cc =
     make_binder binder naming_hd_fresh name_pred ty_pred cc
   ) cc
 
+let instantiate_param inst_uparams strpos preds =
+  (* True must have been defined: TO FIX*)
+  let mk_rocq_true = mkRef ((Rocqlib.lib_ref "core.true"), EInstance.empty) in
+  let mk_fun_true x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_true) in
+  (* instantiate *)
+  List.fold_right (fun (inst_uparam, b, pred) acc ->
+    if not b then inst_uparam :: acc
+    else match pred with
+    | None -> inst_uparam :: mk_fun_true inst_uparam :: acc
+    | Some pred -> inst_uparam :: pred :: acc
+    )
+  (List.combine3 inst_uparams strpos preds) []
+
 (* This function computes the type of the recursive call *)
-let make_rec_call kn mdecl ind_bodies key_preds key_arg ty =
+let rec make_rec_call kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t * constr) option t =
   let* v = view_arg kn mdecl ty in
   match v with
-  | ArgIsInd (pos_ind_block, loc, inst_nuparams, inst_indices) -> begin
+  | ArgIsInd (pos_ind_block, loc, inst_nuparams, inst_indices) ->
+    begin
       (* generate recursion hypotheses only for the blocks that are used *)
       match find_opt_pos (fun (i,_,_,_) -> i = pos_ind_block) ind_bodies with
       | None -> return None
-      | Some (pred_pos, (_, _, pred_dep, sort)) -> return @@
-      Some (
-        relevance_of_sort sort,
-        (* Pi B0 ... Bm i0 ... il (x a0 ... an) *)
-        let@ (key_locals, _, _) = closure_context_sep Prod Fresh naming_id loc in
-        let* i = geti_term key_preds pred_pos in
-        let pred = mkApp (i, (Array.append inst_nuparams inst_indices)) in
-        (* NOT DEP: return the predicate *)
-        if not pred_dep then return pred else
-        (* DEP: Apply the predicate to the argument *)
-        let* arg = get_term key_arg in
-        let* loc = get_terms key_locals in
-        let arg = mkApp (arg , Array.of_list loc) in
-        return @@ mkApp (pred, [| arg |])
-      )
+      | Some (pred_pos, (_, _, pred_dep, sort)) ->
+          let rec_hyp =
+            let@ (key_locals, _, _) = closure_context_sep Prod Fresh naming_id loc in
+            let* i = geti_term key_preds pred_pos in
+            let pred = mkApp (i, (Array.append inst_nuparams inst_indices)) in
+            (* NOT DEP: return the predicate *)
+            if not pred_dep then return pred else
+            (* DEP: Apply the predicate to the argument *)
+            let* arg = get_term key_arg in
+            let* loc = get_terms key_locals in
+            let arg = mkApp (arg , Array.of_list loc) in
+            (* Pi B0 ... Bm i0 ... il (x a0 ... an) *)
+            return @@ mkApp (pred, [| arg |])
+          in
+          fun s -> Some (relevance_of_sort sort, rec_hyp s)
+    end
+  | ArgIsNested (kn_nested, pos_nested, u_nested, mib_nested, ind_nested, loc, inst_uparams, inst_nuparams_indices) ->
+    begin
+      (* Recursively compute the predicate, returns None if it is not nested *)
+      let compute_pred i x : (constr option) t = begin
+        (* quantify local variables *)
+        let* sigma = get_sigma in
+        let (cxt, hd) = decompose_lambda_decls sigma x in
+        let@ (key_loc, _, _) = closure_context_sep_opt Lambda Fresh naming_id cxt in
+        (* create new variable *)
+        let name_var = make_annot Anonymous ERelevance.relevant in
+        let@ key_arg = make_binder_opt Prod naming_id name_var hd in
+        let* ty_var = State.get_type key_arg in
+        (* compute rec call *)
+        let* res = make_rec_call kn mdecl ind_bodies key_preds key_arg ty_var in
+        return @@ Option.map snd res
+        end
+      in
+      let@ (key_locals, _, _) = closure_context_sep_opt_prod Prod Old naming_id loc in
+      (* Compute the rec call, and check at least one is nested *)
+      let* s = get_state in
+      let rec_pred = Array.mapi (fun i x -> compute_pred i x s) inst_uparams in
+      if Array.for_all Option.is_empty rec_pred then return None else
+      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+      let ind = mkIndU ((kn_nested, pos_nested), Obj.magic ()) in
+      let strpos = List.rev mib_nested.mind_params_rec_strpos in
+      let inst_uparams = Array.of_list @@ instantiate_param (Array.to_list inst_uparams) strpos (Array.to_list rec_pred) in
+      let* arg = get_term key_arg in
+      let* loc = get_terms key_locals in
+      let arg = mkApp (arg , Array.of_list loc) in
+      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+      let rec_hyp = mkApp (ind, Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
+      let rec_hyp_rev = ind_relevance ind_nested u_nested in
+      return @@ Some (rec_hyp_rev, rec_hyp )
     end
   | _ -> return None
 
@@ -448,7 +498,6 @@ let make_rec_call_cc kn mdecl ind_bodies key_preds _ key_arg cc =
   match rec_call with
   | Some (rec_hyp_rev, rec_hyp_ty) ->
       let name_rec_hyp = make_annot Anonymous rec_hyp_rev in
-      let* rec_hyp_ty = rec_hyp_ty in
       let@ _ = make_binder Prod naming_id name_rec_hyp rec_hyp_ty in
       cc [key_arg]
   | _ -> cc [key_arg]
