@@ -29,7 +29,6 @@ open LibBinding
 open State
 open Retyping
 open Context.Rel.Declaration
-open DeclareScheme
 
 type dep_flag = bool
 
@@ -284,7 +283,7 @@ let build_case_analysis_scheme_default env sigma pity kind =
 
 
 (* ************************************************************************** *)
-(*                              Generate Recursors                            *)
+(*                             Generate Eliminators                           *)
 (* ************************************************************************** *)
 
 let (let@) x f = x f
@@ -292,7 +291,7 @@ let (let*) x f = fun s -> let a = x s in f a s
 
 type elim_info = int * one_inductive_body * bool * Evd.esorts
 
-let dbg = CDebug.create ~name:"generate_recursors" ()
+let dbg = CDebug.create ~name:"generate_eliminators" ()
 
 (* ************************************************************************** *)
 (*                              View Argument                                 *)
@@ -302,9 +301,15 @@ type arg =
   (* pos_ind, constant context, inst_nuparams inst_indices *)
   | ArgIsInd of int * rel_context * constr array * constr array
   (* kn_nested, pos_nested, inst_uparams, inst_nuparams_indices *)
-  | ArgIsNested of MutInd.t * int * EInstance.t * mutual_inductive_body * one_inductive_body * rel_context * constr array * constr array
+  | ArgIsNested of MutInd.t * int * EInstance.t
+                   * mutual_inductive_body * one_inductive_body
+                   * rel_context * constr array * constr array
+                   * GlobRef.t * GlobRef.t
   (* constant context, hd, args (maybe empty) *)
   | ArgIsCst of rel_context * constr * constr array
+
+let lookup_scheme kind ind =
+  try Some (DeclareScheme.lookup_scheme kind ind) with Not_found -> None
 
 (* Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is Ind, nested or a constant *)
 let view_arg kn mdecl t : arg State.t =
@@ -323,9 +328,17 @@ let view_arg kn mdecl t : arg State.t =
     else if Array.length iargs = 0 then return @@ ArgIsCst (cxt, hd, iargs)
     (* If it is nested *)
     else begin
+      (* Recover sparse parametricity, if not declared arg is constant *)
+      match lookup_scheme "sparse_parametricity" (kn_ind, pos_ind) with
+      | None -> return @@ ArgIsCst (cxt, hd, iargs)
+      | Some ref_sparam ->
+      (* Recover the associated local fundamental theorem, if not declared arg is constant *)
+      match lookup_scheme "local_fondamental_theorem" (kn_ind, pos_ind) with
+      | None -> return @@ ArgIsCst (cxt, hd, iargs)
+      | Some ref_lth ->
       let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
       let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
-      return @@ ArgIsNested (kn_ind, pos_ind, u_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices)
+      return @@ ArgIsNested (kn_ind, pos_ind, u_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices, ref_sparam, ref_lth)
       end
   | _ -> return @@ ArgIsCst (cxt, hd, iargs)
 
@@ -387,7 +400,7 @@ let closure_preds kn u ind_bodies binder key_uparams nuparams cc =
 
 let instantiate_param inst_uparams strpos preds =
   (* True must have been defined: TO FIX*)
-  let mk_rocq_true = mkRef ((Rocqlib.lib_ref "core.true"), EInstance.empty) in
+  let mk_rocq_true = mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty) in
   let mk_fun_true x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_true) in
   (* instantiate *)
   List.fold_right (fun (inst_uparam, b, pred) acc ->
@@ -423,7 +436,8 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t *
           in
           fun s -> Some (relevance_of_sort sort, rec_hyp s)
     end
-  | ArgIsNested (kn_nested, pos_nested, u_nested, mib_nested, ind_nested, loc, inst_uparams, inst_nuparams_indices) ->
+  | ArgIsNested (kn_nested, pos_nested, u_nested, mib_nested, ind_nested,
+                  loc, inst_uparams, inst_nuparams_indices, ref_sparam, _) ->
     begin
       (* Recursively compute the predicate, returns None if it is not nested *)
       let compute_pred i x : (constr option) t = begin
@@ -444,10 +458,9 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t *
       (* Compute the rec call, and check at least one is nested *)
       let* s = get_state in
       let rec_pred = Array.mapi (fun i x -> compute_pred i x s) inst_uparams in
-      if Array.for_all Option.is_empty rec_pred then return None else
+      if Array.for_all Option.is_empty rec_pred then return None else begin
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let ref_param = lookup_scheme "sparse_param" (kn_nested, pos_nested) in
-      let ind = mkRef (ref_param, u_nested) in
+      let ind = mkRef (ref_sparam, u_nested) in
       let strpos = List.rev mib_nested.mind_params_rec_strpos in
       let inst_uparams = Array.of_list @@ instantiate_param (Array.to_list inst_uparams) strpos (Array.to_list rec_pred) in
       let* arg = get_term key_arg in
@@ -456,7 +469,8 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t *
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let rec_hyp = mkApp (ind, Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
       let rec_hyp_rev = ind_relevance ind_nested u_nested in
-      return @@ Some (rec_hyp_rev, rec_hyp )
+      return @@ Some (rec_hyp_rev, rec_hyp)
+      end
     end
   | _ -> return None
 
@@ -531,6 +545,24 @@ let make_return_type kn u ind_bodies focus key_uparams nuparams key_preds =
   let@ (key_VarMatch) = make_binder Prod naming_hd_fresh name_ind tind in
   make_ccl key_preds focus dep key_nuparams key_indices key_VarMatch
 
+
+(** Generate the type of the recursor, useful for debugging *)
+let _gen_elim_type print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
+
+  dbg Pp.(fun () -> str "\n------------------------------------------------------------- \n"
+    ++ str "DEBUBG TYPE: " ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
+
+  let t =
+    let@ (key_uparams, _, _) = closure_uparams Prod naming_hd_fresh uparams in
+    let@ key_preds = closure_preds kn u ind_bodies Prod key_uparams nuparams in
+    let@ key_ctors = closure_ctors kn mdecl u ind_bodies Prod key_uparams nuparams key_preds in
+    make_return_type kn u ind_bodies focus key_uparams nuparams key_preds
+  in
+
+  let t = t @@ State.make env sigma in
+  dbg Pp.(fun () -> print_constr env sigma t ++ str "\n");
+  t
+
 (* ty is well-formed in s *)
 let make_rec_call kn mdecl ind_bodies key_fixs key_arg ty : ((constr State.t) option) State.t =
   let* v = view_arg kn mdecl ty in
@@ -569,7 +601,7 @@ let compute_args_fix kn mdecl ind_bodies pos_list key_fixs key_args =
 let gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
 
   dbg Pp.(fun () -> str "\n------------------------------------------------------------- \n"
-    ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
+    ++ str "DEBUBG TERM: " ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
 
   let t =
 
@@ -579,7 +611,7 @@ let gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : el
   let@ key_ctors = closure_ctors kn mdecl u ind_bodies Lambda key_uparams nuparams key_preds in
   (* 2. Fixpoint *)
   let fix_name pos_list (_,_,_,sort) = make_annot (Name (Id.of_string "F")) (relevance_of_sort sort) in
-  let fix_type pos_list _ = make_return_type  kn u ind_bodies pos_list key_uparams nuparams key_preds in
+  let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
   let is_rec = let (_, ind, _, _) = List.hd ind_bodies in
     List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) in
@@ -665,8 +697,8 @@ let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
       (* Get parameters, and generalized them for UnivPoly + TemplatePoly *)
       let (sigma, uparams, nuparams) = get_params_sep sigma mib u in
       (* Compute eliminators *)
-      (* let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in *)
       let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in
+      (* let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in *)
       (sigma, recs)
   | _ -> anomaly (Pp.str "build_mutual_induction_scheme expects a non empty list of inductive types.")
 
