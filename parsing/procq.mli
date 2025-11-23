@@ -269,8 +269,10 @@ type ('a,'b) entry_command
 val create_entry_command : string -> ('a,'b) entry_extension -> ('a,'b) entry_command
 (** Create a new entry-creating command with the given name. *)
 
-val extend_entry_command : ('a,'b) entry_command -> 'a -> 'b Entry.t
-(** Create a new synchronized entry. *)
+val extend_entry_command : ('a,'b) entry_command -> 'a -> unit
+(** Create a new synchronized entry.
+    This is meant to be used by registering the created entry in the GramState with [eext_fun],
+    then when it is needed getting the entry from the GramState. *)
 
 (** Registering grammars by name *)
 

@@ -292,8 +292,8 @@ let pattern_custom_entry : (CustomName.t, Constrexpr.cases_pattern_expr) entry_c
   create_entry_command "pattern" (make_custom_interp pattern_custom_map "pattern:")
 
 let create_custom_entry s =
-  let _ : _ Entry.t = extend_entry_command constr_custom_entry s in
-  let _ : _ Entry.t = extend_entry_command pattern_custom_entry s in
+  let () = extend_entry_command constr_custom_entry s in
+  let () = extend_entry_command pattern_custom_entry s in
   ()
 
 let find_custom_entry s =

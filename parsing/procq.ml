@@ -151,7 +151,7 @@ let extend_entry_sync (type a b)
     (interp:(a,b) entry_extension)
     (data:a)
     state
-  : _ * b Entry.t =
+  =
   let name = interp.eext_name data in
   let current_estate, e = Entry.make name state.current_state.estate in
   let current_state = { state.current_state with estate = current_estate } in
@@ -163,13 +163,12 @@ let extend_entry_sync (type a b)
     user_state;
   }
   in
-  state, e
+  state
 
 let extend_entry_sync tag interp data () =
   assert_synterp();
-  let statev, e = extend_entry_sync tag interp data !state in
-  state := statev;
-  e
+  let statev = extend_entry_sync tag interp data !state in
+  state := statev
 
 module Parsable = struct
   include Parsable
@@ -477,7 +476,7 @@ let factorize_grams l1 l2 =
 
 let replay_sync_extension = function
   | GramExt (Dyn (tag,g)) -> extend_grammar_command tag g
-  | EntryExt (tag,data) -> ignore (extend_entry_command tag data : _ Entry.t)
+  | EntryExt (tag,data) -> extend_entry_command tag data
 
 let unfreeze ({frozen_sync;} as frozen) =
   (* allow unfreezing synterp state even during interp phase *)

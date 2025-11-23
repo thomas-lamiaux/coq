@@ -665,7 +665,7 @@ let find_custom_entry kn =
 
 let load_custom_entry i ((sp,kn),local) =
   let () = CustomTab.push (Until i) sp kn in
-  let _ : raw_tacexpr Procq.Entry.t = Procq.extend_entry_command ltac2_custom_entry kn in
+  let () = Procq.extend_entry_command ltac2_custom_entry kn in
   let () = assert (not local) in
   ()
 
