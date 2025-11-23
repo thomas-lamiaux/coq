@@ -12,7 +12,6 @@
 
 (* This file builds various inductive schemes *)
 
-open Pp
 open CErrors
 open Util
 open Names
@@ -30,17 +29,10 @@ open LibBinding
 open State
 open Retyping
 open Context.Rel.Declaration
+open DeclareScheme
 
 type dep_flag = bool
 
-(* Errors related to recursors building *)
-type recursion_scheme_error =
-  | NotAllowedCaseAnalysis of Evd.evar_map * (*isrec:*) bool * Sorts.t * pinductive
-  | NotMutualInScheme of inductive * inductive
-  | DuplicateInductiveBlock of inductive
-  | NotAllowedDependentAnalysis of (*isrec:*) bool * inductive
-
-exception RecursionSchemeError of env * recursion_scheme_error
 
 let ident_hd env ids t na =
   let na = named_hd env (Evd.from_env env) t na in
@@ -82,14 +74,6 @@ let make_name env s r =
   make_annot (Name id) r
 
 
-(*******************************************)
-(* Building curryfied elimination          *)
-(*******************************************)
-
-let check_privacy_block specif =
-  if Inductive.is_private specif then
-    user_err (str"case analysis on a private inductive type")
-
 (**********************************************************************)
 (* Building case analysis schemes *)
 (* Christine Paulin, 1996 *)
@@ -128,22 +112,6 @@ let build_branch_type env sigma dep p cs =
       cs.cs_args
   else
     it_mkProd_or_LetIn base cs.cs_args
-
-let check_valid_elimination env sigma (ind, u as pind) ~dep s =
-  let specif = Inductive.lookup_mind_specif env ind in
-  let () =
-    if dep && not (Inductiveops.has_dependent_elim specif) then
-      raise (RecursionSchemeError (env, NotAllowedDependentAnalysis (false, ind)))
-  in
-  let () = check_privacy_block specif in
-  match Inductiveops.make_allowed_elimination sigma (specif,u) s with
-  | Some sigma -> sigma
-  | None ->
-    let s = EConstr.ESorts.kind sigma s in
-    let pind = on_snd EConstr.Unsafe.to_instance pind in
-    raise
-      (RecursionSchemeError
-         (env, NotAllowedCaseAnalysis (sigma, false, s, pind)))
 
 let paramdecls_fresh_template sigma (mib,u) =
   match mib.mind_template with
@@ -478,7 +446,8 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t *
       let rec_pred = Array.mapi (fun i x -> compute_pred i x s) inst_uparams in
       if Array.for_all Option.is_empty rec_pred then return None else
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let ind = mkIndU ((kn_nested, pos_nested), Obj.magic ()) in
+      let ref_param = lookup_scheme "sparse_param" (kn_nested, pos_nested) in
+      let ind = mkRef (ref_param, u_nested) in
       let strpos = List.rev mib_nested.mind_params_rec_strpos in
       let inst_uparams = Array.of_list @@ instantiate_param (Array.to_list inst_uparams) strpos (Array.to_list rec_pred) in
       let* arg = get_term key_arg in
@@ -696,6 +665,7 @@ let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
       (* Get parameters, and generalized them for UnivPoly + TemplatePoly *)
       let (sigma, uparams, nuparams) = get_params_sep sigma mib u in
       (* Compute eliminators *)
+      (* let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in *)
       let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in
       (sigma, recs)
   | _ -> anomaly (Pp.str "build_mutual_induction_scheme expects a non empty list of inductive types.")
