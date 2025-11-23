@@ -968,6 +968,7 @@ type instance_list = t list
 type substl = t list
 
 (** Operations that commute with evar-normalization *)
+let exliftn s c = of_constr (exliftn s (to_constr c))
 let lift = lift
 let liftn n m c = of_constr (Vars.liftn n m (to_constr c))
 
