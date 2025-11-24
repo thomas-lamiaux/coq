@@ -46,8 +46,8 @@ let pp_letin pat def body =
 
 let keywords =
   List.fold_right (fun s -> Id.Set.add (Id.of_string s))
-  [ "and"; "as"; "assert"; "begin"; "class"; "constraint"; "do";
-    "done"; "downto"; "else"; "end"; "exception"; "external"; "false";
+  [ "and"; "as"; "assert"; "begin"; "class"; "constraint"; "do"; "done";
+    "downto"; "effect"; "else"; "end"; "exception"; "external"; "false";
     "for"; "fun"; "function"; "functor"; "if"; "in"; "include";
     "inherit"; "initializer"; "lazy"; "let"; "match"; "method";
     "module"; "mutable"; "new"; "nonrec"; "object"; "of"; "open"; "or";
