@@ -709,7 +709,8 @@ module Search = struct
       tac1 + tac2 .... The choice of OR or ORELSE is determined
       depending on the dependencies of the goal and the unique/Prop
       status *)
-  let hints_tac_gl hints info kont gl : unit Proofview.tactic =
+  let hints_tac hints info kont =
+    Proofview.Goal.enter begin fun gl ->
     let open Proofview in
     let open Proofview.Notations in
     let env = Goal.env gl in
@@ -874,12 +875,10 @@ module Search = struct
     in
     if backtrack then aux (NoApplicableHint,Exninfo.null) poss
     else tclONCE (aux (NoApplicableHint,Exninfo.null) poss)
+  end
 
-  let hints_tac hints info kont : unit Proofview.tactic =
-    Proofview.Goal.enter
-      (fun gl -> hints_tac_gl hints info kont gl)
-
-  let intro_tac info kont gl =
+  let intro_tac info kont =
+    Proofview.Goal.enter begin fun gl ->
     let open Proofview in
     let env = Goal.env gl in
     let sigma = Goal.sigma gl in
@@ -890,11 +889,12 @@ module Search = struct
     let info' =
       { info with search_hints = ldb; last_tac = lazy (str"intro");
         search_depth = 1 :: 1 :: info.search_depth }
-    in kont info'
+    in
+    kont info'
+    end
 
   let intro info kont =
-    Proofview.tclBIND Tactics.intro
-     (fun _ -> Proofview.Goal.enter (fun gl -> intro_tac info kont gl))
+    Tactics.intro <*> intro_tac info kont
 
   let rec search_tac hints limit depth =
     let kont info =
@@ -915,20 +915,15 @@ module Search = struct
                       (fun e' -> let (e, info) = merge_exceptions e e' in
                               Proofview.tclZERO ~info e))
 
-  let search_tac_gl mst only_classes dep hints best_effort depth i sigma gls gl :
-        unit Proofview.tactic =
-    let open Proofview in
-    let dep = dep || Proofview.unifiable sigma (Goal.goal gl) gls in
-    let info = make_autogoal mst only_classes dep (cut_of_hints hints)
-      best_effort i gl in
-    search_tac hints depth 1 info
-
   let search_tac mst only_classes best_effort dep hints depth =
     let open Proofview in
     let tac sigma gls i =
-      Goal.enter
-        begin fun gl ->
-          search_tac_gl mst only_classes dep hints best_effort depth (succ i) sigma gls gl end
+      Goal.enter begin fun gl ->
+        let i = succ i in
+        let dep = dep || Proofview.unifiable sigma (Goal.goal gl) gls in
+        let info = make_autogoal mst only_classes dep (cut_of_hints hints) best_effort i gl in
+        search_tac hints depth 1 info
+      end
     in
       Proofview.Unsafe.tclGETGOALS >>= fun gls ->
       let gls = CList.map Proofview.drop_state gls in
