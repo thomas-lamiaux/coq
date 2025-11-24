@@ -28,8 +28,8 @@ genTest() {
         op="${OPS[$i]}"
         op1="${OPS1[$i]}"
         op2="${OPS2[$i]}"
-        echo "Check (eq_refl : $x $op $y = $op1)."
-        echo "Check (eq_refl : $y $op $x = $op2)."
+        echo "Check (eq_refl : ($x $op $y) = $op1)."
+        echo "Check (eq_refl : ($y $op $x) = $op2)."
         echo
     done
 }

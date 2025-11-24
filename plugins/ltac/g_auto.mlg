@@ -12,6 +12,7 @@
 
 open Pp
 open Stdarg
+open Procq
 open Procq.Prim
 open Procq.Constr
 open Pltac
@@ -162,19 +163,31 @@ END
 
 let pr_pre_hints_path c = Hints.pp_hints_path_gen Libnames.pr_qualid c
 
+let hints_path = Entry.make "hints_path"
+
 }
 
-VERNAC ARGUMENT EXTEND hints_path
+VERNAC ARGUMENT EXTEND hints_path_entry
 PRINTED BY { pr_pre_hints_path }
+| [ hints_path(p) ] -> { p }
+END
 
-| [ "(" hints_path(p) ")"  ] -> { p }
-| [ hints_path(p) "*" ] -> { Hints.PathStar p }
-| [ "emp" ] -> { Hints.PathEmpty }
-| [ "eps" ] -> { Hints.PathEpsilon }
-| [ hints_path(p) "|" hints_path(q) ] -> { Hints.PathOr (p, q) }
-| [ ne_global_list(g) ] -> { Hints.PathAtom (Hints.PathHints g) }
-| [ "_" ] -> { Hints.PathAtom Hints.PathAny }
-| [ hints_path(p) hints_path(q) ] -> { Hints.PathSeq (p, q) }
+GRAMMAR EXTEND Gram
+  GLOBAL: hints_path;
+  hints_path:
+    [ "1" LEFTA
+      [ p = hints_path; "*" -> { Hints.PathStar p }
+      | p = hints_path; "|"; q = hints_path LEVEL "0" -> { Hints.PathOr (p, q) }
+      | p = hints_path; q = hints_path LEVEL "0" -> { Hints.PathSeq (p, q) }
+      ]
+    | "0" NONA
+      [ "("; p = hints_path; ")" -> { p }
+      | IDENT "emp" -> { Hints.PathEmpty }
+      | IDENT "eps" -> { Hints.PathEpsilon }
+      | g = LIST1 global -> { Hints.PathAtom (Hints.PathHints g) }
+      | "_" -> { Hints.PathAtom Hints.PathAny }
+      ]
+    ];
 END
 
 ARGUMENT EXTEND opthints
@@ -185,7 +198,7 @@ ARGUMENT EXTEND opthints
 END
 
 VERNAC COMMAND EXTEND HintCut CLASSIFIED AS SIDEFF
-| #[ locality = Attributes.hint_locality; ] [ "Hint" "Cut" "[" hints_path(p) "]" opthints(dbnames) ] -> {
+| #[ locality = Attributes.hint_locality; ] [ "Hint" "Cut" "[" hints_path_entry(p) "]" opthints(dbnames) ] -> {
   let entry = Hints.HintsCutEntry (Hints.glob_hints_path p) in
   Hints.add_hints ~locality
     (match dbnames with None -> ["core"] | Some l -> l) entry;

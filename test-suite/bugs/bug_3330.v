@@ -66,7 +66,7 @@ Definition inverse {A : Type} {x y : A} (p : x = y) : y = x
 
 Notation "1" := idpath : path_scope.
 
-Notation "p @ q" := (concat p q) (at level 20) : path_scope.
+Notation "p @ q" := (concat p q) (at level 20, left associativity) : path_scope.
 
 Notation "p ^" := (inverse p) (at level 3) : path_scope.
 

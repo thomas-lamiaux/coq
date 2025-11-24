@@ -118,7 +118,7 @@ Arguments concat {A x y z} p q : simpl nomatch.
 
 Notation "1" := idpath : path_scope.
 
-Notation "p @ q" := (concat p%path q%path) (at level 20) : path_scope.
+Notation "p @ q" := (concat p%path q%path) (at level 20, left associativity) : path_scope.
 
 Notation "p ^" := (inverse p%path) (at level 3, format "p '^'") : path_scope.
 

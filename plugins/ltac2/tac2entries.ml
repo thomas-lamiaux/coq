@@ -933,10 +933,8 @@ let perform_notation syn st =
   let rule = match fresh with
     | None -> Procq.Reuse (pos, [rule])
     | Some pos' ->
-      (* with RightA, SELF on the right means really self, with LeftA/NonA it means next
-         we could simulate "really self" with a LeftA by using the explicit "entry(level)" form,
-         but RightA is slightly simpler *)
-      Procq.Fresh (pos', [pos, Some RightA, [rule]])
+      (* BothA means we can have SELF on both the left and right of a rule. *)
+      Procq.Fresh (pos', [pos, Some BothA, [rule]])
   in
   let entry = match entry with
     | None -> Pltac.ltac2_expr

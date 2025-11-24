@@ -1297,14 +1297,22 @@ number_string_via: [
 ]
 
 hints_regexp: [
-| LIST1 qualid
-| "_"
-| hints_regexp "|" hints_regexp
-| hints_regexp hints_regexp
-| hints_regexp "*"
+| hints_path1
+]
+
+hints_path1: [
+| hints_path1 "*"
+| hints_path1 "|" hints_path0
+| hints_path1 hints_path0
+| hints_path0
+]
+
+hints_path0: [
+| "(" hints_path1 ")"
 | "emp"
 | "eps"
-| "(" hints_regexp ")"
+| LIST1 qualid
+| "_"
 ]
 
 coercion_class: [

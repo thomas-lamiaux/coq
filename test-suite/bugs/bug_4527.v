@@ -93,7 +93,7 @@ Definition inverse {A : Type} {x y : A} (p : x = y) : y = x
 Definition concat {A : Type} {x y z : A} (p : x = y) (q : y = z) : x = z :=
   match p, q with idpath, idpath => idpath end.
 
-Notation "p @ q" := (concat p%path q%path) (at level 20) : path_scope.
+Notation "p @ q" := (concat p%path q%path) (at level 20, left associativity) : path_scope.
 
 Notation "p ^" := (inverse p%path) (at level 3, format "p '^'") : path_scope.
 

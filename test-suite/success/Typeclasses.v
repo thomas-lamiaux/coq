@@ -174,7 +174,7 @@ Generalizable All Variables.
 
 Module mon.
 
-Reserved Notation "'return' t" (at level 0).
+Reserved Notation "'return' t" (at level 1).
 Reserved Notation "x >>= y" (at level 65, left associativity).
 
 

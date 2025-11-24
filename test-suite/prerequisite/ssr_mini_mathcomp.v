@@ -425,7 +425,7 @@ Open Scope nat_scope.
 Lemma ltnS m n : (m < n.+1) = (m <= n). Proof. by []. Qed.
 Lemma leq0n n : 0 <= n.                 Proof. by []. Qed.
 Lemma ltn0Sn n : 0 < n.+1.              Proof. by []. Qed.
-Lemma ltn0 n : n < 0 = false.           Proof. by []. Qed.
+Lemma ltn0 n : (n < 0) = false.         Proof. by []. Qed.
 Lemma leqnn n : n <= n.                 Proof. by elim: n. Qed.
 #[global] Hint Resolve leqnn : core.
 Lemma leqnSn n : n <= n.+1.             Proof. by elim: n. Qed.
@@ -1324,7 +1324,7 @@ Definition index_iota m n := iota m (n - m).
 
 Definition index_enum (T : finType) := Finite.enum T.
 
-Lemma mem_index_iota m n i : i \in index_iota m n = (m <= i < n).
+Lemma mem_index_iota m n i : (i \in index_iota m n) = (m <= i < n).
 Admitted.
 
 Lemma mem_index_enum T i : i \in index_enum T.

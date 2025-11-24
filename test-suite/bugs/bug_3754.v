@@ -38,7 +38,7 @@ Definition concat {A : Type} {x y z : A} (p : x = y) (q : y = z) : x = z :=
 
 Notation "1" := idpath : path_scope.
 
-Notation "p @ q" := (concat p q) (at level 20) : path_scope.
+Notation "p @ q" := (concat p q) (at level 20, left associativity) : path_scope.
 
 Notation "p ^" := (inverse p) (at level 3, format "p '^'") : path_scope.
 

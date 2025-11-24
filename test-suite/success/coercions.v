@@ -150,7 +150,7 @@ Module TestPropAsSourceCoercion.
 
   Parameter hstar : hprop -> hprop -> hprop.
 
-  Notation "H1 \* H2" := (hstar H1 H2) (at level 69).
+  Notation "H1 \* H2" := (hstar H1 H2) (at level 69, left associativity).
 
   Definition test := heap_single 4 5 \* (5 <> 4) \* heap_single 2 4 \* (True).
 

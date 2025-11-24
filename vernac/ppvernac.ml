@@ -504,6 +504,7 @@ let pr_syntax_modifier = let open Gramlib.Gramext in CAst.with_val (function
       prlist_with_sep sep_v2 str l ++ spc () ++ str"in scope" ++ str s
     | SetLevel n -> pr_at_level (NumLevel n)
     | SetCustomEntry (s,n) -> keyword "in" ++ spc() ++ keyword "custom" ++ spc() ++ pr_qualid s ++ (match n with None -> mt () | Some n -> pr_at_level (NumLevel n))
+    | SetAssoc BothA -> assert false
     | SetAssoc LeftA -> keyword "left associativity"
     | SetAssoc RightA -> keyword "right associativity"
     | SetAssoc NonA -> keyword "no associativity"
