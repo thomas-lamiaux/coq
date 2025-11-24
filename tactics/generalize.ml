@@ -97,7 +97,7 @@ let revert hyps =
 
 let generalized_name env sigma c t ids cl = function
   | Name id as na ->
-      if Id.List.mem id ids then
+      if Id.Set.mem id ids then
         error (AlreadyUsed id);
       na
   | Anonymous ->
@@ -144,11 +144,10 @@ let generalize_goal_gen env sigma ids i ((occs,c,b),na) t cl =
     | None -> LocalAssum (make_annot na r,t)
     | Some b -> LocalDef (make_annot na r,b,t)
   in
-  mkProd_or_LetIn decl cl', sigma'
+  sigma', mkProd_or_LetIn decl cl'
 
-let generalize_goal gl i ((occs,c,b),na as o) (cl,sigma) = (* XXX do not take gl *)
-  let env = Proofview.Goal.env gl in
-  let ids = Tacmach.pf_ids_of_hyps gl in
+let generalize_goal env sigma i ((occs,c,b),na as o) cl =
+  let ids = Environ.ids_of_named_context_val @@ Environ.named_context_val env in
   let sigma, t = Typing.type_of env sigma c in
   generalize_goal_gen env sigma ids i o t cl
 
@@ -183,7 +182,7 @@ let generalize_dep ?(with_let=false) c =
     if with_let then is_var, body else is_var, None
   | _ -> false, None
   in
-  let cl'',evd = generalize_goal gl 0 ((AllOccurrences,c,body),Anonymous) (cl', sigma) in
+  let evd, cl'' = generalize_goal env sigma 0 ((AllOccurrences, c, body), Anonymous) cl' in
   (* Check that the generalization is indeed well-typed *)
   let evd =
     (* No need to retype for variables, term is statically well-typed *)
@@ -202,7 +201,8 @@ let generalize_gen_let lconstr = Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
-  let newcl, evd = List.fold_right_i (generalize_goal gl) 0 lconstr (concl, sigma) in
+  let fold i arg (sigma, c) = generalize_goal env sigma i arg c in
+  let evd, newcl = List.fold_right_i fold 0 lconstr (sigma, concl) in
   let (evd, _) = Typing.type_of env evd newcl in
   let map ((_, c, b),_) = if Option.is_empty b then Some c else None in
   Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evd)
@@ -214,13 +214,13 @@ let new_generalize_gen_let lconstr =
     let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
     let env = Proofview.Goal.env gl in
-    let ids = Tacmach.pf_ids_of_hyps gl in
+    let ids = Environ.ids_of_named_context_val @@ Environ.named_context_val env in
     let newcl, sigma, args =
       List.fold_right_i
         (fun i ((_,c,b),_ as o) (cl, sigma, args) ->
           let sigma, t = Typing.type_of env sigma c in
           let args = if Option.is_empty b then c :: args else args in
-          let cl, sigma = generalize_goal_gen env sigma ids i o t cl in
+          let sigma, cl = generalize_goal_gen env sigma ids i o t cl in
           (cl, sigma, args))
         0 lconstr (concl, sigma, [])
     in
