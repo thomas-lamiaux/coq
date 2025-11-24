@@ -332,10 +332,12 @@ let view_arg kn mdecl t : arg State.t =
       match lookup_scheme "sparse_parametricity" (kn_ind, pos_ind) with
       | None -> return @@ ArgIsCst (cxt, hd, iargs)
       | Some ref_sparam ->
+      dbg Pp.(fun () -> str "found sp");
       (* Recover the associated local fundamental theorem, if not declared arg is constant *)
-      match lookup_scheme "local_fondamental_theorem" (kn_ind, pos_ind) with
+      match lookup_scheme "local_fundamental_theorem" (kn_ind, pos_ind) with
       | None -> return @@ ArgIsCst (cxt, hd, iargs)
       | Some ref_lth ->
+      dbg Pp.(fun () -> str "found lth");
       let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
       let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
       return @@ ArgIsNested (kn_ind, pos_ind, u_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices, ref_sparam, ref_lth)
@@ -344,7 +346,7 @@ let view_arg kn mdecl t : arg State.t =
 
 let get_params_sep sigma mdecl u =
   let (sigma, up_params) = paramdecls_fresh_template sigma (mdecl, u) in
-  let (nuparams, uparams) = Declareops.split_uparans_nuparams mdecl.mind_nparams_rec up_params in
+  let (uparams, nuparams) = Declareops.split_uparans_nuparams mdecl.mind_nparams_rec up_params in
   (sigma, uparams, nuparams)
 
 let closure_uparams binder s uparams = closure_context_sep binder Old s uparams
@@ -698,7 +700,7 @@ let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
       let (sigma, uparams, nuparams) = get_params_sep sigma mib u in
       (* Compute eliminators *)
       let recs = List.init (List.length listdepkind) (_gen_elim_type Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in
-      (* let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in *)
+      (* let recs = List.init (List.length listdepkind) (_gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in *)
       (sigma, recs)
   | _ -> anomaly (Pp.str "build_mutual_induction_scheme expects a non empty list of inductive types.")
 
