@@ -1735,37 +1735,4 @@ let process_module_binding mbid me =
   SynterpVisitor.load_module 1 sp mp sobjs;
   InterpVisitor.load_module 1 sp mp sobjs
 
-(** Compatibility layer *)
-let import_module f ~export mp =
-  Synterp.import_module f ~export mp;
-  Interp.import_module f ~export mp
-
-let declare_module id args mtys me_l =
-  let mp, args, bodies, sign = Synterp.declare_module id args mtys me_l in
-  Interp.declare_module id args sign bodies
-
-let start_module export id args res =
-  let mp, args, sign = Synterp.start_module export id args res in
-  Interp.start_module export id args sign
-
-let end_module () =
-  let _mp = Synterp.end_module () in
-  Interp.end_module ()
-
-let declare_modtype id args mtys mty_l =
-  let mp, args, bodies, subtyps = Synterp.declare_modtype id args mtys mty_l in
-  Interp.declare_modtype id args subtyps bodies
-
-let start_modtype id args mtys =
-  let mp, args, sub_mty_l = Synterp.start_modtype id args mtys in
-  Interp.start_modtype id args sub_mty_l
-
-let end_modtype () =
-  let _mp = Synterp.end_modtype () in
-  Interp.end_modtype ()
-
-let declare_include me_asts =
-  let l = Synterp.declare_include me_asts in
-  Interp.declare_include l
-
 let () = append_end_library_hook Profile_tactic.do_print_results_at_close
