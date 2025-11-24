@@ -332,12 +332,12 @@ let view_arg kn mdecl t : arg State.t =
       match lookup_scheme "sparse_parametricity" (kn_ind, pos_ind) with
       | None -> return @@ ArgIsCst (cxt, hd, iargs)
       | Some ref_sparam ->
-      dbg Pp.(fun () -> str "found sp");
+      (* dbg Pp.(fun () -> str "found sp"); *)
       (* Recover the associated local fundamental theorem, if not declared arg is constant *)
       match lookup_scheme "local_fundamental_theorem" (kn_ind, pos_ind) with
       | None -> return @@ ArgIsCst (cxt, hd, iargs)
       | Some ref_lth ->
-      dbg Pp.(fun () -> str "found lth");
+      (* dbg Pp.(fun () -> str "found lth"); *)
       let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
       let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
       return @@ ArgIsNested (kn_ind, pos_ind, u_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices, ref_sparam, ref_lth)
@@ -449,7 +449,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t *
         let@ (key_loc, _, _) = closure_context_sep_opt Lambda Fresh naming_id cxt in
         (* create new variable *)
         let name_var = make_annot Anonymous ERelevance.relevant in
-        let@ key_arg = make_binder_opt Prod naming_id name_var hd in
+        let@ key_arg = make_binder_opt Lambda naming_id name_var hd in
         let* ty_var = State.get_type key_arg in
         (* compute rec call *)
         let* res = make_rec_call kn mdecl ind_bodies key_preds key_arg ty_var in
