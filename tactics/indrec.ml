@@ -598,7 +598,7 @@ let compute_args_fix kn mdecl ind_bodies pos_list key_fixs key_args =
       | None -> return @@ karg' :: t
   ) 0 key_args (return [])
 
-let gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
+let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
 
   dbg Pp.(fun () -> str "\n------------------------------------------------------------- \n"
     ++ str "DEBUBG TERM: " ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
@@ -697,7 +697,7 @@ let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
       (* Get parameters, and generalized them for UnivPoly + TemplatePoly *)
       let (sigma, uparams, nuparams) = get_params_sep sigma mib u in
       (* Compute eliminators *)
-      let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in
+      let recs = List.init (List.length listdepkind) (_gen_elim_type Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in
       (* let recs = List.init (List.length listdepkind) (gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind) in *)
       (sigma, recs)
   | _ -> anomaly (Pp.str "build_mutual_induction_scheme expects a non empty list of inductive types.")
