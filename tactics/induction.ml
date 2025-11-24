@@ -1025,9 +1025,7 @@ let find_induction_type env sigma isrec elim hyp0 sort = match elim with
   let (params, indices) = List.chop scheme.nparams args in
   sigma, (hd, params, indices), ElimUsing (hyp0, (e, elimt, indsign))
 
-let is_functional_induction elimc gl = (* XXX don't take a gl *)
-  let env = Proofview.Goal.env gl in
-  let sigma = Proofview.Goal.sigma gl in
+let is_functional_induction env sigma elimc =
   let scheme = compute_elim_sig sigma (Retyping.get_type_of env sigma (fst elimc)) in
   (* The test is not safe: with non-functional induction on non-standard
      induction scheme, this may fail *)
@@ -1487,7 +1485,7 @@ let induction_destruct isrec with_evars (lc,elim) =
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
     match elim with
-    | Some elim when is_functional_induction elim gl ->
+    | Some elim when is_functional_induction env sigma elim ->
       (* Standard induction on non-standard induction schemes *)
       (* will be removable when is_functional_induction will be more clever *)
       if not (Option.is_empty cls) then error (UnsupportedInClause true);
