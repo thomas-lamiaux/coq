@@ -58,6 +58,9 @@ module State :
     val get_names : Id.Set.t t
     val get_state : state t
 
+    val update_sigma : evar_map -> state -> state * unit
+    val map : ('a -> 'b) -> 'a t -> 'b t
+
     (** Create a new state out of an environment [env] and evar_map [sigma] with:
       - The set of names is computed out of [env]
       - The substitution is empty *)

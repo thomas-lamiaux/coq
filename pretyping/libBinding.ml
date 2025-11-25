@@ -52,6 +52,9 @@ struct
   let get_names s = s.names
   let get_state s = s
 
+  let update_sigma sigma s = ({s with sigma = sigma}, ())
+  let map f t = fun s -> f (t s)
+
   (* make functions *)
   let make env sigma = {
     env = env;
