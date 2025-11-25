@@ -332,12 +332,10 @@ let view_arg kn mdecl t : arg State.t =
       match lookup_scheme "sparse_parametricity" (kn_ind, pos_ind) with
       | None -> return @@ ArgIsCst (cxt, hd, iargs)
       | Some ref_sparam ->
-      (* dbg Pp.(fun () -> str "found sp"); *)
       (* Recover the associated local fundamental theorem, if not declared arg is constant *)
       match lookup_scheme "local_fundamental_theorem" (kn_ind, pos_ind) with
       | None -> return @@ ArgIsCst (cxt, hd, iargs)
       | Some ref_lth ->
-      (* dbg Pp.(fun () -> str "found lth"); *)
       let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
       let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
       return @@ ArgIsNested (kn_ind, pos_ind, u_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices, ref_sparam, ref_lth)
@@ -413,6 +411,18 @@ let instantiate_param inst_uparams strpos preds =
     )
   (List.combine3 inst_uparams strpos preds) []
 
+let eta_expand_instantiation env sigma inst tel =
+  let rec aux inst tel subst =
+  match inst, tel with
+  | t::inst, decl::tel ->
+      let ty = substl subst @@ get_type decl in
+      let eta_t = Reductionops.eta_expand env sigma t ty in
+      aux inst tel (eta_t::subst)
+  | [], [] -> subst
+  | _, _ -> assert false
+  in
+  List.rev @@ aux inst tel []
+
 (* This function computes the type of the recursive call *)
 let rec make_rec_call kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t * constr) option t =
   let* v = view_arg kn mdecl ty in
@@ -457,6 +467,12 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t *
         end
       in
       let@ (key_locals, _, _) = closure_context_sep_opt_prod Prod Old naming_id loc in
+      (* eta expand arguments *)
+      let* env = get_env in
+      let* sigma = get_sigma in
+      let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
+      let uparams_nested = List.rev @@ EConstr.of_rel_context uparams_nested in
+      let inst_uparams = Array.of_list @@ eta_expand_instantiation env sigma (Array.to_list inst_uparams) uparams_nested in
       (* Compute the rec call, and check at least one is nested *)
       let* s = get_state in
       let rec_pred = Array.mapi (fun i x -> compute_pred i x s) inst_uparams in
