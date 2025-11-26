@@ -637,23 +637,26 @@ let check_elim env sigma (kn, n) mib u lrecspec =
 
 (* Check all the blocks are mutual, and not given twice *)
 let check_mut env sigma (kn, n) mib u lrecspec =
-  List.fold_left (fun ln ((kni, ni),dep,s) ->
-    (* Check al the block are mutual  *)
-    if not (QMutInd.equal env kn kni)
-    then raise (RecursionSchemeError (env, NotMutualInScheme ((kn, n),(kni, ni))));
-    (* Check none is given twice *)
-    if Int.List.mem ni ln
-    then raise (RecursionSchemeError (env, DuplicateInductiveBlock (kn, ni)))
-    else ni::ln
-  ) [n] lrecspec
+  let _ : int list =
+    List.fold_left (fun ln ((kni, ni),dep,s) ->
+        (* Check all the blocks are mutual  *)
+        if not (QMutInd.equal env kn kni)
+        then raise (RecursionSchemeError (env, NotMutualInScheme ((kn, n),(kni, ni))));
+        (* Check none is given twice *)
+        if Int.List.mem ni ln
+        then raise (RecursionSchemeError (env, DuplicateInductiveBlock (kn, ni)))
+        else ni::ln)
+      [n] lrecspec
+  in
+  ()
 
 let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
   match lrecspec with
   | (mind,dep,s)::tail ->
       let mib, mip = lookup_mind_specif env mind in
       (* Check the blocks are all mutual, different, and can be eliminated dependently *)
-      let _ = check_mut env sigma mind mib u tail in
-      let _ = check_elim env sigma mind mib u lrecspec in
+      let () = check_mut env sigma mind mib u tail in
+      let () = check_elim env sigma mind mib u lrecspec in
       (* Compute values for gen_elim *)
       let listdepkind = (snd mind, mip, dep, s) :: List.map (fun ((_,ni), dep, s) -> (ni, mib.mind_packets.(ni), dep, s)) tail in
       (* Get parameters, and generalized them for UnivPoly + TemplatePoly *)
