@@ -1893,52 +1893,55 @@ let subst_all ?(flags=default_subst_tactic_flags) () =
 (* Rewrite the first assumption for which a condition holds
    and gives the direction of the rewrite *)
 
-let cond_eq_term_left c t gl =
+let cond_eq_term_left env sigma c t =
   try
-    let (_,x,_) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
-    if Tacmach.pf_conv_x gl c x then true else failwith "not convertible"
+    let (_,x,_) = pi3 (find_eq_data_decompose env sigma t) in
+    if Reductionops.is_conv env sigma c x then true else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 
-let cond_eq_term_right c t gl =
+let cond_eq_term_right env sigma c t =
   try
-    let (_,_,x) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
-    if Tacmach.pf_conv_x gl c x then false else failwith "not convertible"
+    let (_,_,x) = pi3 (find_eq_data_decompose env sigma t) in
+    if Reductionops.is_conv env sigma c x then false else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 
-let cond_eq_term c t gl =
+let cond_eq_term env sigma c t =
   try
-    let (_,x,y) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
-    if Tacmach.pf_conv_x gl c x then true
-    else if Tacmach.pf_conv_x gl c y then false
+    let (_,x,y) = pi3 (find_eq_data_decompose env sigma t) in
+    if Reductionops.is_conv env sigma c x then true
+    else if Reductionops.is_conv env sigma c y then false
     else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 
 let rewrite_assumption_cond cond_eq_term cl =
-  let rec arec hyps gl = match hyps with
+  let rec arec env sigma hyps = match hyps with
     | [] -> user_err Pp.(str "No such assumption.")
     | hyp ::rest ->
         let id = NamedDecl.get_id hyp in
         begin
           try
-            let dir = cond_eq_term (NamedDecl.get_type hyp) gl in
+            let dir = cond_eq_term env sigma (NamedDecl.get_type hyp) in
             general_rewrite_clause dir false (mkVar id,NoBindings) cl
-          with | Failure _ | UserError _ -> arec rest gl
+          with | Failure _ | UserError _ -> (* XXX: use options *)
+            arec env sigma rest
         end
   in
   Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
     let hyps = Proofview.Goal.hyps gl in
-    arec hyps gl
+    arec env sigma hyps
   end
 
 (* Generalize "subst x" to substitution of subterm appearing as an
    equation in the context, but not clearing the hypothesis *)
 
 let replace_term dir_opt c  =
-  let cond_eq_fun =
+  let cond_eq_fun env sigma t =
     match dir_opt with
-      | None -> cond_eq_term c
-      | Some true -> cond_eq_term_left c
-      | Some false -> cond_eq_term_right c
+      | None -> cond_eq_term env sigma c t
+      | Some true -> cond_eq_term_left env sigma c t
+      | Some false -> cond_eq_term_right env sigma c t
   in
   rewrite_assumption_cond cond_eq_fun
 

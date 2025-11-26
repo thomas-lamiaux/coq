@@ -40,6 +40,7 @@ val pf_type_of : Proofview.Goal.t -> constr -> evar_map * types
 [@@ocaml.deprecated "(9.2) Use Typing.type_of"]
 
 val pf_conv_x : Proofview.Goal.t -> t -> t -> bool
+[@@ocaml.deprecated "(9.2) Use Reductionops.is_conv"]
 
 val pf_get_new_id  : Id.t -> Proofview.Goal.t -> Id.t
 val pf_ids_of_hyps : Proofview.Goal.t -> Id.t list
