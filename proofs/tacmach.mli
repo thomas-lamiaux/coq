@@ -45,7 +45,9 @@ val pf_conv_x : Proofview.Goal.t -> t -> t -> bool
 val pf_get_new_id  : Id.t -> Proofview.Goal.t -> Id.t
 val pf_ids_of_hyps : Proofview.Goal.t -> Id.t list
 val pf_ids_set_of_hyps : Proofview.Goal.t -> Id.Set.t
+
 val pf_hyps_types : Proofview.Goal.t -> (Id.t * types) list
+[@@ocaml.deprecated "(9.2) Use EConstr.named_context"]
 
 val pf_get_hyp : Id.t -> Proofview.Goal.t -> named_declaration
 val pf_get_hyp_typ        : Id.t -> Proofview.Goal.t -> types
