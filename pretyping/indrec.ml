@@ -627,7 +627,7 @@ let gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : el
 let check_elim env sigma (kn, n) mib u lrecspec =
   List.iter (fun ((kni, ni),dep,s) ->
     (* Check that all the blocks can be eliminated to s *)
-    let elim_allowed = Array.fold_right (fun mipi b -> b && Inductiveops.is_allowed_elimination sigma ((mib,mipi),u) s) mib.mind_packets true in
+    let elim_allowed = Inductiveops.is_allowed_elimination sigma ((mib,mib.mind_packets.(ni)),u) s in
     if not elim_allowed
     then raise (RecursionSchemeError (env, NotAllowedCaseAnalysis (sigma, true, ESorts.kind sigma s, ((kn, ni), EInstance.kind sigma u))));
     (* Check if dep elim is allowed: rec (co)ind records with prim proj can not be eliminated dependently *)
