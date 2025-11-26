@@ -40,6 +40,9 @@ Ltac2 @external of_lpreterm : preterm -> message := "rocq-runtime.plugins.ltac2"
 Ltac2 @ external of_exn : exn -> message := "rocq-runtime.plugins.ltac2" "message_of_exn".
 (** Panics if there is more than one goal under focus. *)
 
+Ltac2 @external of_exninfo : exninfo -> message := "rocq-runtime.plugins.ltac2" "message_of_exninfo".
+(** Print the (Ltac2 and OCaml) backtrace info if it was recorded. *)
+
 Ltac2 @ external concat : message -> message -> message := "rocq-runtime.plugins.ltac2" "message_concat".
 
 (** Boxing primitives. They are translated to OCaml "Format" boxes,

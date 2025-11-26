@@ -30,3 +30,10 @@ Prim <rocq-runtime.plugins.ltac2:plus_bt>
 Call f
 Prim <rocq-runtime.plugins.ltac2:zero>
 
+
+Backtrace:
+Call h
+Call g
+Call print_stack
+Prim <rocq-runtime.plugins.ltac2:current_exninfo>
+

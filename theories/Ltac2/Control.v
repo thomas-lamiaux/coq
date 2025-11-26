@@ -180,6 +180,9 @@ Ltac2 backtrack_tactic_failure (msg : string) :=
 
 (** Backtraces. *)
 
+Ltac2 @external current_exninfo : unit -> exninfo
+  := "rocq-runtime.plugins.ltac2" "current_exninfo".
+
 (** [throw_bt info e] is similar to [throw e], but raises [e] with the
     backtrace represented by [info]. *)
 Ltac2 @ external throw_bt : exn -> exninfo -> 'a :=
