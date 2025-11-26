@@ -511,6 +511,7 @@ let treat_new_case ptes_infos nb_prod continue_tac term dyn_infos =
                     (Proofview.Goal.enter (fun g' ->
                          let env = Proofview.Goal.env g' in
                          let sigma = Proofview.Goal.sigma g' in
+                         let concl = Proofview.Goal.concl g' in
                          (* We get infos on the equations introduced*)
                          let new_term_value_eq =
                            Tacmach.pf_get_hyp_typ heq_id g'
@@ -522,7 +523,7 @@ let treat_new_case ptes_infos nb_prod continue_tac term dyn_infos =
                            | _ ->
                              observe
                                (fun () -> str "cannot compute new term value : "
-                               ++ Tacmach.pr_gls g' ++ fnl ()
+                               ++ Termops.Internal.print_constr_env env sigma concl ++ fnl ()
                                ++ str "last hyp is"
                                ++ pr_leconstr_env env sigma new_term_value_eq );
                              anomaly (Pp.str "cannot compute new term value.")

@@ -69,3 +69,4 @@ val pf_nf_evar : Proofview.Goal.t -> constr -> constr
 [@@ocaml.deprecated "(9.2) Use Reductionops.nf_evar"]
 
 val pr_gls : Proofview.Goal.t -> Pp.t
+[@@ocaml.deprecated "(9.2) Use Printer.pr_evar"]
