@@ -29,8 +29,10 @@ let eauto_unif_flags = auto_flags_of_state TransparentState.full
 
 let e_give_exact ?(flags=eauto_unif_flags) c =
   Proofview.Goal.enter begin fun gl ->
-  let sigma, t1 = Tacmach.pf_type_of gl c in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
+  let sigma, t1 = Typing.type_of env sigma c in
   if occur_existential sigma t1 || occur_existential sigma concl then
     Tacticals.tclTHENLIST
       [Proofview.Unsafe.tclEVARS sigma;

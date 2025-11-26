@@ -227,7 +227,9 @@ let rec solveArg hyps dty largs rargs = match largs, rargs with
   ]
 | a1 :: largs, a2 :: rargs ->
   Proofview.Goal.enter begin fun gl ->
-  let sigma, rectype = Tacmach.pf_type_of gl a1 in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let sigma, rectype = Typing.type_of env sigma a1 in
   let tac hyp = solveArg (hyp :: hyps) dty largs rargs in
   let subtacs =
     if dty.eqonleft then [eqCase tac;diseqCase hyps dty.eqonleft;default_auto]
@@ -305,7 +307,9 @@ let compare c1 c2 =
   pf_constr_of_global (lib_ref "core.eq.type") >>= fun eqc ->
   pf_constr_of_global (lib_ref "core.not.type") >>= fun notc ->
   Proofview.Goal.enter begin fun gl ->
-  let sigma, rectype = Tacmach.pf_type_of gl c1 in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let sigma, rectype = Typing.type_of env sigma c1 in
   let ops = (opc,eqc,notc) in
   let decide = mkDecideEqGoal true ops rectype c1 c2 in
   tclTHEN (Proofview.Unsafe.tclEVARS sigma)

@@ -3029,7 +3029,9 @@ let (forward_setoid_symmetry_in, setoid_symmetry_in) = Hook.make ()
 
 let symmetry_in id =
   Proofview.Goal.enter begin fun gl ->
-    let sigma, ctype = Tacmach.pf_type_of gl (mkVar id) in
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let sigma, ctype = Typing.type_of env sigma (mkVar id) in
     let sign,t = decompose_prod_decls sigma ctype in
     tclEVARSTHEN sigma
       (Proofview.tclORELSE
