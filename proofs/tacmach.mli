@@ -58,6 +58,7 @@ val pf_hnf_type_of : Proofview.Goal.t -> constr -> types
 
 val pf_compute : Proofview.Goal.t -> constr -> constr
 val pf_whd_compute : Proofview.Goal.t -> constr -> constr
+[@@ocaml.deprecated "(9.2) Use Tacred.whd_compute"]
 
 val pf_nf_evar : Proofview.Goal.t -> constr -> constr
 [@@ocaml.deprecated "(9.2) Use Reductionops.nf_evar"]

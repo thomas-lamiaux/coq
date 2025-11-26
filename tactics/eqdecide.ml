@@ -274,7 +274,7 @@ let decideGralEquality =
         let sigma = Proofview.Goal.sigma gl in
         let concl = Proofview.Goal.concl gl in
         match_eqdec env sigma concl >>= fun (dty, c1, c2, typ as data) ->
-        let headtyp = hd_app sigma (Tacmach.pf_whd_compute gl typ) in
+        let headtyp = hd_app sigma (Tacred.whd_compute env sigma typ) in
         begin match EConstr.kind sigma headtyp with
         | Ind (mi,_) -> Proofview.tclUNIT mi
         | _ -> tclZEROMSG (Pp.str"This decision procedure only works for inductive objects.")
