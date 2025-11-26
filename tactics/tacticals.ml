@@ -467,7 +467,9 @@ let tclWITHHOLES accept_unresolved_holes tac sigma =
 
 let tactic_of_delayed d =
   Proofview.Goal.enter_one ~__LOC__ @@ fun gl ->
-  let sigma, v = Tacmach.pf_apply d gl in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let sigma, v = d env sigma in
   Proofview.Unsafe.tclEVARS sigma <*>
   tclUNIT v
 
@@ -527,8 +529,10 @@ let nLastHyps gl n = List.map mkVar (nLastHypsId gl n)
 
 let ifOnHyp pred tac1 tac2 id =
   Proofview.Goal.enter begin fun gl ->
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   let typ = Tacmach.pf_get_hyp_typ id gl in
-  if Tacmach.pf_apply pred gl (id,typ) then
+  if pred env sigma (id, typ) then
     tac1 id
   else
     tac2 id
