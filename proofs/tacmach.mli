@@ -54,7 +54,9 @@ val pf_nf_concl : Proofview.Goal.t -> types
 [@@ocaml.deprecated "(9.2) Use Reductionops.nf_evar"]
 
 val pf_hnf_constr : Proofview.Goal.t -> constr -> types
+
 val pf_hnf_type_of : Proofview.Goal.t -> constr -> types
+[@@ocaml.deprecated "(9.2) Use Reductionops.whd_all and Retyping.get_type_of"]
 
 val pf_compute : Proofview.Goal.t -> constr -> constr
 [@@ocaml.deprecated "(9.2) Use Tacred.pf_compute"]
