@@ -886,18 +886,19 @@ let rec prove_le () =
         ; apply (delayed_force le_n)
         ; begin
             try
-              let matching_fun c =
-                match EConstr.kind sigma c with
+              let matching_fun decl =
+                let t = Context.Named.Declaration.get_type decl in
+                match EConstr.kind sigma t with
                 | App (c, [|x0; _|]) ->
-                  EConstr.isVar sigma x0
+                  if EConstr.isVar sigma x0
                   && Id.equal (destVar sigma x0) (destVar sigma x)
                   && EConstr.isRefX env sigma (le ()) c
-                | _ -> false
+                  then Some (Context.Named.Declaration.get_id decl, t)
+                  else None
+                | _ -> None
               in
               let h, t =
-                List.find
-                  (fun (_, t) -> matching_fun t)
-                  (Tacmach.pf_hyps_types g)
+                List.find_map_exn matching_fun (EConstr.named_context env)
               in
               let y =
                 let _, args = decompose_app_list sigma t in
