@@ -260,9 +260,10 @@ let app_global f args k =
 
 let assert_before n c =
   Proofview.Goal.enter begin fun gl ->
-    let evm, _ = Tacmach.pf_apply type_of gl c in
-    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm)
-    (assert_before n c)
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let sigma, _ = type_of env sigma c in
+    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (assert_before n c)
   end
 
 let refresh_type env evm ty =
@@ -376,8 +377,10 @@ let refute_tac c t1 t2 p =
 
 let refine_exact_check c =
   Proofview.Goal.enter begin fun gl ->
-    let evm, _ = Tacmach.pf_apply type_of gl c in
-    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm) (exact_check c)
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let sigma, _ = type_of env sigma c in
+    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (exact_check c)
   end
 
 let convert_to_goal_tac c t1 t2 p =
@@ -548,11 +551,12 @@ let mk_eq f c1 c2 k =
   Tacticals.pf_constr_of_global (Lazy.force f) >>= fun fc ->
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
-    let evm, ty = Tacmach.pf_apply type_of gl c1 in
-    let evm, ty = Evarsolve.refresh_universes (Some false) env evm ty in
+    let sigma = Proofview.Goal.sigma gl in
+    let sigma, ty = type_of env sigma c1 in
+    let sigma, ty = Evarsolve.refresh_universes (Some false) env sigma ty in
     let term = mkApp (fc, [| ty; c1; c2 |]) in
-    let evm, _ =  type_of env evm term in
-    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS evm) (k term)
+    let sigma, _ =  type_of env sigma term in
+    Proofview.tclTHEN (Proofview.Unsafe.tclEVARS sigma) (k term)
     end
 
 let f_equal =

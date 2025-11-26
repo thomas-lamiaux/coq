@@ -142,7 +142,9 @@ let convert_hyp ~check ~reorder d =
 
 let convert_gen pb x y =
   Proofview.Goal.enter begin fun gl ->
-    match Tacmach.pf_apply (Reductionops.infer_conv ~pb) gl x y with
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    match Reductionops.infer_conv ~pb env sigma x y with
     | Some sigma -> Proofview.Unsafe.tclEVARS sigma
     | None -> TacticErrors.not_convertible ()
     | exception e when CErrors.noncritical e ->
@@ -2045,8 +2047,9 @@ let constructor_core with_evars cstr lbind =
 let constructor_tac with_evars expctdnumopt i lbind =
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
-    let ((ind,_),redcl) = Tacmach.pf_apply Tacred.reduce_to_quantified_ind gl concl in
+    let ((ind, _), redcl) = Tacred.reduce_to_quantified_ind env sigma concl in
     let nconstr = Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
     check_number_of_constructors expctdnumopt i nconstr;
     Tacticals.tclTHENLIST [
@@ -2074,8 +2077,9 @@ let any_constructor with_evars tacopt =
     else Tacticals.tclORD (one_constr (ind,i)) (any_constr ind n (i + 1)) in
   Proofview.Goal.enter begin fun gl ->
     let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
     let concl = Proofview.Goal.concl gl in
-    let (ind,_),redcl = Tacmach.pf_apply Tacred.reduce_to_quantified_ind gl concl in
+    let (ind, _), redcl = Tacred.reduce_to_quantified_ind env sigma concl in
     let nconstr =
       Array.length (snd (Inductive.lookup_mind_specif env ind)).mind_consnames in
     if Int.equal nconstr 0 then TacticErrors.no_constructors ();
