@@ -331,34 +331,37 @@ let lib_ref_opt_pos name pos =
   | None -> None
   | Some x -> Some (x , pos)
 
-(* eq_scheme_name returns the elimination principle to be used when dealing with eq, dependending on dep(endency), in conclusion or not and left-to-right *)
+(* eq_scheme_name returns the elimination principle to be used, dependending on dep(endency), in conclusion or not and left-to-right *)
 (* this could be handled by has_J_ref as well, but is more efficient has it bypasses the typeclass search *)
-let eq_scheme_name dep lft2rgt inccl target is_set = let open Sorts.Quality in
+let eq_scheme_pattern dep lft2rgt inccl target is_set = let open Sorts.Quality in
   match dep, lft2rgt, inccl, target , is_set with
     (* Non dependent case *)
-    | false, Some true, true , QConstant QType , false -> lib_ref_opt_pos "core.eq.rect_r" (AtPosition 5)
-    | false, Some true, true , QConstant QType , true -> lib_ref_opt_pos "core.eq.rec_r" (AtPosition 5)
-    | false, Some true, true , QConstant QProp , _ -> lib_ref_opt_pos "core.eq.ind_r" (AtPosition 5)
-    | false, Some true, true , QConstant QSProp , _ -> lib_ref_opt_pos "core.eq.sind_r" (AtPosition 5)
-    | false, Some true, false , QConstant QType , false -> lib_ref_opt_pos "core.eq.rect" (AtPosition 5)
-    | false, Some true, false , QConstant QType , true -> lib_ref_opt_pos "core.eq.rec" (AtPosition 5)
-    | false, Some true, false , QConstant QProp , _ -> lib_ref_opt_pos "core.eq.ind" (AtPosition 5)
-    | false, Some true, false , QConstant QSProp , _ -> lib_ref_opt_pos "core.eq.sind" (AtPosition 5)
-    | false, _ , false , QConstant QType , false -> lib_ref_opt_pos "core.eq.rect_r" (AtPosition 5)
-    | false, _ , false , QConstant QType , true -> lib_ref_opt_pos "core.eq.rec_r" (AtPosition 5)
-    | false, _ , false , QConstant QProp , _ -> lib_ref_opt_pos "core.eq.ind_r" (AtPosition 5)
-    | false, _ , false , QConstant QSProp , _ -> lib_ref_opt_pos "core.eq.sind_r" (AtPosition 5)
-    | false, _ , true , QConstant QProp , _ -> lib_ref_opt_pos "core.eq.ind" (AtPosition 5)
-    | false, _ , true , QConstant QSProp , _ -> lib_ref_opt_pos "core.eq.sind" (AtPosition 5)
-    | false, _ , true , QConstant QType , false -> lib_ref_opt_pos "core.eq.rect" (AtPosition 5)
-    | false, _ , true , QConstant QType , true -> lib_ref_opt_pos "core.eq.rec" (AtPosition 5)
+    | false, Some true, true , QConstant QType , false -> Some ("rect_r")
+    | false, Some true, true , QConstant QType , true -> Some ("rec_r")
+    | false, Some true, true , QConstant QProp , _ -> Some ("ind_r")
+    | false, Some true, true , QConstant QSProp , _ -> Some ("sind_r")
+    | false, Some true, false , QConstant QType , false -> Some ("rect")
+    | false, Some true, false , QConstant QType , true -> Some ("rec")
+    | false, Some true, false , QConstant QProp , _ -> Some ("ind")
+    | false, Some true, false , QConstant QSProp , _ -> Some ("sind")
+    | false, _ , false , QConstant QType , false -> Some ("rect_r")
+    | false, _ , false , QConstant QType , true -> Some ("rec_r")
+    | false, _ , false , QConstant QProp , _ -> Some ("ind_r")
+    | false, _ , false , QConstant QSProp , _ -> Some ("sind_r")
+    | false, _ , true , QConstant QProp , _ -> Some ("ind")
+    | false, _ , true , QConstant QSProp , _ -> Some ("sind")
+    | false, _ , true , QConstant QType , false -> Some ("rect")
+    | false, _ , true , QConstant QType , true -> Some ("rec")
     (* Dependent case *)
-    | true, Some true, true , QConstant QType , _ -> lib_ref_opt_pos "core.eq.rect_r_dep" (AtPosition 5)
-    | true, Some true, true , QConstant QProp , _ -> lib_ref_opt_pos "core.eq.ind_r_dep" (AtPosition 5)
-    | true, _ , true , QConstant QType , _  -> lib_ref_opt_pos "core.eq.rect_dep" (AtPosition 5)
-    | true, _ , true , QConstant QProp , _  -> lib_ref_opt_pos "core.eq.ind_dep" (AtPosition 5)
+    | true, Some true, true , QConstant QType , _ -> Some ("rect_r_dep")
+    | true, Some true, true , QConstant QProp , _ -> Some ("ind_r_dep")
+    | true, _ , true , QConstant QType , _  -> Some ("rect_dep")
+    | true, _ , true , QConstant QProp , _  -> Some ("ind_dep")
     | _ , _, _ , _ , _ -> None
 
+let eq_scheme_name name dep lft2rgt inccl target is_set =
+  Option.bind (eq_scheme_pattern dep lft2rgt inccl target is_set)
+    (fun recursor -> lib_ref_opt_pos ("core." ^ name ^ "." ^ recursor) (AtPosition 5))
 
 (* has_J_ref returns the name of the class to be used, dependending on dep(endency), in conclusion or not and left-to-right *)
 (* The integer encodes the position of the equality argument in the elimination principle, starting from 0 *)
@@ -384,8 +387,6 @@ let level_init l sigma =
       let sigma , r = aux ls sigma in
       sigma , new_level :: r
   in aux l sigma
-
-let dbg = CDebug.create ~name:"equality" ()
 
 let lookup_eq_eliminator env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort =
   let has_elim_ref , indarg = has_J_ref dep l2r inccl in
@@ -428,31 +429,27 @@ let lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sor
   let c = Reductionops.whd_const c_name env sigma c in
   (sigma , c), indarg
 
+let which_equality_opt env sigma c =
+  let find_eq env sigma c name = match Rocqlib.lib_ref_opt ("core."^name^".type") with
+    | Some gr -> if isRefX env sigma gr c then Some name else None
+    | None -> None in
+  Option.List.flatten @@ List.map (find_eq env sigma c) ["eq";"identity"]
+
 let lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort =
-  let is_global_exists gr c = match Rocqlib.lib_ref_opt gr with
-    | Some gr -> isRefX env sigma gr c
-    | None -> false in
-  let is_eq = is_global_exists "core.eq.type" eq in
-  let eq_scheme = eq_scheme_name dep l2r inccl (ESorts.quality sigma p_sort) (ESorts.is_set sigma p_sort) in
-  if is_eq && not (Option.is_empty eq_scheme) then
-    begin
-    match eq_scheme with
-    | Some (r , indarg) ->
-      let elim = destConstRef r in
-      let (sigma, (c,u)) = Evd.fresh_constant_instance env sigma elim in
-      dbg (fun () -> Termops.Internal.print_constr_env env sigma (mkConstU (c,u)));
-      (sigma , mkConstU (c,u)), indarg
-    | None -> assert false (* Not possible *)
-    end
-  (* avoid to check instance for non homogenous equality types *)
-  else begin
-  try
-    lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
-  with Not_found -> user_err Pp.(
-    str "Eliminator not found for query for equality carrier: " ++ Sorts.raw_pr (ESorts.kind sigma e_sort) ++
-    str " carrier quality: " ++ Sorts.raw_pr (ESorts.kind sigma c_sort) ++
-    str " target quality: " ++ Sorts.raw_pr (ESorts.kind sigma p_sort))
-  end
+  let which_eq = which_equality_opt env sigma eq in
+  let eq_scheme = Option.List.flatten @@ List.map (fun name -> eq_scheme_name name dep l2r inccl (ESorts.quality sigma p_sort) (ESorts.is_set sigma p_sort)) which_eq in
+  match eq_scheme with
+  | (r , indarg) :: _ ->
+    let elim = destConstRef r in
+    let (sigma, (c,u)) = Evd.fresh_constant_instance env sigma elim in
+    (sigma , mkConstU (c,u)), indarg
+  | _ ->
+    try
+      lookup_eq_eliminator_tc env sigma eq ~dep ~inccl ~l2r ~c_sort ~e_sort ~p_sort
+    with Not_found -> user_err Pp.(
+      str "Eliminator not found for query for equality carrier: " ++ Sorts.raw_pr (ESorts.kind sigma e_sort) ++
+      str " carrier quality: " ++ Sorts.raw_pr (ESorts.kind sigma c_sort) ++
+      str " target quality: " ++ Sorts.raw_pr (ESorts.kind sigma p_sort))
 
 let lookup_eq_eliminator_opt env sigma eq ~dep ~inccl l2r ~c_sort ~e_sort ~p_sort =
   try Some (lookup_eq_eliminator_with_error env sigma eq ~dep ~inccl ~l2r ~e_sort ~c_sort ~p_sort)
