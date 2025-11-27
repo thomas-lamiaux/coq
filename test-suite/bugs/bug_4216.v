@@ -2,6 +2,8 @@ Generalizable Variables T A.
 
 Inductive path `(a: A): A -> Type := idpath: path a a.
 
+Scheme Rewriting for path.
+
 Class TMonad (T: Type -> Type) := {
   bind: forall {A B: Type}, (T A) -> (A -> T B) -> T B;
   ret: forall {A: Type}, A -> T A;

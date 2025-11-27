@@ -137,3 +137,8 @@ Bind Scope type_scope with Sortclass.
 Open Scope core_scope.
 Open Scope function_scope.
 Open Scope type_scope.
+
+
+Notation "A -> B" := (forall (_ : A), B) : type_scope.
+
+Create HintDb typeclass_instances discriminated.

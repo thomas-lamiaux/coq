@@ -8,10 +8,7 @@ Set Elimination Schemes.
 
 Register JMeq as core.JMeq.type.
 
-Axiom JMeq_ind : forall (A:Type) (x:A) (P:A -> Prop),
-  P x -> forall y, JMeq x y -> P y.
-
-Register JMeq_ind as core.JMeq.ind.
+Scheme Rewriting for JMeq.
 
 Lemma JMeq_ind_r : forall (A:Type) (x:A) (P:A -> Prop),
    P x -> forall y, JMeq y x -> P y.

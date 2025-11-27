@@ -161,7 +161,6 @@ let newssrcongrtac arg ist =
   (fun sigma' ->
     let x = List.find_map_exn (fun (n, x, _) -> if n = 0 then Some x else None) eq_args in
     let ty = fs sigma' x in
-    (* should we be using custom detyping flags? *)
     congrtac (arg, Detyping.detype Detyping.Now ~flags:(PrintingFlags.Detype.current()) env sigma ty) ist)
   (fun () ->
     try
@@ -379,28 +378,13 @@ let id_map_redex _ sigma ~before:_ ~after = sigma, after
     ⊢ c : c_ty
     ⊢ c_ty ≡ EQN rdx_ty rdx new_rdx
 *)
-let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty new_rdx dir (sigma, c) c_ty =
+
+let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty c_sort new_rdx dir (sigma, c) c_ty eq e_sort =
   let open Tacticals in
   Proofview.Goal.enter begin fun gl ->
-(*   ppdebug(lazy(str"sigma@pirrel_rewrite=" ++ pr_evar_map None sigma)); *)
   let env = Proofview.Goal.env gl in
   let beta = Reductionops.clos_norm_flags RedFlags.beta env sigma in
   let sigma, new_rdx = map_redex env sigma ~before:rdx ~after:new_rdx in
-  let sigma, elim =
-    let sort = Tacticals.elimination_sort_of_goal gl in
-    match Equality.eq_elimination_ref (dir = L2R) sort with
-    | Some r -> Evd.fresh_global env sigma r
-    | None ->
-      let ((kn, i) as ind, _) = Tacred.eval_to_quantified_ind env sigma c_ty in
-      let sort = Tacticals.elimination_sort_of_goal gl in
-      let sigma, elim = Evd.fresh_global env sigma (Elimschemes.lookup_eliminator env ind sort) in
-      if dir = R2L then sigma, elim else
-      let elim, _ = EConstr.destConst sigma elim in
-      let mp,l = KerName.repr (Constant.canonical elim) in
-      let l' = Nameops.add_suffix l "_r"  in
-      let c1' = Global.constant_of_delta_kn (Constant.canonical (Constant.make2 mp l')) in
-      Evd.fresh_global env sigma (ConstRef c1')
-  in
   (* The resulting goal *)
   let evty = beta (EConstr.Vars.subst1 new_rdx pred) in
   let typeclass_candidate = Typeclasses.is_maybe_class_type env sigma evty in
@@ -412,9 +396,20 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty new_
   (* We check the proof is well typed. We assume that the type of [elim] is of
      the form [forall (A : Type) (x : A) (P : A -> Type@{s}), T] s.t. the only
      universes to unify are by checking the [A] and [P] arguments. *)
-  let sigma, p, pred =
+  let sigma, p, pred , elim =
     try
       let open EConstr in
+      let sigma, pred , elim =
+        let id = make_annot (Name pattern_id) ERelevance.relevant in
+        let penv = EConstr.push_rel (LocalAssum (id, rdx_ty)) env in
+        let pred = Vars.subst_var sigma pattern_id pred in
+        let sigma, predty , p_sort =
+          let sigma, predty = Typing.type_of penv sigma pred in
+          let p_sort = Retyping.get_sort_of penv sigma pred in
+          sigma, predty, p_sort in
+        let (sigma, elim), _ = Equality.lookup_eq_eliminator_with_error env sigma eq ~dep:false ~inccl:true ~l2r:(Some (dir = L2R)) ~c_sort ~e_sort ~p_sort in
+        sigma, { Environ.uj_val = mkLambda (id, rdx_ty, pred); uj_type = mkProd (id, rdx_ty, predty) } , elim
+      in
       let elimT = Retyping.get_type_of env sigma elim in
       let (idA, tA, elimT) = destProd sigma elimT in
       let (_, _, elimT) = destProd sigma elimT in
@@ -424,15 +419,8 @@ let pirrel_rewrite ?(under=false) ?(map_redex=id_map_redex) pred rdx rdx_ty new_
       (* Do not fully retype pred, we already know that the domain is well-typed.
          The way this is written makes it easier to profile which part of
          typing is takes time. *)
-      let sigma, pred =
-        let id = make_annot (Name pattern_id) ERelevance.relevant in
-        let penv = EConstr.push_rel (LocalAssum (id, rdx_ty)) env in
-        let pred = Vars.subst_var sigma pattern_id pred in
-        let sigma, predty = Typing.type_of penv sigma pred in
-        sigma, { Environ.uj_val = mkLambda (id, rdx_ty, pred); uj_type = mkProd (id, rdx_ty, predty) }
-      in
       let sigma = Typing.check_actual_type env sigma pred tP in
-      sigma, p, pred.uj_val
+      sigma, p, pred.uj_val , elim
     with
     | Pretype_errors.PretypeError (env, sigma, te) -> raise (PRtype_error (Some (env, sigma, te)))
     | e when CErrors.noncritical e -> raise (PRtype_error None)
@@ -495,7 +483,9 @@ let rwcltac ?under ?map_redex cl rdx dir (sigma, r) =
       match kind_of_type sigma (Reductionops.whd_all env sigma c_ty) with
       | AtomicType(e, a) when Ssrcommon.is_ind_ref env sigma e c_eq ->
           let new_rdx = if dir = L2R then a.(2) else a.(1) in
-          pirrel_rewrite ?under ?map_redex cl rdx a.(0) new_rdx dir (sigma, r) c_ty, Tacticals.tclIDTAC, sigma0
+          let e_sort = Retyping.get_sort_of env sigma c_ty in
+          let c_sort = Retyping.get_sort_of env sigma a.(0) in
+          pirrel_rewrite ?under ?map_redex cl rdx a.(0) c_sort new_rdx dir (sigma, r) c_ty e e_sort, Tacticals.tclIDTAC, sigma0
       | _ ->
           let cl' = EConstr.mkApp (EConstr.mkNamedLambda sigma (make_annot pattern_id ERelevance.relevant) rdxt cl, [|rdx|]) in
           let sigma, _ = Typing.type_of env sigma cl' in

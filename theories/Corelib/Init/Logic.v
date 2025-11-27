@@ -13,8 +13,6 @@ Set Implicit Arguments.
 Require Export Notations.
 Require Import Ltac.
 
-Notation "A -> B" := (forall (_ : A), B) : type_scope.
-
 (** * Propositional connectives *)
 
 (** [True] is the always true proposition *)
@@ -404,9 +402,16 @@ Hint Resolve ex_intro ex_intro2: core.
 Register eq as core.eq.type.
 Register eq_refl as core.eq.refl.
 Register eq_ind as core.eq.ind.
+Register eq_sind as core.eq.sind.
 Register eq_rect as core.eq.rect.
+Register eq_rec as core.eq.rec.
 
 Scheme Rewriting for eq.
+
+Register eq_rew_dep as core.eq.rect_dep.
+Register eq_rew_dep as core.eq.ind_dep.
+Register eq_rew_r_dep as core.eq.rect_r_dep.
+Register eq_rew_r_dep as core.eq.ind_r_dep.
 
 Arguments eq_sym_involutive [A]%_type_scope [x y] e : rename.
 
@@ -463,6 +468,7 @@ Section Logic_lemmas.
   Defined.
 
   Register eq_ind_r as core.eq.ind_r.
+  Register eq_sind_r as core.eq.sind_r.
 
   Definition eq_rec_r :
     forall (A:Type) (x:A) (P:A -> Set), P x -> forall y:A, y = x -> P y.
@@ -473,6 +479,10 @@ Section Logic_lemmas.
     forall (A:Type) (x:A) (P:A -> Type), P x -> forall y:A, y = x -> P y.
     intros A x P H y H0; elim eq_sym with (1 := H0); assumption.
   Defined.
+
+  Register eq_rect_r as core.eq.rect_r.
+  Register eq_rec_r as core.eq.rec_r.
+
 End Logic_lemmas.
 
 Module EqNotations.
