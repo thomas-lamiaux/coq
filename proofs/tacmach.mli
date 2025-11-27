@@ -52,6 +52,7 @@ val pf_hyps_types : Proofview.Goal.t -> (Id.t * types) list
 val pf_get_hyp : Id.t -> Proofview.Goal.t -> named_declaration
 val pf_get_hyp_typ        : Id.t -> Proofview.Goal.t -> types
 val pf_last_hyp           : Proofview.Goal.t -> named_declaration
+[@@ocaml.deprecated "(9.2) Use EConstr.named_context"]
 
 val pf_nf_concl : Proofview.Goal.t -> types
 [@@ocaml.deprecated "(9.2) Use Reductionops.nf_evar"]

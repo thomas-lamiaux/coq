@@ -644,12 +644,12 @@ let build_proof (interactive_proof : bool) (fnames : Constant.t list) ptes_infos
           | Prod _ ->
             tclTHEN intro
               (Proofview.Goal.enter (fun g' ->
+                   let env = Proofview.Goal.env g' in
+                   let sigma = Proofview.Goal.sigma g' in
                    let open Context.Named.Declaration in
-                   let id = Tacmach.pf_last_hyp g' |> get_id in
+                   let id = get_id @@ List.hd @@ Environ.named_context env in
                    let new_term =
-                     Reductionops.nf_betaiota (Proofview.Goal.env g')
-                       (Proofview.Goal.sigma g')
-                       (mkApp (dyn_infos.info, [|mkVar id|]))
+                     Reductionops.nf_betaiota env sigma (mkApp (dyn_infos.info, [|mkVar id|]))
                    in
                    let new_infos = {dyn_infos with info = new_term} in
                    let do_prove new_hyps =
