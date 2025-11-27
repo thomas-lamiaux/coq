@@ -479,8 +479,11 @@ let find_scheme kind scheme_name ind =
   find_scheme scheme_name ind >>= function
     | Some s -> Proofview.tclUNIT s
     | None ->
-      warn_missing_scheme (kind, Ind_tables.scheme_kind_name scheme_name, ind);
-      force_find_scheme scheme_name ind
+      match warn_missing_scheme (kind, Ind_tables.scheme_kind_name scheme_name, ind) with
+      | () -> force_find_scheme scheme_name ind
+      | exception e when CErrors.noncritical e ->
+        let e, info = Exninfo.capture e in
+        Proofview.tclZERO ~info e
 
 let find_elim lft2rgt dep inccl type_of_cls (ctx, hdcncl, args) =
   Proofview.Goal.enter_one begin fun gl ->
