@@ -16,7 +16,7 @@ open Evd
 open Context
 open Util
 open Namegen
-open Pp
+(* open Pp *)
 
 module RelDecl = Rel.Declaration
 open RelDecl
@@ -33,6 +33,7 @@ type access_key = int (* type of keys *)
 module State =
 struct
 
+  (* Monad *)
   type state =
     { env : env;
       sigma : evar_map;
@@ -40,44 +41,54 @@ struct
       subst : constr list;
     }
 
-  type 'a t = state -> 'a
+  type 'a t = state -> evar_map * 'a
 
-  let return c s = c
+  let return (c : 'a) s = (s.sigma, c)
+  let bind x f s = let (sigma, a) = x s in f a { s with sigma = sigma}
+  let map (f : 'a -> 'b) (t : 'a t) : 'b t = bind t (fun a -> return @@ f a)
+  let run env sigma t =
+      let s = {
+      env = env;
+      sigma = sigma;
+      names = Id.Set.of_list @@ Termops.ids_of_rel_context @@ rel_context env;
+      subst = [];
+    }
+  in t s
+
+  (* Notation for the monad *)
   let (let@) x f = x f
-  let (let*) x f = fun s -> let a = x s in f a s
-  let (let+) x f = fun s -> let (s,a) = x s in f a s
+  let (let*) x f = bind x f
 
-  let get_env s = s.env
-  let get_sigma s = s.sigma
-  let get_names s = s.names
-  let get_state s = s
+  (* Access the current state *)
+  let get_env s   = return s.env s
+  let get_sigma s = return s.sigma s
+  let get_names s = return s.names s
+  let get_state s = return s s
+  let get_context s = return (EConstr.of_rel_context @@ Environ.rel_context s.env) s
+  let update_sigma s sigma = {s with sigma = sigma}
 
-  let update_sigma sigma s = ({s with sigma = sigma}, ())
-  let map f t = fun s -> f (t s)
 
-  (* make functions *)
-  let make env sigma = {
-    env = env;
-    sigma = sigma;
-    names = Id.Set.of_list @@ Termops.ids_of_rel_context @@ rel_context env;
-    subst = []
-  }
+(** {6 Weaken Functions From the Former Context to the New Context } *)
 
-  let state_context s = EConstr.of_rel_context @@ Environ.rel_context s.env
+  let weaken c s = return (Vars.substl s.subst c) s
 
-  let weaken c s = Vars.substl s.subst c
-
-  let weaken_rel c s = RelDecl.map_constr (fun c -> weaken c s) c
+  let weaken_rel decl s =
+    return (RelDecl.map_constr (fun t -> snd @@ weaken t s ) decl) s
 
   let weaken_context cxt s =
     let nb_cxt = List.length cxt in
-    List.mapi (fun i x ->
+    let wcxt = List.mapi (fun i x ->
       let n = nb_cxt - i -1 in
       let weak x = Vars.substnl s.subst n x in
       match x with
       | LocalAssum (na, ty) -> LocalAssum (na, weak ty)
       | LocalDef (na, bd, ty) -> LocalDef (na, weak bd, weak ty)
       ) cxt
+    in
+    return wcxt s
+
+
+(** {6 Push Functions } *)
 
   (* Add variables to the context *)
   let add_names names decl =
@@ -85,7 +96,7 @@ struct
     | Anonymous -> names
     | Name id -> Id.Set.add id names
 
-  let fresh_key s = List.length (state_context s)
+  let fresh_key s = List.length (snd @@ get_context s)
 
   let push_old_rel decl s =
   let s' = { s with
@@ -93,7 +104,7 @@ struct
       names = add_names s.names decl;
       subst = mkRel 1 :: List.map (Vars.lift 1) s.subst
     } in
-  (s', fresh_key s)
+  return (s', fresh_key s) s'
 
   let push_fresh_rel decl s =
     let s' = { s with
@@ -101,20 +112,29 @@ struct
       names = add_names s.names decl;
       subst = List.map (Vars.lift 1) s.subst
     } in
-  (s', fresh_key s)
+  return (s', fresh_key s) s'
+
+
+(** {6 Access Functions } *)
 
   let get_decl key s =
-    let n' = List.length (state_context s) - key -1 in
-    RelDecl.map_constr (Vars.lift n') (List.nth (state_context s) n')
+    let n' = List.length (snd @@ get_context s) - key -1 in
+    let decl = RelDecl.map_constr (Vars.lift n') (List.nth (snd @@ get_context s) n') in
+    return decl s
 
   let getters f =
-    let get_X key s = f (List.length ((state_context s)) - key -1) (get_decl key s) in
+    let get_X key =
+      let* decl = get_decl key in
+      let* cxt = get_context in
+      return (f (List.length cxt - key -1) decl) in
 
-    let geti_X keys pos_key s = get_X (List.nth keys pos_key) s in
+    let geti_X keys pos_key = get_X (List.nth keys pos_key) in
 
-    let getij_X keyss pos_k1 pos_k2 s = get_X (List.nth (List.nth keyss pos_k1) pos_k2) s in
+    let getij_X keyss pos_k1 pos_k2 = get_X (List.nth (List.nth keyss pos_k1) pos_k2) in
 
-    let get_Xs keys s = List.map (fun key -> get_X key s) keys in
+    let get_Xs keys =
+      let* s = get_state in
+      return @@ List.map (fun key -> snd @@ get_X key s) keys in
 
     (get_X, geti_X, getij_X, get_Xs)
 
@@ -131,16 +151,42 @@ struct
   let get_aname, geti_aname, getij_aname, get_anames = getters (fun _ cdecl -> RelDecl.get_annot cdecl)
 
   (* Print functions *)
-  let print_state print_constr s =
+  (* let print_state print_constr s =
     List.fold_right_i (fun i x acc ->
         acc ++ str "var | " ++ str (string_of_int (List.length (Environ.rel_context s.env) - i)) ++ str " | " ++
         print_constr s.env s.sigma (RelDecl.get_type x)
-      ) 0 (state_context s) (str "")
+      ) 0 (snd @@ get_context s) (str "")
 
   let print_substitution print_constr s =
       List.fold_right (fun x acc ->
           acc ++ print_constr s.env s.sigma x
-        ) s.subst (str "")
+        ) s.subst (str "") *)
+
+(** {6 Access Functions } *)
+
+  let rec list_mapi (f : int -> 'a -> 'b t) (l : 'a list) : 'b list t =
+    fun s ->
+    let (acc, sigma) =
+      List.fold_right_i (fun i c (acc, s) ->
+        let (sigma, t) = (f i c) s in
+        (t::acc, update_sigma s sigma)
+        ) 0 l ([],s)
+    in
+    return (List.rev acc) s
+
+  let array_mapi (f : int -> 'a -> 'b t) (ar : 'a array) : ('b array) t =
+    fun s ->
+    let sigma_ref = ref s.sigma in
+    let size_ar = Array.length ar in
+    if size_ar = 0 then (s.sigma, [||]) else begin
+    let r = Array.init size_ar (fun _ -> snd @@ f 0 (Array.unsafe_get ar 0) s) in
+    for i = 1 to size_ar - 1 do
+      let (sigma, x) = f i ar.(i) (update_sigma s !sigma_ref) in
+      sigma_ref := sigma;
+      r.(i) <- x;
+    done;
+    (!sigma_ref, r)
+  end
 
 end
 
@@ -150,27 +196,29 @@ open State
 (*                               Naming Schemes                               *)
 (* ************************************************************************** *)
 
+let name_hd decl s =
+  let name_or_hd = named_hd s.env s.sigma (RelDecl.get_type decl) (RelDecl.get_name decl) in
+  return name_or_hd s
+
+let next_name_away na s =
+  return (next_name_away na s.names) s
+
 type naming_scheme = rel_declaration -> rel_declaration t
 
 (* Keep naming as is, including Anonymous *)
-let naming_id decl = return @@ decl
+let naming_id decl = return decl
 
 (* Chooses the next Id available from the binder's name.
   If the binder is Anonymous, a name is generated using the head the binder's type. *)
 let naming_hd decl =
-  let* env = get_env in
-  let* sigma = get_sigma in
-  let name_or_hd = named_hd env sigma (RelDecl.get_type decl) (RelDecl.get_name decl) in
+  let* name_or_hd = name_hd decl in
   return @@ set_name (name_or_hd) decl
 
 let naming_hd_dep dep = if dep then naming_hd else naming_id
 
 let naming_hd_fresh decl =
-  let* env = get_env in
-  let* sigma = get_sigma in
-  let* names = get_names in
-  let name_or_hd = named_hd env sigma (RelDecl.get_type decl) (RelDecl.get_name decl) in
-  let new_id = next_name_away name_or_hd names in
+  let* name_or_hd = name_hd decl in
+  let* new_id = next_name_away name_or_hd in
   return @@ set_name (Name new_id) decl
 
   let naming_hd_fresh_dep dep = if dep then naming_hd_fresh else naming_id
@@ -203,6 +251,22 @@ let fold_left_state_3 f l tp cc =
 
 
 (* ************************************************************************** *)
+(*                             Operations                                     *)
+(* ************************************************************************** *)
+
+
+
+let whd_decompose_prod_decls t =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  return @@ Reductionops.whd_decompose_prod_decls env sigma t
+
+let decompose_app t =
+  let* sigma = get_sigma in
+  return @@ decompose_app sigma t
+
+
+(* ************************************************************************** *)
 (*                            Make Binders                                    *)
 (* ************************************************************************** *)
 
@@ -215,49 +279,47 @@ let wrap_binder b =
   | Lambda -> mkLambda_or_LetIn
   | Prod -> mkProd_or_LetIn
 
-
-let add_decl fresh naming_scheme decl cc =
+let add_decl fresh naming_scheme decl cc s =
     match fresh with
-    | Fresh -> let* name = naming_scheme decl in
-               let+ k = push_fresh_rel name in
-               cc k
-    | Old -> let* decl = weaken_rel decl in
-             let* name = naming_scheme decl in
-             let+ k = push_old_rel name in
-             cc k
+    | Fresh -> let (sigma, decl) = naming_scheme decl s in
+               let (sigma, (s', k)) = push_fresh_rel decl s in
+               cc k s'
+    | Old -> let (sigma, decl) = weaken_rel decl s in
+             let (sigma, name) = naming_scheme decl s in
+             let (sigma, (s', k)) = push_old_rel name s in
+             cc k s'
 
 (* 1. Keep, and Make Binary Binders and letin *)
-
-let build_binder binder fresh naming_scheme decl cc =
+let build_binder binder fresh naming_scheme decl cc s =
   match fresh with
     | Fresh ->
-        let* decl = naming_scheme decl in
-        let+ k = push_fresh_rel decl in
-        let* v = cc k in
-        return @@ wrap_binder binder decl v
+        let (sigma, decl) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_fresh_rel decl s in
+        let (sigma, v) = cc k s' in
+        sigma, wrap_binder binder decl v
     | Old ->
-        let* decl = weaken_rel decl  in
-        let* decl = naming_scheme decl in
-        let+ k = push_old_rel decl in
-        let* v = cc k in
-        return @@ wrap_binder binder decl v
+        let (sigma, decl) = weaken_rel decl s in
+        let (sigma, name) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_old_rel name s in
+        let (sigma, v) = cc k s' in
+        sigma, wrap_binder binder decl v
 
 let make_binder binder naming_scheme na ty = build_binder binder Fresh naming_scheme (LocalAssum (na, ty))
 let keep_binder binder naming_scheme na ty = build_binder binder Old naming_scheme (LocalAssum (na, ty))
 
-let build_binder_opt binder fresh naming_scheme decl cc =
+let build_binder_opt binder fresh naming_scheme decl cc s =
   match fresh with
     | Fresh ->
-        let* decl = naming_scheme decl in
-        let+ k = push_fresh_rel decl in
-        let* v = cc k in
-        return @@ Option.map (wrap_binder binder decl) v
+        let (sigma, decl) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_fresh_rel decl s in
+        let (sigma, v) = cc k s' in
+        sigma, Option.map (wrap_binder binder decl) v
     | Old ->
-        let* decl = weaken_rel decl  in
-        let* decl = naming_scheme decl in
-        let+ k = push_old_rel decl in
-        let* v = cc k in
-        return @@ Option.map (wrap_binder binder decl) v
+        let (sigma, decl) = weaken_rel decl s in
+        let (sigma, name) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_old_rel name s in
+        let (sigma, v) = cc k s' in
+        sigma, Option.map (wrap_binder binder decl) v
 
 let make_binder_opt binder naming_scheme na ty = build_binder_opt binder Fresh naming_scheme (LocalAssum (na, ty))
 let keep_binder_opt binder naming_scheme na ty = build_binder_opt binder Old naming_scheme (LocalAssum (na, ty))
@@ -285,19 +347,21 @@ let add_context_sep fresh naming_scheme = read_context_sep (add_decl fresh namin
 let closure_context_sep binder fresh naming_scheme = read_context_sep (build_binder binder fresh naming_scheme)
 let closure_context_sep_opt binder fresh naming_scheme = read_context_sep (build_binder_opt binder fresh naming_scheme)
 
-let build_binder_opt_prod binder fresh naming_scheme decl cc =
+let map_second f (a, b) = (a, f b)
+
+let build_binder_opt_prod binder fresh naming_scheme decl cc s =
   match fresh with
     | Fresh ->
-        let* decl = naming_scheme decl in
-        let+ k = push_fresh_rel decl in
-        let* v = cc k in
-        return @@ Option.map (fun (a,b) -> (a, wrap_binder binder decl b)) v
+        let (sigma, decl) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_fresh_rel decl s in
+        let (sigma, v) = cc k s' in
+        sigma, Option.map (map_second @@ wrap_binder binder decl) v
     | Old ->
-        let* decl = weaken_rel decl  in
-        let* decl = naming_scheme decl in
-        let+ k = push_old_rel decl in
-        let* v = cc k in
-        return @@ Option.map (fun (a,b) -> (a, wrap_binder binder decl b)) v
+        let (sigma, decl) = weaken_rel decl s in
+        let (sigma, name) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_old_rel name s in
+        let (sigma, v) = cc k s' in
+        sigma, Option.map (map_second @@ wrap_binder binder decl) v
 
 let closure_context_sep_opt_prod binder fresh naming_scheme = read_context_sep (build_binder_opt_prod binder fresh naming_scheme)
 
@@ -318,16 +382,14 @@ let get_args mdecl u (cxt, ty) =
   let nb_params_letin = List.length mdecl.mind_params_ctxt in
   let (_, args) = List.chop nb_params_letin (List.rev cxt) in
   let args = Vars.subst_instance_context u @@ EConstr.of_rel_context @@ List.rev args in
-  let* sigma = get_sigma in
-  let (hd, xs) = decompose_app sigma (Vars.subst_instance_constr u @@ EConstr.of_constr ty) in
+  let* (hd, xs) = decompose_app (Vars.subst_instance_constr u @@ EConstr.of_constr ty) in
   let indices = Array.sub xs mdecl.mind_nparams (Array.length xs - mdecl.mind_nparams) in
   return (args, indices)
 
-let iterate_ctors mdecl ind u tp cc =
-  let* state = get_state in
-  let f a = get_args mdecl u a state in
+let iterate_ctors mdecl ind u tp cc s =
+  let f a = snd (get_args mdecl u a s) in
   let ctors = Array.to_list @@ Array.map f ind.mind_nf_lc in
-  fold_right_state (fun a l -> a :: l) ctors tp cc
+  fold_right_state (fun a l -> a :: l) ctors tp cc s
 
 let make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices =
   let tInd = mkIndU ((kn, pos_ind), u) in
@@ -346,15 +408,11 @@ let make_fix ind_bodies focus fix_rarg fix_name fix_type tmc =
   (* data fix *)
   let rargs = List.mapi fix_rarg ind_bodies in
   let fix_names = List.mapi fix_name ind_bodies in
-  let* state = get_state in
-  let fix_type a b = fix_type a b state in
-  let fix_types = List.mapi fix_type ind_bodies in
+  let* fix_types = list_mapi fix_type ind_bodies in
   (* update context continuation *)
   let fix_context = List.rev @@ List.map2_i (fun i na ty -> LocalAssum (na, Vars.lift i ty)) 0 fix_names fix_types in
   let@ key_Fix = add_context Fresh naming_id fix_context in
-  let* state = get_state in
-  let tmc a = tmc a state in
-  let fix_bodies = List.mapi (fun pos_list ind -> tmc (key_Fix, pos_list, ind)) ind_bodies in
+  let* fix_bodies = list_mapi (fun pos_list ind -> tmc (key_Fix, pos_list, ind)) ind_bodies in
   (* result *)
   return @@ EConstr.mkFix ((Array.of_list rargs, focus), (Array.of_list fix_names, Array.of_list fix_types, Array.of_list fix_bodies))
 
@@ -388,26 +446,25 @@ let make_case_or_projections naming_vars mdecl ind indb u key_uparams key_nupara
     let* return_type = mk_case_pred key_fresh_indices key_var_match in
     return @@ ((fresh_annot, return_type), case_relevance)
   in
+
   let branch pos_ctor ctor =
     let* args = get_args mdecl u ctor in
     let args = fst args in
-    let@ key_args, key_letin , key_both = add_context_sep Old naming_vars args in
+    let@ key_args, key_letin, key_both = add_context_sep Old naming_vars args in
     let* branches_body = tc (key_args, key_letin, key_both, pos_ctor) in
     let* name = get_anames key_both in
     let names_args = Array.of_list name in
     return (names_args, branches_body)
   in
 
-  let branches = let* state = get_state in
-                 let branch a b = branch a b state in
-                 return @@ Array.mapi branch indb.mind_nf_lc in
-
   let* case_info, pred, case_invert, c, branches =
+    let* case_pred = case_pred in
+    let* s = get_state in
+    let* branches = array_mapi branch indb.mind_nf_lc in
     let* env = get_env in
     let* sigma = get_sigma in
-    let* case_pred = case_pred in
-    let* branches = branches in
-      return @@ EConstr.expand_case env sigma (case_info, u, params, case_pred, case_invert, tm_match, branches) in
+    return @@ EConstr.expand_case env sigma (case_info, u, params, case_pred, case_invert, tm_match, branches)
+  in
 
   let* env = get_env in
   let* sigma = get_sigma in

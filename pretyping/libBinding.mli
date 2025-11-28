@@ -42,6 +42,7 @@ open Evd
 open EConstr
 open Names
 open Declarations
+open Environ
 
 (** Type of access keys for the State API *)
 type access_key
@@ -49,22 +50,20 @@ module State :
   sig
     type state
 
-    type 'a t = state -> 'a
-
+    (* Monads *)
+    type 'a t = state -> evar_map * 'a
     val return : 'a -> 'a t
-
-    val get_env : Environ.env t
-    val get_sigma : evar_map t
-    val get_names : Id.Set.t t
-    val get_state : state t
-
-    val update_sigma : evar_map -> state -> state * unit
+    val bind : 'a t -> ('a -> 'b t) -> 'b t
     val map : ('a -> 'b) -> 'a t -> 'b t
+    val run : env -> evar_map -> 'a t -> evar_map * 'a
 
-    (** Create a new state out of an environment [env] and evar_map [sigma] with:
-      - The set of names is computed out of [env]
-      - The substitution is empty *)
-    val make : Environ.env -> evar_map -> state
+    (* Access the current state *)
+    val get_env     : env t
+    val get_sigma   : evar_map t
+    val get_names   : Id.Set.t t
+    val get_state   : state t
+    val get_context : rel_context t
+    val update_sigma : state -> evar_map -> state
 
   (** {6 Weaken Functions From the Former Context to the New Context } *)
 
@@ -146,12 +145,16 @@ module State :
     val get_anames : access_key list -> (Name.t binder_annot list) t
 
   (** {6 Debug Functions } *)
+  val list_mapi : (int -> 'a -> 'b t) -> 'a list -> 'b list t
+  val array_mapi : (int -> 'a -> 'b t) -> 'a array -> 'b array t
+
+  (** {6 Debug Functions } *)
 
     (** Print function for debugging. *)
-    val print_state : (Environ.env -> evar_map -> constr -> Pp.t) -> Pp.t t
+    (* val print_state : (env -> evar_map -> constr -> Pp.t) -> Pp.t t *)
 
     (** Print function for debugging. *)
-    val print_substitution : (Environ.env -> evar_map -> constr -> Pp.t) -> Pp.t t
+    (* val print_substitution : (env -> evar_map -> constr -> Pp.t) -> Pp.t t *)
   end
 
 open State
@@ -196,6 +199,13 @@ val naming_hd_fresh : naming_scheme
 
 (** [naming_hd_fresh] if [true], [naming_id] otherwise  *)
 val naming_hd_fresh_dep : bool -> naming_scheme
+
+(** {6 Functions on Terms } *)
+
+(** Reduce and decompose a term preserving letin *)
+val whd_decompose_prod_decls : constr -> (rel_context * constr) t
+
+val decompose_app : constr -> (constr * constr array) t
 
 (** {6 Create a New Lambda, Product, or LetIn } *)
 
@@ -294,11 +304,11 @@ val iterate_ctors : mutual_inductive_body -> one_inductive_body -> einstance ->
 
 (** Create a term refering to an inductive type given the [access_key]
     for uniform paramters, non-uniform parameters, and indices. *)
-val make_ind : inductive * EInstance.t -> access_key list -> access_key list -> access_key list -> state -> constr
+val make_ind : inductive * EInstance.t -> access_key list -> access_key list -> access_key list -> constr t
 
 (** Create a term refering to the constructor of an inductive type given the [access_key]
     for uniform paramters, non-uniform parameters, and indices. *)
-val make_cst : inductive * EInstance.t -> int -> access_key list -> access_key list -> constr list -> state -> constr
+val make_cst : inductive * EInstance.t -> int -> access_key list -> access_key list -> constr list -> constr t
 
 (** Create a term refering to an inductive type given the [access_key]
     for uniform paramters, non-uniform parameters, and indices. *)
