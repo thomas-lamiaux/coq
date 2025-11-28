@@ -174,3 +174,16 @@ Proof.
   exact I.
   exact I.
 Qed.
+
+(* test that "try rewrite" / "rewrite ?h" catches the error from mssing-scheme *)
+Set Warnings "+missing-scheme".
+
+Inductive myeq A x : A -> Prop := myrefl : myeq A x x.
+
+Goal forall x y, myeq nat x y -> x = y.
+Proof.
+  intros x y H.
+  Fail rewrite H.
+  try rewrite H.
+  rewrite ?H.
+Abort.
