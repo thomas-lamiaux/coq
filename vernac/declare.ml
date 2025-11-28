@@ -880,7 +880,10 @@ let assumption_message id =
 
 (* The word [proof] is to be understood as [justification] *)
 (* A possible alternatve would be [evidence]?? *)
-type closed_proof_output = ((Constr.t * SideEff.t) * Constr.t option) list * UState.t
+type closed_proof_output = {
+  output_entries : ((Constr.t * SideEff.t) * Constr.t option) list;
+  output_ustate : UState.t;
+}
 
 type proof_object =
   | DefaultProof of
@@ -898,10 +901,10 @@ type proof_object =
       }
 
 let future_map2_pair_list_distribute p l f =
-  List.map_i (fun i c -> f (Future.chain p (fun (a, b) -> (List.nth a i, b))) c) 0 l
+  List.map_i (fun i c -> f (Future.chain p (fun { output_entries = a; output_ustate = b } -> (List.nth a i, b))) c) 0 l
 
 let process_proof ~info:Info.({ udecl; poly }) ?(is_telescope=false) = function
-  | DefaultProof { proof = (entries, uctx); opaque; using; keep_body_ucst_separate } ->
+  | DefaultProof { proof = { output_entries = entries; output_ustate = uctx }; opaque; using; keep_body_ucst_separate } ->
     (* Force transparency for Derive-like dependent statements *)
     let opaques =
       let n = List.length entries in
@@ -935,7 +938,7 @@ let process_proof ~info:Info.({ udecl; poly }) ?(is_telescope=false) = function
            (delayed_definition_entry ?using ~univs ~types:initial_typ ~feedback_id body, initial_euctx))
 
 let ustate_of_proof = function
-  | DefaultProof { proof = (_entries, uctx) } -> uctx
+  | DefaultProof { proof } -> proof.output_ustate
   | DeferredOpaqueProof { initial_euctx } -> initial_euctx
 
 let declare_definition_scheme ~univs ~role ~name ~effs c =
@@ -1094,7 +1097,8 @@ let declare_mutual_definitions ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guar
   let entries = List.map (fun (body, typ) -> ((body, SideEff.empty), Some typ)) bodies_types in
   let entries_for_using = List.map (fun (body, typ) -> (body, Some typ)) bodies_types in
   let using = interp_mutual_using env cinfo entries_for_using using in
-  let obj = DefaultProof { proof = (entries, uctx); opaque; using; keep_body_ucst_separate = None } in
+  let proof = { output_entries = entries; output_ustate = uctx } in
+  let obj = DefaultProof { proof; opaque; using; keep_body_ucst_separate = None } in
   let refs = declare_possibly_mutual_definitions ~info ~cinfo ~obls:[] obj in
   let fixnames = List.map (fun { CInfo.name } -> name) cinfo in
   recursive_message indexes fixnames;
@@ -1128,7 +1132,8 @@ let declare_definition ~info ~cinfo ~opaque ~obls ~body ?using sigma =
   let typ = Option.map (EConstr.to_constr sigma) typ in
   let uctx = Evd.ustate sigma in
   let using = interp_mutual_using env [cinfo] [body,typ] using in
-  let obj = DefaultProof { proof = ([((body, SideEff.empty),typ)], uctx); opaque; using; keep_body_ucst_separate = None } in
+  let proof = { output_entries = [((body, SideEff.empty),typ)]; output_ustate = uctx } in
+  let obj = DefaultProof { proof; opaque; using; keep_body_ucst_separate = None } in
   let gref = List.hd (declare_possibly_mutual_definitions ~info ~cinfo:[cinfo] ~obls obj) in
   gref, uctx
 
@@ -2136,7 +2141,7 @@ let prepare_proof ?(warn_incomplete=true) { proof; pinfo; sideff } =
       fst (make_recursive_bodies env ~typing_flags ~possible_guard ~rec_declaration) in
   let proofs = List.map (fun (body, typ) -> ((body, SideEff.concat eff sideff), Some typ)) proofs in
   let () = if warn_incomplete then check_incomplete_proof evd in
-  proofs, Evd.ustate evd
+  { output_entries = proofs; output_ustate = Evd.ustate evd }
 
 exception NotGuarded of
     Environ.env * Evd.evar_map *
