@@ -111,11 +111,7 @@ val current : unit -> t
 
 val current_ignore_raw : unit -> t
 
-(** The following flags are still accessed directly, but not when printing constr. *)
-
-(** Set Printing All flag. *)
-val raw_print : bool ref
-
+(** The following flag is still accessed directly, but not when printing constr. *)
 val print_universes : bool ref
 
 module PrintingInductiveMake (_ : sig
