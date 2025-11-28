@@ -160,9 +160,66 @@ let { Goptions.get = print_float } =
     ~value:true
     ()
 
+module PrintingInductiveMake (Test : sig
+    val encode : Environ.env -> Libnames.qualid -> Names.inductive
+    val member_message : Pp.t -> bool -> Pp.t
+    val field : string
+    val title : string
+  end) =
+struct
+  type t = Names.inductive
+  module Set = Names.Indset_env
+  let encode env ind = Environ.QInd.canonize env (Test.encode env ind)
+  let subst subst obj = Mod_subst.subst_ind subst obj
+  let check_local _ _ = ()
+  let discharge (i:t) = i
+  let printer ind = Nametab.pr_global_env Names.Id.Set.empty (IndRef ind)
+  let key = ["Printing";Test.field]
+  let title = Test.title
+  let member_message x = Test.member_message (printer x)
+end
+
+(**********************************************************************)
+(* Control printing of records *)
+
+let encode_record env r =
+  let indsp = Nametab.global_inductive r in
+  if not (Structures.Structure.mem env indsp) then
+    CErrors.user_err ?loc:r.CAst.loc
+      Pp.(str "This type is not a structure type.");
+  indsp
+
+module PrintingRecordRecord =
+  PrintingInductiveMake (struct
+    let encode = encode_record
+    let field = "Record"
+    let title = "Types leading to pretty-printing using record notation: "
+    let member_message s b =
+      let open Pp in
+      str "Terms of " ++ s ++
+      str
+        (if b then " are printed using record notation"
+         else " are not printed using record notation")
+  end)
+
+module PrintingRecordConstructor =
+  PrintingInductiveMake (struct
+    let encode = encode_record
+    let field = "Constructor"
+    let title = "Types leading to pretty-printing using constructor form: "
+    let member_message s b =
+      let open Pp in
+      str "Terms of " ++ s ++
+      str
+        (if b then " are printed using constructor form"
+         else " are not printed using constructor form")
+  end)
+
+module PrintingRecord = Goptions.MakeRefTable(PrintingRecordRecord)
+module PrintingConstructor = Goptions.MakeRefTable(PrintingRecordConstructor)
+
 module Detype = struct
   type t = {
-    raw : bool;
     universes : bool;
     qualities : bool;
     relevances : bool;
@@ -174,10 +231,12 @@ module Detype = struct
     primproj_params : bool;
     unfolded_primproj_as_match : bool;
     match_paramunivs : bool;
+    always_regular_match_style : bool;
+    (* XXX is there a better word than "nonpropositional"? *)
+    nonpropositional_letin_types : bool;
   }
 
-  let current () = {
-    raw = !raw_print;
+  let current_ignore_raw () = {
     universes = !print_universes;
     qualities = print_sort_quality();
     relevances = print_relevances();
@@ -189,28 +248,84 @@ module Detype = struct
     primproj_params = print_primproj_params();
     unfolded_primproj_as_match = print_unfolded_primproj_asmatch();
     match_paramunivs = print_match_paramunivs();
+
+    (* not yet exposed (except through Printing All) *)
+    always_regular_match_style = false;
+    nonpropositional_letin_types = false;
   }
+
+  let make_raw flags = {
+    flags with
+    synth_match_return = false;
+    always_regular_match_style = true;
+    matching = false;
+    nonpropositional_letin_types = true;
+  }
+
+  let current () =
+    let flags = current_ignore_raw () in
+    if !raw_print then make_raw flags else flags
+
 end
 
 module Extern = struct
   module FactorizeEqns = struct
     type t = {
-      raw : bool;
       factorize_match_patterns : bool;
       allow_match_default_clause : bool;
     }
 
-    let current () = {
-      raw = !raw_print;
+    let current_ignore_raw () = {
       factorize_match_patterns = print_factorize_match_patterns();
       allow_match_default_clause = !print_allow_match_default_clause;
     }
+
+    (* all flags are overridden, but for forwards compat we still take
+       the base flags *)
+    let make_raw _flags = {
+      factorize_match_patterns = false;
+      allow_match_default_clause = false;
+    }
+
+    let current () =
+      let flags = current_ignore_raw() in
+      if !raw_print then make_raw flags else flags
+  end
+
+  module Records = struct
+    open Names
+
+    type t = {
+      default : bool;
+      force_record : Indset_env.t;
+      force_constructor : Indset_env.t;
+    }
+
+    let current_ignore_raw () = {
+      default = get_record_print();
+      force_record = PrintingRecord.v();
+      force_constructor = PrintingConstructor.v();
+    }
+
+    let make_raw _flags = {
+      default = false;
+      force_record = Indset_env.empty;
+      force_constructor = Indset_env.empty;
+    }
+
+    let current () =
+      let flags = current_ignore_raw() in
+      if !raw_print then make_raw flags else flags
+
+    let use_record_syntax flags r =
+      (flags.default && not (Indset_env.mem r flags.force_constructor)) ||
+      Indset_env.mem r flags.force_record
+
   end
 
   type t = {
-    raw : bool;
     use_implicit_types : bool;
-    records : bool;
+    records : Records.t;
     implicits : bool;
     implicits_explicit_args : bool;
     implicits_defensive : bool;
@@ -224,10 +339,9 @@ module Extern = struct
     (* XXX depth? *)
   }
 
-  let current () = {
-    raw = !raw_print;
+  let current_ignore_raw () = {
     use_implicit_types = print_use_implicit_types();
-    records = get_record_print();
+    records = Records.current_ignore_raw();
     implicits = !print_implicits;
     implicits_explicit_args = print_implicits_explicit_args();
     implicits_defensive = !print_implicits_defensive;
@@ -237,8 +351,25 @@ module Extern = struct
     raw_literals = !print_raw_literal;
     projections = !print_projections;
     float = print_float();
-    factorize_eqns = FactorizeEqns.current();
+    factorize_eqns = FactorizeEqns.current_ignore_raw();
   }
+
+  let make_raw flags = {
+    flags with
+    records = Records.make_raw flags.records;
+    use_implicit_types = false;
+    implicits = true;
+    implicits_explicit_args = false;
+    coercions = true;
+    raw_literals = true;
+    notations = false;
+    projections = false;
+    factorize_eqns = FactorizeEqns.make_raw flags.factorize_eqns;
+  }
+
+  let current () =
+    let flags = current_ignore_raw() in
+    if !raw_print then make_raw flags else flags
 end
 
 
@@ -247,7 +378,17 @@ type t = {
   extern : Extern.t;
 }
 
+let make_raw flags = {
+  detype = Detype.make_raw flags.detype;
+  extern = Extern.make_raw flags.extern;
+}
+
 let current () = {
   detype = Detype.current();
   extern = Extern.current();
+}
+
+let current_ignore_raw () = {
+  detype = Detype.current_ignore_raw();
+  extern = Extern.current_ignore_raw();
 }

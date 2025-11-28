@@ -24,7 +24,6 @@ open Glob_term
 open Glob_ops
 open Termops
 open Namegen
-open Libnames
 open Globnames
 open Mod_subst
 open Context.Rel.Declaration
@@ -244,28 +243,8 @@ let encode_tuple env ({CAst.loc} as r) =
       (str "This type cannot be seen as a tuple type.");
   x
 
-module PrintingInductiveMake =
-  functor (Test : sig
-     val encode : Environ.env -> qualid -> inductive
-     val member_message : Pp.t -> bool -> Pp.t
-     val field : string
-     val title : string
-  end) ->
-  struct
-    type t = inductive
-    module Set = Indset_env
-    let encode env ind = Environ.QInd.canonize env (Test.encode env ind)
-    let subst subst obj = subst_ind subst obj
-    let check_local _ _ = ()
-    let discharge (i:t) = i
-    let printer ind = Nametab.pr_global_env Id.Set.empty (GlobRef.IndRef ind)
-    let key = ["Printing";Test.field]
-    let title = Test.title
-    let member_message x = Test.member_message (printer x)
-  end
-
 module PrintingCasesIf =
-  PrintingInductiveMake (struct
+  PrintingFlags.PrintingInductiveMake (struct
     let encode = encode_bool
     let field = "If"
     let title = "Types leading to pretty-printing of Cases using a `if' form:"
@@ -277,7 +256,7 @@ module PrintingCasesIf =
   end)
 
 module PrintingCasesLet =
-  PrintingInductiveMake (struct
+  PrintingFlags.PrintingInductiveMake (struct
     let encode = encode_tuple
     let field = "Let"
     let title =
@@ -408,7 +387,7 @@ let lookup_index_as_renamed env sigma t n =
 let rec join_eqns ~flags (ids,rhs as x) patll = function
   | ({CAst.loc; v=(ids',patl',rhs')} as eqn')::rest ->
     let open ExternFlags.FactorizeEqns in
-     if not flags.raw && flags.factorize_match_patterns &&
+     if flags.factorize_match_patterns &&
         List.eq_set Id.equal ids ids' && glob_constr_eq rhs rhs'
      then
        join_eqns  ~flags x (patl'::patll) rest
@@ -455,7 +434,7 @@ let factorize_eqns ~flags eqns =
   let mk_anon patl = List.map (fun _ -> DAst.make @@ PatVar Anonymous) patl in
   let open CAst in
   let open ExternFlags.FactorizeEqns in
-  if not flags.raw && flags.allow_match_default_clause && eqns <> [] then
+  if flags.allow_match_default_clause && eqns <> [] then
     match select_default_clause eqns with
     (* At least two clauses and the last one is disjunctive with no variables *)
     | Some {loc=gloc;v=([],patl::_::_,rhs)}, (_::_ as eqns) ->
@@ -615,7 +594,7 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
         DAst.make @@ GCast (tomatch, None, detype t)
   in
   let alias, aliastyp, pred =
-    if (not flags.flg.raw) && synth_type && computable && not (Int.equal (Array.length bl) 0)
+    if synth_type && computable && not (Int.equal (Array.length bl) 0)
     then
       Anonymous, None, None
     else
@@ -635,7 +614,7 @@ let detype_case ~flags computable detype detype_eqns avoid env sigma (ci, univs,
   let constructs = Array.init (Array.length bl) (fun i -> (ci.ci_ind,i+1)) in
   let tag = let st = ci.ci_pp_info.style in
     try
-      if flags.flg.raw then
+      if flags.flg.always_regular_match_style then
         RegularStyle
       else if st == LetPatternStyle then
         st
@@ -948,7 +927,7 @@ and detype_r d flags avoid env sigma t =
 
 and detype_eqns d flags avoid env sigma computable constructs bl =
   try
-    if flags.flg.raw || not flags.flg.matching then raise_notrace Exit;
+    if not flags.flg.matching then raise_notrace Exit;
     let mat = build_tree ~flags Anonymous flags (avoid,env) sigma bl in
     List.map (fun (ids,pat,((avoid,env),c)) ->
         CAst.make (Id.Set.elements ids,[pat],detype d flags avoid env sigma c))
@@ -1010,9 +989,12 @@ and detype_binder d flags bk avoid env sigma decl c =
           try Retyping.get_sort_quality_of (snd env) sigma ty
           with Retyping.RetypeError _ -> UnivGen.QualityOrSet.qtype
       in
-      let t = if not (UnivGen.QualityOrSet.is_prop s) && not flags.flg.raw
-              then None
-              else Some (detype d (nongoal flags) avoid env sigma ty) in
+      let t =
+        (* XXX also sprop? *)
+        if flags.flg.nonpropositional_letin_types || UnivGen.QualityOrSet.is_prop s
+        then Some (detype d (nongoal flags) avoid env sigma ty)
+        else None
+      in
       GLetIn (na', rinfo, c, t, r)
 
 let detype_rel_context d flags avoid env sigma sign =

@@ -56,11 +56,3 @@ val detype_closed_glob : flags:PrintingFlags.Detype.t -> ?isgoal:bool ->
 (** look for the index of a named var or a nondep var as it is renamed *)
 val lookup_name_as_displayed  : env -> evar_map -> constr -> Id.t -> int option
 val lookup_index_as_renamed : env -> evar_map -> constr -> int -> int option
-
-module PrintingInductiveMake :
-  functor (_ : sig
-    val encode : Environ.env -> Libnames.qualid -> Names.inductive
-    val member_message : Pp.t -> bool -> Pp.t
-    val field : string
-    val title : string
-  end) -> Goptions.RefConvertArg with type t = inductive

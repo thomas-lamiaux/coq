@@ -86,6 +86,8 @@ let rebuild env s =
   let nparams = mib.Declarations.mind_nparams in
   { s with nparams }
 
+let mem env ind = Environ.QInd.Map.mem env ind !structure_table
+
 let find env indsp = Environ.QInd.Map.find env indsp !structure_table
 
 let find_projections env indsp =
