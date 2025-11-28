@@ -388,10 +388,9 @@ let get_args mdecl u (cxt, ty) =
   let indices = Array.sub xs mdecl.mind_nparams (Array.length xs - mdecl.mind_nparams) in
   return (args, indices)
 
-let iterate_ctors mdecl ind u tp cc s =
-  let f a = snd (get_args mdecl u a s) in
-  let ctors = Array.to_list @@ Array.map f ind.mind_nf_lc in
-  fold_right_state (fun a l -> a :: l) ctors tp cc s
+let iterate_ctors mdecl ind u tp cc =
+  let* ctors = array_mapi (fun _ -> get_args mdecl u) ind.mind_nf_lc in
+  fold_right_state (fun a l -> a :: l) (Array.to_list ctors) tp cc
 
 let make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices =
   let tInd = mkIndU ((kn, pos_ind), u) in
