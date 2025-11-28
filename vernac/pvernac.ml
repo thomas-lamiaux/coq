@@ -87,7 +87,9 @@ module Vernac_ =
         Procq.(Production.make (Rule.next Rule.stop (Symbol.token Tok.PEOI)) act_eoi);
         Procq.(Production.make (Rule.next Rule.stop (Symbol.nterm vernac_control)) act_vernac);
       ] in
-      Procq.(grammar_extend main_entry (Fresh (Gramlib.Gramext.First, [None, None, rule])))
+      (* NB ignore_kw doesn't matter, no potential keywords here *)
+      Procq.(grammar_extend ~ignore_kw:true main_entry
+               (Fresh (Gramlib.Gramext.First, [None, None, rule])))
 
     let select_command_entry spec =
       match spec with

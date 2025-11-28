@@ -197,7 +197,7 @@ let is_static_linking_done = ref false
 
 let static_linking_done () = is_static_linking_done := true
 
-let static_vernac_extend ~plugin ~command ?classifier ?entry ext =
+let static_vernac_extend ~plugin ~command ?classifier ?entry ~ignore_kw ext =
   let get_classifier (TyML (_, ty, _, cl)) = match cl with
   | Some cl -> untype_classifier ty cl
   | None ->
@@ -243,10 +243,10 @@ let static_vernac_extend ~plugin ~command ?classifier ?entry ext =
           then CErrors.anomaly
               Pp.(str "static_vernac_extend in dynlinked code must pass non-None plugin.")
         in
-        Egramml.extend_vernac_command_grammar ~undoable:false ext
+        Egramml.extend_vernac_command_grammar ~ignore_kw ~undoable:false ext
       | Some plugin ->
         Mltop.add_init_function plugin (fun () ->
-            Egramml.extend_vernac_command_grammar ~undoable:true ext)
+            Egramml.extend_vernac_command_grammar ~ignore_kw ~undoable:true ext)
     in
     ()
   in
@@ -265,7 +265,7 @@ type 'a vernac_argument = {
   arg_parsing : 'a argument_rule;
 }
 
-let vernac_argument_extend ~plugin ~name arg =
+let vernac_argument_extend ~plugin ~name ~ignore_kw arg =
   let wit = Genarg.create_arg name in
   let entry = match arg.arg_parsing with
   | Arg_alias e ->
@@ -274,7 +274,7 @@ let vernac_argument_extend ~plugin ~name arg =
   | Arg_rules rules ->
     let e = Procq.create_generic_entry2 name (Genarg.rawwit wit) in
     let plugin_uid = Option.map (fun plugin -> (plugin, "vernacargextend:"^name)) plugin in
-    let () = Egramml.grammar_extend ?plugin_uid e
+    let () = Egramml.grammar_extend ?plugin_uid ~ignore_kw e
         (Procq.Fresh (Gramlib.Gramext.First, [None, Some RightA, rules]))
     in
     e

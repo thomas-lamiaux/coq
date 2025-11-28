@@ -21,8 +21,10 @@ module EntryCommand = Dyn.Make ()
 module GrammarCommand = Dyn.Make ()
 module GramState = Store.Make ()
 
+type gramext = { ignore_kw:bool; entry:GrammarCommand.t }
+
 type grammar_entry =
-| GramExt of GrammarCommand.t
+| GramExt of gramext
 | EntryExt : ('a * 'b) EntryCommand.tag * 'a -> grammar_entry
 
 (** State handling (non marshallable!) *)
@@ -103,6 +105,8 @@ let make_entry_unsync make remake () =
 
 let add_kw = { add_kw = CLexer.add_keyword_tok }
 
+let no_add_kw = { add_kw = fun () _ -> () }
+
 let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let r = Production.make (Rule.next Rule.stop e) (fun x _ -> f x) in
   let { GState.estate; kwstate; recover; has_non_assoc } = gstate() in
@@ -113,32 +117,37 @@ let epsilon_value (type s tr a) f (e : (s, tr, a) Symbol.t) =
   let strm = Parsable.make strm in
   try Some (Entry.parse entry strm {estate;kwstate;recover;has_non_assoc}) with e when CErrors.noncritical e -> None
 
-let extend_gstate {GState.kwstate; estate; recover; has_non_assoc} e ext =
-  let estate, kwstate = safe_extend add_kw estate kwstate e ext in
+let extend_gstate ~ignore_kw {GState.kwstate; estate; recover; has_non_assoc} e ext =
+  let estate, kwstate =
+    if ignore_kw then
+      let estate, () = safe_extend no_add_kw estate () e ext in
+      estate, kwstate
+    else safe_extend add_kw estate kwstate e ext
+  in
   {GState.kwstate; estate; recover; has_non_assoc}
 
 (* XXX rename to grammar_extend_unsync? *)
-let grammar_extend e ext =
-  let extend_one g = extend_gstate g e ext in
+let grammar_extend ~ignore_kw e ext =
+  let extend_one g = extend_gstate ~ignore_kw g e ext in
   modify_state_unsync extend_one ()
 
 type extend_rule =
 | ExtendRule : 'a Entry.t * 'a extend_statement -> extend_rule
 
-let grammar_extend_sync user_state entry rules state =
+let grammar_extend_sync ~ignore_kw user_state entry rules state =
   let extend_one_sync state = function
     | ExtendRule (e, ext) -> extend_gstate state e ext
   in
-  let current_state = List.fold_left extend_one_sync state.current_state rules in
+  let current_state = List.fold_left (extend_one_sync ~ignore_kw) state.current_state rules in
   { state with
     current_state;
     user_state;
-    current_sync_extensions = GramExt entry :: state.current_sync_extensions;
+    current_sync_extensions = GramExt {ignore_kw; entry} :: state.current_sync_extensions;
   }
 
-let grammar_extend_sync st e r () =
+let grammar_extend_sync ~ignore_kw st e r () =
   assert_synterp();
-  state := grammar_extend_sync st e r !state
+  state := grammar_extend_sync ~ignore_kw st e r !state
 
 type ('a,'b) entry_extension = {
   eext_fun : 'a -> 'b Entry.t -> GramState.t -> GramState.t;
@@ -261,7 +270,8 @@ let eoi_entry en =
   let symbs = Rule.next (Rule.next Rule.stop (Symbol.nterm en)) (Symbol.token Tok.PEOI) in
   let act = fun _ x loc -> x in
   let ext = Fresh (Gramlib.Gramext.First, [None, None, [Production.make symbs act]]) in
-  grammar_extend e ext;
+  (* ignore_kw: doesn't matter here, no potential keywords in the rule *)
+  grammar_extend ~ignore_kw:true e ext;
   e
 
 (* Parse a string, does NOT check if the entire string was read
@@ -397,11 +407,11 @@ let create_grammar_command name interp : _ grammar_command =
   let () = grammar_interp := GrammarInterpMap.add obj interp !grammar_interp in
   obj
 
-let extend_grammar_command tag g =
+let extend_grammar_command ~ignore_kw tag g =
   let modify = GrammarInterpMap.find tag !grammar_interp in
   let grammar_state = (!state).user_state in
   let (rules, st) = modify.gext_fun g grammar_state in
-  grammar_extend_sync st (Dyn (tag,g)) rules ()
+  grammar_extend_sync ~ignore_kw st (Dyn (tag,g)) rules ()
 
 module EntryInterp = struct type _ t = EExt : ('a,'b) entry_extension -> ('a * 'b) t end
 module EntryInterpMap = EntryCommand.Map(EntryInterp)
@@ -453,8 +463,9 @@ let unfreeze_only_keywords = function
     }
 
 let eq_grams g1 g2 = match g1, g2 with
-| GramExt (GrammarCommand.Dyn (t1, v1)), GramExt (GrammarCommand.Dyn (t2, v2)) ->
-  begin match GrammarCommand.eq t1 t2 with
+  | GramExt {ignore_kw=kw1;entry=GrammarCommand.Dyn (t1, v1)},
+    GramExt {ignore_kw=kw2;entry=GrammarCommand.Dyn (t2, v2)} ->
+  begin Bool.equal kw1 kw2 && match GrammarCommand.eq t1 t2 with
   | None -> false
   | Some Refl ->
     let data = GrammarInterpMap.find t1 !grammar_interp in
@@ -475,7 +486,7 @@ let factorize_grams l1 l2 =
   if l1 == l2 then ([], [], l1) else List.share_tails eq_grams l1 l2
 
 let replay_sync_extension = function
-  | GramExt (Dyn (tag,g)) -> extend_grammar_command tag g
+  | GramExt {ignore_kw;entry=Dyn(tag,g)} -> extend_grammar_command ~ignore_kw tag g
   | EntryExt (tag,data) -> extend_entry_command tag data
 
 let unfreeze ({frozen_sync;} as frozen) =

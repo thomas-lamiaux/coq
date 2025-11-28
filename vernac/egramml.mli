@@ -24,10 +24,11 @@ val declare_vernac_command_grammar :
   allow_override:bool -> extend_name -> vernac_expr Procq.Entry.t option ->
     vernac_expr grammar_prod_item list -> unit
 
-val extend_vernac_command_grammar : undoable:bool -> extend_name -> unit
+val extend_vernac_command_grammar : undoable:bool -> ignore_kw:bool -> extend_name -> unit
 
 val grammar_extend
   : ?plugin_uid:(string * string)
+  -> ignore_kw:bool
   -> 'a Procq.Entry.t
   -> 'a Procq.extend_statement
   -> unit

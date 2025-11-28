@@ -156,5 +156,6 @@ type node =
 | VernacArgumentExt of vernac_argument_ext
 | TacticExt of tactic_ext
 | ArgumentExt of argument_ext
+| IgnoreKeywords
 
 type t = node list

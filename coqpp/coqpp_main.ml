@@ -95,6 +95,12 @@ let pp_opt_plugin_arg ~what () =
   | Some name -> "(Some \""^name^"\")"
   | None -> "None"
 
+let ignore_kw = ref false
+
+let print_ignore_kw fmt () =
+  let s = if !ignore_kw then "true" else "false" in
+  Format.pp_print_string fmt s
+
 let print_list fmt pr l =
   let rec prl fmt = function
   | [] -> ()
@@ -325,18 +331,24 @@ let gramext_plugin_uid name =
   incr gramext_count;
   " ~plugin_uid:(\""^name^"\", \""^(!file_name)^":"^string_of_int cnt^"\")"
 
-let grammar_extend () =
+let grammar_extend fmt () =
   match check_is_plugin ~what:"GRAMMAR EXTEND" () with
-  | Some name -> "Egramml.grammar_extend"^gramext_plugin_uid name
-  | None -> "Procq.grammar_extend"
+  | Some name ->
+    Format.fprintf fmt "Egramml.grammar_extend%s ~ignore_kw:%a"
+      (gramext_plugin_uid name)
+      print_ignore_kw ()
+  | None ->
+    Format.fprintf fmt "Procq.grammar_extend ~ignore_kw:%a"
+      print_ignore_kw ()
 
 let print_entry fmt e = match e.gentry_rules with
 | GDataReuse (pos, r) ->
   let rules = List.rev r in
   let pr_pos fmt pos = print_opt fmt print_string pos in
   let pr_prd fmt prd = print_list fmt print_prod prd in
-  fprintf fmt "let () =@ @[%s@ %s@ @[(Procq.Reuse (%a, %a))@]@]@ in@ "
-    (grammar_extend ()) e.gentry_name pr_pos pos pr_prd rules
+  fprintf fmt "let () =@ @[%a@ %s@ @[(Procq.Reuse (%a, %a))@]@]@ in@ "
+    grammar_extend ()
+    e.gentry_name pr_pos pos pr_prd rules
 | GDataFresh (pos, rules) ->
   let print_rules fmt rules = print_list fmt print_rule rules in
   let pr_check fmt () = match pos with
@@ -344,8 +356,10 @@ let print_entry fmt e = match e.gentry_rules with
   | Some _ -> fprintf fmt ""
   in
   let pos = match pos with None -> First | Some pos -> pos in
-  fprintf fmt "%alet () =@ @[%s@ %s@ @[(Procq.Fresh@ (%a, %a))@]@]@ in@ "
-    pr_check () (grammar_extend ()) e.gentry_name print_position pos print_rules rules
+  fprintf fmt "%alet () =@ @[%a@ %s@ @[(Procq.Fresh@ (%a, %a))@]@]@ in@ "
+    pr_check ()
+    grammar_extend ()
+    e.gentry_name print_position pos print_rules rules
 
 let print_ast fmt ext =
   let () = fprintf fmt "@[<2>let _ =@ " in
@@ -494,9 +508,11 @@ let print_entry fmt = function
 
 let print_ast fmt ext =
   let pr fmt () =
-    fprintf fmt "Vernacextend.static_vernac_extend ~plugin:%s ~command:\"%s\" %a ?entry:%a %a"
+    fprintf fmt "Vernacextend.static_vernac_extend ~plugin:%s ~command:\"%s\" %a ~ignore_kw:%a ?entry:%a %a"
       (pp_opt_plugin_arg ~what:"VERNAC EXTEND" ())
-      ext.vernacext_name print_classifier ext.vernacext_class
+      ext.vernacext_name
+      print_classifier ext.vernacext_class
+      print_ignore_kw ()
       print_entry ext.vernacext_entry (print_rules ext.vernacext_state) ext.vernacext_rules
   in
   let () = fprintf fmt "let () = @[%a@]@\n" pr () in
@@ -604,11 +620,11 @@ let print_printer fmt = function
 let print_ast fmt arg =
   let name = arg.vernacargext_name in
   let pr fmt () =
-    fprintf fmt "Vernacextend.vernac_argument_extend ~plugin:%s ~name:%a @[<2>{@\n\
+    fprintf fmt "Vernacextend.vernac_argument_extend ~plugin:%s ~name:%a ~ignore_kw:%a@[<2>{@\n\
       Vernacextend.arg_parsing =@ %a;@\n\
       Vernacextend.arg_printer = fun env sigma ->@ %a;@\n}@]"
       (pp_opt_plugin_arg ~what:"VERNAC ARGUMENT EXTEND" ())
-      print_string name print_rules (name, arg.vernacargext_rules)
+      print_string name print_ignore_kw () print_rules (name, arg.vernacargext_rules)
       print_printer arg.vernacargext_printer
   in
   fprintf fmt "@[<2>let (wit_%s, %s) =@ @[%a@]@]@\nlet _ = (wit_%s, %s)@\n"
@@ -689,7 +705,7 @@ let print_ast fmt arg =
   | None -> default_printer
   in
   let pr fmt () =
-    fprintf fmt "Tacentries.argument_extend ~plugin:\"%s\" ~name:%a@ @[{@\n\
+    fprintf fmt "Tacentries.argument_extend ~plugin:\"%s\" ~name:%a ~ignore_kw:%a@ @[{@\n\
       Tacentries.arg_parsing =@ %a;@\n\
       Tacentries.arg_tag = @[%a@];@\n\
       Tacentries.arg_intern = @[%a@];@\n\
@@ -698,6 +714,7 @@ let print_ast fmt arg =
       Tacentries.arg_printer = @[((fun env sigma -> %a), (fun env sigma -> %a), (fun env sigma -> %a))@];@\n}@]"
       (force_is_plugin ~what:"ARGUMENT EXTEND" ())
       print_string name
+      print_ignore_kw ()
       VernacArgumentExt.print_rules (name, arg.argext_rules)
       pr_tag arg.argext_type
       intern () subst () interp () print_code rpr print_code gpr print_code tpr
@@ -723,6 +740,7 @@ let pr_ast fmt = function
 | VernacArgumentExt arg -> fprintf fmt "%a@\n" VernacArgumentExt.print_ast arg
 | TacticExt tac -> fprintf fmt "%a@\n" TacticExt.print_ast tac
 | ArgumentExt arg -> fprintf fmt "%a@\n" ArgumentExt.print_ast arg
+| IgnoreKeywords -> ignore_kw := true
 
 let help () =
   Format.eprintf "Usage: rocq preprocess-mlg file.mlg@\n%!";

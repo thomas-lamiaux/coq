@@ -946,7 +946,7 @@ let ltac2_notation =
   Procq.create_grammar_command "ltac2-notation" { gext_fun = perform_notation; gext_eq = (==) (* FIXME *) }
 
 let cache_synext syn =
-  Procq.extend_grammar_command ltac2_notation syn
+  Procq.extend_grammar_command ~ignore_kw:false ltac2_notation syn
 
 let subst_synext (subst, syn) =
   let kn = Mod_subst.subst_kn subst syn.synext_kn in

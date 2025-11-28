@@ -105,6 +105,7 @@ val static_vernac_extend :
   command:string ->
   ?classifier:(atts:Attributes.vernac_flags -> string -> vernac_classification) ->
   ?entry:Vernacexpr.vernac_expr Procq.Entry.t ->
+  ignore_kw:bool ->
   ty_ml list -> unit
 
 (** Used to tell the system that all future vernac extends are from plugins. *)
@@ -148,7 +149,8 @@ type 'a vernac_argument = {
   arg_parsing : 'a argument_rule;
 }
 
-val vernac_argument_extend : plugin:string option -> name:string -> 'a vernac_argument ->
+val vernac_argument_extend : plugin:string option -> name:string -> ignore_kw:bool ->
+  'a vernac_argument ->
   'a Genarg.vernac_genarg_type * 'a Procq.Entry.t
 
 (** {5 STM classifiers} *)
