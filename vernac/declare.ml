@@ -1082,7 +1082,7 @@ let prepare_recursive_edeclaration sigma cinfo fixtypes fixrs fixdefs =
   let defs = List.map (EConstr.Vars.subst_vars sigma (List.rev fixnames)) fixdefs in
   (Array.of_list names, Array.of_list fixtypes, Array.of_list defs)
 
-let declare_mutual_definitions ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guard ?using () =
+let declare_mutual_definitions ~info ~cinfo ~opaque ~eff ~uctx ~bodies ~possible_guard ?using () =
   (* Note: uctx is supposed to be already minimized *)
   let { Info.typing_flags; _ } = info in
   let env = Global.env() in
@@ -1094,7 +1094,7 @@ let declare_mutual_definitions ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guar
   let entries = List.map (fun (body, typ) -> (body, Some typ)) bodies_types in
   let entries_for_using = List.map (fun (body, typ) -> (body, Some typ)) bodies_types in
   let using = interp_mutual_using env cinfo entries_for_using using in
-  let proof = { output_entries = entries; output_ustate = uctx; output_sideff = SideEff.empty } in
+  let proof = { output_entries = entries; output_ustate = uctx; output_sideff = SideEff.make eff } in
   let obj = DefaultProof { proof; opaque; using; keep_body_ucst_separate = None } in
   let refs = declare_possibly_mutual_definitions ~info ~cinfo ~obls:[] obj in
   let fixnames = List.map (fun { CInfo.name } -> name) cinfo in
@@ -1128,8 +1128,9 @@ let declare_definition ~info ~cinfo ~opaque ~obls ~body ?using sigma =
   let body = EConstr.to_constr sigma body in
   let typ = Option.map (EConstr.to_constr sigma) typ in
   let uctx = Evd.ustate sigma in
+  let eff = SideEff.make @@ Evd.eval_side_effects sigma in
   let using = interp_mutual_using env [cinfo] [body,typ] using in
-  let proof = { output_entries = [(body, typ)]; output_ustate = uctx; output_sideff = SideEff.empty } in
+  let proof = { output_entries = [(body, typ)]; output_ustate = uctx; output_sideff = eff } in
   let obj = DefaultProof { proof; opaque; using; keep_body_ucst_separate = None } in
   let gref = List.hd (declare_possibly_mutual_definitions ~info ~cinfo:[cinfo] ~obls obj) in
   gref, uctx
@@ -1600,6 +1601,7 @@ let declare_mutual_definitions ~pm l =
   (* Declare the recursive definitions *)
   let kns =
     declare_mutual_definitions ~info:first.prg_info
+      ~eff:Evd.empty_side_effects (* FIXME? *)
       ~uctx:first.prg_uctx ~bodies:fixdefs ~possible_guard ~opaque:first.prg_opaque
       ~cinfo:fixitems ?using:first.prg_using ()
   in
