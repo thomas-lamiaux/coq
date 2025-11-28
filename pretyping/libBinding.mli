@@ -202,6 +202,8 @@ val naming_hd_fresh_dep : bool -> naming_scheme
 
 (** {6 Functions on Terms } *)
 
+val fresh_global : GlobRef.t -> constr t
+
 (** Reduce and decompose a term preserving letin *)
 val whd_decompose_prod_decls : constr -> (rel_context * constr) t
 

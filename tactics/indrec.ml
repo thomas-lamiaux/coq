@@ -465,8 +465,7 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
     end
   | ArgIsNested (kn_nested, pos_nested, mib_nested, ind_nested,
                   loc, inst_uparams, inst_nuparams_indices, ref_sparam, _) ->
-                    begin return None
-    (* begin
+    begin
       let@ (key_locals, _, _) = closure_context_sep_opt_prod Prod Old naming_id loc in
       (* eta expand arguments *)
       let* env = get_env in
@@ -479,11 +478,10 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let* rec_pred = array_mapi compute_pred inst_uparams in
       if Array.for_all Option.is_empty rec_pred then return None else begin
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let* env = get_env in
+      let* ref_ind = fresh_global ref_sparam in
+      (* ----------- *)
       let* sigma = get_sigma in
-      let (sigma, ind) = fresh_global env sigma ref_sparam in
-      (* let+ _ = update_sigma sigma in *)
-      let u = snd @@ destRef sigma ind in
+      let u = snd @@ destRef sigma ref_ind in
       let rec_hyp_rev = ind_relevance ind_nested u in
       (* Instantiate param *)
       let strpos = List.rev mib_nested.mind_params_rec_strpos in
@@ -492,9 +490,11 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let rec_hyp = mkApp (ind, Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
-      return @@ Some (rec_hyp_rev, rec_hyp)
-      end *)
+        let* env = get_env in
+      let* sigma = get_sigma in
+      let (sigma, rec_hyp) = Typing.checked_appvect env sigma ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ] in
+      fun s -> return (Some (rec_hyp_rev, rec_hyp)) (update_sigma s sigma)
+      end
     end
   | _ -> return None
 
@@ -625,8 +625,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
     end
   | ArgIsNested (kn_nested, pos_nested, mib_nested, ind_nested,
                   loc, inst_uparams, inst_nuparams_indices, _, ref_fth) ->
-                    return None
-    (* begin
+    begin
       let@ (key_locals, _, _) = closure_context_sep_opt Lambda Old naming_id loc in
       (* eta expand arguments *)
       let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
@@ -641,10 +640,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       let* rec_preds_hold = array_mapi compute_pred_holds inst_uparams in
       if Array.for_all Option.is_empty rec_preds_hold then return None else begin
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let* env = get_env in
-      let* sigma = get_sigma in
-      let (sigma, fth) = fresh_global env sigma ref_fth in
-      (* let+ _ = update_sigma sigma in *)
+      let* fth = fresh_global ref_fth in
       (* Instantiation *)
       let strpos = List.rev mib_nested.mind_params_rec_strpos in
       let inst_uparams = Array.of_list @@ instantiate_fundamental_theorem (Array.to_list inst_uparams) strpos (Array.to_list rec_preds) (Array.to_list rec_preds_hold) in
@@ -652,11 +648,12 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let (simga, rec_hyp) = Typing.checked_appvect env sigma fth (Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
-      (* let+ _ = update_sigma sigma in *)
-      return @@ Some (rec_hyp)
+      let* env = get_env in
+      let* sigma = get_sigma in
+      let (sigma, rec_hyp) = Typing.checked_appvect env sigma fth (Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
+      fun s -> return (Some (rec_hyp)) (update_sigma s sigma)
       end
-    end *)
+    end
   | _ -> return None
 
 (* Compute the arguments of the rec call *)

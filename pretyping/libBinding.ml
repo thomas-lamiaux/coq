@@ -254,7 +254,9 @@ let fold_left_state_3 f l tp cc =
 (*                             Operations                                     *)
 (* ************************************************************************** *)
 
-
+let fresh_global ref s =
+  let (sigma, t) = fresh_global s.env s.sigma ref in
+  return t (update_sigma s sigma)
 
 let whd_decompose_prod_decls t =
   let* env = get_env in
