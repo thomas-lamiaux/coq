@@ -730,13 +730,14 @@ let replace_core clause l2r eq =
 
 let replace_using_leibniz clause c1 c2 l2r unsafe try_prove_eq_opt =
   Proofview.Goal.enter begin fun gl ->
-  let get_type_of = Tacmach.pf_apply get_type_of gl in
-  let t1 = get_type_of c1
-  and t2 = get_type_of c2 in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let t1 = get_type_of env sigma c1 in
+  let t2 = get_type_of env sigma c2 in
   let evd =
-    if unsafe then Some (Proofview.Goal.sigma gl)
+    if unsafe then Some sigma
     else
-      try Some (Evarconv.unify_delay (Proofview.Goal.env gl) (Proofview.Goal.sigma gl) t1 t2)
+      try Some (Evarconv.unify_delay env sigma t1 t2)
       with Evarconv.UnableToUnify _ -> None
   in
   match evd with
@@ -1338,7 +1339,7 @@ let inject_if_homogenous_dependent_pair ty =
   try
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let eq,u,(t,t1,t2) = Tacmach.pf_apply find_this_eq_data_decompose gl ty in
+    let eq,u,(t,t1,t2) = find_this_eq_data_decompose env sigma ty in
     (* fetch the informations of the  pair *)
     let sigTconstr   = Rocqlib.(lib_ref "core.sigT.type") in
     let existTconstr = Rocqlib.lib_ref    "core.sigT.intro" in
@@ -1349,13 +1350,13 @@ let inject_if_homogenous_dependent_pair ty =
         hd2,ar2 = decompose_app sigma t2 in
     if not (isRefX env sigma existTconstr hd1) then raise_notrace Exit;
     if not (isRefX env sigma existTconstr hd2) then raise_notrace Exit;
-    let (ind, _), _ = try Tacmach.pf_apply find_mrectype gl ar1.(0) with Not_found -> raise_notrace Exit in
+    let (ind, _), _ = try find_mrectype env sigma ar1.(0) with Not_found -> raise_notrace Exit in
     (* check if the user has declared the dec principle *)
     (* and compare the fst arguments of the dep pair *)
     (* Note: should work even if not an inductive type, but the table only *)
     (* knows inductive types *)
     if not (Option.has_some (Ind_tables.lookup_scheme (!eq_dec_scheme_kind_name()) ind) &&
-            Tacmach.pf_apply is_conv gl ar1.(2) ar2.(2)) then raise_notrace Exit;
+            is_conv env sigma ar1.(2) ar2.(2)) then raise_notrace Exit;
     let inj2 = match lib_ref_opt "core.eqdep_dec.inj_pair2" with
       | None ->
         warn_inject_no_eqdep_dec (env,ind);
@@ -1647,7 +1648,7 @@ let cutSubstInConcl l2r eqn =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
-  let (lbeq,u,(t,e1,e2)) = Tacmach.pf_apply find_eq_data_decompose gl eqn in
+  let (lbeq,u,(t,e1,e2)) = find_eq_data_decompose env sigma eqn in
   let (e1,e2) = if l2r then (e1,e2) else (e2,e1) in
   let (sigma, (typ, expected)) = subst_tuple_term env sigma e1 e2 concl in
   tclTHEN (Proofview.Unsafe.tclEVARS sigma)
@@ -1663,7 +1664,7 @@ let cutSubstInHyp l2r eqn id =
   Proofview.Goal.enter begin fun gl ->
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
-  let (lbeq,u,(t,e1,e2)) = Tacmach.pf_apply find_eq_data_decompose gl eqn in
+  let (lbeq,u,(t,e1,e2)) = find_eq_data_decompose env sigma eqn in
   let typ = Tacmach.pf_get_hyp_typ id gl in
   let (e1,e2) = if l2r then (e1,e2) else (e2,e1) in
   let (sigma, (typ, expected)) = subst_tuple_term env sigma e1 e2 typ in
@@ -1693,7 +1694,9 @@ let cutSubstClause l2r eqn cls =
 
 let substClause l2r c cls =
   Proofview.Goal.enter begin fun gl ->
-  let eq = Tacmach.pf_apply get_type_of gl c in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
+  let eq = get_type_of env sigma c in
   tclTHENS (cutSubstClause l2r eq cls)
     [Proofview.tclUNIT (); exact_no_check c]
   end
@@ -1867,7 +1870,7 @@ let subst_all ?(flags=default_subst_tactic_flags) () =
     let sigma = Proofview.Goal.sigma gl in
     let c = Tacmach.pf_get_hyp hyp gl |> NamedDecl.get_type in
     try
-      let lbeq,u,(_,x,y) = Tacmach.pf_apply find_eq_data_decompose gl c in
+      let lbeq,u,(_,x,y) = find_eq_data_decompose env sigma c in
       if flags.only_leibniz then restrict_to_eq_and_identity env lbeq.eq;
       match EConstr.kind sigma x, EConstr.kind sigma y with
       | Var x, Var y when Id.equal x y ->
@@ -1893,52 +1896,55 @@ let subst_all ?(flags=default_subst_tactic_flags) () =
 (* Rewrite the first assumption for which a condition holds
    and gives the direction of the rewrite *)
 
-let cond_eq_term_left c t gl =
+let cond_eq_term_left env sigma c t =
   try
-    let (_,x,_) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
-    if Tacmach.pf_conv_x gl c x then true else failwith "not convertible"
+    let (_,x,_) = pi3 (find_eq_data_decompose env sigma t) in
+    if Reductionops.is_conv env sigma c x then true else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 
-let cond_eq_term_right c t gl =
+let cond_eq_term_right env sigma c t =
   try
-    let (_,_,x) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
-    if Tacmach.pf_conv_x gl c x then false else failwith "not convertible"
+    let (_,_,x) = pi3 (find_eq_data_decompose env sigma t) in
+    if Reductionops.is_conv env sigma c x then false else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 
-let cond_eq_term c t gl =
+let cond_eq_term env sigma c t =
   try
-    let (_,x,y) = pi3 (Tacmach.pf_apply find_eq_data_decompose gl t) in
-    if Tacmach.pf_conv_x gl c x then true
-    else if Tacmach.pf_conv_x gl c y then false
+    let (_,x,y) = pi3 (find_eq_data_decompose env sigma t) in
+    if Reductionops.is_conv env sigma c x then true
+    else if Reductionops.is_conv env sigma c y then false
     else failwith "not convertible"
   with Constr_matching.PatternMatchingFailure -> failwith "not an equality"
 
 let rewrite_assumption_cond cond_eq_term cl =
-  let rec arec hyps gl = match hyps with
+  let rec arec env sigma hyps = match hyps with
     | [] -> user_err Pp.(str "No such assumption.")
     | hyp ::rest ->
         let id = NamedDecl.get_id hyp in
         begin
           try
-            let dir = cond_eq_term (NamedDecl.get_type hyp) gl in
+            let dir = cond_eq_term env sigma (NamedDecl.get_type hyp) in
             general_rewrite_clause dir false (mkVar id,NoBindings) cl
-          with | Failure _ | UserError _ -> arec rest gl
+          with | Failure _ | UserError _ -> (* XXX: use options *)
+            arec env sigma rest
         end
   in
   Proofview.Goal.enter begin fun gl ->
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
     let hyps = Proofview.Goal.hyps gl in
-    arec hyps gl
+    arec env sigma hyps
   end
 
 (* Generalize "subst x" to substitution of subterm appearing as an
    equation in the context, but not clearing the hypothesis *)
 
 let replace_term dir_opt c  =
-  let cond_eq_fun =
+  let cond_eq_fun env sigma t =
     match dir_opt with
-      | None -> cond_eq_term c
-      | Some true -> cond_eq_term_left c
-      | Some false -> cond_eq_term_right c
+      | None -> cond_eq_term env sigma c t
+      | Some true -> cond_eq_term_left env sigma c t
+      | Some false -> cond_eq_term_right env sigma c t
   in
   rewrite_assumption_cond cond_eq_fun
 

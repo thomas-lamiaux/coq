@@ -88,8 +88,9 @@ let contradiction_context =
                  Tacticals.tclZEROMSG ~info (Pp.str"Not a negated unit type."))
               (Proofview.tclORELSE
                  (Proofview.Goal.enter begin fun gl ->
-                   let is_conv_leq = Tacmach.pf_apply is_conv_leq gl in
-                   filter_hyp (fun typ -> is_conv_leq typ t)
+                   let sigma = Proofview.Goal.sigma gl in
+                   let env = Proofview.Goal.env gl in
+                   filter_hyp (fun typ -> is_conv_leq env sigma typ t)
                      (fun id' -> simplest_elim (mkApp (mkVar id,[|mkVar id'|])))
                  end)
                  begin function (e, info) -> match e with

@@ -1091,7 +1091,10 @@ let () =
 let () =
   define "goal" (unit @-> tac constr) @@ fun _ ->
   assert_focussed >>= fun () ->
-  Proofview.Goal.enter_one @@ fun gl -> return (Tacmach.pf_nf_concl gl)
+  Proofview.Goal.enter_one @@ fun gl ->
+  let sigma = Proofview.Goal.sigma gl in
+  let concl = Proofview.Goal.concl gl in
+  return (Reductionops.nf_evar sigma concl)
 
 (** ident -> constr *)
 let () =

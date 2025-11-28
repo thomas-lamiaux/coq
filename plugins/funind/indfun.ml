@@ -99,7 +99,7 @@ let functional_induction with_clean c princl pat =
           CErrors.user_err
             (str "functional induction must be used with a function") )
       | Some (princ, binding) ->
-        let sigma, princt = Tacmach.pf_type_of gl princ in
+        let sigma, princt = Typing.type_of env sigma princ in
         Proofview.Unsafe.tclEVARS sigma
         <*> Proofview.tclUNIT (princ, binding, princt, args))
   >>= fun (princ, bindings, princ_type, args) ->

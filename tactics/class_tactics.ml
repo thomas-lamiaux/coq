@@ -244,10 +244,13 @@ let rec e_trivial_fail_db db_list local_db secvars =
     begin fun gl ->
     let env = Proofview.Goal.env gl in
     let sigma = Proofview.Goal.sigma gl in
-    let d = NamedDecl.get_id @@ Tacmach.pf_last_hyp gl in
+    let d = match EConstr.named_context env with
+    | [] -> assert false
+    | d :: _ -> NamedDecl.get_id d
+    in
     let hints = push_resolve_hyp env sigma d local_db in
-      e_trivial_fail_db db_list hints secvars
-      end
+    e_trivial_fail_db db_list hints secvars
+    end
   in
   let trivial_resolve =
     Proofview.Goal.enter begin fun gl ->
@@ -882,7 +885,10 @@ module Search = struct
     let open Proofview in
     let env = Goal.env gl in
     let sigma = Goal.sigma gl in
-    let decl = Tacmach.pf_last_hyp gl in
+    let decl = match EConstr.named_context env with
+    | [] -> assert false
+    | decl :: _ -> decl
+    in
     let ldb =
       make_resolve_hyp env sigma (Hint_db.transparent_state info.search_hints)
                        info.search_only_classes decl info.search_hints in

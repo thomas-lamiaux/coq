@@ -28,6 +28,7 @@ open Tactypes
 open McPrinter
 
 module ERelevance = EConstr.ERelevance
+module NamedDecl = Named.Declaration
 
 (**
   * Debug flag
@@ -1461,10 +1462,12 @@ let pp_q o q =
   Printf.fprintf o "%a/%a" pp_z q.Micromega.qnum pp_positive q.Micromega.qden
 
 
-let rec parse_hyps (genv, sigma) parse_arith env tg (hyps:(Names.Id.t * EConstr.types) list) =
+let rec parse_hyps (genv, sigma) parse_arith env tg hyps =
   match hyps with
   | [] -> ([], env, tg)
-  | (i, t) :: l ->
+  | decl :: l ->
+    let i = NamedDecl.get_id decl in
+    let t = NamedDecl.get_type decl in
     let lhyps, env, tg = parse_hyps (genv, sigma) parse_arith env tg l in
     if is_prop genv sigma t then
       try
@@ -1473,7 +1476,7 @@ let rec parse_hyps (genv, sigma) parse_arith env tg (hyps:(Names.Id.t * EConstr.
       with ParseError -> (lhyps, env, tg)
     else (lhyps, env, tg)
 
-let parse_goal gl parse_arith (env : Env.t) (hyps:(Names.Id.t * EConstr.types) list) term =
+let parse_goal gl parse_arith (env : Env.t) hyps term =
   let f, env, tg = parse_formula gl parse_arith env (Tag.from 0) term in
   let lhyps, env, tg = parse_hyps gl parse_arith env tg hyps in
   (lhyps, f, env)
@@ -1906,12 +1909,11 @@ let micromega_gen parse_arith pre_process cnf spec dumpexpr prover tac =
       let sigma = Proofview.Goal.sigma gl in
       let genv = Proofview.Goal.env gl in
       let concl = Proofview.Goal.concl gl in
-      let hyps = Tacmach.pf_hyps_types gl in
       try
         let hyps, concl, env =
           parse_goal (genv, sigma) parse_arith
             (Env.empty (genv, sigma))
-            hyps concl
+            (EConstr.named_context genv) concl
         in
         let env = Env.elements env in
         let spec = Lazy.force spec in
@@ -2038,12 +2040,11 @@ let micromega_genr prover tac =
       let sigma = Proofview.Goal.sigma gl in
       let genv = Proofview.Goal.env gl in
       let concl = Proofview.Goal.concl gl in
-      let hyps = Tacmach.pf_hyps_types gl in
       try
         let hyps, concl, env =
           parse_goal (genv, sigma) parse_arith
             (Env.empty (genv, sigma))
-            hyps concl
+            (EConstr.named_context genv) concl
         in
         let env = Env.elements env in
         let spec = Lazy.force spec in

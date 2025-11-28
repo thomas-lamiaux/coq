@@ -29,8 +29,10 @@ let eauto_unif_flags = auto_flags_of_state TransparentState.full
 
 let e_give_exact ?(flags=eauto_unif_flags) c =
   Proofview.Goal.enter begin fun gl ->
-  let sigma, t1 = Tacmach.pf_type_of gl c in
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   let concl = Proofview.Goal.concl gl in
+  let sigma, t1 = Typing.type_of env sigma c in
   if occur_existential sigma t1 || occur_existential sigma concl then
     Tacticals.tclTHENLIST
       [Proofview.Unsafe.tclEVARS sigma;
@@ -101,8 +103,13 @@ let e_exact flags h =
 
 let rec e_trivial_fail_db db_list local_db =
   let next = Proofview.Goal.enter begin fun gl ->
-    let d = NamedDecl.get_id @@ Tacmach.pf_last_hyp gl in
-    let local_db = push_resolve_hyp (Proofview.Goal.env gl) (Proofview.Goal.sigma gl) d local_db in
+    let env = Proofview.Goal.env gl in
+    let sigma = Proofview.Goal.sigma gl in
+    let d = match EConstr.named_context env with
+    | [] -> assert false
+    | d :: _ -> NamedDecl.get_id d
+    in
+    let local_db = push_resolve_hyp env sigma d local_db in
     e_trivial_fail_db db_list local_db
   end in
   Proofview.Goal.enter begin fun gl ->

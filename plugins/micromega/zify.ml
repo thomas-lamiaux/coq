@@ -801,13 +801,15 @@ module CstrTable = struct
      *)
   let gen_cstr table =
     Proofview.Goal.enter (fun gl ->
+        let env = Proofview.Goal.env gl in
         let evd = Proofview.Goal.sigma gl in
         (* Build the table of existing hypotheses *)
         let has_hyp =
           let hyps_table = HConstr.create 20 in
-          List.iter
-            (fun (_, (t : EConstr.types)) -> HConstr.add hyps_table t ())
-            (Tacmach.pf_hyps_types gl);
+          let () = List.iter
+            (fun decl -> HConstr.add hyps_table (NamedDecl.get_type decl) ())
+            (EConstr.named_context env)
+          in
           fun c ->
             let m = HConstr.mem hyps_table c in
             if not m then HConstr.add hyps_table c ();
@@ -1535,10 +1537,10 @@ let rec interp_pscripts l =
 
 let spec_of_hyps =
   Proofview.Goal.enter (fun gl ->
-      let concl = Proofview.Goal.concl gl in
-      let terms = concl :: List.map snd (Tacmach.pf_hyps_types gl) in
       let env = Proofview.Goal.env gl in
+      let concl = Proofview.Goal.concl gl in
       let evd = Proofview.Goal.sigma gl in
+      let terms = concl :: List.map NamedDecl.get_type (EConstr.named_context env) in
       let s = fresh_subscript env in
       let env =
         List.fold_left
@@ -1559,7 +1561,9 @@ let find_hyp evd t l =
 
 let find_proof evd t l =
   if EConstr.eq_constr evd t (Lazy.force op_True) then Some (Lazy.force op_I)
-  else find_hyp evd t l
+  else
+    let l = List.map (fun decl -> NamedDecl.get_id decl, NamedDecl.get_type decl) l in
+    find_hyp evd t l
 
 (** [sat_constr env evd sub taclist hyps c d]= (sub',taclist',hyps') where
     -  sub' is a fresh subscript obtained from sub
@@ -1609,9 +1613,9 @@ let saturate =
       init_cache ();
       let table = CstrTable.HConstr.create 20 in
       let concl = Proofview.Goal.concl gl in
-      let hyps = Tacmach.pf_hyps_types gl in
-      let evd = Proofview.Goal.sigma gl in
       let env = Proofview.Goal.env gl in
+      let hyps = EConstr.named_context env in
+      let evd = Proofview.Goal.sigma gl in
       let rec sat t =
         match EConstr.kind evd t with
         | App (c, args) ->
@@ -1630,7 +1634,7 @@ let saturate =
       in
       (* Collect all the potential saturation lemma *)
       sat concl;
-      List.iter (fun (_, t) -> sat t) hyps;
+      let () = List.iter (fun decl -> sat (NamedDecl.get_type decl)) hyps in
       let s0 = fresh_subscript env in
       let (_,tacs,_) = CstrTable.HConstr.fold (fun c d acc -> sat_constr env evd hyps acc c d) table (s0,[],[]) in
       Tacticals.tclTHENLIST tacs)

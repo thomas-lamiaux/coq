@@ -511,6 +511,7 @@ let treat_new_case ptes_infos nb_prod continue_tac term dyn_infos =
                     (Proofview.Goal.enter (fun g' ->
                          let env = Proofview.Goal.env g' in
                          let sigma = Proofview.Goal.sigma g' in
+                         let concl = Proofview.Goal.concl g' in
                          (* We get infos on the equations introduced*)
                          let new_term_value_eq =
                            Tacmach.pf_get_hyp_typ heq_id g'
@@ -522,7 +523,7 @@ let treat_new_case ptes_infos nb_prod continue_tac term dyn_infos =
                            | _ ->
                              observe
                                (fun () -> str "cannot compute new term value : "
-                               ++ Tacmach.pr_gls g' ++ fnl ()
+                               ++ Termops.Internal.print_constr_env env sigma concl ++ fnl ()
                                ++ str "last hyp is"
                                ++ pr_leconstr_env env sigma new_term_value_eq );
                              anomaly (Pp.str "cannot compute new term value.")
@@ -643,12 +644,12 @@ let build_proof (interactive_proof : bool) (fnames : Constant.t list) ptes_infos
           | Prod _ ->
             tclTHEN intro
               (Proofview.Goal.enter (fun g' ->
+                   let env = Proofview.Goal.env g' in
+                   let sigma = Proofview.Goal.sigma g' in
                    let open Context.Named.Declaration in
-                   let id = Tacmach.pf_last_hyp g' |> get_id in
+                   let id = get_id @@ List.hd @@ Environ.named_context env in
                    let new_term =
-                     Reductionops.nf_betaiota (Proofview.Goal.env g')
-                       (Proofview.Goal.sigma g')
-                       (mkApp (dyn_infos.info, [|mkVar id|]))
+                     Reductionops.nf_betaiota env sigma (mkApp (dyn_infos.info, [|mkVar id|]))
                    in
                    let new_infos = {dyn_infos with info = new_term} in
                    let do_prove new_hyps =
