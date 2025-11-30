@@ -166,7 +166,7 @@ struct
 
   let rec list_mapi (f : int -> 'a -> 'b t) (l : 'a list) : 'b list t =
     fun s ->
-    let (acc, sigma) =
+    let (acc, s) =
       List.fold_right_i (fun i c (acc, s) ->
         let (sigma, t) = (f i c) s in
         (t::acc, update_sigma s sigma)
@@ -254,9 +254,9 @@ let fold_left_state_3 f l tp cc =
 (*                             Operations                                     *)
 (* ************************************************************************** *)
 
-let fresh_global ref s =
-  let (sigma, t) = fresh_global s.env s.sigma ref in
-  return t (update_sigma s sigma)
+let fresh_global ref =
+  let* t = fun s -> fresh_global s.env s.sigma ref in
+  return t
 
 let whd_decompose_prod_decls t =
   let* env = get_env in
