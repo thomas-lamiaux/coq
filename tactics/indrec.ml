@@ -415,9 +415,13 @@ let eta_expand_instantiation env sigma inst tel =
   let rec aux inst tel subst =
   match inst, tel with
   | t::inst, decl::tel ->
-      let ty = substl subst @@ get_type decl in
-      let eta_t = Reductionops.eta_expand env sigma t ty in
-      aux inst tel (eta_t::subst)
+    begin
+      match get_value decl with
+      | Some bd -> aux inst tel (bd::subst)
+      | None -> let ty = substl subst @@ get_type decl in
+                let eta_t = Reductionops.eta_expand env sigma t ty in
+                aux inst tel (eta_t::subst)
+    end
   | [], [] -> subst
   | _, _ -> assert false
   in
@@ -683,7 +687,7 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
   let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
   let is_rec = let (_, ind, _, _) = List.hd ind_bodies in
-    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) || true in
+    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) in
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
     (* Doe not create a fix if it is not-recursive and only has one inductive body *)
     if is_rec
