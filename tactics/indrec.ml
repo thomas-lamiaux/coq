@@ -672,6 +672,8 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
   dbg Pp.(fun () -> str "\n------------------------------------------------------------- \n"
     ++ str "DEBUBG TERM: " ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
 
+  let t =
+
   (* 1. Closure Uparams / preds / ctors *)
   let@ (key_uparams, _, _) = closure_uparams Lambda naming_hd_fresh uparams in
   let@ key_preds = closure_preds kn u ind_bodies Lambda key_uparams nuparams in
@@ -709,10 +711,10 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
     let* cfix = compute_args_fix kn mdecl ind_bodies pos_list key_preds key_fixs key_args in
     let* xnup = get_terms key_nuparams in
     let args = xnup @ cfix in
-    let* env = get_env in
     return @@ mkApp (hyp, Array.of_list args)
   in
   (* 6. If it is not-recursive, has primitive projections and is dependent => add a cast *)
+  let* env = get_env in
   let projs = Environ.get_projections env (kn, pos_ind) in
   if is_rec || Option.is_empty projs || not dep then
     ccl
@@ -720,6 +722,11 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
     let* ty = make_ccl key_preds pos_list dep key_nuparams key_indices key_VarMatch in
     let* ccl = ccl in
     return @@ mkCast (ccl, DEFAULTcast, ty)
+
+  in
+  fun s -> let (sigma, t) = t s in
+  dbg Pp.(fun () -> print_constr env sigma t ++ str "\n");
+  (sigma, t)
 
 (**********************************************************************)
 (* build the eliminators mutual and individual *)
