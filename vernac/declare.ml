@@ -2200,14 +2200,12 @@ let close_proof ?warn_incomplete ~opaque ~keep_body_ucst_separate (proof : t) : 
   ; pinfo = proof.pinfo
   }) ()
 
-let close_proof_delayed ~feedback_id proof (fpl : closed_proof_output Future.computation) : Proof_object.t =
+let close_future_proof ~feedback_id proof (fpl : closed_proof_output Future.computation) : Proof_object.t =
   { Proof_object.proof_object =
       DeferredOpaqueProof { deferred_proof = fpl; using = proof.using; initial_proof_data = Proof.data proof.proof;
                           feedback_id; initial_euctx = proof.initial_euctx }
   ; pinfo = proof.pinfo
   }
-
-let close_future_proof = close_proof_delayed
 
 let update_sigma_univs ugraph p =
   map ~f:(Proof.update_sigma_univs ugraph) p
