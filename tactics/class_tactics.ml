@@ -919,7 +919,7 @@ module Search = struct
     let tac sigma gls i =
       Goal.enter begin fun gl ->
         let i = succ i in
-        let dep = dep || Proofview.unifiable sigma (Goal.goal gl) gls in
+        let dep = dep || Proofview.unifiable (Goal.sigma gl) (Goal.goal gl) gls in
         let info = make_autogoal mst only_classes dep (cut_of_hints hints) best_effort i gl in
         search_tac hints depth 1 info
       end
