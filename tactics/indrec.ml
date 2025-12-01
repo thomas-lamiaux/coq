@@ -686,6 +686,7 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
   let fix_name pos_list (_,_,_,sort) = make_annot (Name (Id.of_string "F")) (relevance_of_sort sort) in
   let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
+  List.iter (fun (pos_ind, ind, dep, sort) -> dbg Pp.(fun () -> str "debug pos ind: " ++ Pp.int pos_ind)) ind_bodies;
   let is_rec = let (_, ind, _, _) = List.hd ind_bodies in
     List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) in
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
@@ -694,6 +695,7 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
     then make_fix ind_bodies focus fix_rarg fix_name fix_type
     else begin dbg Pp.(fun () -> str "TAKEN BUG"); fun cc -> cc ([], 0, List.hd ind_bodies) end in
   (* 3. Closure Nuparams / Indices / Var *)
+  dbg Pp.(fun () -> str "FIX debug pos ind: " ++ Pp.int pos_ind);
   let@ (key_nuparams, _, _) = closure_nuparams Lambda naming_hd_fresh nuparams in
   let@ (key_indices , _, _) = closure_indices Lambda naming_hd_fresh ind u in
   let name_ind = make_annot Anonymous (ind_relevance ind u) in

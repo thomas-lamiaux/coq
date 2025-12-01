@@ -164,15 +164,22 @@ struct
 
 (** {6 Access Functions } *)
 
+let fold_right_ibis f i l =
+  let rec it_f i l a = match l with
+    | [] -> a
+    | b :: l -> f i b (it_f (i+1) l a)
+  in
+  it_f i l
+
   let rec list_mapi (f : int -> 'a -> 'b t) (l : 'a list) : 'b list t =
     fun s ->
     let (acc, s) =
-      List.fold_right_i (fun i c (acc, s) ->
+      fold_right_ibis (fun i c (acc, s) ->
         let (sigma, t) = (f i c) s in
         (t::acc, update_sigma s sigma)
         ) 0 l ([],s)
     in
-    return (List.rev acc) s
+    return acc s
 
   let array_mapi (f : int -> 'a -> 'b t) (ar : 'a array) : ('b array) t =
     fun s ->
