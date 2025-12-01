@@ -474,8 +474,6 @@ val definition_message : Id.t -> unit
 val assumption_message : Id.t -> unit
 val fixpoint_message : int array option -> Id.t list -> unit
 
-val check_exists : Id.t -> unit
-
 (** Semantics of this function is a bit dubious, use with care *)
 val build_by_tactic
   :  Environ.env
