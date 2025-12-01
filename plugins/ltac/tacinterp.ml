@@ -302,7 +302,7 @@ let coerce_to_tactic loc id v =
 
 let intro_pattern_of_ident id = CAst.make @@ IntroNaming (IntroIdentifier id)
 let value_of_ident id =
-  in_gen (topwit wit_intro_pattern) (intro_pattern_of_ident id)
+  in_gen (topwit wit_intropattern) (intro_pattern_of_ident id)
 
 let (+++) lfun1 lfun2 = Id.Map.fold Id.Map.add lfun1 lfun2
 
@@ -502,8 +502,8 @@ let rec intropattern_ids accu {loc;v=pat} = match pat with
 
 let extract_ids ids lfun accu =
   let fold id v accu =
-    if has_type v (topwit wit_intro_pattern) then
-      let {v=ipat} = out_gen (topwit wit_intro_pattern) v in
+    if has_type v (topwit wit_intropattern) then
+      let {v=ipat} = out_gen (topwit wit_intropattern) v in
       if Id.List.mem id ids then accu
       else intropattern_ids accu (CAst.make ipat)
     else accu
@@ -986,8 +986,8 @@ let interp_destruction_arg ist gl arg =
       try
         (* FIXME: should be moved to taccoerce *)
         let v = Id.Map.find id ist.lfun in
-        if has_type v (topwit wit_intro_pattern) then
-          let v = out_gen (topwit wit_intro_pattern) v in
+        if has_type v (topwit wit_intropattern) then
+          let v = out_gen (topwit wit_intropattern) v in
           match v with
           | {v=IntroNaming (IntroIdentifier id)} -> try_cast_id id
           | _ -> error ()
@@ -1298,7 +1298,7 @@ and interp_tacarg ist arg : Val.t Ftactic.t =
         let env = Proofview.Goal.env gl in
         let sigma = Proofview.Goal.sigma gl in
         let id = interp_fresh_id ist env sigma l in
-        Ftactic.return (in_gen (topwit wit_intro_pattern) (CAst.make @@ IntroNaming (IntroIdentifier id)))
+        Ftactic.return (in_gen (topwit wit_intropattern) (CAst.make @@ IntroNaming (IntroIdentifier id)))
       end
   | TacPretype c ->
       Ftactic.enter begin fun gl ->

@@ -290,19 +290,8 @@ end
 
 module Grammar = Register(GrammarObj)
 
-let warn_deprecated_intropattern =
-  CWarnings.create ~name:"deprecated-intropattern-entry" ~category:Deprecation.Version.v8_11
-  (fun () -> Pp.strbrk "Entry name intropattern has been renamed in order \
-  to be consistent with the documented grammar of tactics. Use \
-  \"simple_intropattern\" instead.")
-
-let check_compatibility = function
-  | Genarg.ExtraArg s when ArgT.repr s = "intropattern" -> warn_deprecated_intropattern ()
-  | _ -> ()
-
 let register_grammar = Grammar.register0
 let genarg_grammar x =
-  check_compatibility x;
   Grammar.obj x
 
 let create_generic_entry2 (type a) s (etyp : a raw_abstract_argument_type) : a Entry.t =

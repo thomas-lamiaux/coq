@@ -27,12 +27,6 @@ let wit_open_constr_with_bindings = make0 "open_constr_with_bindings"
 let wit_bindings = make0 "bindings"
 let wit_quantified_hypothesis = wit_quant_hyp
 
-(* A convenient common part to simple_intropattern and intropattern
-   usable when no parsing rule is concerned: indeed
-   simple_intropattern and intropattern are in the same type and have
-   the same interp/intern/subst methods *)
-let wit_intro_pattern = wit_intropattern
-
 let wit_tactic : (raw_tactic_expr, glob_tactic_expr, Val.t) genarg_type =
   make0 "tactic"
 

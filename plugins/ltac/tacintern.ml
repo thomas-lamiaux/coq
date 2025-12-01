@@ -190,7 +190,7 @@ let intern_non_tactic_reference ist qid =
   (* By convention, use IntroIdentifier for unbound ident, when not in a def *)
   if qualid_is_ident qid && not ist.strict_check then
     let id = qualid_basename qid in
-    let ipat = in_gen (glbwit wit_intro_pattern) (make ?loc:qid.CAst.loc @@ IntroNaming (IntroIdentifier id)) in
+    let ipat = in_gen (glbwit wit_intropattern) (make ?loc:qid.CAst.loc @@ IntroNaming (IntroIdentifier id)) in
     TacGeneric (None,ipat)
   else
     (* Reference not found *)
