@@ -591,13 +591,13 @@ let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
   let mk_rocq_true = mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty) in
   let mk_rocq_I = mkRef ((Rocqlib.lib_ref "core.True.I"), EInstance.empty) in
   (* fix predicate *)
-  let mk_fun_true x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_true) in
-  let mk_fun_I x = mkLambda ((make_annot Anonymous ERelevance.relevant), mk_rocq_true, mk_rocq_I) in
+  let mk_fun_True x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_true) in
+  let mk_fun_I x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_I) in
   (* instantiate *)
   List.fold_right (fun (inst_uparam, b, (pred, pred_hold)) acc ->
     if not b then inst_uparam :: acc
     else match pred, pred_hold with
-    | None, None -> inst_uparam :: mk_fun_true inst_uparam :: mk_fun_I inst_uparam :: acc
+    | None, None -> inst_uparam :: mk_fun_True inst_uparam :: mk_fun_I inst_uparam :: acc
     | Some pred, Some pred_hold -> inst_uparam :: pred :: pred_hold :: acc
     | _, _ -> assert false
     )
