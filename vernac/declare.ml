@@ -2684,18 +2684,15 @@ let solve_obligation ?check_final prg num tac =
   let lemma = Option.cata (fun tac -> Proof.set_endline_tactic tac lemma) lemma tac in
   lemma
 
+(** Implements [Solve Obligations of name with tac] *)
 let solve_obligations ~pm n tac =
   let prg = get_unique_prog ~pm n in
-  solve_prg_obligations ~pm prg tac
+  fst (solve_prg_obligations ~pm prg tac)
 
 (** Implements [Solve All Obligations with tac] *)
 let solve_all_obligations ~pm tac =
   State.fold pm ~init:pm ~f:(fun k v pm ->
       solve_prg_obligations ~pm v tac |> fst)
-
-(** Implements [Solve Obligations of name with tac] *)
-let try_solve_obligations ~pm name tac =
-  solve_obligations ~pm name tac |> fst
 
 (** Implements [Obligation n of name with tac] *)
 let obligation (user_num, name) ~pm tac =
@@ -2772,19 +2769,19 @@ let add_definition ~pm ~info ~cinfo ~opaque ~uctx ?body
   in
   let name = CInfo.get_name cinfo in
   let {obls;_} = Internal.get_obligations prg in
-  if Int.equal (Array.length obls) 0 then (
-    Flags.if_verbose (msg_generating_obl name) obls;
-    let pm, cst = Obls_.declare_definition ~pm prg in
-    pm, Defined cst)
+  if Int.equal (Array.length obls) 0 then
+    let () = Flags.if_verbose (msg_generating_obl name) obls in
+    let pm, _cst = Obls_.declare_definition ~pm prg in
+    pm
   else
     let () = Flags.if_verbose (msg_generating_obl name) obls in
     let pm = State.add pm name prg in
     let pm, res = auto_solve_obligations ~pm (Some name) tactic in
-    match res with
-    | Remain rem ->
-      Flags.if_verbose (show_obligations ~pm ~msg:false) (Some name);
-      pm, res
-    | _ -> pm, res
+    let () = match res with
+    | Remain rem -> Flags.if_verbose (show_obligations ~pm ~msg:false) (Some name)
+    | Dependent | Defined _ -> ()
+    in
+    pm
 
 let add_mutual_definitions ~pm ~info ~cinfo ~opaque ~uctx ~bodies ~possible_guard
     ?tactic ?(reduce = reduce) ?using ?obl_hook obls =
@@ -2909,8 +2906,6 @@ let check_solved_obligations =
   Obls_.check_solved_obligations is_empty
 type fixpoint_kind = Obls_.fixpoint_kind =
   | IsFixpoint of lident option list | IsCoFixpoint
-type nonrec progress = progress =
-  | Remain of int | Dependent | Defined of GlobRef.t
 
 end
 

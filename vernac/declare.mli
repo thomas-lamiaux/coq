@@ -544,12 +544,6 @@ type fixpoint_kind = IsFixpoint of lident option list | IsCoFixpoint
 val check_solved_obligations : pm:OblState.t -> what_for:Pp.t -> unit
 val default_tactic : unit Proofview.tactic ref
 
-(** Resolution status of a program *)
-type progress =
-  | Remain of int  (** n obligations remaining *)
-  | Dependent  (** Dependent on other definitions *)
-  | Defined of GlobRef.t  (** Defined as id *)
-
 (** Prepare API, to be removed once we provide the corresponding 1-step API *)
 val prepare_obligations
   :  name:Id.t
@@ -576,7 +570,7 @@ val add_definition :
   -> ?using:Vernacexpr.section_subset_expr
   -> ?obl_hook: OblState.t Hook.g
   -> RetrieveObl.obligation_info
-  -> OblState.t * progress
+  -> OblState.t
 
 (* XXX: unify with MutualEntry *)
 
@@ -610,8 +604,6 @@ val next_obligation :
 
 (** Implementation of the [Solve Obligations of id with tac] command *)
 val solve_obligations :
-  pm:OblState.t -> Names.Id.t option -> unit Proofview.tactic option -> OblState.t * progress
-val try_solve_obligations :
   pm:OblState.t -> Names.Id.t option -> unit Proofview.tactic option -> OblState.t
 
 (** Implementation of the [Solve All Obligations with tac] command *)
