@@ -2284,17 +2284,6 @@ let get_goal_context pf i =
   let p = get pf in
   Proof.get_goal_context_gen p i
 
-let get_current_goal_context pf =
-  let p = get pf in
-  try Proof.get_goal_context_gen p 1
-  with
-  | Proof.NoSuchGoal _ ->
-    (* spiwack: returning empty evar_map, since if there is no goal,
-       under focus, there is no accessible evar either. EJGA: this
-       seems strange, as we have pf *)
-    let env = Global.env () in
-    Evd.from_env env, env
-
 let get_current_context pf =
   let p = get pf in
   Proof.get_proof_context p
