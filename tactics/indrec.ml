@@ -489,8 +489,7 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let u = snd @@ destRef sigma ref_ind in
       let rec_hyp_rev = ind_relevance ind_nested u in
       (* Instantiate param *)
-      let strpos = List.rev mib_nested.mind_params_rec_strpos in
-      let inst_uparams = Array.of_list @@ instantiate_sparam (Array.to_list inst_uparams) strpos (Array.to_list rec_pred) in
+      let inst_uparams = Array.of_list @@ instantiate_sparam (Array.to_list inst_uparams) mib_nested.mind_params_rec_strpos (Array.to_list rec_pred) in
       let* arg = get_term key_arg in
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
@@ -617,7 +616,6 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       | None -> return None
       | Some (pred_pos, _) ->
         (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
-        dbg Pp.(fun () -> str "pred pos: " ++ Pp.int pred_pos ++ str ", nb fixs " ++ Pp.int (List.length key_fixs));
         let@ (key_locals, _, _) = closure_context_sep_opt Lambda Fresh naming_id loc in
         let* kpos = geti_term key_fixs pred_pos in
         let fix = mkApp (kpos, (Array.append inst_nuparams inst_indices)) in
@@ -645,8 +643,8 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* fth = fresh_global ref_fth in
       (* Instantiation *)
-      let strpos = List.rev mib_nested.mind_params_rec_strpos in
-      let inst_uparams = Array.of_list @@ instantiate_fundamental_theorem (Array.to_list inst_uparams) strpos (Array.to_list rec_preds) (Array.to_list rec_preds_hold) in
+      let inst_uparams = Array.of_list @@ instantiate_fundamental_theorem (Array.to_list inst_uparams)
+                          mib_nested.mind_params_rec_strpos (Array.to_list rec_preds) (Array.to_list rec_preds_hold) in
       let* arg = get_term key_arg in
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
@@ -686,16 +684,14 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
   let fix_name pos_list (_,_,_,sort) = make_annot (Name (Id.of_string "F")) (relevance_of_sort sort) in
   let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
-  List.iter (fun (pos_ind, ind, dep, sort) -> dbg Pp.(fun () -> str "debug pos ind: " ++ Pp.int pos_ind)) ind_bodies;
   let is_rec = let (_, ind, _, _) = List.hd ind_bodies in
-    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) in
+    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) || true in
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
     (* Doe not create a fix if it is not-recursive and only has one inductive body *)
     if is_rec
     then make_fix ind_bodies focus fix_rarg fix_name fix_type
     else begin dbg Pp.(fun () -> str "TAKEN BUG"); fun cc -> cc ([], 0, List.hd ind_bodies) end in
   (* 3. Closure Nuparams / Indices / Var *)
-  dbg Pp.(fun () -> str "FIX debug pos ind: " ++ Pp.int pos_ind);
   let@ (key_nuparams, _, _) = closure_nuparams Lambda naming_hd_fresh nuparams in
   let@ (key_indices , _, _) = closure_indices Lambda naming_hd_fresh ind u in
   let name_ind = make_annot Anonymous (ind_relevance ind u) in

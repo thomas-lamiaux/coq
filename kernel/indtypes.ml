@@ -406,8 +406,7 @@ let rec pp_list f l = match l with
   | [a]  -> f a ++ Pp.str "]"
   | a::l -> f a ++ str "; " ++ pp_list f l
 
-let pp_strpos l = Pp.str "[" ++ pp_list Pp.bool (List.rev l)
-
+let pp_strpos l = Pp.str "[" ++ pp_list Pp.bool l
 
 (** [&&] pointwise for lists *)
 let andl = List.map2 (fun a b -> a && b)
@@ -416,23 +415,52 @@ let andl = List.map2 (fun a b -> a && b)
 let andl_array f default ar =
   Array.fold_right (fun x acc -> andl acc (f x)) ar default
 
+(** Check which uniform parameters are arity, unfolding Let-ins, and returns
+    the updated environment and the initial value of strictly positivity     *)
+let init_value env uparams =
+  let rec aux env tel =
+    match tel with
+    | [] -> (env, [])
+    | decl::tel ->
+      match get_value decl with
+      | Some _ -> aux (push_rel decl env) tel
+      | None   -> let ty = whd_all env @@ get_type decl in
+                  let (env, init_value) = aux (push_rel decl env) tel in
+                  (env, isArity ty :: init_value)
+    in
+    aux env (List.rev uparams)
+
 (** Check if the uniform parameters appear in a term *)
-let check_strpos size_uparams env t =
+let check_strpos uparams env t =
   let nenv = List.length @@ Environ.rel_context env in
-  List.init size_uparams (fun i -> noccur_between (nenv - size_uparams + i + 1) 1 t)
+  let rec aux i tel =
+    match tel with
+    | [] -> []
+    | decl::tel ->
+      match get_value decl with
+      | Some _ -> aux (i+1) tel
+      | None   -> noccur_between (nenv - i) 1 t :: aux (i+1) tel
+  in
+  aux 0 (List.rev uparams)
 
 (** Check if the uniform parameters appear in a context  *)
-let check_strpos_context size_uparams env default cxt =
-  List.fold_left (fun (env, acc) decl ->
-    let strpos_decl = check_strpos size_uparams env (get_type decl) in
-    let env = push_rel decl env in
-    (env, andl acc strpos_decl)
-    ) (env, default) cxt
+let check_strpos_context uparams env default cxt =
+  let rec aux env strpos tel =
+    match tel with
+    | [] -> (env, strpos)
+    | decl::tel ->
+        match get_value decl with
+        | Some _ -> aux (push_rel decl env) strpos tel
+        | None   ->
+          let ty = whd_all env @@ get_type decl in
+          let strpos_decl = check_strpos uparams env ty in
+          aux (push_rel decl env) (andl strpos_decl strpos) tel
+  in aux env default (List.rev cxt)
 
 (** Computes which uniform parameters are strictly positive in an argument *)
 let rec compute_params_rec_strpos_arg check_strpos check_strpos_context env kn nparams_rec nparams init_value (arg : constr) : bool list =
   (* strictly positive uniform parameters do not appear on the left of an arrow *)
-  let (local_vars, hd) = decompose_prod_decls arg in
+  let (local_vars, hd) = Reduction.whd_decompose_prod_decls env arg in
   let (env, strpos_local) = check_strpos_context env init_value local_vars in
   (* check the head *)
   let (hd, inst_args) = decompose_app hd in
@@ -476,12 +504,16 @@ let rec compute_params_rec_strpos_arg check_strpos check_strpos_context env kn n
 (** Computes which uniform parameters are strictly positive in a constructor *)
 let compute_params_rec_strpos_ctor check_strpos check_strpos_context env kn nparams_rec nparams init_value (args, hd) =
   (* They must not appear in the left on an arrow in each argument *)
-  let (env, strpos_args) = List.fold_right (
-      fun arg (env, acc) ->
-      let strpos_arg = compute_params_rec_strpos_arg check_strpos check_strpos_context env kn nparams_rec nparams init_value (get_type arg) in
-      let env = push_rel arg env in
-      (env, andl acc strpos_arg)
-    ) args (env, init_value)
+  let (env, strpos_args) =
+    List.fold_right (
+        fun arg (env, acc) ->
+        match get_value arg with
+        | Some _ -> (push_rel arg env, acc)
+        | None   ->
+            let strpos_arg = compute_params_rec_strpos_arg check_strpos check_strpos_context
+                                env kn nparams_rec nparams init_value (get_type arg) in
+          (push_rel arg env, andl acc strpos_arg)
+      ) args (env, init_value)
   in
   (* They must not appear in the instantiation of the indices *)
   let (_, xs) = decompose_app hd in
@@ -505,12 +537,12 @@ let compute_params_rec_strpos_ind check_strpos check_strpos_context env kn npara
     This function can be used whether the inductive is refered using [Rel] or [Ind]. *)
 let compute_params_rec_strpos env kn uparams nuparams nparams_rec nparams inds : bool list =
   dbg_strpos Pp.(fun () -> str "\n------------------------------------------------------------- \n" ++ str (MutInd.to_string kn) ++ str "\n") ;
-  let check_strpos = check_strpos (List.length uparams) in
-  let check_strpos_context = check_strpos_context (List.length uparams) in
+  let check_strpos = check_strpos uparams in
+  let check_strpos_context = check_strpos_context uparams in
   (* They must be arities [forall ..., sort X] *)
-  let init_value = List.map (fun decl -> isArity @@ get_type decl) uparams in (* TO FIX: size should be nparams_rec *)
+  let (env, init_value) = init_value env uparams in
+  dbg_strpos (fun () -> str "Init Value = " ++ pp_strpos init_value);
   (* They must not appear in non-uniform parameters *)
-  let env = push_rel_context uparams env in
   let (env, strpos_nuparams) = check_strpos_context env init_value nuparams in
   (* They must be strictly positive in each inductive block *)
   let strpos_inds = andl_array (compute_params_rec_strpos_ind check_strpos check_strpos_context env kn nparams_rec nparams init_value) init_value inds in

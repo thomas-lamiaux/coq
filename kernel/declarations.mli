@@ -269,7 +269,7 @@ type mutual_inductive_body = {
 
     mind_nparams_rec : int;  (** Number of recursively uniform (i.e. ordinary) parameters *)
 
-    mind_params_rec_strpos : bool list; (** Whether a uniform parameter is uniform or not. Same size as [mind_nparams_rec] *)
+    mind_params_rec_strpos : bool list; (** Whether a uniform parameter is uniform or not. Telescope ordering. Same size as [mind_nparams_rec] *)
 
     mind_params_ctxt : Constr.rel_context;  (** The context of parameters (includes let-in declaration) *)
 
