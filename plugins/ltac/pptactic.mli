@@ -162,4 +162,4 @@ val ltop : entry_relative_level
 val make_constr_printer : (env -> Evd.evar_map -> entry_relative_level -> 'a -> Pp.t) ->
   'a Genprint.top_printer
 
-val ssr_loaded_hook : (unit -> bool) -> unit
+val ssr_loaded : unit -> bool

@@ -51,12 +51,8 @@ open Libobject
 (* some caching, repeating the test only when the environment changes.  *)
 (*   We check for protect_term because it is the first constant loaded; *)
 (* ssr_have would ultimately be a better choice.                        *)
-let ssr_loaded = Summary.ref ~name:"SSR:loaded" false
-let is_ssr_loaded () =
-  !ssr_loaded ||
-  (if CLexer.is_keyword (Procq.get_keyword_state()) "SsrSyntax_is_Imported" then ssr_loaded:=true;
-   !ssr_loaded)
-let () = Pptactic.ssr_loaded_hook is_ssr_loaded
+
+let is_ssr_loaded = Pptactic.ssr_loaded
 
 }
 
