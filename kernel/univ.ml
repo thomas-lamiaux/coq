@@ -538,3 +538,50 @@ let univ_level_rem u v min =
   | None -> List.filter (fun (l, n) -> not (Int.equal n 0 && Level.equal u l)) v
 
 (* Is u mentioned in v (or equals to v) ? *)
+
+module ContextSet =
+struct
+  type t = Level.Set.t * UnivConstraints.t
+
+  let empty = (Level.Set.empty, UnivConstraints.empty)
+  let is_empty (univs, cst) = Level.Set.is_empty univs && UnivConstraints.is_empty cst
+
+  let equal (univs, cst as x) (univs', cst' as y) =
+    x == y || (Level.Set.equal univs univs' && UnivConstraints.equal cst cst')
+
+  let of_set s = (s, UnivConstraints.empty)
+  let singleton l = of_set (Level.Set.singleton l)
+
+  let union (univs, cst as x) (univs', cst' as y) =
+    if x == y then x
+    else Level.Set.union univs univs', UnivConstraints.union cst cst'
+
+  let append (univs, cst) (univs', cst') =
+    let univs = Level.Set.fold Level.Set.add univs univs' in
+    let cst = UnivConstraints.fold UnivConstraints.add cst cst' in
+    (univs, cst)
+
+  let diff (univs, cst) (univs', cst') =
+    Level.Set.diff univs univs', UnivConstraints.diff cst cst'
+
+  let add_universe u (univs, cst) =
+    Level.Set.add u univs, cst
+
+  let add_constraints cst' (univs, cst) =
+    univs, UnivConstraints.union cst cst'
+
+  let pr prl (univs, cst as ctx) =
+    if is_empty ctx then mt() else
+      hov 0 (h (Level.Set.pr prl univs ++ str " |=") ++ brk(1,2) ++ h (UnivConstraints.pr prl cst))
+
+  let constraints (_univs, cst) = cst
+  let levels (univs, _cst) = univs
+
+  let size (univs,_) = Level.Set.cardinal univs
+
+  let hcons (v,c) =
+    let hv, v = Level.Set.hcons v in
+    let hc, c = UnivConstraints.hcons c in
+    Hashset.Combine.combine hv hc, (v, c)
+
+end

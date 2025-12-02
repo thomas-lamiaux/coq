@@ -198,3 +198,44 @@ type 'a constraint_function = 'a -> 'a -> UnivConstraints.t -> UnivConstraints.t
 
 val enforce_eq_level : Level.t constraint_function
 val enforce_leq_level : Level.t constraint_function
+
+(** Universe contexts (as sets) *)
+
+(** A set of universes with universe UnivConstraints.t.
+    We linearize the set to a list after typechecking.
+    Beware, representation could change.
+*)
+
+module ContextSet :
+sig
+  type t = Level.Set.t * UnivConstraints.t
+
+  val empty : t
+  val is_empty : t -> bool
+
+  val singleton : Level.t -> t
+  val of_set : Level.Set.t -> t
+
+  val equal : t -> t -> bool
+  val union : t -> t -> t
+
+  val append : t -> t -> t
+  (** Variant of {!union} which is more efficient when the left argument is
+      much smaller than the right one. *)
+
+  val diff : t -> t -> t
+  val add_universe : Level.t -> t -> t
+  val add_constraints : UnivConstraints.t -> t -> t
+
+  val constraints : t -> UnivConstraints.t
+  val levels : t -> Level.Set.t
+
+  val size : t -> int
+  (** The number of universes in the context *)
+
+  val hcons : t Hashcons.f
+
+  val pr : (Level.t -> Pp.t) -> t -> Pp.t
+
+
+end
