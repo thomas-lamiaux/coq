@@ -114,7 +114,7 @@ let build_branch_type env sigma dep p cs =
 let paramdecls_fresh_template sigma (mib,u) =
   match mib.mind_template with
   | None ->
-    let params = Inductive.inductive_paramdecls (mib, EConstr.Unsafe.to_instance u) in
+    let params = Inductive.inductive_paramdecls (mib, EConstr.EInstance.kind sigma u) in
     sigma, EConstr.of_rel_context params
   | Some templ ->
     assert (EConstr.EInstance.is_empty u);
@@ -362,7 +362,9 @@ let find_opt_pos p l =
   in aux 0 l
 
 (* relevance *)
-let ind_relevance ind u = ERelevance.make @@ relevance_of_ind_body ind (EConstr.Unsafe.to_instance u)
+let ind_relevance ind u =
+  let* sigma = get_sigma in
+  return @@ ERelevance.make @@ relevance_of_ind_body ind (EConstr.EInstance.kind sigma u)
 
 (* Closure for indices must be fresh as it is not in the context of the arguments *)
 let closure_indices binder naming_scheme indb u f =
@@ -385,7 +387,8 @@ let make_type_pred kn u (pos_ind, ind, dep, sort) key_uparams nuparams =
   (* NOT DEP: return the sort *)
   if not dep then return  @@ mkSort sort else
   (* DEP: bind the inductive, and return the sort *)
-  let name_ind = make_annot Anonymous (ind_relevance ind u) in
+  let* rev_ind = (ind_relevance ind u) in
+  let name_ind = make_annot Anonymous rev_ind in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
   let@ _ = make_binder Prod naming_hd_fresh name_ind tind in
   return @@ mkSort sort
@@ -487,7 +490,7 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       (* ----------- *)
       let* sigma = get_sigma in
       let u = snd @@ destRef sigma ref_ind in
-      let rec_hyp_rev = ind_relevance ind_nested u in
+      let* rec_hyp_rev = ind_relevance ind_nested u in
       (* Instantiate param *)
       let inst_uparams = Array.of_list @@ instantiate_sparam (Array.to_list inst_uparams) mib_nested.mind_params_rec_strpos (Array.to_list rec_pred) in
       let* arg = get_term key_arg in
@@ -567,7 +570,8 @@ let make_return_type kn u ind_bodies focus key_uparams nuparams key_preds =
   let (pos_ind, ind, dep, sort) = List.nth ind_bodies focus in
   let@ (key_nuparams, _, _) = closure_nuparams Prod naming_hd_fresh nuparams in
   let@ (key_indices , _, _) = closure_indices Prod naming_hd_fresh ind u in
-  let name_ind = make_annot Anonymous (ind_relevance ind u) in
+  let* rev_ind = ind_relevance ind u in
+  let name_ind = make_annot Anonymous rev_ind in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
   let@ (key_VarMatch) = make_binder Prod naming_hd_fresh name_ind tind in
   make_ccl key_preds focus dep key_nuparams key_indices key_VarMatch
@@ -694,7 +698,8 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
   (* 3. Closure Nuparams / Indices / Var *)
   let@ (key_nuparams, _, _) = closure_nuparams Lambda naming_hd_fresh nuparams in
   let@ (key_indices , _, _) = closure_indices Lambda naming_hd_fresh ind u in
-  let name_ind = make_annot Anonymous (ind_relevance ind u) in
+  let* rev_ind = ind_relevance ind u in
+  let name_ind = make_annot Anonymous rev_ind in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
   let@ key_VarMatch = make_binder Lambda naming_hd_fresh name_ind tind in
   let ccl =
@@ -770,7 +775,7 @@ let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
       let (sigma, uparams, nuparams) = get_params_sep sigma mib u in
       (* Compute eliminators *)
       let elims =
-          list_mapi (fun i _ -> _gen_elim Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind i)
+          list_mapi (fun i _ -> _gen_elim_type Termops.Internal.print_constr_env env sigma (fst mind) u mib uparams nuparams listdepkind i)
                     (List.init (List.length listdepkind) (fun  _ -> 2))
       in
       run env sigma elims
