@@ -99,6 +99,9 @@ sig
   val add_univ_constraints : UnivConstraints.t -> t -> t
   val add_elim_constraints : ElimConstraints.t -> t -> t
   val filter_out_constant_qualities : t -> t
+  val univ_context_set : t -> Univ.ContextSet.t
+  val sort_context_set : t -> Sorts.QContextSet.t
+  val of_univ_context_set : Univ.ContextSet.t -> t
 
   val constraints : t -> pconstraints
   val univ_constraints : t -> UnivConstraints.t

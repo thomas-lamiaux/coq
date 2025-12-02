@@ -202,9 +202,9 @@ let do_universe ~poly l =
   match poly with
   | false ->
     let ctx = List.fold_left (fun ctx (_,qid) -> Level.Set.add (Level.make qid) ctx)
-        Level.Set.empty l, PConstraints.empty
+        Level.Set.empty l, Univ.UnivConstraints.empty
     in
-    Global.push_context_set QGraph.Static ctx
+    Global.push_context_set ctx
   | true ->
     let names = CArray.map_of_list (fun (na,_) -> Name na) l in
     let us = CArray.map_of_list (fun (_,l) -> Level.make l) l in
@@ -229,7 +229,7 @@ let do_sort ~poly l =
     let qs = List.fold_left  (fun qs (_, qv) -> Sorts.QVar.(Set.add (make_global qv) qs))
       Sorts.QVar.Set.empty l
     in
-    Global.push_qualities qs
+    Global.push_qualities QGraph.Static (qs, Sorts.ElimConstraints.empty) (* XXX *)
   | true ->
     let names = CArray.map_of_list (fun (na,_) -> Name na) l in
     let qs = CArray.map_of_list (fun (_,sg) -> Sorts.Quality.global sg) l in
@@ -255,7 +255,8 @@ let do_constraint ~poly l =
   match poly with
   | false ->
     let uctx = ContextSet.add_constraints constraints ContextSet.empty in
-    Global.push_context_set QGraph.Rigid uctx
+    let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set uctx) in (* XXX *)
+    Global.push_context_set (PConstraints.ContextSet.univ_context_set uctx)
   | true ->
     let uctx = UVars.UContext.make
         UVars.empty_bound_names

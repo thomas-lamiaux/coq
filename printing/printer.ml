@@ -295,14 +295,13 @@ let pr_universe_ctx sigma ?variance c =
     mt()
 
 let pr_abstract_universe_ctx sigma ?variance ?priv c =
-  let open PConstraints in
-  let priv = Option.default ContextSet.empty priv in
-  let has_priv = not (ContextSet.is_empty priv) in
+  let priv = Option.default Univ.ContextSet.empty priv in
+  let has_priv = not (Univ.ContextSet.is_empty priv) in
   if !PrintingFlags.print_universes && (not (UVars.AbstractContext.is_empty c) || has_priv) then
     let prqvar u = Termops.pr_evd_qvar sigma u in
     let prlev u = Termops.pr_evd_level sigma u in
     let pub = (if has_priv then str "Public universes:" ++ fnl() else mt()) ++ v 0 (UVars.AbstractContext.pr prqvar prlev ?variance c) in
-    let priv = if has_priv then fnl() ++ str "Private universes:" ++ fnl() ++ v 0 (ContextSet.pr prqvar prlev priv) else mt() in
+    let priv = if has_priv then fnl() ++ str "Private universes:" ++ fnl() ++ v 0 (Univ.ContextSet.pr prlev priv) else mt() in
     fnl()++pr_in_comment (pub ++ priv)
   else
     mt()

@@ -60,13 +60,13 @@ val concat_private : private_constants -> private_constants -> private_constants
     [e1] must be more recent than those of [e2]. *)
 
 val inline_private_constants :
-  Environ.env -> private_constants Entries.proof_output -> Constr.constr PConstraints.in_poly_context_set
+  Environ.env -> private_constants Entries.proof_output -> Constr.constr * Univ.ContextSet.t
 (** Abstract the private constants of a proof over the proof output *)
 
 val push_private_constants : Environ.env -> private_constants -> Environ.env
 (** Push the constants in the environment if not already there. *)
 
-val universes_of_private : private_constants -> PConstraints.ContextSet.t
+val universes_of_private : private_constants -> Univ.ContextSet.t
 
 val constants_of_private : private_constants -> Constant.t list
 
@@ -97,7 +97,7 @@ val add_constant :
 
 (** Similar to add_constant but also returns a certificate *)
 val add_private_constant :
-  Id.t -> PConstraints.ContextSet.t -> side_effect_declaration -> (Constant.t * private_constants) safe_transformer
+  Id.t -> Univ.ContextSet.t -> side_effect_declaration -> (Constant.t * private_constants) safe_transformer
 
 (** {5 Delayed proofs} *)
 
@@ -125,7 +125,7 @@ val is_filled_opaque : Opaqueproof.opaque_handle -> safe_environment -> bool
 
 (** Get the proof term that was checked by the kernel. *)
 val repr_certificate : opaque_certificate ->
-  Constr.t * PConstraints.ContextSet.t Opaqueproof.delayed_universes
+  Constr.t * Univ.ContextSet.t Opaqueproof.delayed_universes
 
 (** {5 Rewrite rules} *)
 
@@ -153,14 +153,14 @@ val add_modtype :
 (** Adding universe constraints *)
 
 val push_context_set :
-  strict:bool -> QGraph.constraint_source -> PConstraints.ContextSet.t -> safe_transformer0
+  strict:bool -> Univ.ContextSet.t -> safe_transformer0
 
 val add_constraints :
-  QGraph.constraint_source -> PConstraints.t -> safe_transformer0
+  Univ.UnivConstraints.t -> safe_transformer0
 
 (** Adding global sort qualities *)
 
-val push_qualities : Sorts.QVar.Set.t -> safe_transformer0
+val push_qualities : QGraph.constraint_source -> Sorts.QContextSet.t -> safe_transformer0
 
 (* (\** Generator of universes *\) *)
 (* val next_universe : int safe_transformer *)
@@ -241,7 +241,7 @@ type compiled_library
 
 val dirpath_of_library : compiled_library -> DirPath.t
 val module_of_library : compiled_library -> Mod_declarations.module_body
-val univs_of_library : compiled_library -> Sorts.QVar.Set.t * PConstraints.ContextSet.t
+val univs_of_library : compiled_library -> Sorts.QContextSet.t * Univ.ContextSet.t
 val check_flags_for_library : compiled_library -> safe_transformer0
 
 val start_library : DirPath.t -> ModPath.t safe_transformer

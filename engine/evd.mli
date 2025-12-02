@@ -416,7 +416,7 @@ val eval_side_effects : evar_map -> side_effects
 
 val push_side_effects :
   ?role:side_effect_role -> ?ts:Conv_oracle.oracle ->
-  Id.t -> Safe_typing.side_effect_declaration -> PConstraints.ContextSet.t ->
+  Id.t -> Safe_typing.side_effect_declaration -> Univ.ContextSet.t ->
   side_effects -> Constant.t * side_effects
 
 (** {6 Accessors} *)

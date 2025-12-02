@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Names
-open PConstraints
 open UVars
 open Cooking
 
@@ -36,7 +35,7 @@ val open_section : custom:'a -> 'a t option -> 'a t
     inside a monomorphic one. A custom data can be attached to this section,
     that will be returned by {!close_section}. *)
 
-val close_section : 'a t -> 'a t option * section_entry list * ContextSet.t * Sorts.QVar.Set.t * 'a
+val close_section : 'a t -> 'a t option * section_entry list * Univ.ContextSet.t * Sorts.QContextSet.t * 'a
 (** Close the current section and returns the entries defined inside, the set
     of global monomorphic constraints added in this section, and the custom data
     provided at the opening of the section. *)
@@ -50,11 +49,11 @@ val push_local_universe_context : UContext.t -> 'a t -> 'a t
 (** Extend the current section with a local universe context. Assumes that the
     last opened section is polymorphic. *)
 
-val push_constraints : ContextSet.t -> 'a t -> 'a t
+val push_level_constraints : Univ.ContextSet.t -> 'a t -> 'a t
 (** Extend the current section with a global universe context.
     Assumes that the last opened section is monomorphic. *)
 
-val push_mono_qualities : Sorts.QVar.Set.t -> 'a t -> 'a t
+val push_mono_qualities : Sorts.QContextSet.t -> 'a t -> 'a t
 (** Extend the current section with a global quality context. *)
 
 val push_global : Environ.env -> poly:bool -> section_entry -> 'a t -> 'a t

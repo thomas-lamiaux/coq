@@ -20,7 +20,6 @@ open Constr
 open Declarations
 open Environ
 open Entries
-open PConstraints
 open UVars
 
 module NamedDecl = Context.Named.Declaration
@@ -71,7 +70,7 @@ let used_section_variables env declared_hyps body typ =
 (* Insertion of constants and parameters in environment. *)
 
 type 'a effect_handler =
-  env -> Constr.t -> 'a -> (Constr.t * ContextSet.t * int)
+  env -> Constr.t -> 'a -> (Constr.t * Univ.ContextSet.t * int)
 
 let skip_trusted_seff sl b e =
   let rec aux sl b e =
@@ -263,16 +262,15 @@ let check_delayed (type a) (handle : a effect_handler) tyenv (body : a proof_out
   let TyCtx (env, tyj, declared, usubst, univs) = tyenv in
   let ((body, uctx), side_eff) = body in
   let (body, uctx', valid_signatures) = handle env body side_eff in
-  let uctx = ContextSet.union uctx uctx' in
+  let uctx = Univ.ContextSet.union uctx uctx' in
   let env, univs = match univs with
     | Monomorphic ->
        assert (UVars.is_empty_sort_subst usubst);
-       push_context_set QGraph.Static uctx env, Opaqueproof.PrivateMonomorphic uctx
+       push_context_set uctx env, Opaqueproof.PrivateMonomorphic uctx
     | Polymorphic _ ->
-       assert (Int.equal valid_signatures 0);
-       push_subgraph uctx env,
-       let private_univs = on_snd (subst_univs_constraints usubst) uctx in
-       Opaqueproof.PrivatePolymorphic private_univs
+       let () = assert (Int.equal valid_signatures 0) in
+       let private_univs = on_snd (fun cst -> subst_univs_constraints (snd usubst) cst) uctx in
+       push_subgraph uctx env, Opaqueproof.PrivatePolymorphic private_univs
   in
   (* Note: non-trivial trusted side-effects only in monomorphic case *)
   let hbody = HConstr.of_constr env body in

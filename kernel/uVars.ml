@@ -337,7 +337,8 @@ struct
   let sort_qualities a =
     Array.sort Quality.compare a; a
 
-  let of_context_set f qctx (levels, csts) =
+  let of_context_set f ((qctx, qcst), (levels, lcst)) =
+    let csts = (qcst, lcst) in
     let qctx = sort_qualities
         (Array.map_of_list (fun q -> Quality.QVar q)
            (Sorts.QVar.Set.elements qctx))
@@ -346,7 +347,7 @@ struct
     let inst = Instance.of_array (qctx, levels) in
     (f inst, (inst, csts))
 
-  let to_context_set (_, (inst, csts)) =
+  let to_context_set (_, (inst, (qcsts, lcsts))) =
     let qs, us = Instance.to_array inst in
     let us = Array.fold_left (fun acc x -> Level.Set.add x acc) Level.Set.empty us in
     let qs = Array.fold_left (fun acc -> function
@@ -355,7 +356,7 @@ struct
         Sorts.QVar.Set.empty
         qs
     in
-    qs, (us, csts)
+    (qs, qcsts), (us, lcsts)
 
 end
 
@@ -457,11 +458,16 @@ let subst_univs_elim_constraint subst (q1,k,q2) =
   let q2 = subst_sort_level_quality subst q2 in
   (q1,k,q2)
 
-let subst_univs_constraints (qsubst,usubst) csts =
-  PConstraints.fold
-    ( (fun c -> Sorts.ElimConstraints.add (subst_univs_elim_constraint qsubst c))
-    , (fun c -> Option.fold_right UnivConstraints.add (subst_univs_level_constraint usubst c)))
-    csts PConstraints.empty
+let subst_univs_constraints usubst uctx =
+  let fold c accu = Option.fold_right UnivConstraints.add (subst_univs_level_constraint usubst c) accu in
+  Univ.UnivConstraints.fold fold uctx Univ.UnivConstraints.empty
+
+let subst_elim_constraints qsubst qctx =
+  let fold c accu = Sorts.ElimConstraints.add (subst_univs_elim_constraint qsubst c) accu in
+  Sorts.ElimConstraints.fold fold qctx Sorts.ElimConstraints.empty
+
+let subst_poly_constraints (qsubst, usubst) (qctx, uctx) =
+  (subst_elim_constraints qsubst qctx, subst_univs_constraints usubst uctx)
 
 (** Pretty-printing *)
 
@@ -491,7 +497,7 @@ let subst_instance_sort_level_subst s (i : sort_level_subst) =
   if qs' == qs && us' == us then i else (qs', us')
 
 let subst_univs_level_abstract_universe_context subst (inst, csts) =
-  inst, subst_univs_constraints subst csts
+  inst, subst_poly_constraints subst csts
 
 let subst_sort_level_qvar (qsubst,_) qv =
   match Sorts.QVar.Map.find_opt qv qsubst with
@@ -533,7 +539,7 @@ let abstract_universes uctx =
   let nas = UContext.names uctx in
   let instance = UContext.instance uctx in
   let subst = make_instance_subst instance in
-  let cstrs = subst_univs_constraints subst (UContext.constraints uctx)
+  let cstrs = subst_poly_constraints subst (UContext.constraints uctx)
   in
   let ctx = (nas, cstrs) in
   instance, ctx

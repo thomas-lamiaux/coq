@@ -41,7 +41,7 @@ let template_default_univs () = !template_default_univs
 module UnivFlex = UnivFlex
 
 type universes_entry =
-| Monomorphic_entry of PConstraints.ContextSet.t
+| Monomorphic_entry of PConstraints.ContextSet.t (* FIXME: this should be Univ.ContextSet.t *)
 | Polymorphic_entry of UVars.UContext.t
 
 module UNameMap = Id.Map
@@ -474,7 +474,8 @@ let compute_instance_binders uctx inst =
 
 let context uctx =
   let qvars = QState.undefined uctx.sort_variables in
-  UContext.of_context_set (compute_instance_binders uctx) qvars uctx.local
+  let (uvars, (qcst, ucst)) = uctx.local in
+  UContext.of_context_set (compute_instance_binders uctx) ((qvars, qcst), (uvars, ucst))
 
 type named_universes_entry = universes_entry * UnivNames.universe_binders
 
@@ -1120,11 +1121,12 @@ let check_mono_sort_poly_decl uctx decl =
     if not decl.sort_poly_decl_extensible_instance
     then check_universe_context_set ~prefix levels uctx.names
   in
-  if decl.sort_poly_decl_extensible_constraints then uctx.local
+  (* FIXME: check sort constraints from decl.sort_poly_decl_elim_constraints *)
+  if decl.sort_poly_decl_extensible_constraints then PConstraints.ContextSet.univ_context_set uctx.local
   else begin
     check_implication uctx
       (sort_poly_decl_csts decl) csts;
-    levels, (decl.sort_poly_decl_elim_constraints,decl.sort_poly_decl_univ_constraints)
+    levels, decl.sort_poly_decl_univ_constraints
   end
 
 let check_sort_poly_univ_decl uctx decl =
@@ -1156,7 +1158,8 @@ let check_sort_poly_decl ~poly uctx decl =
   let (binders, _) = uctx.names in
   let entry =
     if poly then Polymorphic_entry (check_sort_poly_univ_decl uctx decl)
-    else Monomorphic_entry (check_mono_sort_poly_decl uctx decl) in
+    else Monomorphic_entry (PConstraints.ContextSet.of_univ_context_set (check_mono_sort_poly_decl uctx decl)) (* XXX *)
+  in
   entry, binders
 
 let restrict_universe_context (univs, csts) keep =
@@ -1272,7 +1275,7 @@ let merge_sort_context ?loc ~sideff rigid src uctx ((qvars,levels),csts) =
   let uctx = merge_sort_variables ?loc ~sideff uctx src qvars (PConstraints.qualities csts) in
   merge ?loc ~sideff rigid uctx (levels,csts)
 
-let demote_global_univs (lvl_set,(_,univ_csts)) uctx =
+let demote_global_univs (lvl_set, univ_csts) uctx =
   let (local_univs, local_constraints) = uctx.local in
   let local_univs = Level.Set.diff local_univs lvl_set in
   let univ_variables = Level.Set.fold UnivFlex.remove lvl_set uctx.univ_variables in
@@ -1290,7 +1293,8 @@ let demote_global_univs (lvl_set,(_,univ_csts)) uctx =
   { uctx with local = (local_univs, local_constraints); univ_variables; universes; initial_universes }
 
 let demote_global_univ_entry entry uctx = match entry with
-  | Monomorphic_entry entry -> demote_global_univs entry uctx
+  | Monomorphic_entry (uvars, (_, ucst)) ->
+    demote_global_univs (uvars, ucst) uctx
   | Polymorphic_entry _ -> uctx
 
 (* Check bug_4363 bug_6323 bug_3539 and success/rewrite lemma l1

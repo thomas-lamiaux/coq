@@ -835,7 +835,8 @@ module Declared = struct
 end
 
 let declare_structure (decl:Record_decl.t) ~schemes =
-  Global.push_context_set QGraph.Rigid decl.entry.global_univs;
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set decl.entry.global_univs) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set decl.entry.global_univs) in
   (* XXX no implicit arguments for constructors? *)
   let impls = List.make (List.length decl.entry.mie.mind_entry_inds) (decl.entry.param_impls, []) in
   let default_dep_elim = List.map (fun x -> x.RecordEntry.default_dep_elim) decl.entry.ind_infos in

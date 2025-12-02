@@ -185,7 +185,7 @@ val merge : ?loc:Loc.t -> sideff:bool -> rigid -> t -> PConstraints.ContextSet.t
 val merge_sort_variables : ?loc:Loc.t -> sideff:bool -> t -> QGraph.constraint_source -> Sorts.QVar.Set.t -> Sorts.ElimConstraints.t -> t
 val merge_sort_context : ?loc:Loc.t -> sideff:bool -> rigid -> QGraph.constraint_source -> t -> UnivGen.sort_context_set -> t
 
-val demote_global_univs : PConstraints.ContextSet.t -> t -> t
+val demote_global_univs : Univ.ContextSet.t -> t -> t
 (** After declaring global universes, call this if you want to keep using the UState.
 
     Removes from the uctx_local part of the UState the universes
@@ -270,7 +270,7 @@ val check_sort_poly_decl : poly:bool -> t -> sort_poly_decl -> named_universes_e
 val check_sort_poly_decl_rev : t -> sort_poly_decl -> t * UVars.UContext.t
 val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 
-val check_mono_sort_poly_decl : t -> sort_poly_decl -> PConstraints.ContextSet.t
+val check_mono_sort_poly_decl : t -> sort_poly_decl -> Univ.ContextSet.t
 
 val check_template_sort_poly_decl : t -> template_qvars:QVar.Set.t -> sort_poly_decl -> PConstraints.ContextSet.t
 

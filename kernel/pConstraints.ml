@@ -155,6 +155,10 @@ module ContextSet = struct
     if is_empty ctx then mt() else
       hov 0 (h (Level.Set.pr prl univs ++ str " |=") ++ brk(1,2) ++ h (pr prv prl cst))
 
+  let univ_context_set (uvars, (_, uctx)) = (uvars, uctx)
+  let sort_context_set (_, (qcst, _)) = (QVar.Set.empty, qcst)
+  let of_univ_context_set (uvars, uctx) = (uvars, (Sorts.ElimConstraints.empty, uctx))
+
   let constraints (_univs, cst) = cst
   let elim_constraints (_, (csts,_)) = csts
   let univ_constraints (_, (_,csts)) = csts

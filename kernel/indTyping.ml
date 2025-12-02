@@ -264,7 +264,7 @@ let check_record data =
    We also forbid strict bounds from above because they lead
    to problems when instantiated with algebraic universes
    (template_u < v can become w+1 < v which we cannot yet handle). *)
-let check_unbounded_from_below (univs,(_,csts)) =
+let check_unbounded_from_below (univs, csts) =
   Univ.UnivConstraints.iter (fun (l,d,r) ->
       let bad = match d with
         | UnivConstraint.Eq | UnivConstraint.Lt ->
@@ -326,7 +326,7 @@ let make_template_univ_names (u:UVars.Instance.t) : UVars.bound_names =
 let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes with
 | Monomorphic_ind_entry | Polymorphic_ind_entry _ -> mie, None, None
 | Template_ind_entry {uctx; default_univs} ->
-  let template_qvars, (template_univs, _ as template_context) =
+  let ((template_qvars, _), (template_univs, _ as template_uctx) as template_context) =
     UVars.UContext.to_context_set uctx
   in
   let params = mie.mind_entry_params in
@@ -335,12 +335,10 @@ let get_template (mie:mutual_inductive_entry) = match mie.mind_entry_universes w
     | [ind] -> ind
     | _ -> CErrors.user_err Pp.(str "Template-polymorphism not allowed with mutual inductives.")
   in
-  let () = check_unbounded_from_below template_context in
+  let () = check_unbounded_from_below template_uctx in
 
   let template_context =
-    UVars.UContext.of_context_set make_template_univ_names
-      template_qvars
-      template_context
+    UVars.UContext.of_context_set make_template_univ_names template_context
   in
   let template_abstract, template_context =
     let inst, ctx = UVars.abstract_universes template_context in

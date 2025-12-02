@@ -1297,7 +1297,9 @@ let push_side_effects ?role ?ts name de ctx effs =
   let (kn, prv), senv = Safe_typing.add_private_constant name ctx de senv in
   let seff_univs =
     if Univ.Level.Set.is_empty (fst ctx) then effs.seff_univs
-    else Cmap_env.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.seff_univs
+    else
+      let ctx = PConstraints.ContextSet.of_univ_context_set ctx in (* XXX *)
+      Cmap_env.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.seff_univs
   in
   let seff_roles = match role with
   | None -> effs.seff_roles

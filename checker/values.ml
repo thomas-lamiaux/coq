@@ -218,7 +218,8 @@ let v_variance = v_enum "variance" 3
 
 let v_instance = v_annot_c ("instance", v_pair (v_array v_quality) (v_array v_level))
 let v_abs_context = v_tuple "abstract_universe_context" [|v_pair (v_array v_name) (v_array v_name); v_cstrs|]
-let v_context_set = v_tuple "universe_context_set" [|v_hset v_level;v_cstrs|]
+let v_univ_context_set = v_tuple "universe_context_set" [|v_hset v_level;v_univ_cstrs|]
+let v_sort_context_set = v_tuple "sort_context_set" [|v_set v_qvar; v_elim_cstrs|]
 
 (** kernel/term *)
 
@@ -595,7 +596,7 @@ let v_vodigest = v_sum_c ("module_impl",0, [| [|v_string|]; [|v_string;v_string|
 let v_deps = v_array (v_tuple "dep" [|v_dp;v_vodigest|])
 let v_flags = v_tuple "flags" [|v_bool|] (* Allow Rewrite Rules *)
 let v_compiled_lib =
-  v_tuple "compiled" [|v_dp;v_module;v_pair (v_set v_qvar) v_context_set;v_deps; v_flags|]
+  v_tuple "compiled" [|v_dp; v_module; v_univ_context_set; v_sort_context_set; v_deps; v_flags|]
 
 (** Toplevel structures in a vo (see Cic.mli) *)
 
@@ -606,7 +607,7 @@ let v_lib =
   v_tuple_c ("library",[|v_compiled_lib;v_any;v_any|])
 
 let v_delayed_universes =
-  v_sum_c ("delayed_universes", 0, [| [| v_unit |]; [| v_context_set |] |])
+  v_sum_c ("delayed_universes", 0, [| [| v_unit |]; [| v_univ_context_set |] |])
 
 let v_opaquetable = v_array (v_opt (v_pair v_constr v_delayed_universes))
 
