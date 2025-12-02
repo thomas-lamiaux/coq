@@ -179,16 +179,16 @@ struct
     fun s ->
     let sigma_ref = ref s.sigma in
     let size_ar = Array.length ar in
-    if size_ar = 0 then (s.sigma, [||]) else begin
-    let r = Array.init size_ar (fun _ -> snd @@ f 0 (Array.unsafe_get ar 0) s) in
-    for i = 1 to size_ar - 1 do
-      let (sigma, x) = f i ar.(i) (update_sigma s !sigma_ref) in
-      sigma_ref := sigma;
-      r.(i) <- x;
-    done;
-    (!sigma_ref, r)
-  end
-
+    if size_ar = 0
+    then (!sigma_ref, [||])
+    else begin
+      let r = Array.init size_ar (
+          fun i ->
+          let (sigma, x) = f i ar.(i) (update_sigma s !sigma_ref) in
+          sigma_ref := sigma;
+          x) in
+      (!sigma_ref, r)
+    end
 end
 
 open State
@@ -255,9 +255,9 @@ let fold_left_state_3 f l tp cc =
 (*                             Operations                                     *)
 (* ************************************************************************** *)
 
-let fresh_global ref =
-  let* t = fun s -> fresh_global s.env s.sigma ref in
-  return t
+let fresh_global ref s =
+  let (sigma, t) = fresh_global s.env s.sigma ref in
+  return t (update_sigma s sigma)
 
 let whd_decompose_prod_decls t =
   let* env = get_env in

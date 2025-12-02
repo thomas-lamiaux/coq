@@ -494,7 +494,7 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let* rec_hyp = fun s -> Typing.checked_appvect env sigma ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ] in
+      let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ] in
       return (Some (rec_hyp_rev, rec_hyp))
       end
     end
@@ -651,7 +651,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* env = get_env in
       let* sigma = get_sigma in
-      let* rec_hyp = fun s -> Typing.checked_appvect env sigma fth (Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
+      let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) fth (Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
       return (Some (rec_hyp))
       end
     end
