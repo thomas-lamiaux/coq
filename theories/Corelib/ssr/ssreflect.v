@@ -86,8 +86,8 @@ Module SsrSyntax.
 
 Reserved Notation "(* x 'is' y 'of' z 'isn't' // /= //= *)".
 
-(**  Non ambiguous keyword to check if the SsrSyntax module is imported  **)
-Reserved Notation "(* Use to test if 'SsrSyntax_is_Imported' *)".
+(** Enable SSR features **)
+#[export] Set SSR Loaded.
 
 Reserved Notation "<hidden n >" (at level 0, n at level 0,
   format "<hidden  n >").
