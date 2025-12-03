@@ -488,9 +488,6 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* ref_ind = fresh_global ref_sparam in
       let* sigma = get_sigma in
-      dbg Pp.(fun () -> str "AFTER FRESH = " ++ Termops.pr_evar_map None env sigma);
-      (* ----------- *)
-      let* sigma = get_sigma in
       let u = snd @@ destRef sigma ref_ind in
       let* rec_hyp_rev = ind_relevance ind_nested u in
       (* Instantiate param *)
@@ -500,8 +497,6 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ] in
-      let* sigma = get_sigma in
-      dbg Pp.(fun () -> str "AFTER APPVECT = " ++ Termops.pr_evar_map None env sigma);
       return (Some (rec_hyp_rev, rec_hyp))
       end
     end
@@ -595,7 +590,6 @@ let _gen_elim_type print_constr kn u mdecl uparams nuparams (ind_bodies : elim_i
   in
 
   fun s -> let (sigma, t) = t s in
-  dbg Pp.(fun () -> str "AFTER GEN = " ++ Termops.pr_evar_map None (snd @@ get_env s) sigma);
   dbg Pp.(fun () -> print_constr (snd @@ get_env s) sigma t ++ str "\n");
   (sigma, t)
 
@@ -661,8 +655,6 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       let* env = get_env in
       let* sigma = get_sigma in
       let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) fth (Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
-      let* sigma = get_sigma in
-      dbg Pp.(fun () -> str "AFTER APPVECT = " ++ Termops.pr_evar_map None env sigma);
       return (Some (rec_hyp))
       end
     end
@@ -680,7 +672,7 @@ let compute_args_fix kn mdecl ind_bodies pos_list key_preds key_fixs key_args =
       | None -> return @@ karg' :: t
   ) 0 key_args (return [])
 
-let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
+let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
 
   dbg Pp.(fun () -> str "\n------------------------------------------------------------- \n"
     ++ str "DEBUBG TERM: " ++ str (MutInd.to_string kn) ++ str " ## pos_ind : " ++ str (string_of_int focus) ++ str "\n") ;
@@ -695,6 +687,7 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
   let fix_name pos_list (_,_,_,sort) = make_annot (Name (Id.of_string "F")) (relevance_of_sort sort) in
   let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
+  let* env = get_env in
   let is_rec = let (_, ind, _, _) = List.hd ind_bodies in
     List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) || true in
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
@@ -739,7 +732,7 @@ let _gen_elim print_constr env sigma kn u mdecl uparams nuparams (ind_bodies : e
 
   in
   fun s -> let (sigma, t) = t s in
-  dbg Pp.(fun () -> print_constr env sigma t ++ str "\n");
+  dbg Pp.(fun () -> print_constr (snd @@ get_env s) sigma t ++ str "\n");
   (sigma, t)
 
 (**********************************************************************)
@@ -782,12 +775,10 @@ let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
       let (sigma, uparams, nuparams) = get_params_sep sigma mib u in
       (* Compute eliminators *)
       let elims =
-          list_mapi (fun i _ -> _gen_elim_type Termops.Internal.print_constr_env (fst mind) u mib uparams nuparams listdepkind i)
+          list_mapi (fun i _ -> _gen_elim Termops.Internal.print_constr_env (fst mind) u mib uparams nuparams listdepkind i)
                     (List.init (List.length listdepkind) (fun  _ -> 2))
       in
-      let (sigma, l) = run env sigma elims in
-      dbg Pp.(fun () -> str "FINAL SIGMA = " ++ Termops.pr_evar_map None env sigma ++ str "\n\n\n");
-      sigma, l
+      run env sigma elims
   | _ -> anomaly (Pp.str "build_mutual_induction_scheme expects a non empty list of inductive types.")
 
 let build_induction_scheme env sigma (ind, u) dep kind =
