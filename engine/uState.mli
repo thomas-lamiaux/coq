@@ -274,6 +274,8 @@ val check_mono_sort_poly_decl : t -> sort_poly_decl -> Univ.ContextSet.t
 
 val check_template_sort_poly_decl : t -> template_qvars:QVar.Set.t -> sort_poly_decl -> PConstraints.ContextSet.t
 
+val check_mono_sort_constraints : PConstraints.ContextSet.t -> Univ.ContextSet.t
+
 (** {5 TODO: Document me} *)
 
 val update_sigma_univs : t -> UGraph.t -> t

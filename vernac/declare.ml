@@ -227,8 +227,7 @@ let instance_of_univs = function
 
 let add_mono_uctx uctx = function
   | UState.Monomorphic_entry ctx, ubinders ->
-    (* FIXME: check elimination constraints *)
-    let uctx = PConstraints.ContextSet.univ_context_set @@ UState.context_set uctx in
+    let uctx = UState.check_mono_sort_constraints @@ UState.context_set uctx in
     UState.Monomorphic_entry (Univ.ContextSet.union uctx ctx), ubinders
   | UState.Polymorphic_entry _, _ as x -> assert (PConstraints.ContextSet.is_empty (UState.context_set uctx)); x
 
@@ -275,8 +274,7 @@ let make_univs_immediate_private_poly ~uctx ~udecl ~eff ~used_univs body typ =
   let ubody =
     let uctx = UState.restrict uctx used_univs in
     let uctx = PConstraints.ContextSet.diff (UState.context_set uctx) (UState.context_set uctx') in
-    (* FIXME: check sort constraints *)
-    PConstraints.ContextSet.univ_context_set uctx
+    UState.check_mono_sort_constraints uctx
   in
   uctx', utyp, used_univs, Default { body = body; opaque = Opaque (ubody, eff) }
 
@@ -629,10 +627,6 @@ let is_unsafe_typing_flags flags =
   let flags = Option.default (Global.typing_flags ()) flags in
   let open Declarations in
   not (flags.check_universes && flags.check_guarded && flags.check_positive)
-
-let push_mono_constraints src ctx =
-  let () = Global.push_qualities src (PConstraints.ContextSet.sort_context_set ctx) in (* XXX *)
-  Global.push_context_set (PConstraints.ContextSet.univ_context_set ctx)
 
 let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind ~typing_flags ?user_warns cd =
   let before_univs = Global.universes () in
@@ -1248,7 +1242,8 @@ module ProgramDecl = struct
       else
         (* declare global univs of the main constant before we do obligations *)
         let uctx = UState.collapse_sort_variables uctx in
-        let () = push_mono_constraints QGraph.Static (UState.context_set uctx) in
+        let ctx = UState.check_mono_sort_constraints @@ UState.context_set uctx in
+        let () = Global.push_context_set ctx in
         let cst = Constant.make2 (Lib.current_mp()) cinfo.CInfo.name in
         let () = DeclareUniv.declare_univ_binders (ConstRef cst)
             (UState.univ_entry ~poly:false uctx)
