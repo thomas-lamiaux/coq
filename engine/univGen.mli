@@ -60,8 +60,6 @@ val new_sort_global : Id.t -> Sorts.QGlobal.t
 val fresh_level : unit -> Level.t
 val fresh_sort_quality : unit -> Sorts.QVar.t
 
-val new_global_univ : unit -> Universe.t in_poly_context_set
-
 (** Build a fresh instance for a given context, its associated substitution and
     the instantiated constraints. *)
 
