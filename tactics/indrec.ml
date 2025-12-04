@@ -430,20 +430,23 @@ let eta_expand_instantiation env sigma inst tel =
   in
   List.rev @@ aux inst tel []
 
-  (* Recursively compute the predicate, returns None if it is not nested *)
-  let compute_pred f i x : (constr option) t = begin
-    (* quantify local variables *)
-    let* sigma = get_sigma in
-    let (cxt, hd) = decompose_lambda_decls sigma x in
-    let@ (key_loc, _, _) = closure_context_sep_opt Lambda Fresh naming_id cxt in
-    (* create new variable *)
-    let name_var = make_annot Anonymous ERelevance.relevant in  (* GOOD REV *)
-    let@ key_arg = make_binder_opt Lambda naming_id name_var hd in
-    let* ty_var = State.get_type key_arg in
-    (* compute rec call *)
-    let* res = f key_arg ty_var in
-    return @@ res
-    end
+(* Recursively compute the predicate, returns None if it is not nested *)
+let compute_pred f i x : (constr option) t = begin
+  (* quantify local variables *)
+  let* sigma = get_sigma in
+  let (cxt, hd) = decompose_lambda_decls sigma x in
+  let@ (key_loc, _, _) = closure_context_sep_opt Lambda Fresh naming_id cxt in
+  (* create new variable *)
+  let* sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) hd in
+  let rev_x = relevance_of_sort sort in
+  let name_var = make_annot Anonymous rev_x in
+  (* let name_var = make_annot Anonymous ERelevance.relevant in *)
+  let@ key_arg = make_binder_opt Lambda naming_id name_var hd in
+  let* ty_var = State.get_type key_arg in
+  (* compute rec call *)
+  let* res = f key_arg ty_var in
+  return @@ res
+  end
 
 (* This function computes the type of the recursive call *)
 let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t * constr) option t =
@@ -487,9 +490,6 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       if Array.for_all Option.is_empty rec_pred then return None else begin
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* ref_ind = fresh_global ref_sparam in
-      let* sigma = get_sigma in
-      let u = snd @@ destRef sigma ref_ind in
-      let* rec_hyp_rev = ind_relevance ind_nested u in
       (* Instantiate param *)
       let inst_uparams = Array.of_list @@ instantiate_sparam (Array.to_list inst_uparams) mib_nested.mind_params_rec_strpos (Array.to_list rec_pred) in
       let* arg = get_term key_arg in
@@ -497,9 +497,10 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ] in
-      let* env = get_env in
-      let* sigma = get_sigma in
-      dbg Pp.(fun () -> str "AFTER APPVECT = " ++ Termops.pr_evar_map None env sigma);
+      (* Compute the relevance after the instantiation *)
+      let* rec_hyp_sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) rec_hyp in
+      let rec_hyp_rev = relevance_of_sort rec_hyp_sort in
+      (* return *)
       return (Some (rec_hyp_rev, rec_hyp))
       end
     end
