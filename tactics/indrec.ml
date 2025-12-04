@@ -287,7 +287,6 @@ let build_case_analysis_scheme_default env sigma pity kind =
 
 let (let@) x f = x f
 let (let*) x f = fun s -> let (sigma, a) = x s in f a (update_sigma s sigma)
-(* let (let+) x f = fun s -> let (s,a) = x s in f a s *)
 
 type elim_info = int * one_inductive_body * bool * Evd.esorts
 
@@ -401,15 +400,25 @@ let closure_preds kn u ind_bodies binder key_uparams nuparams cc =
     make_binder binder naming_hd_fresh name_pred ty_pred cc
   ) cc
 
+let mkFunTrue x =
+  let* sigma = get_sigma in
+  let (cxt, hd) = decompose_lambda_decls sigma x in
+  let@ _ = closure_context Lambda Fresh naming_id cxt in
+  (* create new variable *)
+  let* sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) hd in
+  let rev_x = relevance_of_sort sort in
+  let name_var = make_annot Anonymous rev_x in
+  let@ _ = make_binder Lambda naming_id name_var hd in
+  return @@ mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty)
+
 let instantiate_sparam inst_uparams strpos preds =
-  let mk_rocq_true = mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty) in
-  (* fix predicate *)
-  let mk_fun_true x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_true) in
   (* instantiate *)
+  let* s = get_state in
+  return @@
   List.fold_right (fun (inst_uparam, b, pred) acc ->
     if not b then inst_uparam :: acc
     else match pred with
-    | None -> inst_uparam :: mk_fun_true inst_uparam :: acc
+    | None -> inst_uparam :: (snd @@ mkFunTrue inst_uparam s) :: acc
     | Some pred -> inst_uparam :: pred :: acc
     )
   (List.combine3 inst_uparams strpos preds) []
@@ -491,12 +500,12 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* ref_ind = fresh_global ref_sparam in
       (* Instantiate param *)
-      let inst_uparams = Array.of_list @@ instantiate_sparam (Array.to_list inst_uparams) mib_nested.mind_params_rec_strpos (Array.to_list rec_pred) in
+      let* inst_uparams = instantiate_sparam (Array.to_list inst_uparams) mib_nested.mind_params_rec_strpos (Array.to_list rec_pred) in
       let* arg = get_term key_arg in
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ] in
+      let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [Array.of_list inst_uparams; inst_nuparams_indices; [|arg|] ] in
       (* Compute the relevance after the instantiation *)
       let* rec_hyp_sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) rec_hyp in
       let rec_hyp_rev = relevance_of_sort rec_hyp_sort in
@@ -597,17 +606,26 @@ let _gen_elim_type print_constr kn u mdecl uparams nuparams (ind_bodies : elim_i
   dbg Pp.(fun () -> print_constr (snd @@ get_env s) sigma t ++ str "\n");
   (sigma, t)
 
+
+
+let mkFunI x =
+  let* sigma = get_sigma in
+  let (cxt, hd) = decompose_lambda_decls sigma x in
+  let@ _ = closure_context_sep Lambda Fresh naming_id cxt in
+  (* create new variable *)
+  let* sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) hd in
+  let rev_x = relevance_of_sort sort in
+  let name_var = make_annot Anonymous rev_x in
+  let@ key_arg = make_binder Lambda naming_id name_var hd in
+  return @@ mkRef ((Rocqlib.lib_ref "core.True.I"), EInstance.empty)
+
 let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
-  let mk_rocq_true = mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty) in
-  let mk_rocq_I = mkRef ((Rocqlib.lib_ref "core.True.I"), EInstance.empty) in
-  (* fix predicate *)
-  let mk_fun_True x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_true) in
-  let mk_fun_I x = mkLambda ((make_annot Anonymous ERelevance.relevant), x, mk_rocq_I) in
   (* instantiate *)
+  let* s = get_state in return @@
   List.fold_right (fun (inst_uparam, b, (pred, pred_hold)) acc ->
     if not b then inst_uparam :: acc
     else match pred, pred_hold with
-    | None, None -> inst_uparam :: mk_fun_True inst_uparam :: mk_fun_I inst_uparam :: acc
+    | None, None -> inst_uparam :: (snd @@ mkFunTrue inst_uparam s) :: (snd @@ mkFunI inst_uparam s) :: acc
     | Some pred, Some pred_hold -> inst_uparam :: pred :: pred_hold :: acc
     | _, _ -> assert false
     )
@@ -650,7 +668,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* fth = fresh_global ref_fth in
       (* Instantiation *)
-      let inst_uparams = Array.of_list @@ instantiate_fundamental_theorem (Array.to_list inst_uparams)
+      let* inst_uparams = instantiate_fundamental_theorem (Array.to_list inst_uparams)
                           mib_nested.mind_params_rec_strpos (Array.to_list rec_preds) (Array.to_list rec_preds_hold) in
       let* arg = get_term key_arg in
       let* loc = get_terms key_locals in
@@ -658,7 +676,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* env = get_env in
       let* sigma = get_sigma in
-      let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) fth (Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
+      let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) fth (Array.concat [Array.of_list inst_uparams; inst_nuparams_indices; [|arg|] ]) in
       return (Some (rec_hyp))
       end
     end
