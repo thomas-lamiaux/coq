@@ -143,10 +143,10 @@ sig
   val sort_qualities : Quality.t array -> Quality.t array
   (** Arbitrary choice of linear order of the variables *)
 
-  val of_context_set : (Instance.t -> bound_names) -> QVar.Set.t -> ContextSet.t -> t
+  val of_context_set : (Instance.t -> bound_names) -> Sorts.QContextSet.t * Univ.ContextSet.t -> t
   (** Build a vector of universe levels assuming a function generating names *)
 
-  val to_context_set : t -> QVar.Set.t * ContextSet.t
+  val to_context_set : t -> Sorts.QContextSet.t * Univ.ContextSet.t
   (** Discard the names and order of the universes *)
 
   val pr : (QVar.t -> Pp.t) -> (Level.t -> Pp.t) -> ?variance:Variance.t array -> t -> Pp.t
@@ -215,7 +215,8 @@ val is_empty_level_subst : universe_level_subst -> bool
 (** Substitution of universes. *)
 val subst_univs_level_level : universe_level_subst -> Level.t -> Level.t
 val subst_univs_level_universe : universe_level_subst -> Universe.t -> Universe.t
-val subst_univs_constraints : sort_level_subst -> PConstraints.t -> PConstraints.t
+val subst_univs_constraints : universe_level_subst -> Univ.UnivConstraints.t -> Univ.UnivConstraints.t
+val subst_poly_constraints : sort_level_subst -> PConstraints.t -> PConstraints.t
 
 val pr_universe_level_subst : (Level.t -> Pp.t) -> universe_level_subst -> Pp.t
 

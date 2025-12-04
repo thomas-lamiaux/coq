@@ -180,7 +180,8 @@ let decl_constant name univs c =
   let open Constr in
   let vars = CVars.universes_of_constr c in
   let univs = UState.restrict_universe_context univs vars in
-  let () = Global.push_context_set QGraph.Static univs in
+  let () = Global.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set univs) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set univs) in
   let types = (Typeops.infer (Global.env ()) c).uj_type in
   let univs = UState.Monomorphic_entry PConstraints.ContextSet.empty, UnivNames.empty_binders in
   (* UnsafeMonomorphic: we always do poly:false *)

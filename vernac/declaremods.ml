@@ -1005,7 +1005,8 @@ let build_subtypes env mp args mtys =
   let (ctx, ans) = List.fold_left_map
     (fun ctx (mte,base,kind,inl) ->
       let mte, ctx' = Modintern.interp_module_ast env Modintern.ModType base mte in
-      let env = Environ.push_context_set QGraph.Static ~strict:true ctx' env in
+      let env = Environ.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set ctx') env in (* XXX *)
+      let env = Environ.push_context_set  ~strict:true (PConstraints.ContextSet.univ_context_set ctx') env in
       let ctx = PConstraints.ContextSet.union ctx ctx' in
       let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
       (* functor arguments are already part of the env, we compute the type
@@ -1034,7 +1035,8 @@ let build_subtypes env mp args mtys =
 let intern_arg (acc, cst) (mbidl,(mty, base, kind, inl)) =
   let env = Global.env() in
   let (mty, cst') = Modintern.interp_module_ast env kind base mty in
-  let () = Global.push_context_set QGraph.Rigid cst' in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set cst') in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set cst') in
   let () =
     let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
     let _, (_, cst), _ = Mod_typing.translate_modtype state vm_state (Global.env ()) base inl ([], mty) in
@@ -1075,12 +1077,14 @@ let intern_args params =
 let start_module_core id args res =
   let mp = Global.start_module id in
   let params, ctx = intern_args args in
-  let () = Global.push_context_set QGraph.Rigid ctx in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set ctx) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set ctx) in
   let env = Global.env () in
   let res_entry_o, subtyps, ctx' = match res with
     | Enforce (mte, base, kind, inl) ->
         let (mte, ctx) = Modintern.interp_module_ast env kind base mte in
-        let env = Environ.push_context_set QGraph.Static ctx env in
+        let env = Environ.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set ctx) env in (* XXX *)
+        let env = Environ.push_context_set (PConstraints.ContextSet.univ_context_set ctx) env in
         (* We check immediately that mte is well-formed *)
         let state = ((Environ.universes env, Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
         let _, (_, cst), _ = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
@@ -1090,7 +1094,8 @@ let start_module_core id args res =
       let typs, ctx = build_subtypes env mp params resl in
       None, typs, ctx
   in
-  let () = Global.push_context_set QGraph.Rigid ctx' in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set ctx') in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set ctx') in
   mp, res_entry_o, subtyps, params, PConstraints.ContextSet.union ctx ctx'
 
 let start_module export id args res =
@@ -1170,7 +1175,8 @@ let declare_module id args res mexpr_o =
       let (mte, ctx) = Modintern.interp_module_ast env kind base mte in
       Some mte, inl, ctx
   in
-  let env = Environ.push_context_set QGraph.Static ctx' env in
+  let env = Environ.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set ctx') env in (* XXX *)
+  let env = Environ.push_context_set (PConstraints.ContextSet.univ_context_set ctx') env in
   let ctx = PConstraints.ContextSet.union ctx ctx' in
   let params = List.map (fun (mbid, _, mte, b) -> (mbid, mte, b)) params in
   let entry, inl_res = match mexpr_entry_o, mty_entry_o with
@@ -1191,7 +1197,8 @@ let declare_module id args res mexpr_o =
   | None -> None
   | _ -> inl_res
   in
-  let () = Global.push_context_set QGraph.Rigid ctx in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set ctx) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set ctx) in
   let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
   let _, (_, cst), _ = Mod_typing.translate_module state vm_state (Global.env ()) mp inl entry in
   let () = Global.add_univ_constraints cst in
@@ -1273,10 +1280,12 @@ let openmodtype_info =
 let start_modtype_core id args mtys =
   let mp = Global.start_modtype id in
   let params, params_ctx = RawModOps.Interp.intern_args args in
-  let () = Global.push_context_set QGraph.Rigid params_ctx in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set params_ctx) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set params_ctx) in
   let env = Global.env () in
   let sub_mty_l, sub_mty_ctx = RawModOps.Interp.build_subtypes env mp params mtys in
-  let () = Global.push_context_set QGraph.Rigid sub_mty_ctx in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set sub_mty_ctx) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set sub_mty_ctx) in
   mp, params, sub_mty_l, PConstraints.ContextSet.union params_ctx sub_mty_ctx
 
 let start_modtype id args mtys =
@@ -1313,12 +1322,13 @@ let declare_modtype id args mtys (mte,base,kind,inl) =
   let mp, params, sub_mty_l, ctx = start_modtype_core id args mtys in
   let env = Global.env () in
   let mte, mte_ctx = Modintern.interp_module_ast env kind base mte in
-  let () = Global.push_context_set QGraph.Rigid mte_ctx in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set mte_ctx) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set mte_ctx) in
   let env = Global.env () in
   (* We check immediately that mte is well-formed *)
   let state = ((Global.universes (), Univ.UnivConstraints.empty), Reductionops.inferred_universes env) in
   let _, (_, mte_cst), _ = Mod_typing.translate_modtype state vm_state env mp inl ([], mte) in
-  let () = Global.push_context_set QGraph.Static (Univ.Level.Set.empty,PConstraints.of_univs mte_cst) in
+  let () = Global.push_context_set (Univ.Level.Set.empty, mte_cst) in
   let params = List.map (fun (mbid, _, mte, b) -> (mbid, mte, b)) params in
   let entry = params, mte in
   let env = Global.env () in
@@ -1331,9 +1341,11 @@ let declare_modtype id args mtys (mte,base,kind,inl) =
   Summary.Interp.unfreeze_summaries fs;
 
   (* We enrich the global environment *)
-  let () = Global.push_context_set QGraph.Rigid ctx in
-  let () = Global.push_context_set QGraph.Rigid mte_ctx in
-  let () = Global.push_context_set QGraph.Static (Univ.Level.Set.empty,PConstraints.of_univs mte_cst) in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set ctx) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set ctx) in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set mte_ctx) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set mte_ctx) in
+  let () = Global.push_context_set (Univ.Level.Set.empty, mte_cst) in
   let mp_env = Global.add_modtype id entry inl in
 
   (* Name consistency check : kernel vs. library *)
@@ -1421,7 +1433,8 @@ let type_of_incl env is_mod = function
 let declare_one_include_core (me,base,kind,inl) =
   let env = Global.env() in
   let me, cst = Modintern.interp_module_ast env kind base me in
-  let () = Global.push_context_set QGraph.Rigid cst in
+  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set cst) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set cst) in
   let env = Global.env () in
   let is_mod = (kind == Modintern.Module) in
   let cur_mp = Global.current_modpath () in

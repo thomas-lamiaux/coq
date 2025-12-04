@@ -144,6 +144,14 @@ module ElimConstraints : sig include Stdlib.Set.S with type elt = ElimConstraint
   val hcons : t Hashcons.f
 end
 
+module QContextSet :
+sig
+  type t = QVar.Set.t * ElimConstraints.t
+  val empty : t
+  val union : t -> t -> t
+  val filter_constant_qualities : t -> t (* XXX: this looks very wrong *)
+end
+
 val enforce_eq_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
 
 val enforce_elim_to_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t

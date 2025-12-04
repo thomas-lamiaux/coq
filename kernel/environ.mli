@@ -386,17 +386,17 @@ val push_context : ?strict:bool -> QGraph.constraint_source -> UContext.t -> env
 (** [push_context ?(strict=false) src ctx env] pushes the universe context to the environment.
     @raise UGraph.AlreadyDeclared if one of the universes is already declared. *)
 
-val push_context_set : ?strict:bool -> QGraph.constraint_source -> ContextSet.t -> env -> env
+val push_context_set : ?strict:bool -> Univ.ContextSet.t -> env -> env
 (** [push_context_set ?(strict=false) src ctx env] pushes the universe
     context set to the environment. It does not fail even if one of the
     universes is already declared. *)
 
-val push_qualities : Sorts.QVar.Set.t -> env -> env
-(** [push_qualities qs env] pushes the set of quality variables in
-    the environment. It fails if a quality variable is already
+val push_qualities : QGraph.constraint_source -> Sorts.QContextSet.t -> env -> env
+(** [push_qualities qs env] pushes the set of quality variables and constraints
+    in the environment. It fails if a quality variable is already
     declared. *)
 
-val push_subgraph : ContextSet.t -> env -> env
+val push_subgraph : Univ.ContextSet.t -> env -> env
 (** [push_subgraph univs env] adds the universes and constraints in
    [univs] to [env] as [push_context_set ~strict:false univs env], and
    also checks that they do not imply new transitive constraints

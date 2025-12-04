@@ -553,7 +553,7 @@ let mk_sources () =
   let edges =
     let libs = Library.loaded_libraries () in
     List.fold_left (fun edges dp ->
-        let _, (_,(_,univ_csts)) =
+        let _, (_, univ_csts) =
           Safe_typing.univs_of_library @@ Library.library_compiled dp in
         UnivConstraints.fold (fun cst edges -> add_edge cst (Library dp) edges)
           univ_csts edges)
@@ -2129,8 +2129,8 @@ let check_may_eval env sigma redexp rc =
       Evarutil.j_nf_evar sigma (Retyping.get_judgment_of env sigma c)
     else
       let env = Evarutil.nf_env_evar sigma env in
-      let env = Environ.push_qualities qs env in
-      let env = Environ.push_context_set QGraph.Static (us,csts) env in
+      let env = Environ.push_qualities QGraph.Static (qs, fst csts) env in (* XXX *)
+      let env = Environ.push_context_set (us, snd csts) env in
       let c = EConstr.to_constr sigma c in
       let env = Safe_typing.push_private_constants env (Evd.seff_private @@ Evd.eval_side_effects sigma) in
       (* OK to call kernel which does not support evars *)
@@ -2174,7 +2174,8 @@ let vernac_global_check c =
   let sigma = Evd.collapse_sort_variables sigma in
   let senv = Global.safe_env() in
   let uctx = Evd.universe_context_set sigma in
-  let senv = Safe_typing.push_context_set ~strict:false QGraph.Static uctx senv in
+  let senv = Safe_typing.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set uctx) senv in (* XXX *)
+  let senv = Safe_typing.push_context_set ~strict:false (PConstraints.ContextSet.univ_context_set uctx) senv in
   let c = EConstr.to_constr sigma c in
   let j = Safe_typing.typing senv c in
   Prettyp.print_safe_judgment j ++

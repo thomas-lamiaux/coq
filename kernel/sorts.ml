@@ -317,6 +317,16 @@ module ElimConstraints = struct include Stdlib.Set.Make(ElimConstraint)
   let hcons = Hashcons.simple_hcons HConstraints.generate HConstraints.hcons ()
 end
 
+module QContextSet =
+struct
+  type t = QVar.Set.t * ElimConstraints.t
+  let empty = (QVar.Set.empty, ElimConstraints.empty)
+  let union (q1, c1) (q2, c2) = (QVar.Set.union q1 q2, ElimConstraints.union c1 c2)
+  let filter_constant_qualities (q, c) =
+    let filter (q1, _, q2) = not (Quality.is_qconst q1 && Quality.is_qconst q2) in
+    (q, ElimConstraints.filter filter c)
+end
+
 let enforce_eq_quality a b csts =
   if Quality.equal a b then csts
   else ElimConstraints.add (a,ElimConstraint.Equal,b) csts

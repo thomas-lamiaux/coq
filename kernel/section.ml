@@ -13,7 +13,6 @@ open Names
 open Univ
 open UVars
 open Cooking
-open PConstraints
 
 module NamedDecl = Context.Named.Declaration
 
@@ -29,9 +28,9 @@ type 'a t = {
   context : Constr.named_context;
   (** Declarations local to the section, intended to be interleaved
       with global declarations *)
-  mono_universes : ContextSet.t;
+  mono_universes : Univ.ContextSet.t;
   (** Global universes introduced in the section *)
-  mono_qualities : Sorts.QVar.Set.t;
+  mono_qualities : Sorts.QContextSet.t;
   (** Global universes introduced in the section *)
   poly_universes : UContext.t;
   (** Universes local to the section *)
@@ -70,26 +69,26 @@ let is_polymorphic_univ u sec =
   let _, us = Instance.to_array sec.all_poly_univs in
   Array.exists (fun u' -> Level.equal u u') us
 
-let push_constraints uctx sec =
+let push_level_constraints uctx sec =
   if sec.has_poly_univs &&
      UnivConstraints.exists
        (fun (l,_,r) -> is_polymorphic_univ l sec || is_polymorphic_univ r sec)
-       (PConstraints.ContextSet.univ_constraints uctx)
+       (snd uctx)
   then CErrors.user_err
       Pp.(str "Cannot add monomorphic constraints which refer to section polymorphic universes.");
   let uctx' = sec.mono_universes in
-  let mono_universes =  (ContextSet.union uctx uctx') in
+  let mono_universes = Univ.ContextSet.union uctx uctx' in
   { sec with mono_universes }
 
 let push_mono_qualities qs sec =
-  { sec with mono_qualities = Sorts.QVar.Set.union sec.mono_qualities qs }
+  { sec with mono_qualities = Sorts.QContextSet.union sec.mono_qualities qs }
 
 let open_section ~custom prev =
   {
     prev;
     context = [];
-    mono_universes = ContextSet.empty;
-    mono_qualities = Sorts.QVar.Set.empty;
+    mono_universes = Univ.ContextSet.empty;
+    mono_qualities = (Sorts.QVar.Set.empty, Sorts.ElimConstraints.empty);
     poly_universes = UContext.empty;
     all_poly_univs = Option.cata (fun sec -> sec.all_poly_univs) Instance.empty prev;
     has_poly_univs = Option.cata has_poly_univs false prev;

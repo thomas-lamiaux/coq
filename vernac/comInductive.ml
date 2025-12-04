@@ -540,8 +540,7 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let uctx =
     UVars.UContext.of_context_set
       (UState.compute_instance_binders @@ Evd.ustate sigma)
-      template_qvars
-      template_univs
+      ((template_qvars, PConstraints.ContextSet.elim_constraints template_univs), (PConstraints.ContextSet.univ_context_set template_univs))
   in
   let default_univs =
     let inst = UVars.UContext.instance uctx in
@@ -933,7 +932,8 @@ let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
     interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
-  Global.push_context_set QGraph.Static uctx;
+  let () = Global.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set uctx) in (* XXX *)
+  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set uctx) in
   (* Declare the mutual inductive block with its associated schemes *)
   ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
   (* Declare the possible notations of inductive types *)
