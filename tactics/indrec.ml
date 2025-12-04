@@ -437,7 +437,7 @@ let eta_expand_instantiation env sigma inst tel =
     let (cxt, hd) = decompose_lambda_decls sigma x in
     let@ (key_loc, _, _) = closure_context_sep_opt Lambda Fresh naming_id cxt in
     (* create new variable *)
-    let name_var = make_annot Anonymous ERelevance.relevant in
+    let name_var = make_annot Anonymous ERelevance.relevant in  (* GOOD REV *)
     let@ key_arg = make_binder_opt Lambda naming_id name_var hd in
     let* ty_var = State.get_type key_arg in
     (* compute rec call *)
@@ -497,6 +497,9 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ] in
+      let* env = get_env in
+      let* sigma = get_sigma in
+      dbg Pp.(fun () -> str "AFTER APPVECT = " ++ Termops.pr_evar_map None env sigma);
       return (Some (rec_hyp_rev, rec_hyp))
       end
     end
@@ -718,7 +721,10 @@ let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info l
     let* cfix = compute_args_fix kn mdecl ind_bodies pos_list key_preds key_fixs key_args in
     let* xnup = get_terms key_nuparams in
     let args = xnup @ cfix in
-    return @@ mkApp (hyp, Array.of_list args)
+    let* env = get_env in
+    let* sigma = get_sigma in
+    let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) hyp (Array.of_list args) in
+    return rec_hyp
   in
   (* 6. If it is not-recursive, has primitive projections and is dependent => add a cast *)
   let* env = get_env in
