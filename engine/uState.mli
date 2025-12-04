@@ -17,7 +17,7 @@ open Univ
 open Sorts
 
 type universes_entry =
-| Monomorphic_entry of PConstraints.ContextSet.t
+| Monomorphic_entry of Univ.ContextSet.t
 | Polymorphic_entry of UVars.UContext.t
 
 exception UniversesDiffer

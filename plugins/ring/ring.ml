@@ -183,7 +183,7 @@ let decl_constant name univs c =
   let () = Global.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set univs) in (* XXX *)
   let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set univs) in
   let types = (Typeops.infer (Global.env ()) c).uj_type in
-  let univs = UState.Monomorphic_entry PConstraints.ContextSet.empty, UnivNames.empty_binders in
+  let univs = UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders in
   (* UnsafeMonomorphic: we always do poly:false *)
   UnsafeMonomorphic.mkConst
     (declare_constant ~name

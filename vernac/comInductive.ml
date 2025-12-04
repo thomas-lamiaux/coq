@@ -497,14 +497,14 @@ let template_polymorphic_univs sigma ~params ~arity ~constructors =
   let template_univs = Univ.Level.Map.domain template_univs in
   pseudo_sort_poly, template_univs
 
-let split_universe_context subset (univs, (elim_csts,univ_csts)) =
+let split_universe_context subset (univs, univ_csts) =
   let rem = Univ.Level.Set.diff univs subset in
   let subfilter (l, _, r) =
     let () = assert (not @@ Univ.Level.Set.mem r subset) in
     Univ.Level.Set.mem l subset
   in
   let subcst, remcst = Univ.UnivConstraints.partition subfilter univ_csts in
-  (subset, PConstraints.make elim_csts subcst), (rem, PConstraints.of_univs remcst)
+  (subset, subcst), (rem, remcst)
 
 let warn_no_template_universe =
   CWarnings.create ~name:"no-template-universe"
@@ -518,7 +518,7 @@ let nontemplate_univ_entry ~poly sigma udecl =
   let sigma = Evd.collapse_sort_variables sigma in
   let uentry, _ as ubinders = Evd.check_sort_poly_decl ~poly sigma udecl in
   let uentry, global = match uentry with
-    | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, PConstraints.ContextSet.empty
+    | UState.Polymorphic_entry uctx -> Polymorphic_ind_entry uctx, Univ.ContextSet.empty
     | UState.Monomorphic_entry uctx -> Monomorphic_ind_entry, uctx
   in
   sigma, uentry, ubinders, global
@@ -535,12 +535,15 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let uctx =
     UState.check_template_sort_poly_decl (Evd.ustate sigma) ~template_qvars udecl
   in
+  (* XXX: it should be fine to drop the sort constraints but it should be reflected in the API *)
+  let elim_constraints = PConstraints.ContextSet.elim_constraints uctx in
+  let uctx = PConstraints.ContextSet.univ_context_set uctx in
   let ubinders = UState.Monomorphic_entry uctx, Evd.universe_binders sigma in
   let template_univs, global = split_universe_context template_univs uctx in
   let uctx =
     UVars.UContext.of_context_set
       (UState.compute_instance_binders @@ Evd.ustate sigma)
-      ((template_qvars, PConstraints.ContextSet.elim_constraints template_univs), (PConstraints.ContextSet.univ_context_set template_univs))
+      ((template_qvars, elim_constraints), template_univs)
   in
   let default_univs =
     let inst = UVars.UContext.instance uctx in
@@ -891,7 +894,7 @@ type t = {
   nuparams : int option;
   univ_binders : UState.named_universes_entry;
   implicits : DeclareInd.one_inductive_impls list;
-  uctx : PConstraints.ContextSet.t;
+  uctx : Univ.ContextSet.t;
   where_notations : Metasyntax.notation_interpretation_decl list;
   coercions : Libnames.qualid list;
   indlocs : DeclareInd.indlocs;
@@ -932,8 +935,7 @@ let do_mutual_inductive ~flags ?typing_flags udecl indl ~private_ind ~uniform =
   let { mie; default_dep_elim; univ_binders; implicits; uctx; where_notations; coercions; indlocs} =
     interp_mutual_inductive ~flags ~env udecl indl ?typing_flags ~private_ind ~uniform in
   (* Declare the global universes *)
-  let () = Global.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set uctx) in (* XXX *)
-  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set uctx) in
+  let () = Global.push_context_set uctx in
   (* Declare the mutual inductive block with its associated schemes *)
   ignore (DeclareInd.declare_mutual_inductive_with_eliminations ~default_dep_elim ?typing_flags ~indlocs mie univ_binders implicits ~schemes:flags.schemes);
   (* Declare the possible notations of inductive types *)

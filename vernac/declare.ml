@@ -213,13 +213,11 @@ type symbol_entry = {
   symb_entry_universes : UState.named_universes_entry;
 }
 
-let default_univ_entry = UState.Monomorphic_entry PConstraints.ContextSet.empty
+let default_univ_entry = UState.Monomorphic_entry Univ.ContextSet.empty
 let default_named_univ_entry = default_univ_entry, UnivNames.empty_binders
 
 let extract_monomorphic = function
-  | UState.Monomorphic_entry (uvars, (qcst, ucst)) ->
-    let ctx = (uvars, ucst) in
-    let () = () in (* FIXME: check qcst *)
+  | UState.Monomorphic_entry ctx ->
     Entries.Monomorphic_entry, ctx
   | UState.Polymorphic_entry uctx -> Entries.Polymorphic_entry uctx, Univ.ContextSet.empty
 
@@ -228,11 +226,14 @@ let instance_of_univs = function
   | UState.Polymorphic_entry uctx, _ -> UVars.UContext.instance uctx
 
 let add_mono_uctx uctx = function
-  | UState.Monomorphic_entry ctx, ubinders -> UState.Monomorphic_entry (PConstraints.ContextSet.union (UState.context_set uctx) ctx), ubinders
+  | UState.Monomorphic_entry ctx, ubinders ->
+    (* FIXME: check elimination constraints *)
+    let uctx = PConstraints.ContextSet.univ_context_set @@ UState.context_set uctx in
+    UState.Monomorphic_entry (Univ.ContextSet.union uctx ctx), ubinders
   | UState.Polymorphic_entry _, _ as x -> assert (PConstraints.ContextSet.is_empty (UState.context_set uctx)); x
 
 let make_ubinders uctx (univs, ubinders as u) = match univs with
-  | UState.Monomorphic_entry _ -> (UState.Monomorphic_entry (PConstraints.ContextSet.of_univ_context_set uctx), ubinders)
+  | UState.Monomorphic_entry _ -> (UState.Monomorphic_entry uctx, ubinders)
   | UState.Polymorphic_entry _ -> u
 
 let { Goptions.get = private_poly_univs } =
@@ -299,8 +300,7 @@ let make_univs_immediate_default ~poly ~opaque ~uctx ~udecl ~eff ~used_univs bod
          before restrict/check_univ_decl or here. Since we only do it
          when monomorphic it shouldn't really matter. *)
       let puctx = Safe_typing.universes_of_private (SideEff.get eff) in
-      let puctx = PConstraints.ContextSet.of_univ_context_set puctx in (* XXX *)
-      Monomorphic_entry (PConstraints.ContextSet.union uctx puctx), snd utyp
+      Monomorphic_entry (Univ.ContextSet.union uctx puctx), snd utyp
   in
   uctx, utyp, used_univs, Default { body; opaque = if opaque then Opaque (Univ.ContextSet.empty, eff) else Transparent }
 
@@ -678,7 +678,7 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
     | PrimitiveEntry e ->
       let typ, univ_entry, ctx = match e.prim_entry_type with
       | None ->
-        None, (UState.Monomorphic_entry PConstraints.ContextSet.empty, UnivNames.empty_binders), Univ.ContextSet.empty
+        None, (UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders), Univ.ContextSet.empty
       | Some (typ, entry_univs) ->
         let univ_entry, ctx = extract_monomorphic (fst entry_univs) in
         Some (typ, univ_entry), entry_univs, ctx
@@ -721,7 +721,7 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
       | Error _ -> true
     in
     let ctx = on_snd (Univ.UnivConstraints.filter is_new_constraint) ctx in
-    DeclareUniv.add_constraint_source (ConstRef kn) (PConstraints.ContextSet.of_univ_context_set ctx) (* XXX *)
+    DeclareUniv.add_constraint_source (ConstRef kn) ctx
   in
   let () = DeclareUniv.declare_univ_binders (GlobRef.ConstRef kn) ubinders in
   let () = declare_opaque kn delayed in
@@ -777,8 +777,8 @@ let declare_variable ~name ~kind ~typing_flags d =
       let () = match fst univs with
         | UState.Monomorphic_entry uctx ->
           (* XXX [snd univs] is ignored, should we use it? *)
-          DeclareUniv.name_mono_section_univs (fst uctx);
-          push_mono_constraints QGraph.Static uctx
+          let () = DeclareUniv.name_mono_section_univs (fst uctx) in
+          Global.push_context_set uctx
         | UState.Polymorphic_entry uctx -> Global.push_section_context uctx
       in
       let () = Global.push_named_assum (name,typ) in
@@ -793,9 +793,8 @@ let declare_variable ~name ~kind ~typing_flags d =
       let univs = match fst de.proof_entry_universes with
         | UState.Monomorphic_entry uctx ->
           let () = DeclareUniv.name_mono_section_univs (fst uctx) in
-          let body_uctx = PConstraints.ContextSet.of_univ_context_set body_uctx in
-          push_mono_constraints QGraph.Static (PConstraints.ContextSet.union uctx body_uctx);
-          UState.Monomorphic_entry PConstraints.ContextSet.empty, UnivNames.empty_binders
+          let () = Global.push_context_set (Univ.ContextSet.union uctx body_uctx) in
+          UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders
         | UState.Polymorphic_entry uctx ->
           Global.push_section_context uctx;
           let mk_anon_names u =

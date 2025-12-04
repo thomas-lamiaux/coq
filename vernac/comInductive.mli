@@ -56,7 +56,7 @@ type t = {
   nuparams : int option;
   univ_binders : UState.named_universes_entry;
   implicits : DeclareInd.one_inductive_impls list;
-  uctx : PConstraints.ContextSet.t;
+  uctx : Univ.ContextSet.t;
   where_notations : Metasyntax.notation_interpretation_decl list;
   coercions : Libnames.qualid list;
   indlocs : DeclareInd.indlocs;
@@ -99,7 +99,7 @@ val interp_mutual_inductive_constr
      * (* for global universe names, used by DeclareInd *)
      UState.named_universes_entry
      * (* global universes to declare before the inductive (ie without the template univs) *)
-     PConstraints.ContextSet.t
+     Univ.ContextSet.t
 
 (************************************************************************)
 (** Internal API, exported for Record                                   *)

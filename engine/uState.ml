@@ -41,7 +41,7 @@ let template_default_univs () = !template_default_univs
 module UnivFlex = UnivFlex
 
 type universes_entry =
-| Monomorphic_entry of PConstraints.ContextSet.t (* FIXME: this should be Univ.ContextSet.t *)
+| Monomorphic_entry of Univ.ContextSet.t
 | Polymorphic_entry of UVars.UContext.t
 
 module UNameMap = Id.Map
@@ -483,7 +483,10 @@ let univ_entry ~poly uctx =
   let (binders, _) = uctx.names in
   let entry =
     if poly then Polymorphic_entry (context uctx)
-    else Monomorphic_entry (context_set uctx) in
+    else
+      (* FIXME: check there is no sort constraints *)
+      Monomorphic_entry (PConstraints.ContextSet.univ_context_set (context_set uctx))
+  in
   entry, binders
 
 let of_context_set ((qs,us),csts) =
@@ -1158,7 +1161,7 @@ let check_sort_poly_decl ~poly uctx decl =
   let (binders, _) = uctx.names in
   let entry =
     if poly then Polymorphic_entry (check_sort_poly_univ_decl uctx decl)
-    else Monomorphic_entry (PConstraints.ContextSet.of_univ_context_set (check_mono_sort_poly_decl uctx decl)) (* XXX *)
+    else Monomorphic_entry (check_mono_sort_poly_decl uctx decl)
   in
   entry, binders
 
@@ -1293,9 +1296,9 @@ let demote_global_univs (lvl_set, univ_csts) uctx =
   { uctx with local = (local_univs, local_constraints); univ_variables; universes; initial_universes }
 
 let demote_global_univ_entry entry uctx = match entry with
-  | Monomorphic_entry (uvars, (_, ucst)) ->
-    demote_global_univs (uvars, ucst) uctx
-  | Polymorphic_entry _ -> uctx
+| Monomorphic_entry ucst ->
+  demote_global_univs ucst uctx
+| Polymorphic_entry _ -> uctx
 
 (* Check bug_4363 bug_6323 bug_3539 and success/rewrite lemma l1
    for quick feedback when changing this code *)
