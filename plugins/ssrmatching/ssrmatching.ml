@@ -1293,6 +1293,23 @@ let cleanup_XinE env sigma0 (h_k, _) x rp sigma =
       sigma new_evars in
   sigma
 
+let mk_in_pattern env sigma0 (x, rp) =
+  let ist = match rp.interpretation with
+  | None -> CErrors.user_err (Pp.str "interpreting a term with no ist")
+  | Some ist -> ist
+  in
+  let rp = match rp.pattern with
+  | (g, Some b) -> (g, Some (mkCLetIn (Name x) (mkCHole ~loc:None) b))
+  | (g, None) -> (DAst.make @@ GLetIn (Name x, None, DAst.make @@ GHole (GBinderType (Name x)), None, g), None)
+  in
+  let sigma, rp = Tacinterp.interp_open_constr ist env sigma0 rp in
+  let _, h, _, rp = EConstr.destLetIn sigma rp in
+  let h = EConstr.destEvar sigma h in
+  let sigma = cleanup_XinE env sigma0 h x rp sigma in
+  let rp = EConstr.Vars.subst1 (EConstr.mkEvar h) (Evarutil.nf_evar sigma rp) in
+  let in_pat = { in_hole = h; in_patt = rp } in
+  sigma, in_pat
+
 let interp_pattern ?wit_ssrpatternarg env sigma0 red redty =
   pp(lazy(str"interpreting: " ++ pr_rpattern red));
   let red = decode_pattern ?wit_ssrpatternarg env sigma0 red in
@@ -1300,24 +1317,11 @@ let interp_pattern ?wit_ssrpatternarg env sigma0 red redty =
     match redty with
     | None -> red
     | Some ty -> add_pattern_type env sigma0 red ty in
-  let mkXLetIn ?loc x {kind; pattern=(g,c); interpretation} = match c with
-  | Some b -> {kind; pattern=(g,Some (mkCLetIn ?loc x (mkCHole ~loc) b)); interpretation}
-  | None -> { kind
-            ; pattern = DAst.make ?loc @@ GLetIn
-                  (x, None, DAst.make ?loc @@ GHole (GBinderType x), None, g), None
-            ; interpretation} in
   match red with
   | T t -> let sigma, t = interp_term env sigma0 t in { pat_sigma = sigma; pat_pat = T t }
   | In_T t -> let sigma, t = interp_term env sigma0 t in { pat_sigma = sigma; pat_pat = In_T t }
-  | X_In_T (x, rp) | In_X_In_T (x, rp)
-  | E_In_X_In_T (_, (x, rp)) | E_As_X_In_T (_, (x, rp)) ->
-    let rp = mkXLetIn (Name x) rp in
-    let sigma, rp = interp_term env sigma0 rp in
-    let _, h, _, rp = EConstr.destLetIn sigma rp in
-    let h = EConstr.destEvar sigma h in
-    let sigma = cleanup_XinE env sigma0 h x rp sigma in
-    let rp = EConstr.Vars.subst1 (EConstr.mkEvar h) (Evarutil.nf_evar sigma rp) in
-    let in_pat = { in_hole = h; in_patt = rp } in
+  | X_In_T p | In_X_In_T p | E_In_X_In_T (_, p) | E_As_X_In_T (_, p) ->
+    let sigma, in_pat = mk_in_pattern env sigma0 p in
     let sigma, p = match red with
       | X_In_T _ -> sigma, X_In_T in_pat
       | In_X_In_T _ -> sigma, In_X_In_T in_pat
