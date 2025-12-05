@@ -977,7 +977,12 @@ let pr_pattern pr_ident pr_term = function
 
 let pr_hole pr_constr e = pr_constr (EConstr.mkEvar e)
 
-let pr_in_pattern_aux pr_constr (x, t) =
+type in_pattern = {
+  in_hole : EConstr.existential;
+  in_patt : EConstr.t;
+}
+
+let pr_in_pattern_aux pr_constr { in_hole = x; in_patt = t} =
   pr_hole pr_constr x ++ str " in " ++ pr_constr t
 
 let pr_pattern_aux pr_constr = function
@@ -989,8 +994,6 @@ let pr_pattern_aux pr_constr = function
       pr_constr e ++ str " in " ++ pr_in_pattern_aux pr_constr p
   | E_As_X_In_T (e, p) ->
       pr_constr e ++ str " as " ++ pr_in_pattern_aux pr_constr p
-
-type in_pattern = EConstr.existential * EConstr.t
 
 type pattern = {
   pat_sigma : Evd.evar_map;
@@ -1314,15 +1317,16 @@ let interp_pattern ?wit_ssrpatternarg env sigma0 red redty =
     let h = EConstr.destEvar sigma h in
     let sigma = cleanup_XinE env sigma0 h x rp sigma in
     let rp = EConstr.Vars.subst1 (EConstr.mkEvar h) (Evarutil.nf_evar sigma rp) in
+    let in_pat = { in_hole = h; in_patt = rp } in
     let sigma, p = match red with
-      | X_In_T _ -> sigma, X_In_T (h,rp)
-      | In_X_In_T _ -> sigma, In_X_In_T (h,rp)
+      | X_In_T _ -> sigma, X_In_T in_pat
+      | In_X_In_T _ -> sigma, In_X_In_T in_pat
       | E_In_X_In_T (e, _) ->
         let sigma, e = interp_term env sigma e in
-        sigma, E_In_X_In_T (e, (h, rp))
+        sigma, E_In_X_In_T (e, in_pat)
       | E_As_X_In_T (e, _) ->
         let sigma, e = interp_term env sigma e in
-        sigma, E_As_X_In_T (e, (h, rp))
+        sigma, E_As_X_In_T (e, in_pat)
       | T _ | In_T _ -> assert false
     in
     { pat_sigma = sigma; pat_pat = p }
@@ -1366,7 +1370,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let concl = find_T env0 concl0 1 ~k:do_subst in
     let _, _, (_, _, us, _) = end_T () in
     concl, us
-  | Some { pat_sigma = sigma; pat_pat = (X_In_T (hole, p) | In_X_In_T (hole, p)) } ->
+  | Some { pat_sigma = sigma; pat_pat = (X_In_T p | In_X_In_T p) } ->
+    let { in_hole = hole; in_patt = p } = p in
     let p = fs sigma p in
     let occ = match pattern with Some { pat_pat = X_In_T _ } -> occ | _ -> noindex in
     let ex = fst hole in
@@ -1383,7 +1388,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
         ~k:(fun env _ -> do_subst env e_body))) in
     let _ = end_X () in let _, _, (_, _, us, _) = end_T () in
     concl, us
-  | Some { pat_sigma = sigma; pat_pat = E_In_X_In_T (e, (hole, p)) } ->
+  | Some { pat_sigma = sigma; pat_pat = E_In_X_In_T (e, p) } ->
+    let { in_hole = hole; in_patt = p } = p in
     let p, e = fs sigma p, fs sigma e in
     let ex = fst hole in
     let hole = EConstr.mkEvar hole in
@@ -1401,7 +1407,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let _, _, (_, _, us, _) = end_E () in
     let _ = end_X () in let _ = end_T () in
     concl, us
-  | Some { pat_sigma = sigma; pat_pat = E_As_X_In_T (e, (hole, p)) } ->
+  | Some { pat_sigma = sigma; pat_pat = E_As_X_In_T (e, p) } ->
+    let { in_hole = hole; in_patt = p } = p in
     let p, e = fs sigma p, fs sigma e in
     let ex = fst hole in
     let hole = EConstr.mkEvar hole in
@@ -1424,7 +1431,7 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
 
 let redex_of_pattern { pat_sigma = sigma; pat_pat = p } = match p with
 | In_T _ | In_X_In_T _ -> None
-| X_In_T (e, _) -> Some (sigma, EConstr.mkEvar e)
+| X_In_T { in_hole = e } -> Some (sigma, EConstr.mkEvar e)
 | T e | E_As_X_In_T (e, _) | E_In_X_In_T (e, _) -> Some (sigma, e)
 
 let redex_of_pattern_nf env p =
