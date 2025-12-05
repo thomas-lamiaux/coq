@@ -28,6 +28,8 @@ let quantified_hypothesis =
   Entry.make "quantified_hypothesis"
 let destruction_arg = Entry.make "destruction_arg"
 let nat_or_var = G_redexpr.nat_or_var
+let intropattern =
+  Entry.make "intropattern"
 let simple_intropattern =
   Entry.make "simple_intropattern"
 let in_clause = Entry.make "in_clause"
@@ -50,8 +52,7 @@ let () =
   let open G_redexpr in
   register_grammar wit_int_or_var (int_or_var);
   register_grammar wit_nat_or_var (nat_or_var);
-  register_grammar wit_intro_pattern (simple_intropattern); (* To remove at end of deprecation phase *)
-(* register_grammar wit_intropattern (intropattern); *) (* To be added at end of deprecation phase *)
+  register_grammar wit_intropattern (intropattern);
   register_grammar wit_simple_intropattern (simple_intropattern);
   register_grammar wit_quant_hyp (quantified_hypothesis);
   register_grammar wit_uconstr (uconstr);

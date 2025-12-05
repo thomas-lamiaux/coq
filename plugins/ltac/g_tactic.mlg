@@ -206,7 +206,8 @@ let deprecated_conversion_at_with =
 GRAMMAR EXTEND Gram
   GLOBAL: simple_tactic constr_with_bindings quantified_hypothesis
   bindings open_constr uconstr
-  simple_intropattern in_clause clause_dft_concl hypident destruction_arg;
+  intropattern simple_intropattern
+  in_clause clause_dft_concl hypident destruction_arg;
 
   (* An identifier or a quotation meta-variable *)
   id_or_meta:

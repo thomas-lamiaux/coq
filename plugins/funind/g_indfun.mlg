@@ -83,7 +83,7 @@ let out_disjunctive = CAst.map (function
 
 }
 
-ARGUMENT EXTEND with_names TYPED AS intro_pattern option
+ARGUMENT EXTEND with_names TYPED AS intropattern option
   PRINTED BY { fun prc _ _ -> pr_intro_as_pat (fun c -> prc env sigma @@ snd @@ c env sigma) }
   RAW_PRINTED BY { fun prc _ _ -> pr_intro_as_pat (prc env sigma) }
   GLOB_PRINTED BY { fun prc _ _ -> pr_intro_as_pat (prc env sigma) }

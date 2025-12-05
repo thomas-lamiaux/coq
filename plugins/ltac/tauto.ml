@@ -240,7 +240,7 @@ let warn_auto_with_star_tac _ _ =
 let val_of_id id =
   let open Geninterp in
   let id = CAst.make @@ Tactypes.IntroNaming (IntroIdentifier id) in
-  Val.inject (val_tag @@ Genarg.topwit Tacarg.wit_intro_pattern) id
+  Val.inject (val_tag @@ Genarg.topwit Tacarg.wit_intropattern) id
 
 let find_cut _ ist =
   let k = Id.Map.find (Names.Id.of_string "k") ist.lfun in
