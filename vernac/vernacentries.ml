@@ -560,7 +560,7 @@ let mk_sources () =
       edges libs
   in
   let edges =
-    List.fold_left (fun edges (ref,(_,csts)) ->
+    List.fold_left (fun edges (ref, csts) ->
         UnivConstraints.fold (fun cst edges -> add_edge cst (GlobRef ref) edges)
           csts edges)
       edges srcs

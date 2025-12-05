@@ -27,9 +27,9 @@ val do_universe : poly:bool -> lident list -> unit
 (** Command [Constraint]. *)
 val do_constraint : poly:bool -> Constrexpr.sort_poly_constraint_expr list -> unit
 
-val add_constraint_source : GlobRef.t -> PConstraints.ContextSet.t -> unit
+val add_constraint_source : GlobRef.t -> Univ.ContextSet.t -> unit
 
-val constraint_sources : unit -> (GlobRef.t * PConstraints.t) list
+val constraint_sources : unit -> (GlobRef.t * Univ.UnivConstraints.t) list
 (** Returns constraints associated to globrefs, newest first. *)
 
 (** Command [Sort]. *)

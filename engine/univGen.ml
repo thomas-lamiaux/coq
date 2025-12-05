@@ -208,10 +208,6 @@ let fresh_sort_in_quality =
      let u = fresh_level () in
      sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty)
 
-let new_global_univ () =
-  let u = fresh_level () in
-  (Univ.Universe.make u, ContextSet.singleton_lvl u)
-
 let fresh_universe_context_set_instance ctx =
   if ContextSet.is_empty ctx then Level.Map.empty, ctx
   else

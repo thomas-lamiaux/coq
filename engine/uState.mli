@@ -17,7 +17,7 @@ open Univ
 open Sorts
 
 type universes_entry =
-| Monomorphic_entry of PConstraints.ContextSet.t
+| Monomorphic_entry of Univ.ContextSet.t
 | Polymorphic_entry of UVars.UContext.t
 
 exception UniversesDiffer
@@ -273,6 +273,8 @@ val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 val check_mono_sort_poly_decl : t -> sort_poly_decl -> Univ.ContextSet.t
 
 val check_template_sort_poly_decl : t -> template_qvars:QVar.Set.t -> sort_poly_decl -> PConstraints.ContextSet.t
+
+val check_mono_sort_constraints : PConstraints.ContextSet.t -> Univ.ContextSet.t
 
 (** {5 TODO: Document me} *)
 

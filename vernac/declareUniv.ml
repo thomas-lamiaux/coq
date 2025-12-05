@@ -283,7 +283,7 @@ let constraint_obj =
    main issue is the filtering or redundant constraints (needed for perf / smaller vo file sizes) *)
 let add_constraint_source x ctx =
   let _, csts = ctx in
-  if PConstraints.is_empty csts then ()
+  if Univ.UnivConstraints.is_empty csts then ()
   else
     let v = x, csts in
     Lib.add_leaf (constraint_obj v)

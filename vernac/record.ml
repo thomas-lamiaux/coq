@@ -215,7 +215,7 @@ module RecordEntry = struct
     }
 
   type t = {
-    global_univs : PConstraints.ContextSet.t;
+    global_univs : Univ.ContextSet.t;
     ubinders : UState.named_universes_entry;
     mie : Entries.mutual_inductive_entry;
     ind_infos : one_ind_info list;
@@ -645,7 +645,7 @@ let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
     Declareops.inductive_polymorphic_context mib
   in
   let univs = match mib.mind_universes with
-    | Monomorphic -> UState.Monomorphic_entry PConstraints.ContextSet.empty
+    | Monomorphic -> UState.Monomorphic_entry Univ.ContextSet.empty
     | Polymorphic auctx -> UState.Polymorphic_entry (UVars.AbstractContext.repr auctx)
   in
   let univs = univs, UnivNames.empty_binders in
@@ -835,8 +835,7 @@ module Declared = struct
 end
 
 let declare_structure (decl:Record_decl.t) ~schemes =
-  let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set decl.entry.global_univs) in (* XXX *)
-  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set decl.entry.global_univs) in
+  let () = Global.push_context_set decl.entry.global_univs in
   (* XXX no implicit arguments for constructors? *)
   let impls = List.make (List.length decl.entry.mie.mind_entry_inds) (decl.entry.param_impls, []) in
   let default_dep_elim = List.map (fun x -> x.RecordEntry.default_dep_elim) decl.entry.ind_infos in
@@ -893,7 +892,7 @@ let declare_class_constant entry (data:Data.t) =
   in
   let inst, univs = match univs with
     | UState.Monomorphic_entry _, ubinders ->
-      UVars.Instance.empty, (UState.Monomorphic_entry PConstraints.ContextSet.empty, ubinders)
+      UVars.Instance.empty, (UState.Monomorphic_entry Univ.ContextSet.empty, ubinders)
     | UState.Polymorphic_entry uctx, _ ->
       UVars.UContext.instance uctx, univs
   in
