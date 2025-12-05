@@ -47,6 +47,9 @@ Module Template.
   Register Scheme listₛ as sparse_parametricity for list.
   Register Scheme lfth_listₛ as local_fundamental_theorem for list.
 
+  Set Debug "strpos".
+  Set Debug "generate_eliminators".
+
   Inductive MRT : Set :=
   | MRTnode : list MRT -> MRT.
 

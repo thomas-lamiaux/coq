@@ -507,7 +507,9 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [Array.of_list inst_uparams; inst_nuparams_indices; [|arg|] ] in
       (* Compute the relevance after the instantiation *)
-      let* rec_hyp_sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) rec_hyp in
+      let* env = get_env in
+      let* sigma = get_sigma in
+      let rec_hyp_sort = Retyping.get_sort_of env sigma rec_hyp in
       let rec_hyp_rev = relevance_of_sort rec_hyp_sort in
       (* return *)
       return (Some (rec_hyp_rev, rec_hyp))

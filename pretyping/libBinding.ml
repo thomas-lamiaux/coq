@@ -289,8 +289,8 @@ let add_decl fresh naming_scheme decl cc s =
                let (sigma, (s', k)) = push_fresh_rel decl s in
                cc k s'
     | Old -> let (sigma, decl) = weaken_rel decl s in
-             let (sigma, name) = naming_scheme decl s in
-             let (sigma, (s', k)) = push_old_rel name s in
+             let (sigma, decl) = naming_scheme decl s in
+             let (sigma, (s', k)) = push_old_rel decl s in
              cc k s'
 
 (* 1. Keep, and Make Binary Binders and letin *)
@@ -303,8 +303,8 @@ let build_binder binder fresh naming_scheme decl cc s =
         sigma, wrap_binder binder decl v
     | Old ->
         let (sigma, decl) = weaken_rel decl s in
-        let (sigma, name) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_old_rel name s in
+        let (sigma, decl) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_old_rel decl s in
         let (sigma, v) = cc k s' in
         sigma, wrap_binder binder decl v
 
@@ -320,8 +320,8 @@ let build_binder_opt binder fresh naming_scheme decl cc s =
         sigma, Option.map (wrap_binder binder decl) v
     | Old ->
         let (sigma, decl) = weaken_rel decl s in
-        let (sigma, name) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_old_rel name s in
+        let (sigma, decl) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_old_rel decl s in
         let (sigma, v) = cc k s' in
         sigma, Option.map (wrap_binder binder decl) v
 
@@ -362,8 +362,8 @@ let build_binder_opt_prod binder fresh naming_scheme decl cc s =
         sigma, Option.map (map_second @@ wrap_binder binder decl) v
     | Old ->
         let (sigma, decl) = weaken_rel decl s in
-        let (sigma, name) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_old_rel name s in
+        let (sigma, decl) = naming_scheme decl s in
+        let (sigma, (s', k)) = push_old_rel decl s in
         let (sigma, v) = cc k s' in
         sigma, Option.map (map_second @@ wrap_binder binder decl) v
 

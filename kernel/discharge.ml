@@ -160,9 +160,8 @@ let cook_inductive env kn info mib =
   (* additional uniform parameters *)
   let new_params_rec = rel_context_of_cooking_cache cache in
   let nnewparams = Context.Rel.nhyps new_params_rec in
-  (* new uniform parameters *)
+  (* new number of (uniform) parameters, and new parameters *)
   let nparams_rec = mib.mind_nparams_rec + nnewparams in
-  (* new parameters *)
   let nparams = mib.mind_nparams + nnewparams in
   let params_ctxt = cook_rel_context cache mib.mind_params_ctxt in
   (* new inductive bodies *)
@@ -194,13 +193,13 @@ let cook_inductive env kn info mib =
   in
   (* When closing a section, the strict positivty of uniform parameters must be recomputed.
      Parameters that are section variables are uniform by design, but this imposes
-     no condition on the positiveness of the parameters. *)
+     no condition on the positivity of the parameters. *)
   let (uparams, nuparams) = Declareops.split_uparans_nuparams nparams_rec params_ctxt in
   let inds = Array.map (fun ind ->
       let (indices, _) = List.chop (List.length ind.mind_arity_ctxt - nparams) ind.mind_arity_ctxt in
       let ctors = Array.map (fun (args, hd) ->
                       let (args,_) = List.chop (List.length args - nparams) args in
-                      (List.rev args, hd)
+                      (args, hd)
                     ) ind.mind_nf_lc
                   in
       (indices, ctors)
