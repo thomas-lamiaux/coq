@@ -1334,7 +1334,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
           str "in the pattern?") in
     let ty = Retyping.get_type_of (Evd.evar_filtered_env env0 e_def) sigma (EConstr.mkEvar (e, Evd.evar_identity_subst e_def)) in
     let sigma = Evd.undefine sigma e ty [@@ocaml.warning "-3"] in
-    sigma, e_body in
+    Reductionops.nf_evar sigma p, e_body
+  in
   let mk_upat_for ?hack ~rigid (sigma, t) =
     mk_tpattern ?hack ~rigid env0 t L2R (fs sigma t) (empty_tpatterns sigma)
   in
@@ -1361,8 +1362,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let find_X, end_X = mk_tpattern_matcher ?raise_NoMatch sigma occ holep in
     let concl = find_T env0 concl0 1 ~k:(fun env c _ h ->
       let p_sigma = unify_HO env (create_evar_defs sigma) c p in
-      let sigma, e_body = pop_evar p_sigma ex p in
-      fs p_sigma (find_X env (fs sigma p) h
+      let p, e_body = pop_evar p_sigma ex p in
+      fs p_sigma (find_X env p h
         ~k:(fun env _ -> do_subst env e_body))) in
     let _ = end_X () in let _, _, (_, _, us, _) = end_T () in
     concl, us
@@ -1378,8 +1379,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let find_E, end_E = mk_tpattern_matcher ?raise_NoMatch sigma0 occ re in
     let concl = find_T env0 concl0 1 ~k:(fun env c _ h ->
       let p_sigma = unify_HO env (create_evar_defs sigma) c p in
-      let sigma, e_body = pop_evar p_sigma ex p in
-      fs p_sigma (find_X env (fs sigma p) h ~k:(fun env c _ h ->
+      let p, e_body = pop_evar p_sigma ex p in
+      fs p_sigma (find_X env p h ~k:(fun env c _ h ->
         find_E env e_body h ~k:do_subst))) in
     let _, _, (_, _, us, _) = end_E () in
     let _ = end_X () in let _ = end_T () in
@@ -1397,8 +1398,8 @@ let eval_pattern ?raise_NoMatch env0 sigma0 concl0 pattern occ (do_subst : subst
     let find_X, end_X = mk_tpattern_matcher sigma occ holep in
     let concl = find_TE env0 concl0 1 ~k:(fun env c _ h ->
       let p_sigma = unify_HO env (create_evar_defs sigma) c p in
-      let sigma, e_body = pop_evar p_sigma ex p in
-      fs p_sigma (find_X env (fs sigma p) h ~k:(fun env c _ h ->
+      let p, e_body = pop_evar p_sigma ex p in
+      fs p_sigma (find_X env p h ~k:(fun env c _ h ->
         let e_sigma = unify_HO env sigma e_body e in
         let e_body = fs e_sigma e in
         do_subst env e_body e_body h))) in
