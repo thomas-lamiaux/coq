@@ -711,7 +711,7 @@ let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info l
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
   let* env = get_env in
   let is_rec = let (_, ind, _, _) = List.hd ind_bodies in
-    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) || true in
+    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) in
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
     (* Doe not create a fix if it is not-recursive and only has one inductive body *)
     if is_rec
