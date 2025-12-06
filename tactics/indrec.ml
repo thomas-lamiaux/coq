@@ -462,8 +462,8 @@ let rec make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds key_arg ty : (ERe
       | Some (pred_pos, (_, _, pred_dep, sort)) ->
           let rec_hyp =
             let@ (key_locals, _, _) = closure_context_sep Prod Fresh naming_id loc in
-            let* i = geti_term key_preds pred_pos in
-            let pred = mkApp (i, (Array.append inst_nuparams inst_indices)) in
+            let* pred = geti_term key_preds pred_pos in
+            let pred = mkApp (pred, (Array.append inst_nuparams inst_indices)) in
             (* NOT DEP: return the predicate *)
             if not pred_dep then return pred else
             (* DEP: Apply the predicate to the argument *)
@@ -484,22 +484,23 @@ let rec make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds key_arg ty : (ERe
       let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
       let uparams_nested = EConstr.of_rel_context uparams_nested in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
-      (* Compute the rec call, and check at least one is nested *)
+      (* Compute the recursive predicates *)
       let compute_pred i x = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds a b) i x in
       let* rec_preds = array_mapi compute_pred inst_uparams in
+      (* If at least one argument is nested, lookup the sparse parametricity *)
       if Array.for_all Option.is_empty rec_preds then return None else begin
-      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       match lookup_parametricity (kn, pos_ind) (kn_nested, pos_nested) with
       | None -> return None
       | Some (ref_sparam, _) ->
+      (* Create: Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (arg a0 ... an) *)
       let* ref_ind = fresh_global ref_sparam in
-      (* Instantiate param *)
       let* inst_uparams = instantiate_sparam inst_uparams mib_nested.mind_params_rec_strpos rec_preds in
+        (* arg a0 ... an *)
       let* arg = get_term key_arg in
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
-      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let* rec_hyp = typing_checked_appvect ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ] in
+        (* Instantiation *)
+      let* rec_hyp = typing_checked_appvect ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|]] in
       (* Compute the relevance after the instantiation *)
       let* rec_hyp_sort = retyping_sort_of rec_hyp in
       let rec_hyp_rev = relevance_of_sort rec_hyp_sort in
@@ -530,15 +531,15 @@ let make_type_ctor kn u mdecl ind_bodies pos_list (pos_ind, ind, dep, sort) pos_
   let@ key_args = read_by_decl args (build_binder Prod Old (naming_hd_dep dep))
                         (fun _ _ cc -> cc []) (make_rec_call_cc kn pos_ind mdecl ind_bodies key_preds) in
   let* state = get_state in
+  let* pred = geti_term key_preds pos_list in
+  let* nuparams = get_terms key_nuparams in
   let* indices = array_mapi (fun _ -> weaken) indices in
-  let* x = geti_term key_preds pos_list in
-  let* y = get_terms key_nuparams in
-  let pred = mkApp (x, Array.append (Array.of_list y) indices) in
+  let pred = mkApp (pred, Array.concat [Array.of_list nuparams; indices]) in
   (* NOT DEP: return the predicate *)
   if not dep then return pred else
   (* DEP: return the predicate applied to the constructor *)
-  let* k = get_terms key_args in
-  let* cst = make_cst ((kn, pos_ind), u) pos_ctor key_uparams key_nuparams k in
+  let* args = get_terms key_args in
+  let* cst = make_cst ((kn, pos_ind), u) pos_ctor key_uparams key_nuparams args in
   return @@ mkApp (pred, [| cst |])
 
 (* closure assumptions functions over all the ctors *)
@@ -556,12 +557,13 @@ let closure_ctors kn mdecl u ind_bodies binder key_uparams nuparams key_preds =
 (* Make the type of the conclusion *)
 (* P B0 ... Bm i0 ... il x *)
 let make_ccl key_preds focus dep key_nuparams key_indices key_VarMatch =
-  let* x = get_terms key_nuparams in
-  let* y = get_terms key_indices in
-  let args = Array.of_list (x @ y) in
-  let* z = geti_term key_preds focus in
-  let pred = mkApp (z, args) in
+  let* nuparams = get_terms key_nuparams in
+  let* indices = get_terms key_indices in
+  let* pred = geti_term key_preds focus in
+  let pred = mkApp (pred, Array.of_list (nuparams @ indices)) in
+  (* NOT DEP: return the predicate *)
   if not dep then return pred else
+  (* DEP: return the predicate applied to the variable *)
   let* km = get_term key_VarMatch in
   return @@ mkApp (pred, [| km |])
 
@@ -579,7 +581,6 @@ let make_return_type kn u ind_bodies focus key_uparams nuparams key_preds =
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
   let@ (key_VarMatch) = make_binder Prod naming_hd_fresh name_ind tind in
   make_ccl key_preds focus dep key_nuparams key_indices key_VarMatch
-
 
 (** Generate the type of the recursor, useful for debugging *)
 let _gen_elim_type print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
@@ -599,6 +600,7 @@ let _gen_elim_type print_constr kn u mdecl uparams nuparams (ind_bodies : elim_i
   (sigma, t)
 
 
+(* Create the body of the eliminators *)
 
 let mkFunI x =
   (* rebind the lambdas, and recover the head *)
@@ -619,13 +621,14 @@ let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
   let* s = get_state in
   let inst_lfth =
     List.fold_right (fun (inst_uparam, b, (pred, pred_hold)) acc ->
-        if not b then inst_uparam :: acc
-        else match pred, pred_hold with
-        | None, None -> inst_uparam :: (snd @@ mkFunTrue inst_uparam s) :: (snd @@ mkFunI inst_uparam s) :: acc
-        | Some pred, Some pred_hold -> inst_uparam :: pred :: pred_hold :: acc
-        | _, _ -> assert false
-      )
-      (List.combine3 inst_uparams strpos @@ List.combine preds preds_hold) [] in
+      if not b then inst_uparam :: acc
+      else match pred, pred_hold with
+      | None, None -> inst_uparam :: (snd @@ mkFunTrue inst_uparam s) :: (snd @@ mkFunI inst_uparam s) :: acc
+      | Some pred, Some pred_hold -> inst_uparam :: pred :: pred_hold :: acc
+      | _, _ -> assert false
+    )
+    (List.combine3 inst_uparams strpos @@ List.combine preds preds_hold) []
+  in
   return @@ Array.of_list inst_lfth
 
 (* ty is well-formed in s *)
@@ -639,12 +642,12 @@ let rec make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs key_arg ty 
       | Some (pred_pos, _) ->
         (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
         let@ (key_locals, _, _) = closure_context_sep_opt Lambda Fresh naming_id loc in
-        let* kpos = geti_term key_fixs pred_pos in
-        let fix = mkApp (kpos, (Array.append inst_nuparams inst_indices)) in
-        let* karg = get_term key_arg in
-        let* kloc = get_terms key_locals in
-        let arg = mkApp (karg, Array.of_list kloc) in
-        return @@ Some (mkApp (fix, [| arg |]))
+        let* pred = geti_term key_fixs pred_pos in
+        let pred = mkApp (pred, Array.concat [inst_nuparams; inst_indices]) in
+        let* arg = get_term key_arg in
+        let* loc = get_terms key_locals in
+        let arg = mkApp (arg, Array.of_list loc) in
+        return @@ Some (mkApp (pred, [| arg |]))
     end
   | ArgIsNested (kn_nested, pos_nested, mib_nested, ind_nested,
                   loc, inst_uparams, inst_nuparams_indices) ->
@@ -652,41 +655,42 @@ let rec make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs key_arg ty 
       let@ (key_locals, _, _) = closure_context_sep_opt Lambda Old naming_id loc in
       (* eta expand arguments *)
       let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
-      let uparams_nested_tel = EConstr.of_rel_context uparams_nested in
+      let uparams_nested_tel = of_rel_context uparams_nested in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested_tel in
-      (* Compute the rec call, and check at least one is nested *)
+      (* Compute the recursive predicates, and their proofs *)
       let compute_pred_preds = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds a b) in
       let* rec_preds = array_mapi compute_pred_preds inst_uparams in
       let compute_pred_holds = compute_pred (make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs) in
       let* rec_preds_hold = array_mapi compute_pred_holds inst_uparams in
+      (* If at least one argument is nested, lookup the local fundamental theorem *)
       if Array.for_all Option.is_empty rec_preds_hold then return None else begin
-      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       match lookup_parametricity (kn, pos_ind) (kn_nested, pos_nested) with
       | None -> return None
       | Some (_, ref_fth) ->
+      (* fth A0 PA0 HPA0 ... An PAn HPAn B0 ... Bm i0 ... il (arg a0 ... an) *)
       let* fth = fresh_global ref_fth in
-      (* Instantiation *)
       let* inst_uparams = instantiate_fundamental_theorem inst_uparams mib_nested.mind_params_rec_strpos rec_preds rec_preds_hold in
+        (* arg a0 ... an *)
       let* arg = get_term key_arg in
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
-      (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+        (* Instantiation *)
       let* rec_hyp = typing_checked_appvect fth (Array.concat [inst_uparams; inst_nuparams_indices; [|arg|] ]) in
-      return (Some (rec_hyp))
+      return @@ Some (rec_hyp)
       end
     end
   | _ -> return None
 
 (* Compute the arguments of the rec call *)
 let compute_args_fix kn pos_ind mdecl ind_bodies pos_list key_preds key_fixs key_args =
-  CList.fold_right_i (fun pos_arg key_arg t ->
-    let* karg = LibBinding.State.get_type key_arg in
-    let* rec_call = make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs key_arg karg in
-    let* karg' = get_term key_arg in
-    let* t = t in
+  CList.fold_right_i (fun pos_arg key_arg acc ->
+    let* acc = acc in
+    let* tm_arg = get_term key_arg in
+    let* ty_arg = State.get_type key_arg in
+    let* rec_call = make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs key_arg ty_arg in
     match rec_call with
-      | Some rc_tm -> return @@ karg' :: rc_tm :: t
-      | None -> return @@ karg' :: t
+      | Some rc_tm -> return @@ tm_arg :: rc_tm :: acc
+      | None -> return @@ tm_arg :: acc
   ) 0 key_args (return [])
 
 let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
@@ -704,14 +708,16 @@ let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info l
   let fix_name pos_list (_,_,_,sort) = make_annot (Name (Id.of_string "F")) (relevance_of_sort sort) in
   let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
-  let* env = get_env in
-  let is_rec = let (_, ind, _, _) = List.hd ind_bodies in
-    List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind) in
+  (* Compute if it is recursive *)
+  let* is_rec =
+    let* env = get_env in
+    let (_, ind, _, _) = List.hd ind_bodies in
+    return @@ (List.length ind_bodies > 1 || Inductiveops.mis_is_recursive env ((kn, focus), mdecl, ind)) in
+  (* Create a fix only if it is recursive or has more than one inductive body *)
   let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
-    (* Doe not create a fix if it is not-recursive and only has one inductive body *)
     if is_rec
     then make_fix ind_bodies focus fix_rarg fix_name fix_type
-    else begin dbg Pp.(fun () -> str "TAKEN BUG"); fun cc -> cc ([], 0, List.hd ind_bodies) end in
+    else fun cc -> cc ([], 0, List.hd ind_bodies) in
   (* 3. Closure Nuparams / Indices / Var *)
   let@ (key_nuparams, _, _) = closure_nuparams Lambda naming_hd_fresh nuparams in
   let@ (key_indices , _, _) = closure_indices Lambda naming_hd_fresh ind u in
@@ -740,8 +746,8 @@ let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info l
   (* 6. If it is not-recursive, has primitive projections and is dependent => add a cast *)
   let* env = get_env in
   let projs = Environ.get_projections env (kn, pos_ind) in
-  if is_rec || Option.is_empty projs || not dep then
-    ccl
+  if is_rec || Option.is_empty projs || not dep
+  then ccl
   else
     let* ty = make_ccl key_preds pos_list dep key_nuparams key_indices key_VarMatch in
     let* ccl = ccl in
@@ -751,6 +757,7 @@ let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info l
   fun s -> let (sigma, t) = t s in
   dbg Pp.(fun () -> print_constr (snd @@ get_env s) sigma t ++ str "\n");
   (sigma, t)
+
 
 (**********************************************************************)
 (* build the eliminators mutual and individual *)
