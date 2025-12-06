@@ -227,7 +227,7 @@ Module Template.
     | All2i_bis_cons a b lA lB r x => All2i_bis_consₛ a b lA lB r (HPR n a b r) x (f (S n) lA lB x)
     end.
 
-  (* Register Scheme All2i_bisₛ as sparse_parametricity for All2i_bis. *)
+  Register Scheme All2i_bisₛ as sparse_parametricity for All2i_bis.
   Register Scheme lfth_All2i_bisₛ as local_fundamental_theorem for All2i_bis.
 
   Inductive triv_All2_bis : Type :=
