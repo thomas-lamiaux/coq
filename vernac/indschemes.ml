@@ -198,7 +198,7 @@ let declare_beq_scheme ?locmap mi = declare_beq_scheme_with ?locmap [] mi
 (* Case analysis schemes *)
 let declare_one_case_analysis_scheme ?loc ind =
   let (mib, mip) as specif = Global.lookup_inductive ind in
-  let kind = Indrec.pseudo_sort_quality_for_elim ind mip in
+  let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
   let dep, suff =
     if Sorts.Quality.is_qprop kind then case_nodep, Some "case"
     else if not (Inductiveops.has_dependent_elim specif) then
@@ -218,7 +218,7 @@ let declare_one_case_analysis_scheme ?loc ind =
 
 let declare_one_induction_scheme ?loc ind =
   let (mib,mip) as specif = Global.lookup_inductive ind in
-  let kind = Indrec.pseudo_sort_quality_for_elim ind mip in
+  let kind = Elimschemes.pseudo_sort_quality_for_elim ind mip in
   let from_prop = Sorts.Quality.is_qprop kind in
   let depelim = Inductiveops.has_dependent_elim specif in
   let kelim mip = Inductiveops.constant_sorts_below
@@ -366,7 +366,7 @@ let name_and_process_scheme env = function
     (* If no name has been provided, we build one from the types of the ind requested *)
     let ind = smart_ind sch_qualid in
     let sort_of_ind =
-      Indrec.pseudo_sort_quality_for_elim ind
+      Elimschemes.pseudo_sort_quality_for_elim ind
         (snd (Inductive.lookup_mind_specif env ind))
     in
     let suffix = scheme_suffix_gen sch sort_of_ind in
@@ -394,8 +394,7 @@ let do_mutual_induction_scheme ~register ?(force_mutual=false) env ?(isrec=true)
     if isrec then Indrec.build_mutual_induction_scheme env sigma ~force_mutual lrecspec inst
     else
       List.fold_left_map (fun sigma (ind,dep,sort) ->
-          let sigma, c = Indrec.build_case_analysis_scheme env sigma (ind, inst) dep sort in
-          let c, _ = Indrec.eval_case_analysis c in
+          let sigma, c, _ = Indrec.build_case_analysis_scheme env sigma (ind, inst) dep sort in
           sigma, c)
         sigma lrecspec
   in

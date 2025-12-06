@@ -1401,7 +1401,7 @@ let pattern_occs loccs_trm = begin fun env sigma c ->
 let check_privacy env ind =
   let spec = Inductive.lookup_mind_specif env ind in
   if Inductive.is_private spec then
-    user_err Pp.(str "case analysis on a private type.")
+    user_err Pp.(str "case analysis on a private type is not allowed.")
 
 (* put t as t'=(x1:A1)..(xn:An)B with B an inductive definition of name name
    return name, B and t' *)

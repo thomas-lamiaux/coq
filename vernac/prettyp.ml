@@ -283,7 +283,7 @@ let print_squash env ref udecl = match ref with
 let print_prop_but_default_dep_elim ref =
   match ref with
   | GlobRef.IndRef ind ->
-    if Indrec.is_prop_but_default_dependent_elim ind
+    if Elimschemes.is_prop_but_default_dependent_elim ind
     then [pr_global ref ++ str " is in Prop but its eliminators are declared dependent by default"]
     else []
   | _ -> []

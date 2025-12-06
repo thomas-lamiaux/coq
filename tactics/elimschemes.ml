@@ -15,12 +15,53 @@
 
 (* This file builds schemes related to case analysis and recursion schemes *)
 
+open Names
 open Indrec
 open Declarations
 open Ind_tables
 open UnivGen
 
-(* Induction/recursion schemes *)
+(* **************************************************** *)
+(* Store inductives that are Prop but can be eliminated *)
+(* **************************************************** *)
+
+(** Create a set *)
+let prop_but_default_dependent_elim =
+  Summary.ref ~name:"PROP-BUT-DEFAULT-DEPENDENT-ELIM" Indset_env.empty
+
+let inPropButDefaultDepElim : inductive -> Libobject.obj =
+  Libobject.declare_object @@
+  Libobject.superglobal_object "prop_but_default_dependent_elim"
+    ~cache:(fun i ->
+        prop_but_default_dependent_elim := Indset_env.add i !prop_but_default_dependent_elim)
+    ~subst:(Some (fun (subst,i) -> Mod_subst.subst_ind subst i))
+    ~discharge:(fun i -> Some i)
+
+(** Declare an inductive block can be eliminated dependently *)
+let declare_prop_but_default_dependent_elim i =
+  Lib.add_leaf (inPropButDefaultDepElim i)
+
+(** Check if an inductive block can be eliminated dependently *)
+let is_prop_but_default_dependent_elim i = Indset_env.mem i !prop_but_default_dependent_elim
+
+(** Returns [QType] if the inductive block can be eliminated dependently,
+    the sort of the inductive block otherwise   *)
+let pseudo_sort_quality_for_elim ind mip =
+  let s = mip.mind_sort in
+  if Sorts.is_prop s && is_prop_but_default_dependent_elim ind
+  then Sorts.Quality.qtype
+  else Sorts.quality s
+
+(** Check that an inductive block can be eliminated dependently, and is declared to be so if in Prop *)
+let default_case_analysis_dependence env ind =
+  let _, mip as specif = Inductive.lookup_mind_specif env ind in
+  Inductiveops.has_dependent_elim specif
+  && (not (Sorts.is_prop mip.mind_sort) || is_prop_but_default_dependent_elim ind)
+
+
+(* **************************************************** *)
+(*             Induction/recursion schemes              *)
+(* **************************************************** *)
 
 let build_induction_scheme_in_type env dep sort ind =
   let sigma = Evd.from_env env in
@@ -136,7 +177,7 @@ let lookup_eliminator env ind s =
   let nodep_scheme_first =
     (* compat, add an option to control this and remove someday *)
     let _, mip = Inductive.lookup_mind_specif env ind in
-    Sorts.is_prop mip.mind_sort && not (Indrec.is_prop_but_default_dependent_elim ind)
+    Sorts.is_prop mip.mind_sort && not (is_prop_but_default_dependent_elim ind)
   in
   let schemes =
     List.map (fun dep -> elim_scheme ~dep ~to_kind:s)
@@ -148,14 +189,16 @@ let lookup_eliminator env ind s =
     (* XXX also lookup_scheme at less precise sort? eg if s=set try to_kind:qtype *)
     lookup_eliminator_by_name env ind s
 
-(* Case analysis *)
+
+(* **************************************************** *)
+(*                    Case Analysis                     *)
+(* **************************************************** *)
 
 let build_case_analysis_scheme_in_type env dep sort ind =
   let sigma = Evd.from_env env in
   let (sigma, indu) = Evd.fresh_inductive_instance env sigma ind in
   let sigma, sort = Evd.fresh_sort_in_quality ~rigid:UnivRigid sigma sort in
-  let (sigma, c) = build_case_analysis_scheme env sigma indu dep sort in
-  let (c, _) = Indrec.eval_case_analysis c in
+  let (sigma, c, _) = build_case_analysis_scheme env sigma indu dep sort in
   EConstr.Unsafe.to_constr c, Evd.ustate sigma
 
 let case_dep =

@@ -32,7 +32,7 @@ open Tacticals
 open Hipattern
 open Rocqlib
 open Evarutil
-open Indrec
+open Elimschemes
 open Pretype_errors
 open Unification
 open Locus
