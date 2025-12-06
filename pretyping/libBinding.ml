@@ -283,48 +283,25 @@ let wrap_binder b =
   | Lambda -> mkLambda_or_LetIn
   | Prod -> mkProd_or_LetIn
 
-let add_decl fresh naming_scheme decl cc s =
-    match fresh with
+let wrap_decl f fresh naming_scheme decl cc s =
+  match fresh with
     | Fresh -> let (sigma, decl) = naming_scheme decl s in
                let (sigma, (s', k)) = push_fresh_rel decl s in
-               cc k s'
+               let (sigma, v) = cc k s' in
+               sigma, f decl v
     | Old -> let (sigma, decl) = weaken_rel decl s in
              let (sigma, decl) = naming_scheme decl s in
              let (sigma, (s', k)) = push_old_rel decl s in
-             cc k s'
+             let (sigma, v) = cc k s' in
+             sigma, f decl v
 
-(* 1. Keep, and Make Binary Binders and letin *)
-let build_binder binder fresh naming_scheme decl cc s =
-  match fresh with
-    | Fresh ->
-        let (sigma, decl) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_fresh_rel decl s in
-        let (sigma, v) = cc k s' in
-        sigma, wrap_binder binder decl v
-    | Old ->
-        let (sigma, decl) = weaken_rel decl s in
-        let (sigma, decl) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_old_rel decl s in
-        let (sigma, v) = cc k s' in
-        sigma, wrap_binder binder decl v
+let add_decl a = wrap_decl (fun _ x -> x) a
 
+let build_binder binder = wrap_decl (wrap_binder binder)
 let make_binder binder naming_scheme na ty = build_binder binder Fresh naming_scheme (LocalAssum (na, ty))
 let keep_binder binder naming_scheme na ty = build_binder binder Old naming_scheme (LocalAssum (na, ty))
 
-let build_binder_opt binder fresh naming_scheme decl cc s =
-  match fresh with
-    | Fresh ->
-        let (sigma, decl) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_fresh_rel decl s in
-        let (sigma, v) = cc k s' in
-        sigma, Option.map (wrap_binder binder decl) v
-    | Old ->
-        let (sigma, decl) = weaken_rel decl s in
-        let (sigma, decl) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_old_rel decl s in
-        let (sigma, v) = cc k s' in
-        sigma, Option.map (wrap_binder binder decl) v
-
+let build_binder_opt binder = wrap_decl (fun decl v -> Option.map (wrap_binder binder decl) v)
 let make_binder_opt binder naming_scheme na ty = build_binder_opt binder Fresh naming_scheme (LocalAssum (na, ty))
 let keep_binder_opt binder naming_scheme na ty = build_binder_opt binder Old naming_scheme (LocalAssum (na, ty))
 
@@ -353,20 +330,7 @@ let closure_context_sep_opt binder fresh naming_scheme = read_context_sep (build
 
 let map_second f (a, b) = (a, f b)
 
-let build_binder_opt_prod binder fresh naming_scheme decl cc s =
-  match fresh with
-    | Fresh ->
-        let (sigma, decl) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_fresh_rel decl s in
-        let (sigma, v) = cc k s' in
-        sigma, Option.map (map_second @@ wrap_binder binder decl) v
-    | Old ->
-        let (sigma, decl) = weaken_rel decl s in
-        let (sigma, decl) = naming_scheme decl s in
-        let (sigma, (s', k)) = push_old_rel decl s in
-        let (sigma, v) = cc k s' in
-        sigma, Option.map (map_second @@ wrap_binder binder decl) v
-
+let build_binder_opt_prod binder = wrap_decl (fun decl v -> Option.map (map_second @@ wrap_binder binder decl) v)
 let closure_context_sep_opt_prod binder fresh naming_scheme = read_context_sep (build_binder_opt_prod binder fresh naming_scheme)
 
 (* takes a continuation after binder var and letin to add fresh binders and decide what to do with the keys *)
