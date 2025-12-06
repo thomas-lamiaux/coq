@@ -286,7 +286,7 @@ let build_case_analysis_scheme_default env sigma pity kind =
 (* ************************************************************************** *)
 
 let (let@) x f = x f
-let (let*) x f = fun s -> let (sigma, a) = x s in f a (update_sigma s sigma)
+let (let*) x f = State.bind x f
 
 type elim_info = int * one_inductive_body * bool * Evd.esorts
 

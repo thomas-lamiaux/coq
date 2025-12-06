@@ -121,7 +121,7 @@ let mis_is_recursive_subset env listind rarg =
     Array.exists
       (fun ra ->
         match dest_recarg ra with
-          | Mrec (RecArgInd ind) -> List.exists (fun ind' -> QInd.equal env ind ind') listind
+          | Mrec (RecArgInd ind) -> true
           | Mrec (RecArgPrim _) | Norec -> false) rvec
   in
   Array.exists one_is_rec (dest_subterms rarg)
