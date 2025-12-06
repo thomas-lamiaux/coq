@@ -93,7 +93,7 @@ Module Template.
     | pair a b => pairₛ A PA B PB a (HPA a) b (HPB b)
     end.
 
-  (* Register Scheme prodₛ as sparse_parametricity for prod. *)
+  Register Scheme prodₛ as sparse_parametricity for prod.
   Register Scheme lfth_prodₛ as local_fundamental_theorem for prod.
 
   Inductive PairTree A : Type :=
@@ -145,7 +145,7 @@ Module Template.
     | vcons _ a n v => vconsₛ A PA a (HPA a) n v (lfth_vecₛ A PA HPA n v)
     end.
 
-  (* Register Scheme vecₛ as sparse_parametricity for vec. *)
+  Register Scheme vecₛ as sparse_parametricity for vec.
   Register Scheme lfth_vecₛ as local_fundamental_theorem for vec.
 
   Inductive VecTree A : Type :=
@@ -273,3 +273,14 @@ Module SortPoly.
   | SRTnode : list SRT -> SRT.
 
 End SortPoly.
+
+Module TestWarning.
+
+  Inductive list (A : Type) : Type :=
+  | nil : list A
+  | cons : A -> list A -> list A.
+
+  Inductive MRT : Set :=
+  | MRTnode : list MRT -> MRT.
+
+End TestWarning.

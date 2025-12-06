@@ -281,6 +281,10 @@ let build_case_analysis_scheme_default env sigma pity kind =
   build_case_analysis_scheme env sigma pity dep kind
 
 
+
+
+
+
 (* ************************************************************************** *)
 (*                             Generate Eliminators                           *)
 (* ************************************************************************** *)
@@ -303,9 +307,31 @@ type arg =
   | ArgIsNested of MutInd.t * int
                    * mutual_inductive_body * one_inductive_body
                    * rel_context * constr array * constr array
-                   * GlobRef.t * GlobRef.t
   (* constant context, hd, args (maybe empty) *)
   | ArgIsCst of rel_context * constr * constr array
+
+
+let warn_no_sparse_parametricity =
+  CWarnings.create ~name:"no-sparse-parametricity" ~category:Deprecation.Version.v9_2
+  Pp.(fun (ind, ind_nested) ->
+    Nametab.XRefs.pr (TrueGlobal (IndRef ind)) ++ str " is nested using " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
+    str " but sparse parametricity for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++ str " is not registered.\n"
+    )
+
+let warn_no_local_fundamental_theorem =
+  CWarnings.create ~name:"no-local_fundamental_theorem" ~category:Deprecation.Version.v9_2
+  Pp.(fun (ind,ind_nested) ->
+    Nametab.XRefs.pr (TrueGlobal (IndRef ind)) ++ str " is nested using " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
+    str " but the local fundamental theorem for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++ str " is not registered.\n"
+    )
+
+let lookup_parametricity ind ind_nested =
+    match Ind_tables.lookup_scheme "sparse_parametricity" ind_nested with
+    | None -> warn_no_sparse_parametricity (ind, ind_nested); None
+    | Some ref_sparam ->
+    match Ind_tables.lookup_scheme "local_fundamental_theorem" ind_nested with
+    | None -> warn_no_local_fundamental_theorem (ind, ind_nested); None
+    | Some ref_lfth -> Some (ref_sparam, ref_lfth)
 
 (* Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is Ind, nested or a constant *)
 let view_arg kn mdecl t : arg State.t =
@@ -321,20 +347,12 @@ let view_arg kn mdecl t : arg State.t =
          return @@ ArgIsInd (pos_ind, cxt, local_nuparams, local_indices)
     (* if there is no argument, it cannot be nested *)
     else if Array.length iargs = 0 then return @@ ArgIsCst (cxt, hd, iargs)
-    (* If it is nested *)
     else begin
-      (* Recover sparse parametricity, if not declared arg is constant *)
-      match Ind_tables.lookup_scheme "sparse_parametricity" (kn_ind, pos_ind) with
-      | None -> return @@ ArgIsCst (cxt, hd, iargs)
-      | Some ref_sparam ->
-      (* Recover the associated local fundamental theorem, if not declared arg is constant *)
-      match Ind_tables.lookup_scheme "local_fundamental_theorem" (kn_ind, pos_ind) with
-      | None -> return @@ ArgIsCst (cxt, hd, iargs)
-      | Some ref_lth ->
+      (* If it may be nested *)
       let* env = get_env in
       let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
       let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
-      return @@ ArgIsNested (kn_ind, pos_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices, ref_sparam, ref_lth)
+      return @@ ArgIsNested (kn_ind, pos_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices)
       end
   | _ -> return @@ ArgIsCst (cxt, hd, iargs)
 
@@ -431,7 +449,7 @@ let compute_pred f i x : (constr option) t = begin
   end
 
 (* This function computes the type of the recursive call *)
-let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.t * constr) option t =
+let rec make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds key_arg ty : (ERelevance.t * constr) option t =
   let* v = view_arg kn mdecl ty in
   match v with
   | ArgIsInd (pos_ind_block, loc, inst_nuparams, inst_indices) ->
@@ -457,7 +475,7 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
           return (Some (relevance_of_sort sort, rec_hyp))
     end
   | ArgIsNested (kn_nested, pos_nested, mib_nested, ind_nested,
-                  loc, inst_uparams, inst_nuparams_indices, ref_sparam, _) ->
+                  loc, inst_uparams, inst_nuparams_indices) ->
     begin
       let@ (key_locals, _, _) = closure_context_sep_opt_prod Prod Old naming_id loc in
       (* eta expand arguments *)
@@ -465,10 +483,13 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let uparams_nested = EConstr.of_rel_context uparams_nested in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the rec call, and check at least one is nested *)
-      let compute_pred i x = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn mdecl ind_bodies key_preds a b) i x in
+      let compute_pred i x = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds a b) i x in
       let* rec_pred = array_mapi compute_pred inst_uparams in
       if Array.for_all Option.is_empty rec_pred then return None else begin
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+      match lookup_parametricity (kn, pos_ind) (kn_nested, pos_nested) with
+      | None -> return None
+      | Some (ref_sparam, _) ->
       let* ref_ind = fresh_global ref_sparam in
       (* Instantiate param *)
       let* inst_uparams = instantiate_sparam (Array.to_list inst_uparams) mib_nested.mind_params_rec_strpos (Array.to_list rec_pred) in
@@ -487,9 +508,9 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
   | _ -> return None
 
 (* Create and bind the recursive call *)
-let make_rec_call_cc kn mdecl ind_bodies key_preds _ key_arg cc =
+let make_rec_call_cc kn pos_ind mdecl ind_bodies key_preds _ key_arg cc =
   let* arg = LibBinding.State.get_type key_arg in
-  let* rec_call = make_rec_call_ty kn mdecl ind_bodies key_preds key_arg arg in
+  let* rec_call = make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds key_arg arg in
   match rec_call with
   | Some (rec_hyp_rev, rec_hyp_ty) ->
       let name_rec_hyp = make_annot Anonymous rec_hyp_rev in
@@ -505,10 +526,8 @@ let make_type_ctor kn u mdecl ind_bodies pos_list (pos_ind, ind, dep, sort) pos_
   let@ (key_nuparams, _, _) = closure_nuparams Prod naming_id nuparams in
   let (args, indices) = ctor in
   let@ key_args = read_by_decl args (build_binder Prod Old (naming_hd_dep dep))
-                        (fun _ _ cc -> cc []) (make_rec_call_cc kn mdecl ind_bodies key_preds) in
+                        (fun _ _ cc -> cc []) (make_rec_call_cc kn pos_ind mdecl ind_bodies key_preds) in
   let* state = get_state in
-  (* let weaken a = snd @@ weaken a state in
-  let indices = Array.map weaken indices in *)
   let* indices = array_mapi (fun _ -> weaken) indices in
   let* x = geti_term key_preds pos_list in
   let* y = get_terms key_nuparams in
@@ -604,7 +623,7 @@ let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
   (List.combine3 inst_uparams strpos @@ List.combine preds preds_hold) []
 
 (* ty is well-formed in s *)
-let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (constr option) State.t =
+let rec make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs key_arg ty : (constr option) State.t =
   let* v = view_arg kn mdecl ty in
   match v with
   | ArgIsInd (pos_ind_block, loc, inst_nuparams, inst_indices) -> begin
@@ -622,7 +641,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
         return @@ Some (mkApp (fix, [| arg |]))
     end
   | ArgIsNested (kn_nested, pos_nested, mib_nested, ind_nested,
-                  loc, inst_uparams, inst_nuparams_indices, _, ref_fth) ->
+                  loc, inst_uparams, inst_nuparams_indices) ->
     begin
       let@ (key_locals, _, _) = closure_context_sep_opt Lambda Old naming_id loc in
       (* eta expand arguments *)
@@ -630,12 +649,15 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       let uparams_nested_tel = EConstr.of_rel_context uparams_nested in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested_tel in
       (* Compute the rec call, and check at least one is nested *)
-      let compute_pred_preds = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn mdecl ind_bodies key_preds a b) in
+      let compute_pred_preds = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds a b) in
       let* rec_preds = array_mapi compute_pred_preds inst_uparams in
-      let compute_pred_holds = compute_pred (make_rec_call kn mdecl ind_bodies key_preds key_fixs) in
+      let compute_pred_holds = compute_pred (make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs) in
       let* rec_preds_hold = array_mapi compute_pred_holds inst_uparams in
       if Array.for_all Option.is_empty rec_preds_hold then return None else begin
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
+      match lookup_parametricity (kn, pos_ind) (kn_nested, pos_nested) with
+      | None -> return None
+      | Some (_, ref_fth) ->
       let* fth = fresh_global ref_fth in
       (* Instantiation *)
       let* inst_uparams = instantiate_fundamental_theorem (Array.to_list inst_uparams)
@@ -651,10 +673,10 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
   | _ -> return None
 
 (* Compute the arguments of the rec call *)
-let compute_args_fix kn mdecl ind_bodies pos_list key_preds key_fixs key_args =
+let compute_args_fix kn pos_ind mdecl ind_bodies pos_list key_preds key_fixs key_args =
   CList.fold_right_i (fun pos_arg key_arg t ->
     let* karg = LibBinding.State.get_type key_arg in
-    let* rec_call = make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg karg in
+    let* rec_call = make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs key_arg karg in
     let* karg' = get_term key_arg in
     let* t = t in
     match rec_call with
@@ -705,7 +727,7 @@ let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info l
         xind case_pred (relevance_of_sort sort) (xmatch) in
     (* 5 Body of the branch *)
     let* hyp = getij_term key_ctors pos_list pos_ctor in
-    let* cfix = compute_args_fix kn mdecl ind_bodies pos_list key_preds key_fixs key_args in
+    let* cfix = compute_args_fix kn pos_ind mdecl ind_bodies pos_list key_preds key_fixs key_args in
     let* xnup = get_terms key_nuparams in
     let args = xnup @ cfix in
     typing_checked_appvect hyp (Array.of_list args)
