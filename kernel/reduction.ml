@@ -194,3 +194,19 @@ let eta_expand ?evars env t ty =
   let t = Term.applistc (Vars.lift d t) eta_args in
   let t = Term.it_mkLambda_or_LetIn t (List.firstn d ctxt) in
   Term.it_mkLambda_or_LetIn t ctxt'
+
+let eta_expand_instantiation ?evars env inst ctxt =
+  let rec aux inst tel subst =
+  match inst, tel with
+  | t::inst, decl::tel ->
+    begin
+      match get_value decl with
+      | Some bd -> aux inst tel (bd::subst)
+      | None -> let ty = substl subst @@ get_type decl in
+                let eta_t = eta_expand ?evars env t ty in
+                aux inst tel (eta_t::subst)
+    end
+  | [], [] -> subst
+  | _, _ -> assert false
+  in
+  List.rev @@ aux inst (List.rev ctxt) []

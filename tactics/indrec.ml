@@ -312,10 +312,9 @@ let lookup_scheme kind ind =
 
 (* Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is Ind, nested or a constant *)
 let view_arg kn mdecl t : arg State.t =
-  let* env = get_env in
+  let* (cxt, hd) = whd_decompose_prod_decls t in
+  let* (hd, iargs) = decompose_app hd in
   let* sigma = get_sigma in
-  let (cxt, hd) = Reductionops.whd_decompose_prod_decls env sigma t in
-  let (hd, iargs) = EConstr.decompose_app sigma hd in
   match kind sigma hd with
   | Ind ((kn_ind, pos_ind), _) ->
     (* If it is the inductive *)
@@ -335,6 +334,7 @@ let view_arg kn mdecl t : arg State.t =
       match lookup_scheme "local_fundamental_theorem" (kn_ind, pos_ind) with
       | None -> return @@ ArgIsCst (cxt, hd, iargs)
       | Some ref_lth ->
+      let* env = get_env in
       let (mib_nested, ind_nested) = lookup_mind_specif env (kn_ind, pos_ind) in
       let (inst_uparams, inst_nuparams_indices) = Array.chop mib_nested.mind_nparams_rec iargs in
       return @@ ArgIsNested (kn_ind, pos_ind, mib_nested, ind_nested, cxt, inst_uparams, inst_nuparams_indices, ref_sparam, ref_lth)
@@ -360,11 +360,6 @@ let find_opt_pos p l =
   | _::t -> aux (1+i) t
   in aux 0 l
 
-(* relevance *)
-let ind_relevance ind u =
-  let* sigma = get_sigma in
-  return @@ ERelevance.make @@ relevance_of_ind_body ind (EConstr.EInstance.kind sigma u)
-
 (* Closure for indices must be fresh as it is not in the context of the arguments *)
 let closure_indices binder naming_scheme indb u f =
   let* i = get_indices indb u in
@@ -384,9 +379,9 @@ let make_type_pred kn u (pos_ind, ind, dep, sort) key_uparams nuparams =
   let@ (key_nuparams, _, _) = closure_nuparams Prod naming_hd_fresh nuparams in
   let@ (key_indices , _, _) = closure_indices  Prod (naming_hd_fresh_dep dep) ind u in
   (* NOT DEP: return the sort *)
-  if not dep then return  @@ mkSort sort else
+  if not dep then return @@ mkSort sort else
   (* DEP: bind the inductive, and return the sort *)
-  let* rev_ind = (ind_relevance ind u) in
+  let* rev_ind = ind_relevance ind u in
   let name_ind = make_annot Anonymous rev_ind in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
   let@ _ = make_binder Prod naming_hd_fresh name_ind tind in
@@ -401,14 +396,15 @@ let closure_preds kn u ind_bodies binder key_uparams nuparams cc =
   ) cc
 
 let mkFunTrue x =
-  let* sigma = get_sigma in
-  let (cxt, hd) = decompose_lambda_decls sigma x in
+  (* rebind the lambdas, and recover the head *)
+  let* (cxt, hd) = decompose_lambda_decls x in
   let@ _ = closure_context Lambda Fresh naming_id cxt in
-  (* create new variable *)
-  let* sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) hd in
+  (* bind the head *)
+  let* sort = retyping_sort_of hd in
   let rev_x = relevance_of_sort sort in
   let name_var = make_annot Anonymous rev_x in
   let@ _ = make_binder Lambda naming_id name_var hd in
+  (* return [True] *)
   return @@ mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty)
 
 let instantiate_sparam inst_uparams strpos preds =
@@ -423,27 +419,10 @@ let instantiate_sparam inst_uparams strpos preds =
     )
   (List.combine3 inst_uparams strpos preds) []
 
-let eta_expand_instantiation env sigma inst tel =
-  let rec aux inst tel subst =
-  match inst, tel with
-  | t::inst, decl::tel ->
-    begin
-      match get_value decl with
-      | Some bd -> aux inst tel (bd::subst)
-      | None -> let ty = substl subst @@ get_type decl in
-                let eta_t = Reductionops.eta_expand env sigma t ty in
-                aux inst tel (eta_t::subst)
-    end
-  | [], [] -> subst
-  | _, _ -> assert false
-  in
-  List.rev @@ aux inst tel []
-
 (* Recursively compute the predicate, returns None if it is not nested *)
 let compute_pred f i x : (constr option) t = begin
   (* quantify local variables *)
-  let* sigma = get_sigma in
-  let (cxt, hd) = decompose_lambda_decls sigma x in
+  let* (cxt, hd) = decompose_lambda_decls x in
   let@ (key_loc, _, _) = closure_context_sep_opt Lambda Fresh naming_id cxt in
   (* create new variable *)
   let* sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) hd in
@@ -488,11 +467,10 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
     begin
       let@ (key_locals, _, _) = closure_context_sep_opt_prod Prod Old naming_id loc in
       (* eta expand arguments *)
-      let* env = get_env in
-      let* sigma = get_sigma in
       let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
-      let uparams_nested = List.rev @@ EConstr.of_rel_context uparams_nested in
-      let inst_uparams = Array.of_list @@ eta_expand_instantiation env sigma (Array.to_list inst_uparams) uparams_nested in
+      let uparams_nested = EConstr.of_rel_context uparams_nested in
+      let* inst_uparams = eta_expand_instantiation (Array.to_list inst_uparams) uparams_nested in
+      let inst_uparams = Array.of_list inst_uparams in
       (* Compute the rec call, and check at least one is nested *)
       let compute_pred i x = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn mdecl ind_bodies key_preds a b) i x in
       let* rec_pred = array_mapi compute_pred inst_uparams in
@@ -507,9 +485,7 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
       let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [Array.of_list inst_uparams; inst_nuparams_indices; [|arg|] ] in
       (* Compute the relevance after the instantiation *)
-      let* env = get_env in
-      let* sigma = get_sigma in
-      let rec_hyp_sort = Retyping.get_sort_of env sigma rec_hyp in
+      let* rec_hyp_sort = retyping_sort_of rec_hyp in
       let rec_hyp_rev = relevance_of_sort rec_hyp_sort in
       (* return *)
       return (Some (rec_hyp_rev, rec_hyp))
@@ -611,14 +587,15 @@ let _gen_elim_type print_constr kn u mdecl uparams nuparams (ind_bodies : elim_i
 
 
 let mkFunI x =
-  let* sigma = get_sigma in
-  let (cxt, hd) = decompose_lambda_decls sigma x in
+  (* rebind the lambdas, and recover the head *)
+  let* (cxt, hd) = decompose_lambda_decls x in
   let@ _ = closure_context_sep Lambda Fresh naming_id cxt in
-  (* create new variable *)
+  (* bind the head *)
   let* sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) hd in
   let rev_x = relevance_of_sort sort in
   let name_var = make_annot Anonymous rev_x in
   let@ key_arg = make_binder Lambda naming_id name_var hd in
+  (* return I *)
   return @@ mkRef ((Rocqlib.lib_ref "core.True.I"), EInstance.empty)
 
 let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
@@ -657,10 +634,9 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       let@ (key_locals, _, _) = closure_context_sep_opt Lambda Old naming_id loc in
       (* eta expand arguments *)
       let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
-      let uparams_nested_tel = List.rev @@ EConstr.of_rel_context uparams_nested in
-      let* env = get_env in
-      let* sigma = get_sigma in
-      let inst_uparams = Array.of_list @@ eta_expand_instantiation env sigma (Array.to_list inst_uparams) uparams_nested_tel in
+      let uparams_nested_tel = EConstr.of_rel_context uparams_nested in
+      let* inst_uparams = eta_expand_instantiation (Array.to_list inst_uparams) uparams_nested_tel in
+      let inst_uparams = Array.of_list @@ inst_uparams in
       (* Compute the rec call, and check at least one is nested *)
       let compute_pred_preds = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn mdecl ind_bodies key_preds a b) in
       let* rec_preds = array_mapi compute_pred_preds inst_uparams in

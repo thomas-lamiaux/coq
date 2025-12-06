@@ -202,12 +202,21 @@ val naming_hd_fresh_dep : bool -> naming_scheme
 
 (** {6 Functions on Terms } *)
 
-val fresh_global : GlobRef.t -> constr t
 
 (** Reduce and decompose a term preserving letin *)
+val ind_relevance : one_inductive_body -> einstance -> erelevance t
+
 val whd_decompose_prod_decls : constr -> (rel_context * constr) t
 
+val decompose_lambda_decls : constr -> (rel_context * constr) t
+
 val decompose_app : constr -> (constr * constr array) t
+
+val eta_expand_instantiation : constr list -> rel_context -> constr list t
+
+val retyping_sort_of : constr -> esorts t
+
+val fresh_global : GlobRef.t -> constr t
 
 (** {6 Create a New Lambda, Product, or LetIn } *)
 

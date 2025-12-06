@@ -256,18 +256,36 @@ let fold_left_state_3 f l tp cc =
 (*                             Operations                                     *)
 (* ************************************************************************** *)
 
-let fresh_global ref s =
-  let (sigma, t) = fresh_global s.env s.sigma ref in
-  return t (update_sigma s sigma)
+let ind_relevance ind u =
+  let* sigma = get_sigma in
+  return @@ ERelevance.make @@ Inductive.relevance_of_ind_body ind (EInstance.kind sigma u)
 
 let whd_decompose_prod_decls t =
   let* env = get_env in
   let* sigma = get_sigma in
   return @@ Reductionops.whd_decompose_prod_decls env sigma t
 
+let decompose_lambda_decls t =
+  let* sigma = get_sigma in
+  return @@ decompose_lambda_decls sigma t
+
 let decompose_app t =
   let* sigma = get_sigma in
   return @@ decompose_app sigma t
+
+let eta_expand_instantiation inst ctxt =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  return @@ Reductionops.eta_expand_instantiation env sigma inst ctxt
+
+let retyping_sort_of t =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  return @@ Retyping.get_sort_of env sigma t
+
+let fresh_global ref s =
+  let (sigma, t) = fresh_global s.env s.sigma ref in
+  return t (update_sigma s sigma)
 
 
 (* ************************************************************************** *)
