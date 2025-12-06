@@ -212,7 +212,7 @@ val decompose_lambda_decls : constr -> (rel_context * constr) t
 
 val decompose_app : constr -> (constr * constr array) t
 
-val eta_expand_instantiation : constr list -> rel_context -> constr list t
+val eta_expand_instantiation : constr array -> rel_context -> constr array t
 
 val retyping_sort_of : constr -> esorts t
 

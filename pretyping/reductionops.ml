@@ -1758,7 +1758,7 @@ let eta_expand env sigma t ty =
     (MiniEConstr.unsafe_to_constr t) (MiniEConstr.unsafe_to_constr ty)
 
 let eta_expand_instantiation env sigma inst ctxt =
-  let inst = List.map (MiniEConstr.unsafe_to_constr) inst in
+  let inst = Array.map (MiniEConstr.unsafe_to_constr) inst in
   let ctxt =  List.map (MiniEConstr.unsafe_to_rel_decl) ctxt in
   let eta_inst = Reduction.eta_expand_instantiation ~evars:(Evd.evar_handler sigma) env inst ctxt in
-  List.map of_constr eta_inst
+  Array.map of_constr eta_inst

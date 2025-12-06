@@ -469,8 +469,7 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       (* eta expand arguments *)
       let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
       let uparams_nested = EConstr.of_rel_context uparams_nested in
-      let* inst_uparams = eta_expand_instantiation (Array.to_list inst_uparams) uparams_nested in
-      let inst_uparams = Array.of_list inst_uparams in
+      let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the rec call, and check at least one is nested *)
       let compute_pred i x = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn mdecl ind_bodies key_preds a b) i x in
       let* rec_pred = array_mapi compute_pred inst_uparams in
@@ -635,8 +634,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       (* eta expand arguments *)
       let uparams_nested = fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
       let uparams_nested_tel = EConstr.of_rel_context uparams_nested in
-      let* inst_uparams = eta_expand_instantiation (Array.to_list inst_uparams) uparams_nested_tel in
-      let inst_uparams = Array.of_list @@ inst_uparams in
+      let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested_tel in
       (* Compute the rec call, and check at least one is nested *)
       let compute_pred_preds = compute_pred (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn mdecl ind_bodies key_preds a b) in
       let* rec_preds = array_mapi compute_pred_preds inst_uparams in
