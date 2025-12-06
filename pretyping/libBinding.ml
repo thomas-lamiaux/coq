@@ -283,6 +283,12 @@ let retyping_sort_of t =
   let* sigma = get_sigma in
   return @@ Retyping.get_sort_of env sigma t
 
+let typing_checked_appvect f xs s =
+  let env = snd @@ get_env s in
+  let sigma = snd @@ get_sigma s in
+  let (sigma, t) = Typing.checked_appvect env sigma f xs in
+  return t (update_sigma s sigma)
+
 let fresh_global ref s =
   let (sigma, t) = fresh_global s.env s.sigma ref in
   return t (update_sigma s sigma)

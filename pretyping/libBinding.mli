@@ -216,6 +216,8 @@ val eta_expand_instantiation : constr array -> rel_context -> constr array t
 
 val retyping_sort_of : constr -> esorts t
 
+val typing_checked_appvect : constr -> constr array -> constr t
+
 val fresh_global : GlobRef.t -> constr t
 
 (** {6 Create a New Lambda, Product, or LetIn } *)

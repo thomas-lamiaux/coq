@@ -425,7 +425,7 @@ let compute_pred f i x : (constr option) t = begin
   let* (cxt, hd) = decompose_lambda_decls x in
   let@ (key_loc, _, _) = closure_context_sep_opt Lambda Fresh naming_id cxt in
   (* create new variable *)
-  let* sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) hd in
+  let* sort = retyping_sort_of hd in
   let rev_x = relevance_of_sort sort in
   let name_var = make_annot Anonymous rev_x in
   (* let name_var = make_annot Anonymous ERelevance.relevant in *)
@@ -482,7 +482,7 @@ let rec make_rec_call_ty kn mdecl ind_bodies key_preds key_arg ty : (ERelevance.
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) ref_ind @@ Array.concat [Array.of_list inst_uparams; inst_nuparams_indices; [|arg|] ] in
+      let* rec_hyp = typing_checked_appvect ref_ind @@ Array.concat [Array.of_list inst_uparams; inst_nuparams_indices; [|arg|] ] in
       (* Compute the relevance after the instantiation *)
       let* rec_hyp_sort = retyping_sort_of rec_hyp in
       let rec_hyp_rev = relevance_of_sort rec_hyp_sort in
@@ -590,7 +590,7 @@ let mkFunI x =
   let* (cxt, hd) = decompose_lambda_decls x in
   let@ _ = closure_context_sep Lambda Fresh naming_id cxt in
   (* bind the head *)
-  let* sort = fun s -> Typing.sort_of (snd @@ get_env s) (snd @@ get_sigma s) hd in
+  let* sort = retyping_sort_of hd in
   let rev_x = relevance_of_sort sort in
   let name_var = make_annot Anonymous rev_x in
   let@ key_arg = make_binder Lambda naming_id name_var hd in
@@ -650,9 +650,7 @@ let rec make_rec_call kn mdecl ind_bodies key_preds key_fixs key_arg ty : (const
       let* loc = get_terms key_locals in
       let arg = mkApp (arg , Array.of_list loc) in
       (* Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (x a0 ... an) *)
-      let* env = get_env in
-      let* sigma = get_sigma in
-      let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) fth (Array.concat [Array.of_list inst_uparams; inst_nuparams_indices; [|arg|] ]) in
+      let* rec_hyp = typing_checked_appvect fth (Array.concat [Array.of_list inst_uparams; inst_nuparams_indices; [|arg|] ]) in
       return (Some (rec_hyp))
       end
     end
@@ -716,10 +714,7 @@ let _gen_elim print_constr kn u mdecl uparams nuparams (ind_bodies : elim_info l
     let* cfix = compute_args_fix kn mdecl ind_bodies pos_list key_preds key_fixs key_args in
     let* xnup = get_terms key_nuparams in
     let args = xnup @ cfix in
-    let* env = get_env in
-    let* sigma = get_sigma in
-    let* rec_hyp = fun s -> Typing.checked_appvect (snd @@ get_env s) (snd @@ get_sigma s) hyp (Array.of_list args) in
-    return rec_hyp
+    typing_checked_appvect hyp (Array.of_list args)
   in
   (* 6. If it is not-recursive, has primitive projections and is dependent => add a cast *)
   let* env = get_env in
