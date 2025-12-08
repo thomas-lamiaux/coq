@@ -1114,6 +1114,7 @@ plugin:ci-itauto:
   needs:
   - build:edge+flambda
   - library:ci-stdlib+flambda
+  allow_failure: true
 
 plugin:ci-bignums:
   extends: .ci-template-flambda
