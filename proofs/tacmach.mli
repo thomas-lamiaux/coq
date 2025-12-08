@@ -19,6 +19,7 @@ open Evd
 (** Variants of [Tacmach] functions built with the new proof engine *)
 
 val pf_apply : (env -> evar_map -> 'a) -> Proofview.Goal.t -> 'a
+[@@ocaml.deprecated "(9.2) Use Proofview.Goal.{env, sigma}"]
 
 val project : Proofview.Goal.t -> Evd.evar_map
 [@@ocaml.deprecated "(9.2) Use Proofview.Goal.sigma"]

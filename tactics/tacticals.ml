@@ -582,14 +582,16 @@ let onAllHypsAndConcl tac =
     end
 
 let elimination_sort_of_goal gl =
-  (* Retyping will expand evars anyway. *)
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   let c = Proofview.Goal.concl gl in
-  Tacmach.pf_apply Retyping.get_sort_quality_of gl c
+  Retyping.get_sort_quality_of env sigma c
 
 let elimination_sort_of_hyp id gl =
-  (* Retyping will expand evars anyway. *)
+  let env = Proofview.Goal.env gl in
+  let sigma = Proofview.Goal.sigma gl in
   let c = Tacmach.pf_get_hyp_typ id gl in
-  Tacmach.pf_apply Retyping.get_sort_quality_of gl c
+  Retyping.get_sort_quality_of env sigma c
 
 let elimination_sort_of_clause id gl = match id with
 | None -> elimination_sort_of_goal gl
