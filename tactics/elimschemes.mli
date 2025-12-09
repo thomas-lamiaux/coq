@@ -12,22 +12,21 @@ open Ind_tables
 open Names
 open Environ
 
-(* -------------------------------------------------------------------------- *)
-
-(** Declare an inductive block can be eliminated dependently *)
+(** Declare an inductive should be eliminated dependently even though it's in Prop *)
 val declare_prop_but_default_dependent_elim : inductive -> unit
 
-(** Check if an inductive block can be eliminated dependently *)
+(** Check if an inductive should be eliminated dependently even though it's in Prop *)
 val is_prop_but_default_dependent_elim : inductive -> bool
 
-(** Returns [QType] if the inductive block can be eliminated dependently,
-    the sort of the inductive block otherwise   *)
+(** Legacy API, returns the quality of the inductive except if it's
+    prop_but_default_dependent_elim in which case we return Type
+    instead. *)
 val pseudo_sort_quality_for_elim : inductive -> Declarations.one_inductive_body -> Sorts.Quality.t
 
-(** Check that an inductive block can be eliminated dependently, and is declared to be so if in Prop *)
+(** Returns [false] on inductives which cannot be eliminated
+    dependently or are in Prop without being declared
+    prop_but_default_dependent_elim. *)
 val default_case_analysis_dependence : env -> inductive -> bool
-
-(* -------------------------------------------------------------------------- *)
 
 (** Induction/recursion schemes *)
 val elim_scheme : dep:bool -> to_kind:UnivGen.QualityOrSet.t -> individual scheme_kind
