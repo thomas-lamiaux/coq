@@ -325,7 +325,8 @@ let explain_case_not_inductive env sigma cj =
           str "which is not a (co-)inductive type."
 
 let explain_case_on_private_ind env sigma ind =
-  str "Case analysis on private inductive "++pr_inductive env ind
+  str "Case analysis on private inductive "++ pr_inductive env ind
+  ++ str " is not allowed."
 
 let explain_number_branches env sigma cj expn =
   let env = make_all_name_different env sigma in

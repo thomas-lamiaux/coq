@@ -210,9 +210,7 @@ let find_eliminator env sigma ~concl ~is_case ?elim oc c_gen =
         let elimty = Retyping.get_type_of env sigma elim in
         sigma, elim, elimty
       else
-        let sigma, case = Indrec.build_case_analysis_scheme env sigma indu true sort in
-        let (ind, indty) = Indrec.eval_case_analysis case in
-        (sigma, ind, indty)
+        Indrec.build_case_analysis_scheme env sigma indu true sort
     in
     let pred_id,n_elim_args,is_rec,elim_is_dep,n_pred_args,ctx_concl =
       analyze_eliminator elimty env sigma in

@@ -13,8 +13,10 @@ open EConstr
 open Environ
 open Evd
 
-(** Errors related to recursors building *)
+(** Eliminations *)
+type dep_flag = bool
 
+(** Errors related to recursors building *)
 type recursion_scheme_error =
   | NotAllowedCaseAnalysis of evar_map * (*isrec:*) bool * Sorts.t * Constr.pinductive
   | NotMutualInScheme of inductive * inductive
@@ -23,51 +25,14 @@ type recursion_scheme_error =
 
 exception RecursionSchemeError of env * recursion_scheme_error
 
-(** Eliminations *)
-
-type dep_flag = bool
-
-(** Build a case analysis elimination scheme in some sort *)
-
-type case_analysis = private {
-  case_params : EConstr.rel_context;
-  case_pred : Name.t EConstr.binder_annot * EConstr.types;
-  case_branches : EConstr.rel_context;
-  case_arity : EConstr.rel_context;
-  case_body : EConstr.t;
-  case_type : EConstr.t;
-}
-
-val check_valid_elimination : env -> evar_map -> inductive puniverses -> dep:bool -> ESorts.t -> evar_map
-
-val eval_case_analysis : case_analysis -> EConstr.t * EConstr.types
-
-val default_case_analysis_dependence : env -> inductive -> bool
-
 val build_case_analysis_scheme : env -> Evd.evar_map -> inductive puniverses ->
-  dep_flag -> ESorts.t -> evar_map * case_analysis
-
-(** Build a dependent case elimination predicate unless type is in Prop
-   or is a recursive record with primitive projections. *)
-
-val build_case_analysis_scheme_default : env -> evar_map -> inductive puniverses ->
-  ESorts.t -> evar_map * case_analysis
+  dep_flag -> ESorts.t -> evar_map * constr * constr
 
 (** Builds a recursive induction scheme (Peano-induction style) in the given sort.  *)
-
 val build_induction_scheme : env -> evar_map -> inductive puniverses ->
   dep_flag -> ESorts.t -> evar_map * constr
 
 (** Builds mutual (recursive) induction schemes *)
-
 val build_mutual_induction_scheme :
   env -> evar_map -> ?force_mutual:bool ->
   (inductive * dep_flag * EConstr.ESorts.t) list -> einstance -> evar_map * constr list
-
-(** Default dependence of eliminations for Prop inductives *)
-
-val declare_prop_but_default_dependent_elim : inductive -> unit
-
-val is_prop_but_default_dependent_elim : inductive -> bool
-
-val pseudo_sort_quality_for_elim : inductive -> Declarations.one_inductive_body -> Sorts.Quality.t

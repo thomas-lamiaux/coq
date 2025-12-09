@@ -234,21 +234,22 @@ let declare_mutual_inductive_with_eliminations
              (GlobRef.ConstructRef (ind, succ j)) impls)
         constrimpls)
     impls;
+  (* Compute which inductive blocks can be eliminated dependently, and store it *)
   let () = match default_dep_elim with
     | None -> ()
     | Some defaults ->
       List.iteri (fun i default ->
-          let ind = (mind, i) in
-          let prop_but_default_dep_elim = match default with
+          let prop_but_default_dep_elim =
+            match default with
             | PropButDepElim -> true
             | DefaultElim ->
               default_prop_dep_elim () &&
-              let _, mip = Global.lookup_inductive ind in
+              let _, mip = Global.lookup_inductive (mind, i) in
               Sorts.is_prop mip.mind_sort
           in
-          if prop_but_default_dep_elim then
-            Indrec.declare_prop_but_default_dependent_elim ind)
-        defaults
+          if prop_but_default_dep_elim
+          then Elimschemes.declare_prop_but_default_dependent_elim (mind, i)
+        ) defaults
   in
   Flags.if_verbose Feedback.msg_info (minductive_message names);
   let indlocs = List.map fst indlocs in

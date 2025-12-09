@@ -31,7 +31,7 @@ open Clenv
 open Tacticals
 open Rocqlib
 open Evarutil
-open Indrec
+open Elimschemes
 open Unification
 open Locus
 open Locusops

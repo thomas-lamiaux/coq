@@ -319,8 +319,7 @@ let check_allowed_sort env sigma ind c p =
   in
   match Inductiveops.make_allowed_elimination sigma (specif, (snd ind)) sort with
   | Some sigma -> sigma, ESorts.relevance_of_sort sort
-  | None ->
-    error_elim_arity env sigma ind c (Some sort)
+  | None -> error_elim_arity env sigma ind c (Some sort)
 
 let check_actual_type env sigma cj t =
   try Evarconv.unify_leq_delay env sigma cj.uj_type t

@@ -9,9 +9,27 @@
 (************************************************************************)
 
 open Ind_tables
+open Names
+open Environ
+
+(* -------------------------------------------------------------------------- *)
+
+(** Declare an inductive block can be eliminated dependently *)
+val declare_prop_but_default_dependent_elim : inductive -> unit
+
+(** Check if an inductive block can be eliminated dependently *)
+val is_prop_but_default_dependent_elim : inductive -> bool
+
+(** Returns [QType] if the inductive block can be eliminated dependently,
+    the sort of the inductive block otherwise   *)
+val pseudo_sort_quality_for_elim : inductive -> Declarations.one_inductive_body -> Sorts.Quality.t
+
+(** Check that an inductive block can be eliminated dependently, and is declared to be so if in Prop *)
+val default_case_analysis_dependence : env -> inductive -> bool
+
+(* -------------------------------------------------------------------------- *)
 
 (** Induction/recursion schemes *)
-
 val elim_scheme : dep:bool -> to_kind:UnivGen.QualityOrSet.t -> individual scheme_kind
 
 (** Case analysis schemes *)
