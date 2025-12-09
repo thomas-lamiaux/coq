@@ -161,13 +161,8 @@ let mk_constant_accu kn u = mk_accu (Aconstant (kn,u))
 
 let mk_ind_accu ind u = mk_accu (Aind (ind,u))
 
-let mk_sort_accu s u =
-  if UVars.Instance.is_empty u then
-    (* Prevents array index failure when not required to substitute *)
-    mk_accu (Asort s)
-  else
-    let s = UVars.subst_instance_sort u s in
-    mk_accu (Asort s)
+let mk_sort_accu s =
+  mk_accu (Asort s)
 
 let mk_var_accu id =
   mk_accu (Avar id)
