@@ -917,13 +917,17 @@ let eq_mllambda t1 t2 =
 
 (*s Compilation environment *)
 
+type uinstance =
+| UGlobal (* Treat all levels as globally bound *)
+| ULocal of lname option (* Name of the toplevel universe instance when poly *)
+
 type env =
     { env_rel : mllambda list; (* (MLlocal lname) list *)
       env_bound : int; (* length of env_rel *)
       (* free variables *)
       env_urel : (int * mllambda) list ref; (* list of unbound rel *)
       env_named : (Id.t * mllambda) list ref;
-      env_univ : lname option;
+      env_univ : uinstance;
       env_const_prefix : Constant.t -> prefix;
       env_const_lazy : Constant.t -> bool;
       env_mind_prefix : MutInd.t -> prefix;
@@ -998,8 +1002,12 @@ let fv_params env =
   let fvn, fvr = !(env.env_named), !(env.env_urel) in
   let size = List.length fvn + List.length fvr in
   let start,params = match env.env_univ with
-    | None -> 0, Array.make size dummy_lname
-    | Some u -> 1, let t = Array.make (size + 1) dummy_lname in t.(0) <- u; t
+  | UGlobal | ULocal None ->
+    (0, Array.make size dummy_lname)
+  | ULocal (Some u) ->
+    let t = Array.make (size + 1) dummy_lname in
+    let () = t.(0) <- u in
+    (1, t)
   in
   if Array.is_empty params then empty_params
   else begin
@@ -1027,8 +1035,12 @@ let empty_args = [||]
 let fv_args env fvn fvr =
   let size = List.length fvn + List.length fvr in
   let start,args = match env.env_univ with
-    | None -> 0, Array.make size (MLint 0)
-    | Some u -> 1, let t = Array.make (size + 1) (MLint 0) in t.(0) <- MLlocal u; t
+  | UGlobal | ULocal None ->
+    (0, Array.make size (MLint 0))
+  | ULocal (Some u) ->
+    let t = Array.make (size + 1) (MLint 0) in
+    let () = t.(0) <- MLlocal u in
+    (1, t)
   in
   if Array.is_empty args then empty_args
   else
@@ -1176,24 +1188,42 @@ let cast_to_int v =
   | MLint _ -> v
   | _ -> MLprimitive (Val_to_int, [|v|])
 
-let ml_of_instance instance u =
+let ml_of_instance env u =
   if UVars.Instance.is_empty u then [||]
   else
     let i = push_symbol (SymbInstance u) in
     let u_code = get_instance_code i in
-    let has_variable =
-      let qs, us = UVars.Instance.to_array u in
-      Array.exists (fun q -> Option.has_some (Sorts.Quality.var_index q)) qs
-      || Array.exists (fun u -> Option.has_some (Univ.Level.var_index u)) us
-    in
-    let u_code =
-      if has_variable then
-        (* if there are variables then [instance] guaranteed non-None *)
-        let univ = MLprimitive (MLmagic, [|MLlocal (Option.get instance)|]) in
-        MLprimitive (MLsubst_instance_instance, [|univ; u_code|])
-      else u_code
+    let u_code = match env.env_univ with
+    | UGlobal -> u_code
+    | ULocal instance ->
+      let has_variable =
+        let qs, us = UVars.Instance.to_array u in
+        Array.exists (fun q -> Option.has_some (Sorts.Quality.var_index q)) qs
+        || Array.exists (fun u -> Option.has_some (Univ.Level.var_index u)) us
+      in
+      let u_code =
+        if has_variable then
+          (* if there are variables then [instance] guaranteed non-None *)
+          let univ = MLprimitive (MLmagic, [|MLlocal (Option.get instance)|]) in
+          MLprimitive (MLsubst_instance_instance, [|univ; u_code|])
+        else u_code
+      in
+    u_code
     in
     [|MLprimitive (MLmagic, [|u_code|])|]
+
+let ml_of_sort env s =
+  let i = push_symbol (SymbSort s) in
+  let s_code = get_sort_code i in
+  let uarg = match env.env_univ with
+  | UGlobal | ULocal None ->
+    (* mk_sort_accu handles this specially when UGlobal *)
+    ml_empty_instance
+  | ULocal (Some u) -> MLlocal u
+  in
+  (* FIXME: use a dedicated cast function *)
+  let uarg = MLprimitive (MLmagic, [|uarg|]) in
+  MLprimitive (Mk_sort, [|s_code; uarg|])
 
 let compile_prim env decl cond paux =
 
@@ -1208,7 +1238,7 @@ let compile_prim env decl cond paux =
   and naive_prim_aux paux =
     match paux with
     | PAprim(prefix, (kn,u), op, args) ->
-      let uarg = ml_of_instance env.env_univ u in
+      let uarg = ml_of_instance env u in
       let prim_const = mkMLapp (MLglobal (Gconstant(prefix,kn))) uarg in
       let prim = MLprimitive ((Coq_primitive(op, true)), [|prim_const|]) in
       mkMLapp prim (Array.map naive_prim_aux args)
@@ -1290,7 +1320,7 @@ let compile_prim env decl cond paux =
       MLapp(ml_of_lam env l f, Array.map (ml_of_lam env l) args)
   | Lconst (c, u) ->
      let prefix = env.env_const_prefix c in
-     let args = ml_of_instance env.env_univ u in
+     let args = ml_of_instance env u in
      let ans = mkMLapp (MLglobal(Gconstant (prefix, c))) args in
      if env.env_const_lazy c then MLapp (MLglobal (Ginternal "Lazy.force"), [|ans|])
      else ans
@@ -1514,17 +1544,10 @@ let compile_prim env decl cond paux =
   | Lval v ->
       let i = push_symbol (SymbValue v) in get_value_code i
   | Lsort s ->
-    let i = push_symbol (SymbSort s) in
-    let uarg = match env.env_univ with
-      | None -> ml_empty_instance
-      | Some u -> MLlocal u
-    in
-    (* FIXME: use a dedicated cast function *)
-    let uarg = MLprimitive (MLmagic, [|uarg|]) in
-    MLprimitive (Mk_sort, [|get_sort_code i; uarg|])
+    ml_of_sort env s
   | Lind (ind, u) ->
      let prefix = env.env_mind_prefix (fst ind) in
-     let uargs = ml_of_instance env.env_univ u in
+     let uargs = ml_of_instance env u in
      mkMLapp (MLglobal (Gind (prefix, ind))) uargs
 
 let mllambda_of_lambda univ constpref constlazy mindpref auxdefs l t =
@@ -2143,10 +2166,10 @@ let compile_constant env sigma con cb =
       let l = Constant.label con in
       let auxdefs,code =
         if no_univs then
-          compile_with_fv ~wrap env sigma None [] (Some l) code
+          compile_with_fv ~wrap env sigma (ULocal None) [] (Some l) code
         else
           let univ = fresh_univ () in
-          let (auxdefs,code) = compile_with_fv ~wrap env sigma (Some univ) [] (Some l) code in
+          let (auxdefs,code) = compile_with_fv ~wrap env sigma (ULocal (Some univ)) [] (Some l) code in
           (auxdefs,mkMLlam [|univ|] code)
       in
       debug_native_compiler (fun () -> Pp.str "Generated mllambda code");
@@ -2358,8 +2381,8 @@ let mk_conv_code env sigma prefix t1 t2 =
   in
   let code1 = lambda_of_constr env sigma t1 in
   let code2 = lambda_of_constr env sigma t2 in
-  let (gl,code1) = compile_with_fv env sigma None gl None code1 in
-  let (gl,code2) = compile_with_fv env sigma None gl None code2 in
+  let (gl,code1) = compile_with_fv env sigma UGlobal gl None code1 in
+  let (gl,code2) = compile_with_fv env sigma UGlobal gl None code2 in
   let t1 = mk_internal_let "t1" code1 in
   let t2 = mk_internal_let "t2" code2 in
   let g1 = MLglobal (Ginternal "t1") in
@@ -2380,7 +2403,7 @@ let mk_norm_code env sigma prefix t =
     compile_deps env sigma prefix init t
   in
   let code = lambda_of_constr env sigma t in
-  let (gl,code) = compile_with_fv env sigma None gl None code in
+  let (gl,code) = compile_with_fv env sigma UGlobal gl None code in
   let t1 = mk_internal_let "t1" code in
   let g1 = MLglobal (Ginternal "t1") in
   let setref = Glet(Ginternal "_", MLsetref("rt1",g1)) in
