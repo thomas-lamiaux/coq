@@ -21,11 +21,6 @@ open Declarations
 open Ind_tables
 open UnivGen
 
-(* **************************************************** *)
-(* Store inductives that are Prop but can be eliminated *)
-(* **************************************************** *)
-
-(** Create a set *)
 let prop_but_default_dependent_elim =
   Summary.ref ~name:"PROP-BUT-DEFAULT-DEPENDENT-ELIM" Indset_env.empty
 
@@ -37,22 +32,17 @@ let inPropButDefaultDepElim : inductive -> Libobject.obj =
     ~subst:(Some (fun (subst,i) -> Mod_subst.subst_ind subst i))
     ~discharge:(fun i -> Some i)
 
-(** Declare an inductive block can be eliminated dependently *)
 let declare_prop_but_default_dependent_elim i =
   Lib.add_leaf (inPropButDefaultDepElim i)
 
-(** Check if an inductive block can be eliminated dependently *)
 let is_prop_but_default_dependent_elim i = Indset_env.mem i !prop_but_default_dependent_elim
 
-(** Returns [QType] if the inductive block can be eliminated dependently,
-    the sort of the inductive block otherwise   *)
 let pseudo_sort_quality_for_elim ind mip =
   let s = mip.mind_sort in
   if Sorts.is_prop s && is_prop_but_default_dependent_elim ind
   then Sorts.Quality.qtype
   else Sorts.quality s
 
-(** Check that an inductive block can be eliminated dependently, and is declared to be so if in Prop *)
 let default_case_analysis_dependence env ind =
   let _, mip as specif = Inductive.lookup_mind_specif env ind in
   Inductiveops.has_dependent_elim specif
