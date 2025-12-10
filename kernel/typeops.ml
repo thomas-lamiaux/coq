@@ -670,7 +670,7 @@ and execute_aux tbl env cstr =
     (* Atomic terms *)
     | Sort s ->
       let () = match s with
-      | SProp -> if not (Environ.sprop_allowed env) then error_disallowed_sprop env
+      | SProp -> if not (Environ.sprop_allowed env) then error_not_allowed_sprop env
       | QSort _ | Prop | Set | Type _ -> ()
       in
       type_of_sort s

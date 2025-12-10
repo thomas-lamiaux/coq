@@ -18,10 +18,8 @@ type dep_flag = bool
 
 (** Errors related to recursors building *)
 type recursion_scheme_error =
-  | NotAllowedCaseAnalysis of evar_map * (*isrec:*) bool * Sorts.t * Constr.pinductive
   | NotMutualInScheme of inductive * inductive
   | DuplicateInductiveBlock of inductive
-  | NotAllowedDependentAnalysis of (*isrec:*) bool * inductive
 
 exception RecursionSchemeError of env * recursion_scheme_error
 

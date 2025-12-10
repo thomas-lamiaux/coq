@@ -11,6 +11,7 @@
 open Names
 open Constr
 open Environ
+open Evd
 open EConstr
 open Type_errors
 
@@ -28,7 +29,7 @@ type unification_error =
   | InstanceNotSameType of Evar.t * env * types option * types
   | InstanceNotFunctionalType of Evar.t * env * constr * types
   | UnifUnivInconsistency of UGraph.univ_inconsistency
-  | CannotSolveConstraint of Evd.evar_constraint * unification_error
+  | CannotSolveConstraint of evar_constraint * unification_error
   | ProblemBeyondCapabilities
 
 type position = (Id.t * Locus.hyp_location_flag) option
@@ -51,7 +52,7 @@ type pretype_error =
   | UnifOccurCheck of Evar.t * constr
   (** Tactic Unification *)
 
-  | UnsolvableImplicit of Evar.t * Evd.unsolvability_explanation option
+  | UnsolvableImplicit of Evar.t * unsolvability_explanation option
   | CannotUnify of constr * constr * unification_error option
   | CannotUnifyLocal of constr * constr * constr
   | CannotUnifyBindingType of constr * constr
@@ -72,109 +73,89 @@ type pretype_error =
   | UnsatisfiableConstraints of
     (Evar.t * Evar_kinds.t) option * Evar.Set.t
     (** unresolvable evar, connex component *)
-  | DisallowedSProp
+  | NotAllowedSProp
+  | NotAllowedElimination of bool * ESorts.t * inductive puniverses
+  | NotAllowedDependentElimination of bool * inductive
 
-exception PretypeError of env * Evd.evar_map * pretype_error
+exception PretypeError of env * evar_map * pretype_error
 
 val precatchable_exception : exn -> bool
 
 (** Raising errors *)
-val raise_type_error
-  : ?loc:Loc.t
-  -> Environ.env * Evd.evar_map * type_error
-  -> 'a
+val raise_type_error : ?loc:Loc.t -> env * evar_map * type_error -> 'a
 
-val error_actual_type :
-  ?loc:Loc.t -> ?info:Exninfo.info -> env -> Evd.evar_map -> unsafe_judgment -> constr ->
-      unification_error -> 'b
+val error_actual_type : ?loc:Loc.t -> ?info:Exninfo.info -> env -> evar_map ->
+      unsafe_judgment -> constr -> unification_error -> 'b
 
-val error_actual_type_core :
-  ?loc:Loc.t -> env -> Evd.evar_map -> unsafe_judgment -> constr -> 'b
+val error_actual_type_core : ?loc:Loc.t -> env -> evar_map -> unsafe_judgment -> constr -> 'b
 
-val error_cant_apply_not_functional :
-  ?loc:Loc.t -> env -> Evd.evar_map ->
+val error_cant_apply_not_functional : ?loc:Loc.t -> env -> evar_map ->
       unsafe_judgment -> unsafe_judgment array -> 'b
 
-val error_cant_apply_bad_type :
-  ?loc:Loc.t -> env -> Evd.evar_map -> ?error:unification_error ->
-  int * constr * constr ->
-  unsafe_judgment -> unsafe_judgment array -> 'b
+val error_cant_apply_bad_type : ?loc:Loc.t -> env -> evar_map -> ?error:unification_error ->
+      int * constr * constr -> unsafe_judgment -> unsafe_judgment array -> 'b
 
-val error_case_not_inductive :
-  ?loc:Loc.t -> env -> Evd.evar_map -> unsafe_judgment -> 'b
+val error_case_not_inductive : ?loc:Loc.t -> env -> evar_map -> unsafe_judgment -> 'b
 
-val error_ill_formed_branch :
-  ?loc:Loc.t -> env -> Evd.evar_map ->
-      constr -> pconstructor -> constr -> constr -> 'b
+val error_ill_formed_branch : ?loc:Loc.t -> env -> evar_map -> constr -> pconstructor -> constr -> constr -> 'b
 
-val error_number_branches :
-  ?loc:Loc.t -> env -> Evd.evar_map ->
-      unsafe_judgment -> int -> 'b
+val error_number_branches : ?loc:Loc.t -> env -> evar_map -> unsafe_judgment -> int -> 'b
 
-val error_ill_typed_rec_body :
-  ?loc:Loc.t -> env -> Evd.evar_map ->
-      int -> Name.t EConstr.binder_annot array -> unsafe_judgment array -> types array -> 'b
+val error_ill_typed_rec_body : ?loc:Loc.t -> env -> evar_map -> int ->
+      Name.t binder_annot array -> unsafe_judgment array -> types array -> 'b
 
-val error_elim_arity :
-  ?loc:Loc.t -> env -> Evd.evar_map ->
-      inductive puniverses -> constr -> ESorts.t option -> 'b
+val error_elim_arity : ?loc:Loc.t -> env -> evar_map -> inductive puniverses -> constr -> ESorts.t option -> 'b
 
-val error_not_a_type :
-  ?loc:Loc.t -> env -> Evd.evar_map -> unsafe_judgment -> 'b
+val error_not_a_type : ?loc:Loc.t -> env -> evar_map -> unsafe_judgment -> 'b
 
-val error_assumption :
-  ?loc:Loc.t -> env -> Evd.evar_map -> unsafe_judgment -> 'b
+val error_assumption : ?loc:Loc.t -> env -> evar_map -> unsafe_judgment -> 'b
 
-val error_cannot_coerce : env -> Evd.evar_map -> constr * constr -> 'b
+val error_cannot_coerce : ?loc:Loc.t -> env -> evar_map -> constr * constr -> 'b
 
 (** {6 Implicit arguments synthesis errors } *)
 
-val error_occur_check : env -> Evd.evar_map -> Evar.t -> constr -> 'b
+val error_occur_check : ?loc:Loc.t -> env -> evar_map -> Evar.t -> constr -> 'b
 
-val error_unsolvable_implicit :
-  ?loc:Loc.t -> env -> Evd.evar_map -> Evar.t ->
-      Evd.unsolvability_explanation option -> 'b
+val error_unsolvable_implicit : ?loc:Loc.t -> env -> evar_map -> Evar.t ->
+      unsolvability_explanation option -> 'b
 
-val error_cannot_unify : ?loc:Loc.t -> env -> Evd.evar_map ->
+val error_cannot_unify : ?loc:Loc.t -> env -> evar_map ->
   ?reason:unification_error -> constr * constr -> 'b
 
-val error_cannot_unify_local : env -> Evd.evar_map -> constr * constr * constr -> 'b
+val error_cannot_unify_local : ?loc:Loc.t -> env -> evar_map -> constr * constr * constr -> 'b
 
-val error_cannot_find_well_typed_abstraction : env -> Evd.evar_map ->
+val error_cannot_find_well_typed_abstraction : ?loc:Loc.t -> env -> evar_map ->
       constr -> constr list -> (env * pretype_error) option -> 'b
 
-val error_wrong_abstraction_type :  env -> Evd.evar_map ->
-      Name.t -> constr -> types -> types -> 'b
+val error_wrong_abstraction_type : ?loc:Loc.t -> env -> evar_map -> Name.t -> constr -> types -> types -> 'b
 
-val error_abstraction_over_meta : env -> Evd.evar_map ->
-  Name.t -> Name.t -> 'b
+val error_abstraction_over_meta : ?loc:Loc.t -> env -> evar_map -> Name.t -> Name.t -> 'b
 
-val error_non_linear_unification : env -> Evd.evar_map ->
-  Name.t -> constr -> 'b
+val error_non_linear_unification : ?loc:Loc.t -> env -> evar_map -> Name.t -> constr -> 'b
 
 (** {6 Ml Case errors } *)
 
-val error_cant_find_case_type :
-  ?loc:Loc.t -> env -> Evd.evar_map -> constr -> 'b
+val error_cant_find_case_type : ?loc:Loc.t -> env -> evar_map -> constr -> 'b
 
 (** {6 Pretyping errors } *)
 
-val error_unexpected_type :
-  ?loc:Loc.t -> env -> Evd.evar_map -> constr -> constr -> unification_error -> 'b
+val error_unexpected_type : ?loc:Loc.t -> env -> evar_map -> constr -> constr -> unification_error -> 'b
 
-val error_not_product :
-  ?loc:Loc.t -> env -> Evd.evar_map -> constr -> 'b
+val error_not_product : ?loc:Loc.t -> env -> evar_map -> constr -> 'b
 
-val error_var_not_found : ?loc:Loc.t -> env -> Evd.evar_map -> Id.t -> 'b
+val error_var_not_found : ?loc:Loc.t -> env -> evar_map -> Id.t -> 'b
 
-val error_evar_not_found : ?loc:Loc.t -> env -> Evd.evar_map -> Id.t -> 'b
+val error_evar_not_found : ?loc:Loc.t -> env -> evar_map -> Id.t -> 'b
 
-val error_disallowed_sprop : env -> Evd.evar_map -> 'a
+val error_not_allowed_sprop : ?loc:Loc.t -> env -> evar_map -> 'a
+
+val error_not_allowed_elimination : ?loc:Loc.t -> env -> evar_map -> bool -> ESorts.t -> inductive puniverses -> 'a
+
+val error_not_allowed_dependent_elimination : ?loc:Loc.t -> env -> evar_map -> bool -> inductive -> 'a
 
 (** {6 Typeclass errors } *)
 
-val unsatisfiable_constraints : env -> Evd.evar_map -> Evar.t option ->
-  Evar.Set.t -> 'a
+val unsatisfiable_constraints : env -> evar_map -> Evar.t option -> Evar.Set.t -> 'a
 
 val unsatisfiable_exception : exn -> bool
 

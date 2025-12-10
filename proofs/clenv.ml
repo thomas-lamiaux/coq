@@ -1025,19 +1025,17 @@ let case_pf ?(with_evars=false) ~dep (indarg, typ) =
   let (mib, mip) = Inductive.lookup_mind_specif env ind in
   let params, indices = Array.chop mib.mind_nparams args in
 
-  (* check elimination *)
-  let open Indrec in
   (* check private *)
-  if Inductive.is_private (mib, mip)
-  then user_err Pp.(str "case analysis on a private type is not allowed.");
+  let () = if Inductive.is_private (mib, mip) then
+    user_err Pp.(str "case analysis on a private type is not allowed.") in
   (* check dep elim *)
   let () = if dep && not (Inductiveops.has_dependent_elim (mib, mip)) then
-    raise (RecursionSchemeError (env, NotAllowedDependentAnalysis (true, ind))) in
+    raise (Pretype_errors.error_not_allowed_dependent_elimination env sigma true ind) in
   (* check elim *)
   let sigma =
     match Inductiveops.make_allowed_elimination sigma ((mib,mip),u) s with
     | Some sigma -> sigma
-    | None -> raise (RecursionSchemeError (env, NotAllowedCaseAnalysis (sigma, true, ESorts.kind sigma s, (ind, EInstance.kind sigma u))))
+    | None -> Pretype_errors.error_not_allowed_elimination env sigma true s (ind, u)
   in
 
   let indf = Inductiveops.make_ind_family ((ind, u), Array.to_list params) in

@@ -78,7 +78,7 @@ type ('constr, 'types, 'r) ptype_error =
   | UnsatisfiedPConstraints of PConstraints.t
   | UndeclaredQualities of Sorts.QVar.Set.t
   | UndeclaredUniverses of Level.Set.t
-  | DisallowedSProp
+  | NotAllowedSProp
   | BadBinderRelevance of 'r * ('constr, 'types, 'r) Context.Rel.Declaration.pt
   | BadCaseRelevance of 'r * 'constr
   | BadInvert
@@ -181,8 +181,8 @@ let error_undeclared_qualities env l =
 let error_undeclared_universes env l =
   raise (TypeError (env, UndeclaredUniverses l))
 
-let error_disallowed_sprop env =
-  raise (TypeError (env, DisallowedSProp))
+let error_not_allowed_sprop env =
+  raise (TypeError (env, NotAllowedSProp))
 
 let error_bad_binder_relevance env rlv decl =
   raise (TypeError (env, BadBinderRelevance (rlv, decl)))
@@ -230,7 +230,7 @@ let map_pguard_error f = function
 
 let map_ptype_error fr f = function
 | UnboundRel _ | UnboundVar _ | CaseOnPrivateInd _ | IllFormedCaseParams
-| UndeclaredQualities _ | UndeclaredUniverses _ | DisallowedSProp
+| UndeclaredQualities _ | UndeclaredUniverses _ | NotAllowedSProp
 | UnsatisfiedElimConstraints _ | UnsatisfiedUnivConstraints _ | UnsatisfiedQCumulConstraints _
 | UnsatisfiedQUConstraints _ | UnsatisfiedPConstraints _
 | ReferenceVariables _ | BadInvert | BadVariance _ | UndeclaredUsedVariables _ | IllFormedConstant _ | IllFormedInductive _ as e -> e

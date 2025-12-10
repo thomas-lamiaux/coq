@@ -468,12 +468,6 @@ let make_case_invert env sigma (IndType (((ind,u),params),indices)) ~case_releva
   then Constr.CaseInvert {indices=Array.of_list indices}
   else Constr.NoInvert
 
-let error_not_allowed_dependent_analysis env isrec i =
-  let open Pp in
-  str "Dependent " ++ str (if isrec then "induction" else "case analysis") ++
-  strbrk " is not allowed for " ++ Termops.pr_global_env env (IndRef i) ++ str "." ++
-  str "Primitive records must have eta conversion to allow dependent elimination."
-
 let make_project env sigma ind pred c branches ps =
   assert(Array.length branches == 1);
   let na, ty, t = destLambda sigma pred in
@@ -481,7 +475,7 @@ let make_project env sigma ind pred c branches ps =
   let () =
     if (* dependent *) not (Vars.noccurn sigma 1 t) &&
          not (has_dependent_elim specif) then
-      user_err (error_not_allowed_dependent_analysis env false ind)
+      Pretype_errors.error_not_allowed_dependent_elimination env sigma false ind
   in
   let branch = branches.(0) in
   let ctx, br = decompose_lambda_n_decls sigma mip.mind_consnrealdecls.(0) branch in

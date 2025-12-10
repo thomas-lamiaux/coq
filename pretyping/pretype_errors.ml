@@ -65,7 +65,10 @@ type pretype_error =
   | CannotUnifyOccurrences of subterm_unification_error
   | UnsatisfiableConstraints of
     (Evar.t * Evar_kinds.t) option * Evar.Set.t
-  | DisallowedSProp
+  | NotAllowedSProp
+  (* Elimination *)
+  | NotAllowedElimination of bool * ESorts.t * inductive puniverses
+  | NotAllowedDependentElimination of bool * inductive
 
 exception PretypeError of env * Evd.evar_map * pretype_error
 
@@ -75,40 +78,33 @@ let precatchable_exception = function
   | Nametab.GlobalizationError _ -> true
   | _ -> false
 
-let raise_pretype_error ?loc ?info (env,sigma,te) =
-  let info = Option.default Exninfo.null info in
-  let info = Option.cata (Loc.add_loc info) info loc in
-  Exninfo.iraise (PretypeError(env,sigma,te),info)
+let raise_pretype_error ?loc (env, sigma, te) =
+  Loc.raise ?loc (PretypeError(env, sigma, te))
 
-let raise_type_error ?loc (env,sigma,te) =
-  Loc.raise ?loc (PretypeError(env,sigma,TypingError te))
+let raise_type_error ?loc (env, sigma, te) =
+  Loc.raise ?loc (PretypeError(env, sigma, TypingError te))
 
 let error_actual_type ?loc ?info env sigma {uj_val=c;uj_type=actty} expty reason =
   let j = {uj_val=c;uj_type=actty} in
-  raise_pretype_error ?loc ?info
-    (env, sigma, ActualTypeNotCoercible (j, expty, reason))
+  let info = Option.default Exninfo.null info in
+  let info = Option.cata (Loc.add_loc info) info loc in
+  Exninfo.iraise (PretypeError(env, sigma, ActualTypeNotCoercible (j, expty, reason)), info)
 
 let error_actual_type_core ?loc env sigma {uj_val=c;uj_type=actty} expty =
   let j = {uj_val=c;uj_type=actty} in
-  raise_type_error ?loc
-    (env, sigma, ActualType (j, expty))
+  raise_type_error ?loc (env, sigma, ActualType (j, expty))
 
 let error_cant_apply_not_functional ?loc env sigma rator randl =
-  raise_type_error ?loc
-    (env, sigma, CantApplyNonFunctional (rator, randl))
+  raise_type_error ?loc (env, sigma, CantApplyNonFunctional (rator, randl))
 
 let error_cant_apply_bad_type ?loc env sigma ?error (n,c,t) rator randl =
   let v = ((n,c,t), rator, randl) in
   match error with
-  | None ->
-    raise_type_error ?loc
-      (env, sigma,
-       CantApplyBadType v)
+  | None -> raise_type_error ?loc (env, sigma, CantApplyBadType v)
   | Some e -> raise_pretype_error ?loc (env,sigma, CantApplyBadTypeExplained (v, e))
 
 let error_ill_formed_branch ?loc env sigma c i actty expty =
-  raise_type_error
-    ?loc (env, sigma, IllFormedBranch (c, i, actty, expty))
+  raise_type_error ?loc (env, sigma, IllFormedBranch (c, i, actty, expty))
 
 let error_number_branches ?loc env sigma cj expn =
   raise_type_error ?loc (env, sigma, NumberBranches (cj, expn))
@@ -117,15 +113,13 @@ let error_case_not_inductive ?loc env sigma cj =
   raise_type_error ?loc (env, sigma, CaseNotInductive cj)
 
 let error_ill_typed_rec_body ?loc env sigma i na jl tys =
-  raise_type_error ?loc
-    (env, sigma, IllTypedRecBody (i, na, jl, tys))
+  raise_type_error ?loc (env, sigma, IllTypedRecBody (i, na, jl, tys))
 
 let error_elim_arity ?loc env sigma pi c a =
   (* XXX type_errors should have a 'sort type parameter *)
   let a = Option.map EConstr.Unsafe.to_sorts a in
   let pi = Util.on_snd EConstr.Unsafe.to_instance pi in
-  raise_type_error ?loc
-    (env, sigma, ElimArity (pi, c, a))
+  raise_type_error ?loc (env, sigma, ElimArity (pi, c, a))
 
 let error_not_a_type ?loc env sigma j =
   raise_type_error ?loc (env, sigma, NotAType j)
@@ -136,33 +130,32 @@ let error_assumption ?loc env sigma j =
 (*s Implicit arguments synthesis errors. It is hard to find
     a precise location. *)
 
-let error_occur_check env sigma ev c =
-  raise (PretypeError (env, sigma, UnifOccurCheck (ev,c)))
+let error_occur_check ?loc env sigma ev c =
+  raise_pretype_error ?loc (env, sigma, UnifOccurCheck (ev,c))
 
 let error_unsolvable_implicit ?loc env sigma evk explain =
-  Loc.raise ?loc
-    (PretypeError (env, sigma, UnsolvableImplicit (evk, explain)))
+  raise_pretype_error ?loc (env, sigma, UnsolvableImplicit (evk, explain))
 
 let error_cannot_unify ?loc env sigma ?reason (m,n) =
-  Loc.raise ?loc (PretypeError (env, sigma,CannotUnify (m,n,reason)))
+  raise_pretype_error ?loc (env, sigma, CannotUnify (m,n,reason))
 
-let error_cannot_unify_local env sigma (m,n,sn) =
-  raise (PretypeError (env, sigma,CannotUnifyLocal (m,n,sn)))
+let error_cannot_unify_local ?loc env sigma (m,n,sn) =
+  raise_pretype_error ?loc (env, sigma, CannotUnifyLocal (m,n,sn))
 
-let error_cannot_coerce env sigma (m,n) =
-  raise (PretypeError (env, sigma,CannotUnify (m,n,None)))
+let error_cannot_coerce ?loc env sigma (m,n) =
+  raise_pretype_error ?loc (env, sigma, CannotUnify (m,n,None))
 
-let error_cannot_find_well_typed_abstraction env sigma p l e =
-  raise (PretypeError (env, sigma,CannotFindWellTypedAbstraction (p,l,e)))
+let error_cannot_find_well_typed_abstraction ?loc env sigma p l e =
+  raise_pretype_error ?loc (env, sigma, CannotFindWellTypedAbstraction (p,l,e))
 
-let error_wrong_abstraction_type env sigma na a p l =
-  raise (PretypeError (env, sigma,WrongAbstractionType (na,a,p,l)))
+let error_wrong_abstraction_type ?loc env sigma na a p l =
+  raise_pretype_error ?loc (env, sigma, WrongAbstractionType (na,a,p,l))
 
-let error_abstraction_over_meta env sigma m n =
-  raise (PretypeError (env, sigma,AbstractionOverMeta (m,n)))
+let error_abstraction_over_meta ?loc env sigma m n =
+  raise_pretype_error ?loc (env, sigma, AbstractionOverMeta (m,n))
 
-let error_non_linear_unification env sigma m t =
-  raise (PretypeError (env, sigma,NonLinearUnification (m,t)))
+let error_non_linear_unification ?loc env sigma m t =
+  raise_pretype_error ?loc (env, sigma, NonLinearUnification (m,t))
 
 (*s Ml Case errors *)
 
@@ -185,8 +178,14 @@ let error_var_not_found ?loc env sigma s =
 let error_evar_not_found ?loc env sigma id =
   raise_pretype_error ?loc (env, sigma, EvarNotFound id)
 
-let error_disallowed_sprop env sigma  =
-  raise (PretypeError (env, sigma, DisallowedSProp))
+let error_not_allowed_sprop ?loc env sigma  =
+  raise_pretype_error ?loc (env, sigma, NotAllowedSProp)
+
+let error_not_allowed_elimination ?loc env sigma is_rec s pind =
+  raise_pretype_error ?loc (env, sigma, NotAllowedElimination (is_rec, s, pind))
+
+  let error_not_allowed_dependent_elimination ?loc env sigma s pind =
+  raise_pretype_error ?loc (env, sigma, NotAllowedDependentElimination (s, pind))
 
 (*s Typeclass errors *)
 

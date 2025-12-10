@@ -937,10 +937,16 @@ let explain_undeclared_qualities env sigma l =
     prlist_with_sep spc (Termops.pr_evd_qvar sigma) (Sorts.QVar.Set.elements l) ++
     spc () ++ str "(maybe a bugged tactic)."
 
-let explain_disallowed_sprop () =
-  Pp.(strbrk "SProp is disallowed because the "
+let explain_not_allowed_sprop () =
+  Pp.(strbrk "SProp is not allowed because the "
       ++ str "\"Allow StrictProp\""
       ++ strbrk " flag is off.")
+
+let explain_not_allowed_dependent_eliminitation env isrec i =
+  let open Pp in
+  str "Dependent " ++ str (if isrec then "induction" else "case analysis") ++
+  strbrk " is not allowed for " ++ Termops.pr_global_env env (IndRef i) ++ str "." ++
+  str "Primitive records must have eta conversion to allow dependent elimination."
 
 let pr_relevance sigma r =
   let r = EConstr.ERelevance.kind sigma r in
@@ -1067,7 +1073,7 @@ let explain_type_error env sigma err =
     explain_undeclared_universes env sigma l
   | UndeclaredQualities l ->
     explain_undeclared_qualities env sigma l
-  | DisallowedSProp -> explain_disallowed_sprop ()
+  | NotAllowedSProp -> explain_not_allowed_sprop ()
   | BadBinderRelevance (rlv, decl) -> explain_bad_binder_relevance env sigma rlv decl
   | BadCaseRelevance (rlv, case) -> explain_bad_case_relevance env sigma rlv case
   | BadInvert -> explain_bad_invert env
@@ -1190,7 +1196,10 @@ let rec explain_pretype_error env sigma err =
     explain_cant_apply_bad_type env sigma ~error t rator randl
   | CannotUnifyOccurrences (b,c1,c2) -> explain_cannot_unify_occurrences env sigma b c1 c2
   | UnsatisfiableConstraints (c,comp) -> explain_unsatisfiable_constraints env sigma c comp
-  | DisallowedSProp -> explain_disallowed_sprop ()
+  | NotAllowedSProp -> explain_not_allowed_sprop ()
+  | NotAllowedElimination (isrec, k, (ind,u)) -> explain_elim_arity env sigma (ind, (EConstr.EInstance.kind sigma u))
+                                                  None (Some (EConstr.ESorts.kind sigma k))
+  | NotAllowedDependentElimination (isrec, i) -> explain_not_allowed_dependent_eliminitation env isrec i
 
 (* Module errors *)
 
@@ -1549,16 +1558,6 @@ let error_inductive_missing_constraints env (us,ind_univ) =
       hov 0 (pr_sort u ++ str " <= " ++ pr_sort ind_univ))
       us)
 
-(* Recursion schemes errors *)
-
-let error_not_mutual_in_scheme env ind ind' =
-    str "The inductive types " ++ pr_inductive env ind ++ spc () ++
-    str "and" ++ spc () ++ pr_inductive env ind' ++ spc () ++
-    str "are not mutually defined."
-
-let error_twice_in_scheme env ind  =
-  str "The inductive type " ++ pr_inductive env ind ++ str " occurs twice."
-
 (* Inductive constructions errors *)
 
 let explain_inductive_error env = function
@@ -1600,15 +1599,17 @@ let explain_incompatible_prim_declarations (type a) (act:a Primred.action_kind) 
     str ": " ++ pr_inductive env y ++ str " is already declared."
 
 (* Recursion schemes errors *)
+let error_not_mutual_in_scheme env ind ind' =
+    str "The inductive types " ++ pr_inductive env ind ++ spc () ++
+    str "and" ++ spc () ++ pr_inductive env ind' ++ spc () ++
+    str "are not mutually defined."
+
+let error_twice_in_scheme env ind  =
+  str "The inductive type " ++ pr_inductive env ind ++ str " occurs twice."
 
 let explain_recursion_scheme_error env = function
-  | NotAllowedCaseAnalysis (sigma,isrec,k,i) ->
-    explain_elim_arity env sigma i None (Some k)
-      (* error_not_allowed_case_analysis env isrec k i *)
   | NotMutualInScheme (ind,ind')-> error_not_mutual_in_scheme env ind ind'
   | DuplicateInductiveBlock ind -> error_twice_in_scheme env ind
-  | NotAllowedDependentAnalysis (isrec, i) ->
-     Inductiveops.error_not_allowed_dependent_analysis env isrec i
 
 (* Pattern-matching errors *)
 
