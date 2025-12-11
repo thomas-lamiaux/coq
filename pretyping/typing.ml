@@ -599,7 +599,7 @@ let rec execute env sigma cstr =
       begin match ESorts.kind sigma s with
         | SProp ->
           if Environ.sprop_allowed env then sigma, judge_of_sprop
-          else error_disallowed_sprop env sigma
+          else error_not_allowed_sprop env sigma
         | Prop -> sigma, judge_of_prop
         | Set -> sigma, judge_of_set
         | Type u -> sigma, judge_of_type u

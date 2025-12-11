@@ -90,7 +90,7 @@ let check_constant_declaration env opac kn cb opacify =
 let check_quality_mask env qmask lincheck =
   let open Sorts.Quality in
   match qmask with
-  | PQConstant QSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_disallowed_sprop env
+  | PQConstant QSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_not_allowed_sprop env
   | PQConstant (QProp | QType) -> lincheck
   | PQVar qio -> Partial_subst.maybe_add_quality qio () lincheck
 
@@ -139,7 +139,7 @@ and get_holes_profiles_head env nargs ndecls lincheck = function
       let (mib, _) = Inductive.lookup_mind_specif env ind in
       check_instance_mask env mib.mind_universes u lincheck
   | PHInt _  | PHFloat _ | PHString _ -> lincheck
-  | PHSort PSSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_disallowed_sprop env
+  | PHSort PSSProp -> if Environ.sprop_allowed env then lincheck else Type_errors.error_not_allowed_sprop env
   | PHSort PSType io -> Partial_subst.maybe_add_univ io () lincheck
   | PHSort PSQSort (qio, uio) ->
       lincheck

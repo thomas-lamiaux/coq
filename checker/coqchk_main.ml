@@ -313,7 +313,7 @@ let explain_exn = function
       | UnsatisfiedUnivConstraints _ -> str"UnsatisfiedUnivConstraints"
       | UnsatisfiedQUConstraints _ -> str"UnsatisfiedQUConstraints"
       | UnsatisfiedPConstraints _ -> str"UnsatisfiedPConstraints"
-      | DisallowedSProp -> str"DisallowedSProp"
+      | NotAllowedSProp -> str"NotAllowedSProp"
       | BadBinderRelevance _ -> str"BadBinderRelevance"
       | BadCaseRelevance _ -> str"BadCaseRelevance"
       | BadInvert -> str"BadInvert"

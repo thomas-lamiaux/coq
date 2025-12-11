@@ -1057,7 +1057,7 @@ let expand_projection_with_metas ~metas env sigma pr c args =
   let ty = get_type_of_with_metas ~metas ~lax:true env sigma c in
   let (i,u), ind_args =
     try Inductiveops.find_mrectype env sigma ty
-    with Not_found -> error_disallowed_sprop env sigma (* dummy, caught immediately *)
+    with Not_found -> error_not_allowed_sprop env sigma (* dummy, caught immediately *)
   in
     mkApp (mkConstU (Projection.constant pr,u),
            Array.of_list (ind_args @ (c :: args)))

@@ -80,7 +80,7 @@ type ('constr, 'types, 'r) ptype_error =
   | UnsatisfiedPConstraints of PConstraints.t
   | UndeclaredQualities of Sorts.QVar.Set.t
   | UndeclaredUniverses of Level.Set.t
-  | DisallowedSProp
+  | NotAllowedSProp
   | BadBinderRelevance of 'r * ('constr, 'types, 'r) Context.Rel.Declaration.pt
   | BadCaseRelevance of 'r * 'constr
   | BadInvert
@@ -169,7 +169,7 @@ val error_undeclared_qualities : env -> Sorts.QVar.Set.t -> 'a
 
 val error_undeclared_universes : env -> Level.Set.t -> 'a
 
-val error_disallowed_sprop : env -> 'a
+val error_not_allowed_sprop : env -> 'a
 
 val error_bad_binder_relevance : env -> Sorts.relevance -> rel_declaration -> 'a
 

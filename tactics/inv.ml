@@ -523,15 +523,18 @@ let raw_inversion inv_kind id status names =
 
 (* Error messages of the inversion tactics *)
 let wrap_inv_error id = function (e, info) -> match e with
-  | Indrec.RecursionSchemeError
-      (_, Indrec.NotAllowedCaseAnalysis (_, _,(Type _ | Set as k),i)) ->
-      Proofview.tclENV >>= fun env ->
-      Proofview.tclEVARMAP >>= fun sigma ->
-      tclZEROMSG (
-        (strbrk "Inversion would require case analysis on sort " ++
-        pr_sort sigma k ++
-        strbrk " which is not allowed for inductive definition " ++
-        pr_inductive env (fst i) ++ str "."))
+  | Pretype_errors.PretypeError (_, sigma, Pretype_errors.NotAllowedElimination (_, s, i)) -> begin
+      match ESorts.kind sigma s with
+      | Type _ | Set as k ->
+        Proofview.tclENV >>= fun env ->
+        Proofview.tclEVARMAP >>= fun sigma ->
+        tclZEROMSG (
+          (strbrk "Inversion would require case analysis on sort " ++
+          pr_sort sigma k ++
+          strbrk " which is not allowed for inductive definition " ++
+          pr_inductive env (fst i) ++ str "."))
+      | _ ->  Proofview.tclZERO ~info e
+      end
   | e -> Proofview.tclZERO ~info e
 
 (* The most general inversion tactic *)

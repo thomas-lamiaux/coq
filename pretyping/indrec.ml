@@ -31,10 +31,8 @@ type dep_flag = bool
 
 (* Errors related to recursors building *)
 type recursion_scheme_error =
-  | NotAllowedCaseAnalysis of Evd.evar_map * (*isrec:*) bool * Sorts.t * pinductive
   | NotMutualInScheme of inductive * inductive
   | DuplicateInductiveBlock of inductive
-  | NotAllowedDependentAnalysis of (*isrec:*) bool * inductive
 
 exception RecursionSchemeError of env * recursion_scheme_error
 
@@ -411,30 +409,31 @@ let gen_elim_term print_constr (rec_hyp : bool) env sigma kn u mdecl uparams nup
 (* build the eliminators mutual and individual *)
 
 (** Check all dependent eliminations are allowed *)
-let check_valid_elimination env sigma (kn, n) mib u lrecspec =
+let check_valid_elimination env sigma (kn, n) mib u lrecspec rec_hyp =
   (* Check the mutual can be eliminated. *)
   if mib.mind_private = Some true
   then user_err (str "case analysis on a private inductive type is not allowed");
   (* Check all the blocks can be eliminated *)
   List.iter (fun ((kni, ni),dep,s) ->
     (* Check that all the blocks can be eliminated to s *)
-    if not @@ Inductiveops.is_allowed_elimination sigma ((mib,mib.mind_packets.(ni)),u) s
-    then raise (RecursionSchemeError (env, NotAllowedCaseAnalysis (sigma, true, ESorts.kind sigma s, ((kn, ni), EInstance.kind sigma u))));
+    let () = if not @@ Inductiveops.is_allowed_elimination sigma ((mib,mib.mind_packets.(ni)),u) s then
+        raise (Pretype_errors.error_not_allowed_elimination env sigma rec_hyp s ((kn, ni), u)) in
     (* Check if dep elim is allowed: rec (co)ind records with prim proj can not be eliminated dependently *)
-    if dep && not (Inductiveops.has_dependent_elim (mib, mib.mind_packets.(ni)))
-    then raise (RecursionSchemeError (env, NotAllowedDependentAnalysis (true, (kni, ni))));
+    if dep && not (Inductiveops.has_dependent_elim (mib, mib.mind_packets.(ni))) then
+      raise (Pretype_errors.error_not_allowed_dependent_elimination env sigma rec_hyp (kni, ni))
   ) lrecspec
+
 
 (** Check all the blocks are mutual, and not given twice *)
 let check_valid_mutual env sigma (kn, n) mib u lrecspec =
   let _ : int list =
     List.fold_left (fun ln ((kni, ni),dep,s) ->
         (* Check all the blocks are mutual  *)
-        if not (QMutInd.equal env kn kni)
-        then raise (RecursionSchemeError (env, NotMutualInScheme ((kn, n),(kni, ni))));
+        let () = if not (QMutInd.equal env kn kni) then
+            raise (RecursionSchemeError (env, NotMutualInScheme ((kn, n), (kni, ni)))) in
         (* Check none is given twice *)
-        if Int.List.mem ni ln
-        then raise (RecursionSchemeError (env, DuplicateInductiveBlock (kn, ni)))
+        if Int.List.mem ni ln then
+          raise (RecursionSchemeError (env, DuplicateInductiveBlock (kn, ni)))
         else ni::ln)
       [n] lrecspec
   in
@@ -446,7 +445,7 @@ let build_mutual_induction_scheme_gen rec_hyp env sigma lrecspec u =
       let mib, mip = lookup_mind_specif env mind in
       (* Check the blocks are all mutual, different, and can be eliminated dependently *)
       let () = check_valid_mutual env sigma mind mib u tail in
-      let () = check_valid_elimination env sigma mind mib u lrecspec in
+      let () = check_valid_elimination env sigma mind mib u lrecspec rec_hyp in
       (* Compute values for gen_elim *)
       let listdepkind = (snd mind, mip, dep, s) :: List.map (fun ((_,ni), dep, s) -> (ni, mib.mind_packets.(ni), dep, s)) tail in
       (* Get parameters, and generalized them for UnivPoly + TemplatePoly *)
