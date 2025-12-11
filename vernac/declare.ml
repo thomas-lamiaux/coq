@@ -634,21 +634,17 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
   (* Logically define the constant and its subproofs, no libobject tampering *)
     | DefinitionEntry de ->
       (* We deal with side effects *)
-      (match de.proof_entry_body with
+      begin match de.proof_entry_body with
       | Default { body; opaque = Transparent } ->
         let de = { de with proof_entry_body = body } in
         let e, ctx = cast_pure_proof_entry de in
         let ubinders = make_ubinders ctx de.proof_entry_universes in
-        (* We register the global universes after exporting side-effects, since
-           the latter depend on the former. *)
-        let () = Global.push_context_set ctx in
         Entries.DefinitionEntry e, false, ubinders, None, ctx
       | Default { body; opaque = Opaque (body_uctx, eff) } ->
         let body = ((body, body_uctx), SideEff.get eff) in
         let de = { de with proof_entry_body = body } in
         let cd, ctx = cast_opaque_proof_entry ImmediateEffectEntry de in
         let ubinders = make_ubinders ctx de.proof_entry_universes in
-        let () = Global.push_context_set ctx in
         Entries.OpaqueEntry cd, false, ubinders, Some (Future.from_val body, None), ctx
       | DeferredOpaque { body; feedback_id } ->
         let map (body, eff) = body, SideEff.get eff in
@@ -656,12 +652,11 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
         let de = { de with proof_entry_body = body } in
         let cd, ctx = cast_opaque_proof_entry DeferredEffectEntry de in
         let ubinders = make_ubinders ctx de.proof_entry_universes in
-        let () = Global.push_context_set ctx in
-        Entries.OpaqueEntry cd, false, ubinders, Some (body, feedback_id), ctx)
+        Entries.OpaqueEntry cd, false, ubinders, Some (body, feedback_id), ctx
+      end
     | ParameterEntry e ->
       let univ_entry, ctx = extract_monomorphic (fst e.parameter_entry_universes) in
       let ubinders = make_ubinders ctx e.parameter_entry_universes in
-      let () = Global.push_context_set ctx in
       let e = {
         Entries.parameter_entry_secctx = e.parameter_entry_secctx;
         Entries.parameter_entry_type = e.parameter_entry_type;
@@ -677,7 +672,6 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
         let univ_entry, ctx = extract_monomorphic (fst entry_univs) in
         Some (typ, univ_entry), entry_univs, ctx
       in
-      let () = Global.push_context_set ctx in
       let e = {
         Entries.prim_entry_type = typ;
         Entries.prim_entry_content = e.prim_entry_content;
@@ -686,7 +680,6 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
       Entries.PrimitiveEntry e, false, ubinders, None, ctx
     | SymbolEntry { symb_entry_type=typ; symb_entry_unfold_fix=un_fix; symb_entry_universes=entry_univs } ->
       let univ_entry, ctx = extract_monomorphic (fst entry_univs) in
-      let () = Global.push_context_set ctx in
       let e = {
         Entries.symb_entry_type = typ;
         Entries.symb_entry_unfold_fix = un_fix;
@@ -707,6 +700,7 @@ let declare_constant ~loc ?(local = Locality.ImportDefaultBehavior) ~name ~kind 
   in
   let () = check_exists name in
   let decl, unsafe, ubinders, delayed, ctx = make_constant cd in
+  let () = Global.push_context_set ctx in
   let kn = Global.add_constant ?typing_flags name decl in
   let () =
     let is_new_constraint (u,_,v as c) =
