@@ -930,10 +930,6 @@ let process_proof ~info:Info.({ udecl; poly }) ?(is_telescope=false) = function
                ((body, uctx), eff)) in
            (delayed_definition_entry ?using ~univs ~types:initial_typ ~feedback_id body, initial_euctx))
 
-let ustate_of_proof = function
-  | DefaultProof { proof } -> proof.output_ustate
-  | DeferredOpaqueProof { initial_euctx } -> initial_euctx
-
 let declare_definition_scheme ~univs ~role ~name ~effs c =
   let entry = pure_definition_entry ~univs c in
   declare_private_constant ~role ~name ~opaque:false entry effs
@@ -2218,15 +2214,20 @@ let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ
   let pinfo = Proof_info.make ~cinfo ~info () in
   let pf = start_proof_core ~name ~pinfo sigma [Some sign, typ] in
   let pf, status = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
-  let proof = close_proof ?warn_incomplete ~keep_body_ucst_separate:false ~opaque:Vernacexpr.Transparent pf in
-  let _eff, entries = process_proof ~info proof.proof_object in (* FIXME: return the locally introduced effects *)
+  let proof = prepare_proof ?warn_incomplete pf in
+  let (body, types) = match proof.output_entries with [p] -> p | _ -> assert false in
+  let univs =
+    let used_univs = Univ.Level.Set.empty in
+    let udecl = UState.default_univ_decl in
+    let { output_ustate = uctx; output_sideff = eff } = proof in
+    let _, univs, _, _ = make_univs_immediate_default ~poly ~opaque:false ~uctx ~udecl ~eff ~used_univs body types in
+    univs
+  in
+  let entry = definition_entry_core ~univs ?types body in
+  (* FIXME: return the locally introduced effects *)
   let { Proof.sigma } = Proof.data pf.proof in
-  let sigma = Evd.set_universe_context sigma (ustate_of_proof proof.proof_object) in
-  match entries with
-  | [ { proof_entry_body = Default { body; opaque = Transparent } } as entry, _] ->
-    { entry with proof_entry_body = body }, status, sigma
-  | _ ->
-    CErrors.anomaly Pp.(str "[build_constant_by_tactic] close_proof returned more than one proof term, or a non transparent one.")
+  let sigma = Evd.set_universe_context sigma proof.output_ustate in
+  entry, status, sigma
 
 let build_by_tactic env ~uctx ~poly ~typ tac =
   let name = Id.of_string ("temporary_proof"^string_of_int (next())) in
