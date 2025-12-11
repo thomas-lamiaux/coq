@@ -227,15 +227,15 @@ let classify_hint _ = VtSideff ([], VtLater)
 (* XXX get this out of ltac plugin (need to bring orient with it) *)
 
 VERNAC COMMAND EXTEND HintRewrite CLASSIFIED BY { classify_hint }
-| #[ polymorphic; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) ":" ne_preident_list(bl) ] ->
-  { add_rewrite_hint ~locality ~poly:polymorphic bl o None l }
-| #[ polymorphic; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) "using" generic_tactic(t)
+| #[ poly_def; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) ":" ne_preident_list(bl) ] ->
+  { add_rewrite_hint ~locality ~poly:poly_def bl o None l }
+| #[ poly_def; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) "using" generic_tactic(t)
     ":" ne_preident_list(bl) ] ->
-  { add_rewrite_hint ~locality ~poly:polymorphic bl o (Some t) l }
-| #[ polymorphic; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) ] ->
-  { add_rewrite_hint ~locality ~poly:polymorphic ["core"] o None l }
-| #[ polymorphic; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) "using" generic_tactic(t) ] ->
-  { add_rewrite_hint ~locality ~poly:polymorphic ["core"] o (Some t) l }
+  { add_rewrite_hint ~locality ~poly:poly_def bl o (Some t) l }
+| #[ poly_def; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) ] ->
+  { add_rewrite_hint ~locality ~poly:poly_def ["core"] o None l }
+| #[ poly_def; locality = hint_locality; ] [ "Hint" "Rewrite" orient(o) ne_constr_list(l) "using" generic_tactic(t) ] ->
+  { add_rewrite_hint ~locality ~poly:poly_def ["core"] o (Some t) l }
 END
 
 VERNAC COMMAND EXTEND HintCreateRewriteDb CLASSIFIED BY { classify_hint }
@@ -286,37 +286,37 @@ let seff id = VtSideff ([id.CAst.v], VtLater)
 VERNAC COMMAND EXTEND DeriveInversionClear
 | #[ polymorphic; ] [ "Derive" "Inversion_clear" identref(na) "with" constr(c) "Sort" sort_quality_or_set(s) ]
   => { seff na }
-  -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c s false inv_clear_tac }
+  -> { let poly = PolyFlags.of_univ_poly polymorphic in
+       add_inversion_lemma_exn ~poly na c s false inv_clear_tac }
 
 | #[ polymorphic; ] [ "Derive" "Inversion_clear" identref(na) "with" constr(c) ] => { seff na }
-  -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c UnivGen.QualityOrSet.prop false inv_clear_tac }
+  -> { let poly = PolyFlags.of_univ_poly polymorphic in
+       add_inversion_lemma_exn ~poly na c UnivGen.QualityOrSet.prop false inv_clear_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveInversion
 | #[ polymorphic; ] [ "Derive" "Inversion" identref(na) "with" constr(c) "Sort" sort_quality_or_set(s) ]
   => { seff na }
-  -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c s false inv_tac }
+  -> { let poly = PolyFlags.of_univ_poly polymorphic in
+       add_inversion_lemma_exn ~poly na c s false inv_tac }
 
 | #[ polymorphic; ] [ "Derive" "Inversion" identref(na) "with" constr(c) ] => { seff na }
-  -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c UnivGen.QualityOrSet.prop false inv_tac }
+  -> { let poly = PolyFlags.of_univ_poly polymorphic in
+       add_inversion_lemma_exn ~poly na c UnivGen.QualityOrSet.prop false inv_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveDependentInversion
 | #[ polymorphic; ] [ "Derive" "Dependent" "Inversion" identref(na) "with" constr(c) "Sort" sort_quality_or_set(s) ]
   => { seff na }
-  -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c s true dinv_tac }
+  -> { let poly = PolyFlags.of_univ_poly polymorphic in
+       add_inversion_lemma_exn ~poly na c s true dinv_tac }
 END
 
 VERNAC COMMAND EXTEND DeriveDependentInversionClear
 | #[ polymorphic; ] [ "Derive" "Dependent" "Inversion_clear" identref(na) "with" constr(c) "Sort" sort_quality_or_set(s) ]
   => { seff na }
-  -> {
-      add_inversion_lemma_exn ~poly:polymorphic na c s true dinv_clear_tac }
+  -> { let poly = PolyFlags.of_univ_poly polymorphic in
+       add_inversion_lemma_exn ~poly na c s true dinv_clear_tac }
 END
 
 (**********************************************************************)

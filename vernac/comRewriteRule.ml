@@ -421,9 +421,11 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   let rhs_loc = rhs.CAst.loc in
 
   let lhs = Constrintern.(intern_gen WithoutTypeConstraint env evd lhs) in
-  let flags = { Pretyping.no_classes_no_fail_inference_flags with undeclared_evars_rr = true; expand_evars = false; solve_unification_constraints = false } in
+  let poly = PolyFlags.make ~univ_poly:true ~cumulative:false ~collapse_sort_variables:false in
+  let flags = { Pretyping.no_classes_no_fail_inference_flags with
+    undeclared_evars_rr = true; expand_evars = false;
+    solve_unification_constraints = false; poly } in
   let evd, lhs, typ = Pretyping.understand_tcc_ty ~flags env evd lhs in
-
   let evd = Evd.minimize_universes evd in
   let _qvars, uvars = EConstr.universes_of_constr evd lhs in
   let evd = Evd.restrict_universe_context evd uvars in
@@ -466,7 +468,7 @@ let interp_rule (udecl, lhs, rhs: Constrexpr.universe_decl_expr option * _ * _) 
   (* The udecl constraints (or, if none, the lhs constraints) must imply those of the rhs *)
   let evd = Evd.set_universe_context evd uctx in
   let rhs = Constrintern.(intern_gen WithoutTypeConstraint env evd rhs) in
-  let flags = Pretyping.no_classes_no_fail_inference_flags in
+  let flags = { Pretyping.no_classes_no_fail_inference_flags with poly } in
   let evd', rhs =
     try Pretyping.understand_tcc ~flags env evd ~expected_type:(OfType typ) rhs
     with Pretype_errors.PretypeError (env', evd', e) ->

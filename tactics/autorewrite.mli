@@ -22,7 +22,7 @@ val add_rew_rules : locality:Hints.hint_locality -> string -> raw_rew_rule list 
 
 val add_rewrite_hint
   : locality:Libobject.locality
-  -> poly:bool
+  -> poly:PolyFlags.t
   -> string list
   -> bool
   -> Gentactic.raw_generic_tactic option -> Constrexpr.constr_expr list -> unit

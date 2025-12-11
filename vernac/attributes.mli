@@ -52,6 +52,12 @@ end
 val raw_attributes : vernac_flags attribute
 
 val polymorphic : bool attribute
+val poly : PolyFlags.construction_kind -> PolyFlags.t attribute
+(** Attributes supported by monomorphic or polymorphic constructions depending on their kind *)
+
+val poly_def : PolyFlags.t attribute
+(** Attributes supported by monomorphic or polymorphic definitions *)
+
 val program : bool attribute
 val template : bool option attribute
 val unfold_fix : bool attribute
