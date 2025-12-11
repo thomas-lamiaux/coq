@@ -2217,11 +2217,9 @@ let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ
   let proof = prepare_proof ?warn_incomplete pf in
   let (body, types) = match proof.output_entries with [p] -> p | _ -> assert false in
   let univs =
-    let used_univs = Univ.Level.Set.empty in
-    let udecl = UState.default_univ_decl in
-    let { output_ustate = uctx; output_sideff = eff } = proof in
-    let _, univs, _, _ = make_univs_immediate_default ~poly ~opaque:false ~uctx ~udecl ~eff ~used_univs body types in
-    univs
+    let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body types in
+    let uctx = UState.restrict proof.output_ustate used_univs in
+    UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
   let entry = definition_entry_core ~univs ?types body in
   (* FIXME: return the locally introduced effects *)
