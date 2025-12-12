@@ -81,7 +81,7 @@ val mk_rel_accu : int -> t
 val mk_rels_accu : int -> int -> t array
 val mk_constant_accu : Constant.t -> UVars.Instance.t -> t
 val mk_ind_accu : inductive -> UVars.Instance.t -> t
-val mk_sort_accu : Sorts.t -> UVars.Instance.t -> t
+val mk_sort_accu : Sorts.t -> t
 val mk_var_accu : Id.t -> t
 val mk_sw_accu : annot_sw -> accumulator -> t -> (t -> t)
 val mk_fix_accu : rec_pos  -> int -> t array -> t array -> t

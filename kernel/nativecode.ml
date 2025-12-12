@@ -333,6 +333,7 @@ type primitive =
   | MLland
   | MLmagic
   | MLsubst_instance_instance
+  | MLsubst_instance_sort
   | MLparray_of_array
   | Get_value
   | Get_sort
@@ -374,6 +375,7 @@ let eq_primitive p1 p2 =
   | MLland, MLland
   | MLmagic, MLmagic
   | MLsubst_instance_instance, MLsubst_instance_instance
+  | MLsubst_instance_sort, MLsubst_instance_sort
   | MLparray_of_array, MLparray_of_array
   | Get_value, Get_value
   | Get_sort, Get_sort
@@ -424,6 +426,7 @@ let eq_primitive p1 p2 =
     | MLland
     | MLmagic
     | MLsubst_instance_instance
+    | MLsubst_instance_sort
     | MLparray_of_array
     | Get_value
     | Get_sort
@@ -469,25 +472,26 @@ let primitive_hash = function
   | Coq_primitive (prim, b) -> combinesmall 22 (combine (CPrimitives.hash prim) (Hashtbl.hash b))
   | Mk_proj -> 23
   | MLsubst_instance_instance -> 24
-  | Mk_float -> 25
-  | Is_float -> 26
-  | Is_string -> 27
-  | Is_parray -> 28
-  | MLnot -> 29
-  | MLparray_of_array -> 30
-  | Get_value -> 31
-  | Get_sort -> 32
-  | Get_name -> 33
-  | Get_const -> 34
-  | Get_match -> 35
-  | Get_ind -> 36
-  | Get_evar -> 37
-  | Get_instance -> 38
-  | Get_proj -> 39
-  | Get_symbols -> 40
-  | Lazy -> 41
-  | Mk_empty_instance -> 42
-  | Mk_string -> 43
+  | MLsubst_instance_sort -> 25
+  | Mk_float -> 26
+  | Is_float -> 27
+  | Is_string -> 28
+  | Is_parray -> 29
+  | MLnot -> 30
+  | MLparray_of_array -> 31
+  | Get_value -> 32
+  | Get_sort -> 33
+  | Get_name -> 34
+  | Get_const -> 35
+  | Get_match -> 36
+  | Get_ind -> 37
+  | Get_evar -> 38
+  | Get_instance -> 39
+  | Get_proj -> 40
+  | Get_symbols -> 41
+  | Lazy -> 42
+  | Mk_empty_instance -> 43
+  | Mk_string -> 44
 
 type mllambda =
   | MLlocal        of lname
@@ -1215,15 +1219,14 @@ let ml_of_instance env u =
 let ml_of_sort env s =
   let i = push_symbol (SymbSort s) in
   let s_code = get_sort_code i in
-  let uarg = match env.env_univ with
-  | UGlobal | ULocal None ->
-    (* mk_sort_accu handles this specially when UGlobal *)
-    ml_empty_instance
-  | ULocal (Some u) -> MLlocal u
+  let s_code = match env.env_univ with
+  | UGlobal | ULocal None -> s_code
+  | ULocal (Some u) ->
+    (* FIXME: use a dedicated cast function *)
+    let u = MLprimitive (MLmagic, [|MLlocal u|]) in
+    MLprimitive (MLsubst_instance_sort, [|u; s_code|])
   in
-  (* FIXME: use a dedicated cast function *)
-  let uarg = MLprimitive (MLmagic, [|uarg|]) in
-  MLprimitive (Mk_sort, [|s_code; uarg|])
+  MLprimitive (Mk_sort, [|s_code|])
 
 let compile_prim env decl cond paux =
 
@@ -2005,6 +2008,7 @@ let pp_mllam fmt l =
     | MLland -> Format.fprintf fmt "(land)"
     | MLmagic -> Format.fprintf fmt "Obj.magic"
     | MLsubst_instance_instance -> Format.fprintf fmt "UVars.subst_instance_instance"
+    | MLsubst_instance_sort -> Format.fprintf fmt "UVars.subst_instance_sort"
     | MLparray_of_array -> Format.fprintf fmt "parray_of_array"
     | Coq_primitive (op, false) ->
        Format.fprintf fmt "no_check_%s" (CPrimitives.to_string op)
