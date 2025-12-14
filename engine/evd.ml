@@ -1070,6 +1070,11 @@ let new_quality_variable ?loc ?name evd =
   let uctx, q = UState.new_sort_variable ?loc ?name evd.universes in
   {evd with universes = uctx}, q
 
+let new_sort_info ?loc rigid sigma =
+  let (sigma, u) = new_univ_variable ?loc rigid sigma in
+  let uctx, q = UState.new_sort_variable sigma.universes in
+  ({ sigma with universes = uctx }, q, u)
+
 let new_sort_variable ?loc rigid sigma =
   let (sigma, u) = new_univ_variable ?loc rigid sigma in
   let uctx, q = UState.new_sort_variable sigma.universes in

@@ -77,7 +77,7 @@ module State :
   (** {6 Access Key } *)
 
   (** Type of access keys for the State API *)
-  type access_key
+  type access_key = int
   val make_key : int -> access_key t
 
   (** {6 Push Functions } *)
@@ -294,6 +294,10 @@ val read_by_decl :
   (int -> access_key -> (access_key list -> constr t) -> constr t) ->
   (int -> access_key -> (access_key list -> constr t) -> constr t) ->
   (access_key list -> constr t) -> constr t
+
+(** Given a mutual inductive body and an instance, it recovers the context of argument
+    and the return indices of the constructor out of [mind_nf_lc] *)
+val get_args : mutual_inductive_body -> einstance -> Constr.rel_context * Constr.t -> (rel_context * constr array) t
 
 (** Iterate a binding function to each constructor or an inductive type. *)
 val iterate_ctors : mutual_inductive_body -> one_inductive_body -> einstance ->

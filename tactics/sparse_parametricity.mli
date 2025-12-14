@@ -1,7 +1,11 @@
 open Names
 open Declarations
 open EConstr
+open Evd
+open Environ
+open Entries
 open LibBinding
+open State
 
   (** {6 Lookup Sparse Parametricity } *)
 
@@ -29,17 +33,29 @@ val instantiate_fundamental_theorem  :
   (** {6 View for Arguments } *)
 
 type head_arg =
-  (* pos_ind, constant context, inst_nuparams inst_indices *)
+  | ArgIsSPUparam of int * constr array
+  (** constant context, position of the uniform parameter, args *)
   | ArgIsInd of int * constr array * constr array
-  (** get the position in ind_bodies out of the position of mind_packets *)
-  (* kn_nested, pos_nested, inst_uparams, inst_nuparams_indices *)
-  | ArgIsNested of MutInd.t * int * mutual_inductive_body * bool list * one_inductive_body
-                  * constr array * constr array
-  (* constant context, hd, args (maybe empty) *)
+  (** constant context, position of the one_inductive body, inst_nuparams inst_indices *)
+  | ArgIsNested of MutInd.t * int * mutual_inductive_body * bool list
+                    * one_inductive_body * constr array * constr array
+  (** constant context, ind_nested, mutual and one body, strictly positivity of its uniform parameters,
+      instantiation uniform paramerters, and of both non_uniform parameters and indices *)
   | ArgIsCst
 
 (** View to decompose arguments as [forall locs, X] where [X] is further decomposed
     as a uniform parameter, the inductive, a nested argument or a constant. *)
 type arg = rel_context * head_arg
 
-val view_arg : MutInd.t -> mutual_inductive_body -> constr -> arg State.t
+val view_arg : MutInd.t -> mutual_inductive_body -> access_key list -> bool list -> constr -> arg State.t
+
+(** {6 WIP } *)
+
+val gen_sparse_parametricity : env -> evar_map -> MutInd.t -> einstance ->
+    mutual_inductive_body -> evar_map * mutual_inductive_entry
+
+val type_sparse_parametricity : env -> evar_map -> MutInd.t -> int -> einstance ->
+  mutual_inductive_body -> unit State.t
+
+val gen_fundamental_theorem : env -> evar_map -> MutInd.t -> MutInd.t -> int -> einstance ->
+  mutual_inductive_body -> evar_map * constr

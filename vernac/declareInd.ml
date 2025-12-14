@@ -267,3 +267,51 @@ struct
   type nonrec inductive_obj = inductive_obj
   let objInductive = objInductive
 end
+
+let smart_ind qid =
+  let ind = Smartlocate.smart_global_inductive qid in
+  if Dumpglob.dump() then Dumpglob.add_glob ?loc:qid.loc (IndRef ind);
+  ind
+
+let do_scheme_sparse_parametricity_aux id =
+  (* Recover Info *)
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let kn,_ as ind = smart_ind id in
+  let mib = Environ.lookup_mind kn env in
+  let sigma, (_, u) = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma ind in
+  (* Generation of the Sparse Parametricity *)
+  let (sigma, mentry) = Sparse_parametricity.gen_sparse_parametricity env sigma kn u mib in
+  (* Simplify Univ *)
+  let uctx = Evd.ustate sigma in
+  (* let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
+  let uctx = UState.normalize_variables uctx in
+  let uctx = UState.minimize uctx in
+  let c = UState.nf_universes uctx c in *)
+  (* let uctx = UState.restrict uctx (Vars.universes_of_constr m) in *)
+  let univs = UState.univ_entry ~poly:true uctx in
+
+  (* Declaration and Register *)
+  let kn_nested = declare_mutual_inductive_with_eliminations mentry univs [] in
+  let _ = Array.iteri (fun i _ -> DeclareScheme.declare_scheme
+              SuperGlobal "sparse_parametricity" ((kn,i), GlobRef.IndRef (kn_nested,i))
+            ) mib.mind_packets in
+  (kn, mib, kn_nested)
+
+let do_scheme_fundamental_theorem kn mib kn_nested =
+  let env = Global.env () in
+  let sigma = Evd.from_env env in
+  let sigma, (_, u) = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma (kn,0) in
+  let (sigma, thm) = Sparse_parametricity.gen_fundamental_theorem env sigma kn kn_nested 0 u mib in
+  let uctx = Evd.ustate sigma in
+  let info = Declare.Info.make ~poly:true () in
+  let cinfo = Declare.CInfo.make ~name:(Id.of_string "thm") ~typ:(None : (Evd.econstr option)) () in
+  let _ = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:thm sigma in
+  ()
+
+
+let do_scheme_sparse_parametricity id =
+  (* let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux id in *)
+  (* let () = do_scheme_fundamental_theorem kn mib kn_nested in *)
+  ()
+

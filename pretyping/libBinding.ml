@@ -91,7 +91,7 @@ struct
   let fresh_key s = List.length (snd @@ get_context s)
 
   let make_key i s =
-    return (List.length (snd @@ get_context s) - i -1) s
+    return (List.length (snd @@ get_context s) - i) s
 
 (** {6 Push Functions } *)
 
@@ -380,7 +380,6 @@ let rebind m binder freshness naming_scheme ty cc =
   let name_hd = make_annot Anonymous rev_hd in
   let@ key_hd = build_binder m binder freshness naming_scheme @@ LocalAssum (name_hd, hd) in
   cc (key_locs, key_hd)
-
 
 (* takes a continuation after binder var and letin to add fresh binders and decide what to do with the keys *)
 let read_by_decl cxt binder cc_letin cc_var =

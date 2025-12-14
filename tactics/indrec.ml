@@ -170,7 +170,7 @@ else return None
 
 (** Compute the type of the recursive call *)
 let rec make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds key_arg ty : (ERelevance.t * constr) option t =
-  let* (loc, v) = view_arg kn mdecl ty in
+  let* (loc, v) = view_arg kn mdecl [] [] ty in
   (* inst argument *)
   let@ key_locals = closure_context fropt Prod Fresh naming_id loc in
   let* arg_tm = get_term key_arg in
@@ -316,7 +316,7 @@ let gen_elim_type print_constr rec_hyp kn u mdecl uparams nuparams (ind_bodies :
 
 (** Compute the recursive call *)
 let rec make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs key_arg ty : (constr option) State.t =
-  let* (loc, v) = view_arg kn mdecl ty in
+  let* (loc, v) = view_arg kn mdecl  [] [] ty in
     (* inst argument *)
   let@ key_locals = closure_context fopt Lambda Fresh naming_id loc in
   let* arg_tm = get_term key_arg in
@@ -432,9 +432,12 @@ let gen_elim_term print_constr rec_hyp kn u mdecl uparams nuparams (ind_bodies :
     return @@ mkCast (ccl, DEFAULTcast, ty)
 
   in
-  fun s -> let (sigma, t) = t s in
-  dbg Pp.(fun () -> str "TERM = " ++ print_constr (snd @@ get_env s) sigma t ++ str "\n");
-  (sigma, t)
+  fun s ->
+    let (sigma, t) = t s in
+    let env = snd @@ get_env s in
+    dbg Pp.(fun () -> str "TERM = " ++ print_constr env sigma t ++ str "\n");
+    let _ = type_sparse_parametricity env sigma kn focus u mdecl s in
+    (sigma, t)
 
 (**********************************************************************)
 (* build the eliminators mutual and individual *)
