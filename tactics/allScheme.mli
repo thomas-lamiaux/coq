@@ -1,8 +1,11 @@
 open Names
 open Declarations
 open EConstr
+open Evd
 open Environ
+open Entries
 open LibBinding
+open State
 
   (** {6 Strictly Positive Uniform Parameters } *)
 
@@ -69,5 +72,15 @@ type head_argument =
 type argument = rel_context * head_argument
 
 (** Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is a uniform parameter, Ind, nested or a constant *)
-val view_argument : MutInd.t -> mutual_inductive_body -> State.access_key list ->
+val view_argument : MutInd.t -> mutual_inductive_body -> access_key list ->
   bool list -> constr -> argument State.t
+
+  (** {6 Generate All Predicate } *)
+
+val generate_all_predicate : env -> evar_map -> MutInd.t -> einstance ->
+  mutual_inductive_body -> bool list -> string -> evar_map * mutual_inductive_entry
+
+(** {6 Generate the Theorem for the All Predicate } *)
+
+val generate_all_theorem : env -> evar_map -> MutInd.t -> MutInd.t -> int -> einstance ->
+  mutual_inductive_body -> bool list -> evar_map * constr
