@@ -155,7 +155,7 @@ val name_level : Univ.Level.t -> Id.t -> t -> t
    the universes in [keep]. The constraints [csts] are adjusted so
    that transitive constraints between remaining universes (those in
    [keep] and those not in [univs]) are preserved. *)
-val restrict_universe_context : PConstraints.ContextSet.t -> Level.Set.t -> PConstraints.ContextSet.t
+val restrict_universe_context : Univ.ContextSet.t -> Level.Set.t -> Univ.ContextSet.t
 
 (** [restrict uctx ctx] restricts the local universes of [uctx] to
    [ctx] extended by local named universes and side effect universes

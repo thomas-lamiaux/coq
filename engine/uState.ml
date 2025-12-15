@@ -1156,12 +1156,10 @@ let check_univ_decl ~poly uctx decl =
   in
   entry, binders
 
-let restrict_universe_context (univs, csts) keep =
+let restrict_universe_context (univs, univ_csts) keep =
   let removed = Level.Set.diff univs keep in
-  if Level.Set.is_empty removed then univs, csts
+  if Level.Set.is_empty removed then univs, univ_csts
   else
-  let elim_csts = PConstraints.qualities csts in
-  let univ_csts = PConstraints.univs csts in
   let allunivs = UnivConstraints.fold (fun (u,_,v) all -> Level.Set.add u (Level.Set.add v all)) univ_csts univs in
   let g = UGraph.initial_universes in
   let g = Level.Set.fold (fun v g ->
@@ -1171,17 +1169,21 @@ let restrict_universe_context (univs, csts) keep =
   let allkept = Level.Set.union (UGraph.domain UGraph.initial_universes) (Level.Set.diff allunivs removed) in
   let univ_csts = UGraph.constraints_for ~kept:allkept g in
   let univ_csts = UnivConstraints.filter (fun (l,d,r) -> not (Level.is_set l && d == Le)) univ_csts in
-  (Level.Set.inter univs keep, PConstraints.make elim_csts univ_csts)
+  (Level.Set.inter univs keep, univ_csts)
+
+let restrict_universe_pcontext (us, (qcst, ucst)) keep =
+  let (us, ucst) = restrict_universe_context (us, ucst) keep in
+  (us, (qcst, ucst))
 
 let restrict uctx vars =
   let vars = Id.Map.fold (fun na l vars -> Level.Set.add l vars)
       (snd (fst uctx.names)) vars
   in
-  let uctx' = restrict_universe_context uctx.local vars in
+  let uctx' = restrict_universe_pcontext uctx.local vars in
   { uctx with local = uctx' }
 
 let restrict_even_binders uctx vars =
-  let uctx' = restrict_universe_context uctx.local vars in
+  let uctx' = restrict_universe_pcontext uctx.local vars in
   { uctx with local = uctx' }
 
 let restrict_univ_constraints uctx csts =
