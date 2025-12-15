@@ -935,8 +935,9 @@ let check_constraints uctx csts =
   UnivProblem.Set.for_all (check_constraint uctx) csts
 
 let constrain_variables diff uctx =
-  let local, vars = UnivFlex.constrain_variables diff uctx.univ_variables uctx.local in
-  { uctx with local; univ_variables = vars }
+  let (us, (qcst, ucst)) = uctx.local in
+  let (us, ucst), vars = UnivFlex.constrain_variables diff uctx.univ_variables (us, ucst) in
+  { uctx with local = (us, (qcst, ucst)); univ_variables = vars }
 
 type ('a, 'b, 'c, 'd) gen_universe_decl = {
   univdecl_qualities : 'a;
