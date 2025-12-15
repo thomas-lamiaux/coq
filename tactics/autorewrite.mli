@@ -13,7 +13,7 @@
 open Constr
 open Equality
 
-type raw_rew_rule = ((constr * PConstraints.ContextSet.t) * bool * Gentactic.raw_generic_tactic option) CAst.t
+type raw_rew_rule = ((constr * UnivGen.sort_context_set) * bool * Gentactic.raw_generic_tactic option) CAst.t
 
 val create_rewrite_hint_db : local:bool -> name:string -> unit
 
@@ -38,7 +38,7 @@ val autorewrite_in : ?conds:conditions -> Names.Id.t -> unit Proofview.tactic ->
 module RewRule :
 sig
    type t
-   val rew_lemma : t -> PConstraints.ContextSet.t * constr
+   val rew_lemma : t -> UnivGen.sort_context_set * constr
    val rew_l2r : t -> bool
    val rew_tac : t -> Gentactic.glob_generic_tactic option
 end
