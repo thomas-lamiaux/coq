@@ -1091,18 +1091,20 @@ let check_template_univ_decl uctx ~template_qvars decl =
       if not (QVar.Set.equal template_qvars (QState.undefined uctx.sort_variables))
       then CErrors.anomaly Pp.(str "Bugged template univ declaration.")
   in
+  (* XXX: when the kernel takes template entries closer to the polymorphic ones,
+     we should perform some additional checks here. *)
+  let () = assert (Sorts.ElimConstraints.is_empty decl.univdecl_elim_constraints) in
   let levels, csts = uctx.local in
   let () =
     let prefix = decl.univdecl_instance in
     if not decl.univdecl_extensible_instance
     then check_universe_context_set ~prefix levels uctx.names
   in
-  if decl.univdecl_extensible_constraints then uctx.local
-  else begin
-    check_implication uctx
-      (univ_decl_csts decl) csts;
-    levels, (decl.univdecl_elim_constraints,decl.univdecl_univ_constraints)
-  end
+  if decl.univdecl_extensible_constraints then
+    PConstraints.ContextSet.univ_context_set uctx.local
+  else
+    let () = check_implication uctx (univ_decl_csts decl) csts in
+    (levels, decl.univdecl_univ_constraints)
 
 let check_mono_univ_decl uctx decl =
   (* Note: if [decl] is [default_univ_decl], behave like [uctx.local] *)

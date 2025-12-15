@@ -267,7 +267,7 @@ val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 
 val check_mono_univ_decl : t -> universe_decl -> Univ.ContextSet.t
 
-val check_template_univ_decl : t -> template_qvars:QVar.Set.t -> universe_decl -> PConstraints.ContextSet.t
+val check_template_univ_decl : t -> template_qvars:QVar.Set.t -> universe_decl -> Univ.ContextSet.t
 
 val check_mono_sort_constraints : t -> Univ.ContextSet.t
 
