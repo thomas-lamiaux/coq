@@ -115,5 +115,3 @@ sig
 
   val hcons : t Hashcons.f
 end
-
-type 'a in_poly_context_set = 'a * ContextSet.t

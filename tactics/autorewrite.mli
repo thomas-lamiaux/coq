@@ -13,7 +13,7 @@
 open Constr
 open Equality
 
-type raw_rew_rule = (constr PConstraints.in_poly_context_set * bool * Gentactic.raw_generic_tactic option) CAst.t
+type raw_rew_rule = ((constr * PConstraints.ContextSet.t) * bool * Gentactic.raw_generic_tactic option) CAst.t
 
 val create_rewrite_hint_db : local:bool -> name:string -> unit
 

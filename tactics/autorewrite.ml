@@ -572,7 +572,7 @@ let find_applied_relation ?loc env sigma c left2right =
                     (str"The type" ++ spc () ++ Printer.pr_econstr_env env sigma ctype ++
                        spc () ++ str"of this term does not end with an applied relation.")
 
-type raw_rew_rule = (constr PConstraints.in_poly_context_set * bool * Gentactic.raw_generic_tactic option) CAst.t
+type raw_rew_rule = ((constr * PConstraints.ContextSet.t) * bool * Gentactic.raw_generic_tactic option) CAst.t
 
 (* To add rewriting rules to a base *)
 let add_rew_rules ~locality base (lrul:raw_rew_rule list) =
