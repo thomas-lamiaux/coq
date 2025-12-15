@@ -13,7 +13,6 @@ open Names
 open Constr
 open Univ
 open UVars
-open PConstraints
 
 module QualityOrSet = struct
   type t = Qual of Quality.t | Set
@@ -209,9 +208,9 @@ let fresh_sort_in_quality =
      sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty)
 
 let fresh_universe_context_set_instance ctx =
-  if ContextSet.is_empty ctx then Level.Map.empty, ctx
+  if PConstraints.ContextSet.is_empty ctx then Level.Map.empty, ctx
   else
-    let (univs, cst) = ContextSet.levels ctx, ContextSet.constraints ctx in
+    let (univs, cst) = PConstraints.ContextSet.levels ctx, PConstraints.ContextSet.constraints ctx in
     let univs',subst = Level.Set.fold
       (fun u (univs',subst) ->
         let u' = fresh_level () in

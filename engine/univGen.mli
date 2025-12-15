@@ -13,7 +13,6 @@ open Constr
 open Environ
 open Univ
 open UVars
-open PConstraints
 
 module QualityOrSet : sig
   type t = Qual of Sorts.Quality.t | Set
@@ -98,8 +97,8 @@ val fresh_global_instance : ?loc:Loc.t -> ?names:UVars.Instance.t -> env -> Glob
 
 (** Get fresh variables for the universe context.
     Useful to make tactics that manipulate constrs in universe contexts polymorphic. *)
-val fresh_universe_context_set_instance : ContextSet.t ->
-  universe_level_subst * ContextSet.t
+val fresh_universe_context_set_instance : PConstraints.ContextSet.t ->
+  universe_level_subst * PConstraints.ContextSet.t
 
 val fresh_sort_context_instance : sort_context_set ->
   sort_level_subst * sort_context_set

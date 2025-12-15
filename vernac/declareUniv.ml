@@ -240,7 +240,6 @@ let do_sort ~poly l =
     Global.push_section_context ctx
 
 let do_constraint ~poly l =
-  let open PConstraints in
   let evd = Evd.from_env (Global.env ()) in
   let constraints = List.fold_left (fun acc cst ->
       match cst with
@@ -254,7 +253,7 @@ let do_constraint ~poly l =
   in
   match poly with
   | false ->
-    let uctx = ContextSet.add_constraints constraints ContextSet.empty in
+    let uctx = PConstraints.ContextSet.add_constraints constraints PConstraints.ContextSet.empty in
     let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set uctx) in (* XXX *)
     Global.push_context_set (PConstraints.ContextSet.univ_context_set uctx)
   | true ->
