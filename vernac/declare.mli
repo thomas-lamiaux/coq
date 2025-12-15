@@ -465,7 +465,7 @@ val declare_definition_full
   -> body:EConstr.t
   -> ?using:Vernacexpr.section_subset_expr
   -> Evd.evar_map
-  -> GlobRef.t * PConstraints.ContextSet.t
+  -> GlobRef.t * Univ.ContextSet.t
 
 (** Declaration messages, for internal use *)
 
