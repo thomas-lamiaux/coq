@@ -473,7 +473,7 @@ let context uctx =
 type named_universes_entry = universes_entry * UnivNames.universe_binders
 
 let check_mono_sort_constraints uctx =
-  let (uvar, (qcst, ucst)) = uctx in
+  let (uvar, (qcst, ucst)) = uctx.local in
   (* This looks very stringent but it passes nonetheless all the tests? *)
   let () = assert (Sorts.ElimConstraints.is_empty qcst) in
   (uvar, ucst)
@@ -483,7 +483,7 @@ let univ_entry ~poly uctx =
   let entry =
     if poly then Polymorphic_entry (context uctx)
     else
-      let uctx = check_mono_sort_constraints (context_set uctx) in
+      let uctx = check_mono_sort_constraints uctx in
       Monomorphic_entry uctx
   in
   entry, binders
@@ -1117,7 +1117,7 @@ let check_mono_univ_decl uctx decl =
     if not decl.univdecl_extensible_instance
     then check_universe_context_set ~prefix levels uctx.names
   in
-  if decl.univdecl_extensible_constraints then check_mono_sort_constraints uctx.local
+  if decl.univdecl_extensible_constraints then check_mono_sort_constraints uctx
   else
     let () = assert (Sorts.ElimConstraints.is_empty (fst csts)) in
     let () = check_implication uctx (univ_decl_csts decl) csts in

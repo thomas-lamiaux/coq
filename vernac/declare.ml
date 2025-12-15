@@ -227,7 +227,7 @@ let instance_of_univs = function
 
 let add_mono_uctx uctx = function
   | UState.Monomorphic_entry ctx, ubinders ->
-    let uctx = UState.check_mono_sort_constraints @@ UState.context_set uctx in
+    let uctx = UState.check_mono_sort_constraints uctx in
     UState.Monomorphic_entry (Univ.ContextSet.union uctx ctx), ubinders
   | UState.Polymorphic_entry _, _ as x -> assert (PConstraints.ContextSet.is_empty (UState.context_set uctx)); x
 
@@ -273,8 +273,11 @@ let make_univs_immediate_private_poly ~uctx ~udecl ~eff ~used_univs body typ =
   let utyp = UState.check_univ_decl ~poly:true uctx' udecl in
   let ubody =
     let uctx = UState.restrict uctx used_univs in
-    let uctx = PConstraints.ContextSet.diff (UState.context_set uctx) (UState.context_set uctx') in
-    UState.check_mono_sort_constraints uctx
+    let uctx = UState.context_set uctx in
+    let uctx = PConstraints.ContextSet.diff uctx (UState.context_set uctx') in
+    (* XXX we should have a more principled check somewhere *)
+    let () = assert (Sorts.ElimConstraints.is_empty @@ PConstraints.ContextSet.elim_constraints uctx) in
+    PConstraints.ContextSet.univ_context_set uctx
   in
   uctx', utyp, used_univs, Default { body = body; opaque = Opaque (ubody, eff) }
 
@@ -1232,7 +1235,7 @@ module ProgramDecl = struct
       else
         (* declare global univs of the main constant before we do obligations *)
         let uctx = UState.collapse_sort_variables uctx in
-        let ctx = UState.check_mono_sort_constraints @@ UState.context_set uctx in
+        let ctx = UState.check_mono_sort_constraints uctx in
         let () = Global.push_context_set ctx in
         let cst = Constant.make2 (Lib.current_mp()) cinfo.CInfo.name in
         let () = DeclareUniv.declare_univ_binders (ConstRef cst)
