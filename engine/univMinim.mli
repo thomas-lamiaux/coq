@@ -33,7 +33,7 @@ val extra_union : extra -> extra -> extra
     (a global one if there is one) and transitively saturate
     the constraints w.r.t to the equalities. *)
 
-val normalize_context_set : UGraph.t -> PConstraints.ContextSet.t ->
+val normalize_context_set : UGraph.t -> Univ.ContextSet.t ->
   UnivFlex.t (* The defined and undefined variables *) ->
   extra ->
-  UnivFlex.t * PConstraints.ContextSet.t
+  UnivFlex.t * Univ.ContextSet.t

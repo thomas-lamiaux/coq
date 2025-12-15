@@ -1440,15 +1440,16 @@ let collapse_sort_variables ?except uctx =
 
 let minimize uctx =
   let open UnivMinim in
-  let (vars', us') =
-    normalize_context_set uctx.universes uctx.local uctx.univ_variables
+  let (us, (qcst, ucst)) = uctx.local in
+  let (vars', (us', ucst')) =
+    normalize_context_set uctx.universes (us, ucst) uctx.univ_variables
       uctx.minim_extra
   in
-  if PConstraints.ContextSet.equal us' uctx.local then uctx
+  if Univ.ContextSet.equal (us', ucst') (us, ucst) then uctx
   else
-    let universes = UGraph.merge_constraints (snd (snd us')) uctx.initial_universes in
+    let universes = UGraph.merge_constraints ucst' uctx.initial_universes in
       { names = uctx.names;
-        local = us';
+        local = (us', (qcst, ucst'));
         univ_variables = vars';
         sort_variables = uctx.sort_variables;
         universes = universes;

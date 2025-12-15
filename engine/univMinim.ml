@@ -307,8 +307,7 @@ let extra_union a b = {
 }
 
 let normalize_context_set g ctx (us:UnivFlex.t) {weak_constraints=weak;above_prop} =
-  let elim_csts = PConstraints.ContextSet.elim_constraints ctx in
-  let (ctx, csts) = PConstraints.ContextSet.levels ctx, PConstraints.ContextSet.univ_constraints ctx in
+  let (ctx, csts) = ctx in
   (* Keep the Set <= i constraints separate *)
   let smallles, csts =
     UnivConstraints.partition (fun (l,d,r) -> d == Le && Level.is_set l) csts
@@ -428,4 +427,4 @@ let normalize_context_set g ctx (us:UnivFlex.t) {weak_constraints=weak;above_pro
     minimize_univ_variables ctx us ucstrsr ucstrsl noneqs
   in
   let us = UnivFlex.normalize us in
-  us, (ctx', PConstraints.make elim_csts @@ UnivConstraints.union noneqs eqs)
+  us, (ctx', UnivConstraints.union noneqs eqs)
