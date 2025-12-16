@@ -122,7 +122,13 @@ struct
     | (Var _ | Global _) -> false
 
   module Self = struct type nonrec t = t let compare = compare end
-  module Set = CSet.Make(Self)
+  module Set =
+  struct
+    include CSet.Make(Self)
+    let pr prl s =
+      let open Pp in
+      hov 1 (str"{" ++ prlist_with_sep spc prl (elements s) ++ str"}")
+  end
   module Map = CMap.Make(Self)
 end
 

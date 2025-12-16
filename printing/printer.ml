@@ -284,6 +284,21 @@ let pr_universe_ctx_set sigma c =
   else
     mt()
 
+let pr_sort_context_set sigma c =
+  if !PrintingFlags.print_universes && not (UnivGen.is_empty_sort_context c) then
+    let prl = Termops.pr_evd_level sigma in
+    let prv = Termops.pr_evd_qvar sigma in
+    let ((vs, us), cst) = c in
+    let vs =
+      if Sorts.QVar.Set.is_empty vs then mt ()
+      else Sorts.QVar.Set.pr prv vs ++ pr_semicolon ()
+    in
+    let us = Univ.Level.Set.pr prl us in
+    let ctx = Pp.(hov 0 (h (vs ++ us ++ str " |=") ++ brk(1,2) ++ h (PConstraints.pr prv prl cst))) in
+    fnl() ++ pr_in_comment (v 0 ctx)
+  else
+    mt()
+
 let pr_universe_ctx sigma ?variance c =
   if !PrintingFlags.print_universes && not (UVars.UContext.is_empty c) then
     fnl()++

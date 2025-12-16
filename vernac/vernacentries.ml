@@ -2083,7 +2083,7 @@ let check_may_eval env sigma redexp rc =
   let sigma = Evarconv.solve_unif_constraints_with_heuristics env sigma in
   Evarconv.check_problems_are_solved env sigma;
   let sigma = Evd.minimize_universes sigma in
-  let (qs, us), csts = Evd.sort_context_set sigma in
+  let (qs, us), csts as uctx = Evd.sort_context_set sigma in
   let { Environ.uj_val=c; uj_type=ty; } =
     if Evarutil.has_undefined_evars sigma c
     || List.exists (Context.Named.Declaration.exists (Evarutil.has_undefined_evars sigma))
@@ -2115,7 +2115,7 @@ let check_may_eval env sigma redexp rc =
     pr_ne_evar_set (fnl () ++ str "where" ++ fnl ()) (mt ()) sigma l
   in
   let hdr = if Option.has_some redexp then str "     = " else mt() in
-  hdr ++ pp ++ Printer.pr_universe_ctx_set sigma (us,csts)
+  hdr ++ pp ++ Printer.pr_sort_context_set sigma uctx
 
 let vernac_check_may_eval ~pstate redexp glopt rc =
   let glopt = query_command_selector glopt in
@@ -2136,13 +2136,13 @@ let vernac_global_check c =
   let sigma, c = Pretyping.understand_tcc ~flags:Pretyping.all_and_fail_flags env sigma c in
   let sigma = Evd.collapse_sort_variables sigma in
   let senv = Global.safe_env() in
-  let uctx = Evd.universe_context_set sigma in
-  let senv = Safe_typing.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set uctx) senv in (* XXX *)
-  let senv = Safe_typing.push_context_set ~strict:false (PConstraints.ContextSet.univ_context_set uctx) senv in
+  let (qs, us), (qcst, ucst) as uctx = Evd.sort_context_set sigma in
+  let senv = Safe_typing.push_qualities QGraph.Static (qs, qcst) senv in (* XXX *)
+  let senv = Safe_typing.push_context_set ~strict:false (us, ucst) senv in
   let c = EConstr.to_constr sigma c in
   let j = Safe_typing.typing senv c in
   Prettyp.print_safe_judgment j ++
-  pr_universe_ctx_set sigma uctx
+  Printer.pr_sort_context_set sigma uctx
 
 
 (* Printing "About" information of a hypothesis of the current goal.

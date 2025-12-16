@@ -149,6 +149,7 @@ val pr_universe_ctx        : evar_map -> ?variance:UVars.Variance.t array ->
 val pr_abstract_universe_ctx : evar_map -> ?variance:UVars.Variance.t array ->
   ?priv:Univ.ContextSet.t -> UVars.AbstractContext.t -> Pp.t
 val pr_universe_ctx_set    : evar_map -> PConstraints.ContextSet.t -> Pp.t
+val pr_sort_context_set : evar_map -> UnivGen.sort_context_set -> Pp.t
 val pr_universes  : evar_map ->
   ?variance:UVars.Variance.t array -> ?priv:Univ.ContextSet.t ->
   Declarations.universes -> Pp.t
