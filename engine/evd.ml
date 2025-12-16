@@ -1046,6 +1046,10 @@ let universe_subst evd =
 let merge_context_set ?loc ?(sideff=false) rigid evd uctx' =
   {evd with universes = UState.merge ?loc ~sideff rigid evd.universes uctx'}
 
+let merge_universe_context_set ?loc ?(sideff=false) rigid evd uctx' =
+  let uctx' = PConstraints.ContextSet.of_univ_context_set uctx' in
+  {evd with universes = UState.merge ?loc ~sideff rigid evd.universes uctx'}
+
 let merge_sort_context_set ?loc ?(sideff=false) rigid src evd ctx' =
   {evd with universes = UState.merge_sort_context ?loc ~sideff rigid src evd.universes ctx'}
 

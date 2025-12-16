@@ -637,6 +637,9 @@ val merge_universe_context : evar_map -> UState.t -> evar_map
 val set_universe_context : evar_map -> UState.t -> evar_map
 
 val merge_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> PConstraints.ContextSet.t -> evar_map
+(** Don't use, use the ones below instead *)
+
+val merge_universe_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> Univ.ContextSet.t -> evar_map
 
 val merge_sort_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> QGraph.constraint_source -> evar_map -> UnivGen.sort_context_set -> evar_map
 
