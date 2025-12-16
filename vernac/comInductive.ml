@@ -535,15 +535,12 @@ let template_univ_entry sigma udecl ~template_univs pseudo_sort_poly =
   let uctx =
     UState.check_template_univ_decl (Evd.ustate sigma) ~template_qvars udecl
   in
-  (* XXX: it should be fine to drop the sort constraints but it should be reflected in the API *)
-  let elim_constraints = PConstraints.ContextSet.elim_constraints uctx in
-  let uctx = PConstraints.ContextSet.univ_context_set uctx in
   let ubinders = UState.Monomorphic_entry uctx, Evd.universe_binders sigma in
   let template_univs, global = split_universe_context template_univs uctx in
   let uctx =
     UVars.UContext.of_context_set
       (UState.compute_instance_binders @@ Evd.ustate sigma)
-      ((template_qvars, elim_constraints), template_univs)
+      ((template_qvars, Sorts.ElimConstraints.empty), template_univs)
   in
   let default_univs =
     let inst = UVars.UContext.instance uctx in

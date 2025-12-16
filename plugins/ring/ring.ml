@@ -180,8 +180,7 @@ let decl_constant name univs c =
   let open Constr in
   let vars = CVars.universes_of_constr c in
   let univs = UState.restrict_universe_context univs vars in
-  let () = Global.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set univs) in (* XXX *)
-  let () = Global.push_context_set (PConstraints.ContextSet.univ_context_set univs) in
+  let () = Global.push_context_set univs in
   let types = (Typeops.infer (Global.env ()) c).uj_type in
   let univs = UState.Monomorphic_entry Univ.ContextSet.empty, UnivNames.empty_binders in
   (* UnsafeMonomorphic: we always do poly:false *)
@@ -236,7 +235,8 @@ let exec_tactic env sigma n f args =
   let ((), pv, _, _, _) = Proofview.apply ~name:(Id.of_string "ring") ~poly:false (Global.env ()) tac pv in
   let sigma = Evd.minimize_universes (Proofview.return pv) in
   let nf c = constr_of sigma c in
-  Array.map nf !tactic_res, Evd.universe_context_set sigma
+  let uctx = UState.check_mono_univ_decl (Evd.ustate sigma) UState.default_univ_decl in
+  Array.map nf !tactic_res, uctx
 
 let gen_constant n = (); fun () -> (EConstr.of_constr (UnivGen.constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref n)))
 let gen_reference n = (); fun () -> (Rocqlib.lib_ref n)

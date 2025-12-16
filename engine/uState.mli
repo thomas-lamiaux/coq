@@ -155,7 +155,7 @@ val name_level : Univ.Level.t -> Id.t -> t -> t
    the universes in [keep]. The constraints [csts] are adjusted so
    that transitive constraints between remaining universes (those in
    [keep] and those not in [univs]) are preserved. *)
-val restrict_universe_context : PConstraints.ContextSet.t -> Level.Set.t -> PConstraints.ContextSet.t
+val restrict_universe_context : Univ.ContextSet.t -> Level.Set.t -> Univ.ContextSet.t
 
 (** [restrict uctx ctx] restricts the local universes of [uctx] to
    [ctx] extended by local named universes and side effect universes
@@ -267,9 +267,9 @@ val check_uctx_impl : fail:(Pp.t -> unit) -> t -> t -> unit
 
 val check_mono_univ_decl : t -> universe_decl -> Univ.ContextSet.t
 
-val check_template_univ_decl : t -> template_qvars:QVar.Set.t -> universe_decl -> PConstraints.ContextSet.t
+val check_template_univ_decl : t -> template_qvars:QVar.Set.t -> universe_decl -> Univ.ContextSet.t
 
-val check_mono_sort_constraints : PConstraints.ContextSet.t -> Univ.ContextSet.t
+val check_mono_sort_constraints : t -> Univ.ContextSet.t
 
 (** {5 TODO: Document me} *)
 
