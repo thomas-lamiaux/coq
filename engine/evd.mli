@@ -642,8 +642,6 @@ val merge_sort_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> QGraph.const
 
 val merge_sort_variables : ?loc:Loc.t -> ?sideff:bool -> evar_map -> Sorts.QVar.Set.t -> evar_map
 
-val with_context_set : ?loc:Loc.t -> rigid -> evar_map -> 'a * PConstraints.ContextSet.t -> evar_map * 'a
-
 val with_sort_context_set : ?loc:Loc.t -> rigid -> QGraph.constraint_source -> evar_map -> 'a UnivGen.in_sort_context_set -> evar_map * 'a
 
 val nf_univ_variables : evar_map -> evar_map

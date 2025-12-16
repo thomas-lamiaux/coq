@@ -1052,9 +1052,6 @@ let merge_sort_context_set ?loc ?(sideff=false) rigid src evd ctx' =
 let merge_sort_variables ?loc ?(sideff=false) evd qs =
   { evd with universes = UState.merge_sort_variables ?loc ~sideff evd.universes QGraph.Static qs Sorts.ElimConstraints.empty }
 
-let with_context_set ?loc rigid evd (a, uctx) =
-  (merge_context_set ?loc rigid evd uctx, a)
-
 let with_sort_context_set ?loc rigid src d (a, ctx) =
   (merge_sort_context_set ?loc rigid src d ctx, a)
 
