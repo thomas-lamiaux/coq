@@ -480,8 +480,8 @@ let template_polymorphic_univs sigma ~params ~arity ~constructors =
         | NonLinear -> false
         | Linear _ ->
           assert (not @@ Univ.Level.is_set u);
-          Univ.Level.Set.mem u (PConstraints.ContextSet.levels uctx) &&
-          unbounded_from_below u (PConstraints.ContextSet.univ_constraints uctx) &&
+          Univ.Level.Set.mem u (fst uctx) &&
+          unbounded_from_below u (snd uctx) &&
           not (Univ.Level.Set.mem u non_template_levels))
       paramslevels
   in

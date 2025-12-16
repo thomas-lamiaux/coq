@@ -443,6 +443,10 @@ let union uctx uctx' =
 
 let context_set uctx = uctx.local
 
+let universe_context_set uctx =
+  let us, (_, ucst) = uctx.local in
+  us, ucst
+
 let sort_context_set uctx =
   let us, csts = uctx.local in
   (QState.undefined uctx.sort_variables, us), csts

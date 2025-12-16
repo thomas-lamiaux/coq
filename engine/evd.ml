@@ -1011,7 +1011,7 @@ let elim_graph d = UState.elim_graph d.universes
 
 let evar_universe_context d = ustate d
 
-let universe_context_set d = UState.context_set d.universes
+let universe_context_set d = UState.universe_context_set d.universes
 
 let sort_context_set d = UState.sort_context_set d.universes
 

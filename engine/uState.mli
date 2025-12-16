@@ -58,6 +58,8 @@ val context_set : t -> PConstraints.ContextSet.t
 (** The local context of the state, i.e. a set of bound variables together
     with their associated constraints. *)
 
+val universe_context_set : t -> Univ.ContextSet.t
+
 val sort_context_set : t -> UnivGen.sort_context_set
 
 type universe_opt_subst = UnivFlex.t
