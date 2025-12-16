@@ -229,7 +229,7 @@ let add_mono_uctx uctx = function
   | UState.Monomorphic_entry ctx, ubinders ->
     let uctx = UState.check_mono_sort_constraints uctx in
     UState.Monomorphic_entry (Univ.ContextSet.union uctx ctx), ubinders
-  | UState.Polymorphic_entry _, _ as x -> assert (PConstraints.ContextSet.is_empty (UState.context_set uctx)); x
+  | UState.Polymorphic_entry _, _ as x -> assert (UnivGen.is_empty_sort_context (UState.sort_context_set uctx)); x
 
 let make_ubinders uctx (univs, ubinders as u) = match univs with
   | UState.Monomorphic_entry _ -> (UState.Monomorphic_entry uctx, ubinders)
@@ -248,7 +248,7 @@ let universes_of_body_type ~used_univs body typ =
 
 let make_univs_deferred_private_mono ~initial_euctx ?feedback_id ~uctx ~udecl body typ =
   let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body typ in
-  let uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
+  let uctx = UState.constrain_variables (fst (UState.universe_context_set initial_euctx)) uctx in
   (* For vi2vo compilation proofs are computed now but we need to
      complement the univ constraints of the typ with the ones of
      the body.  So we keep the two sets distinct. *)
@@ -259,7 +259,7 @@ let make_univs_immediate_private_mono ~initial_euctx ~uctx ~udecl ~eff ~used_uni
   let utyp = UState.univ_entry ~poly:PolyFlags.default initial_euctx in
   let _, used_univs = universes_of_body_type ~used_univs body typ in
   let ubody =
-    let uctx = UState.constrain_variables (fst (UState.context_set initial_euctx)) uctx in
+    let uctx = UState.constrain_variables (fst (UState.universe_context_set initial_euctx)) uctx in
     (* For vi2vo compilation proofs are computed now but we need to
        complement the univ constraints of the typ with the ones of
        the body.  So we keep the two sets distinct. *)
@@ -273,11 +273,13 @@ let make_univs_immediate_private_poly ~poly ~uctx ~udecl ~eff ~used_univs body t
   let utyp = UState.check_univ_decl ~poly uctx' udecl in
   let ubody =
     let uctx = UState.restrict uctx used_univs in
-    let uctx = UState.context_set uctx in
-    let uctx = PConstraints.ContextSet.diff uctx (UState.context_set uctx') in
+    (* XXX we don't check anything on sort variables *)
+    let (_qs, us), (qcst, ucst) = UState.sort_context_set uctx in
+    let (_qs', us'), (qcst', ucst') = UState.sort_context_set uctx' in
+    let uctx = Univ.ContextSet.diff (us, ucst) (us', ucst') in
     (* XXX we should have a more principled check somewhere *)
-    let () = assert (Sorts.ElimConstraints.is_empty @@ PConstraints.ContextSet.elim_constraints uctx) in
-    PConstraints.ContextSet.univ_context_set uctx
+    let () = assert (Sorts.ElimConstraints.is_empty @@ Sorts.ElimConstraints.diff qcst qcst') in
+    uctx
   in
   uctx', utyp, used_univs, Default { body = body; opaque = Opaque (ubody, eff) }
 
@@ -2915,7 +2917,7 @@ let declare_entry ?loc ~name ?scope ~kind ?user_warns ?hook ~impargs ~uctx entry
 
 let declare_definition_full ~info ~cinfo ~opaque ~body ?using sigma =
   let c, uctx = declare_definition ~obls:[] ~info ~cinfo ~opaque ~body ?using sigma in
-  c, if PolyFlags.univ_poly info.poly then Univ.ContextSet.empty else PConstraints.ContextSet.univ_context_set @@ UState.context_set uctx
+  c, if PolyFlags.univ_poly info.poly then Univ.ContextSet.empty else UState.universe_context_set uctx
 
 let declare_definition ~info ~cinfo ~opaque ~body ?using sigma =
   declare_definition ~obls:[] ~info ~cinfo ~opaque ~body ?using sigma |> fst
