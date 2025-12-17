@@ -774,7 +774,7 @@ struct
          sous-contexte du contexte courant, et qu'il n'y a pas de Rel "caché" *)
       let id = interp_ltac_id env id in
       let sigma, evk =
-        match Evd.evar_key (Libnames.make_path DirPath.empty id) sigma (* XXX: handle qualids *) with
+        match Evd.evar_key (Libnames.make_qualid DirPath.empty id) sigma (* XXX: handle qualids *) with
         | evk -> sigma, evk
         | exception Not_found ->
             if flags.undeclared_evars_rr then

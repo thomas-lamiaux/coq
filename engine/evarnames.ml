@@ -31,7 +31,7 @@ sig
   type t =
     { basename: Id.t;
       path: Id.t list }
-  val make : Libnames.full_path -> t
+  val make : Libnames.qualid -> t
   val repr : t -> Libnames.full_path
 end =
 struct
@@ -40,7 +40,7 @@ struct
       path: Id.t list }
 
   let make path =
-    let (dp, id) = Libnames.repr_path path in
+    let (dp, id) = Libnames.repr_qualid path in
     { basename = id; path = DirPath.repr dp }
 
   let repr { basename; path } =
@@ -382,4 +382,4 @@ let resolve fp evn =
      if EvSet.mem ev evn.removed_evars then raise Not_found
      else ev
   | _ :: _ :: _ ->
-    CErrors.user_err (str "Ambiguous evar name " ++ Libnames.pr_path fp)
+    CErrors.user_err ?loc:fp.loc (str "Ambiguous evar name " ++ Libnames.pr_qualid fp ++ str ".")

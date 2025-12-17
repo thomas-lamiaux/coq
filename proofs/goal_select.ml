@@ -21,7 +21,7 @@ type t =
 let select_nth n = SelectList [NthSelector n]
 
 let pr_id_selector id =
-  Pp.(str "[" ++ Libnames.pr_path id ++ str "]")
+  Pp.(str "[" ++ Libnames.pr_qualid id ++ str "]")
 
 let pr_range_selector = let open Proofview in function
   | NthSelector i -> Pp.int i

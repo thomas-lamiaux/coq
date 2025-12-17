@@ -117,7 +117,7 @@ val done_cond : ?loose_end:bool -> 'a focus_kind -> 'a focus_condition
 val focus : 'a focus_condition -> 'a -> int -> t -> t
 
 (* focus on goal named id *)
-val focus_id : 'a focus_condition -> 'a -> Libnames.full_path -> t -> t
+val focus_id : 'a focus_condition -> 'a -> Libnames.qualid -> t -> t
 
 exception FullyUnfocused
 exception CannotUnfocusThisWay
@@ -129,7 +129,7 @@ exception CannotUnfocusThisWay
    Bullet.push. *)
 exception NoSuchGoals of int * int
 
-exception NoSuchGoal of Names.Id.t option
+exception NoSuchGoal of Libnames.qualid option
 
 (* Unfocusing command.
    Raises [FullyUnfocused] if the proof is not focused.

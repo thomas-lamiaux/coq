@@ -2427,8 +2427,7 @@ let show_goal goalref proof oldp =
     | OpenSubgoals -> pr_open_subgoals ~oldp proof
     | NthGoal n -> pr_nth_open_subgoal ~oldp ~proof n
     | GoalId qid ->
-      let fp = Libnames.(make_path (qualid_path qid) (qualid_basename qid)) in
-      pr_goal_by_id ~oldp ~proof fp
+      pr_goal_by_id ~oldp ~proof qid
 
 (* Stack is needed due to show proof names, should deprecate / remove
    and take pstate *)

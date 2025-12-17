@@ -48,4 +48,4 @@ val has_unambiguous_name : Evar.t -> t -> bool
 
 (** Resolves the given (partially) qualified name to an evar.
     If the name resolution failed, raises [Not_found]. *)
-val resolve : Libnames.full_path -> t -> Evar.t
+val resolve : Libnames.qualid -> t -> Evar.t

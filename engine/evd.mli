@@ -387,7 +387,7 @@ val add_name : Evar.t -> Id.t -> ?parent:Evar.t -> evar_map -> evar_map
 
 val transfer_name : Evar.t -> Evar.t -> evar_map -> evar_map
 
-val evar_key : Libnames.full_path -> evar_map -> Evar.t
+val evar_key : Libnames.qualid -> evar_map -> Evar.t
 
 val dependent_evar_ident : Evar.t -> evar_map -> Id.t
 

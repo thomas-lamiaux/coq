@@ -56,7 +56,7 @@ exception CannotUnfocusThisWay
 (* Cannot focus on non-existing subgoals *)
 exception NoSuchGoals of int * int
 
-exception NoSuchGoal of Names.Id.t option
+exception NoSuchGoal of Libnames.qualid option
 
 exception FullyUnfocused
 
@@ -68,7 +68,7 @@ let _ = CErrors.register_handler begin function
   | NoSuchGoals (i,j) ->
     Some Pp.(str "[Focus] Not every goal in range ["++ int i ++ str","++int j++str"] exist.")
   | NoSuchGoal (Some id) ->
-    Some Pp.(str "[Focus] No such goal: " ++ str (Names.Id.to_string id) ++ str ".")
+    Some Pp.(str "[Focus] No such goal: " ++ Libnames.pr_qualid id ++ str ".")
   | NoSuchGoal None ->
     Some Pp.(str "[Focus] No such goal.")
   | FullyUnfocused ->
@@ -217,7 +217,6 @@ let focus_id cond inf id pr =
           raise CannotUnfocusThisWay
      end
   | None ->
-    let id = Libnames.basename id in
     raise (NoSuchGoal (Some id))
   end
 
