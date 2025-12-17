@@ -2213,24 +2213,35 @@ let by env tac pf =
   let sideff = SideEff.concat eff pf.sideff in
   { pf with proof; sideff }, safe
 
-let build_constant_by_tactic ~name ?warn_incomplete ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
-  let loc = fallback_loc ~warn:false name None in
-  let cinfo = [CInfo.make ?loc ~name ~typ:() ()] in
-  let info = Info.make ~poly () in
-  let pinfo = Proof_info.make ~cinfo ~info () in
-  let pf = start_proof_core ~name ~pinfo sigma [Some sign, typ] in
-  let pf, status = map_fold ~f:(Proof.solve env (Goal_select.select_nth 1) None tac) pf in
-  let proof = prepare_proof ?warn_incomplete pf in
-  let (body, types) = match proof.output_entries with [p] -> p | _ -> assert false in
+let build_constant_by_tactic ~name ?(warn_incomplete = true) ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
+  let proof = Proof.start ~name ~poly sigma [Global.env_of_context sign, typ] in
+  let proof, status = Proof.solve env (Goal_select.select_nth 1) None tac proof in
+  let (body, typ, output_ustate) =
+    let Proof.{ entry; sigma = evd } = Proof.data proof in
+    let body, typ = match Proofview.initial_goals entry with
+    | [_, body, typ] -> body, typ
+    | _ -> assert false
+    in
+    let () = if not @@ Proof.is_done proof then raise (OpenProof (name, OpenGoals)) in
+    let evd = Evd.minimize_universes evd in
+    let to_constr c = match EConstr.to_constr_opt evd c with
+    | Some p -> p
+    | None -> raise_non_ground_proof evd name c
+    in
+    let body = to_constr body in
+    let typ = to_constr typ in
+    let () = if warn_incomplete then check_incomplete_proof evd in
+    (body, typ, Evd.ustate evd)
+  in
   let univs =
-    let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body types in
-    let uctx = UState.restrict proof.output_ustate used_univs in
+    let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body (Some typ) in
+    let uctx = UState.restrict output_ustate used_univs in
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
-  let entry = definition_entry_core ~univs ?types body in
+  let entry = definition_entry_core ~univs ~types:typ body in
   (* FIXME: return the locally introduced effects *)
-  let { Proof.sigma } = Proof.data pf.proof in
-  let sigma = Evd.set_universe_context sigma proof.output_ustate in
+  let { Proof.sigma } = Proof.data proof in
+  let sigma = Evd.set_universe_context sigma output_ustate in
   entry, status, sigma
 
 let build_by_tactic env ~uctx ~poly ~typ tac =
