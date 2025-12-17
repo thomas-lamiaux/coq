@@ -136,8 +136,8 @@ END
  * then we call another function. We define this function in
  * the Simple_declare module.
  *
- * The line #[ poly = Attributes.polymorphic ] says that this command accepts
- * polymorphic attributes.
+ * The line #[ poly = Attributes.poly_def ] says that this command accepts
+ * universe polymorphism attributes for definitions.
  * @SkySkimmer: Here, poly is what the result is bound to in the
  * rule's code. Multiple attributes may be used separated by ;, and we have
  * punning so foo is equivalent to foo = foo.
@@ -151,7 +151,7 @@ END
  * as a side-effect (CLASSIFIED AS SIDEFF).
  *)
 VERNAC COMMAND EXTEND MyDefine CLASSIFIED AS SIDEFF
-| #[ poly = Attributes.polymorphic ] [ "MyDefine" ident(i) ":=" constr(e) ] ->
+| #[ poly = Attributes.poly_def ] [ "MyDefine" ident(i) ":=" constr(e) ] ->
    {
      let env = Global.env () in
      let sigma = Evd.from_env env in
@@ -205,7 +205,7 @@ END
  * [![opaque_access]] is equivalent to [STATE opaque_access] but is specific to that parsing rule.
  *)
 VERNAC COMMAND EXTEND DefineLookup CLASSIFIED AS SIDEFF
-| #[ poly = Attributes.polymorphic ] ![opaque_access] [ "DefineLookup" ident(i) ":=" constr(e) ] ->
+| #[ poly = Attributes.poly_def ] ![opaque_access] [ "DefineLookup" ident(i) ":=" constr(e) ] ->
    { fun ~opaque_access ->
      let env = Global.env () in
      let sigma = Evd.from_env env in

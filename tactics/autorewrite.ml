@@ -605,7 +605,7 @@ let add_rewrite_hint ~locality ~poly bases ort t lcsr =
     let c = EConstr.to_constr sigma c in
     let ctx =
       let ctx = UState.context_set ctx in
-      if poly then ctx
+      if PolyFlags.univ_poly poly then ctx
       else (* This is a global universe context that shouldn't be
               refreshed at every use of the hint, declare it globally. *)
         let () = Global.push_qualities QGraph.Static (PConstraints.ContextSet.sort_context_set ctx) in (* XXX *)

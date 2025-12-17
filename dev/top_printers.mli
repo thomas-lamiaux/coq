@@ -162,6 +162,7 @@ val ppaucontext : UVars.AbstractContext.t -> unit
 val ppuniverse_context_set : PConstraints.ContextSet.t -> unit
 val ppuniverse_subst : UnivSubst.universe_subst -> unit
 val ppuniverse_opt_subst : UState.universe_opt_subst -> unit
+val pppoly_flags : PolyFlags.t -> unit
 val ppqvar_subst : Sorts.Quality.t Sorts.QVar.Map.t -> unit
 val ppuniverse_level_subst : UVars.universe_level_subst -> unit
 val ppustate : UState.t -> unit
