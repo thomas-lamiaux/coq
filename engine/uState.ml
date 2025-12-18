@@ -443,6 +443,10 @@ let union uctx uctx' =
 
 let context_set uctx = uctx.local
 
+let universe_context_set uctx =
+  let us, (_, ucst) = uctx.local in
+  us, ucst
+
 let sort_context_set uctx =
   let us, csts = uctx.local in
   (QState.undefined uctx.sort_variables, us), csts
@@ -935,8 +939,9 @@ let check_constraints uctx csts =
   UnivProblem.Set.for_all (check_constraint uctx) csts
 
 let constrain_variables diff uctx =
-  let local, vars = UnivFlex.constrain_variables diff uctx.univ_variables uctx.local in
-  { uctx with local; univ_variables = vars }
+  let (us, (qcst, ucst)) = uctx.local in
+  let (us, ucst), vars = UnivFlex.constrain_variables diff uctx.univ_variables (us, ucst) in
+  { uctx with local = (us, (qcst, ucst)); univ_variables = vars }
 
 type ('a, 'b, 'c, 'd) gen_universe_decl = {
   univdecl_qualities : 'a;
@@ -1439,15 +1444,16 @@ let collapse_sort_variables ?except uctx =
 
 let minimize uctx =
   let open UnivMinim in
-  let (vars', us') =
-    normalize_context_set uctx.universes uctx.local uctx.univ_variables
+  let (us, (qcst, ucst)) = uctx.local in
+  let (vars', (us', ucst')) =
+    normalize_context_set uctx.universes (us, ucst) uctx.univ_variables
       uctx.minim_extra
   in
-  if PConstraints.ContextSet.equal us' uctx.local then uctx
+  if Univ.ContextSet.equal (us', ucst') (us, ucst) then uctx
   else
-    let universes = UGraph.merge_constraints (snd (snd us')) uctx.initial_universes in
+    let universes = UGraph.merge_constraints ucst' uctx.initial_universes in
       { names = uctx.names;
-        local = us';
+        local = (us', (qcst, ucst'));
         univ_variables = vars';
         sort_variables = uctx.sort_variables;
         universes = universes;

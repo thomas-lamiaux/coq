@@ -180,5 +180,3 @@ module ContextSet = struct
 
   let hcons = Hashcons.simple_hcons HContextSet.generate HContextSet.hcons ()
 end
-
-type 'a in_poly_context_set = 'a * ContextSet.t

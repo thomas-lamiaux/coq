@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Univ
-open PConstraints
 
 type t
 (** Flexible universe data.
@@ -60,7 +59,7 @@ val define : Level.t -> Universe.t -> t -> t
 (** Define the level to the given universe. The level must already
     be flexible and must be undefined. *)
 
-val constrain_variables : Level.Set.t -> t -> ContextSet.t -> ContextSet.t * t
+val constrain_variables : Level.Set.t -> t -> Univ.ContextSet.t -> Univ.ContextSet.t * t
 (** [constrain_variables diff subst ctx] removes bindings [l := l']
     from the substitution where [l] is in [diff] and [l'] is a
     level, and adds [l, l = l'] to [ctx]. *)

@@ -1419,10 +1419,11 @@ module Strategies =
 
     let inj_open hint = (); fun _env sigma ->
       let (ctx, lemma) = Autorewrite.RewRule.rew_lemma hint in
-      let subst, ctx = UnivGen.fresh_universe_context_set_instance ctx in
-      let subst = Sorts.QVar.Map.empty, subst in
+      let subst, ctx = UnivGen.fresh_sort_context_instance ctx in
       let lemma = Vars.subst_univs_level_constr subst (EConstr.of_constr lemma) in
-      let sigma = Evd.merge_context_set UnivRigid sigma ctx in
+      (* XXX sorts lost, but UState.merge_sort_context is too strict *)
+      let (qs, us), (qcst, ucst) = ctx in
+      let sigma = Evd.merge_context_set UnivRigid sigma (us, (qcst, ucst)) in
       (sigma, lemma)
 
     let old_hints (db : string) : strategy =

@@ -55,7 +55,10 @@ sig
 
   val is_unif : t -> bool
 
-  module Set : CSig.SetS with type elt = t
+  module Set : sig
+    include CSig.SetS with type elt = t
+    val pr : (elt -> Pp.t) -> t -> Pp.t
+  end
 
   module Map : CMap.ExtS with type key = t and module Set := Set
 end

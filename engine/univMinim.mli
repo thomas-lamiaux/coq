@@ -9,7 +9,6 @@
 (************************************************************************)
 
 open Univ
-open PConstraints
 
 (** Unordered pairs of universe levels (ie (u,v) = (v,u)) *)
 module UPairSet : CSet.S with type elt = (Level.t * Level.t)
@@ -34,7 +33,7 @@ val extra_union : extra -> extra -> extra
     (a global one if there is one) and transitively saturate
     the constraints w.r.t to the equalities. *)
 
-val normalize_context_set : UGraph.t -> ContextSet.t ->
+val normalize_context_set : UGraph.t -> Univ.ContextSet.t ->
   UnivFlex.t (* The defined and undefined variables *) ->
   extra ->
-  UnivFlex.t in_poly_context_set
+  UnivFlex.t * Univ.ContextSet.t

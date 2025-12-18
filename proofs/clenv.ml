@@ -67,8 +67,8 @@ let merge_fsorts evd clenv =
   in
   let fsorts = List.fold_left fold Univ.Level.Set.empty clenv.metas in
   let fsorts = Univ.Level.Set.filter filter fsorts in
-  let uctx = (fsorts, PConstraints.empty) in
-  Evd.merge_context_set Evd.univ_flexible evd uctx
+  let uctx = (fsorts, Univ.UnivConstraints.empty) in
+  Evd.merge_universe_context_set Evd.univ_flexible evd uctx
 
 let update_clenv_evd clenv evd metam =
   let evd = merge_fsorts evd clenv in

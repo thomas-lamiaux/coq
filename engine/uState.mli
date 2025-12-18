@@ -55,10 +55,13 @@ val union : t -> t -> t
 (** {5 Projections and other destructors} *)
 
 val context_set : t -> PConstraints.ContextSet.t
-(** The local context of the state, i.e. a set of bound variables together
-    with their associated constraints. *)
+(* Use the functions below instead. *)
+
+val universe_context_set : t -> Univ.ContextSet.t
 
 val sort_context_set : t -> UnivGen.sort_context_set
+(** The local context of the state, i.e. a set of bound variables together
+    with their associated constraints. *)
 
 type universe_opt_subst = UnivFlex.t
 (* Reexport because UnivSubst is private *)

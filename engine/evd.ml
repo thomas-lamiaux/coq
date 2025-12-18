@@ -1011,7 +1011,7 @@ let elim_graph d = UState.elim_graph d.universes
 
 let evar_universe_context d = ustate d
 
-let universe_context_set d = UState.context_set d.universes
+let universe_context_set d = UState.universe_context_set d.universes
 
 let sort_context_set d = UState.sort_context_set d.universes
 
@@ -1046,14 +1046,15 @@ let universe_subst evd =
 let merge_context_set ?loc ?(sideff=false) rigid evd uctx' =
   {evd with universes = UState.merge ?loc ~sideff rigid evd.universes uctx'}
 
+let merge_universe_context_set ?loc ?(sideff=false) rigid evd uctx' =
+  let uctx' = PConstraints.ContextSet.of_univ_context_set uctx' in
+  {evd with universes = UState.merge ?loc ~sideff rigid evd.universes uctx'}
+
 let merge_sort_context_set ?loc ?(sideff=false) rigid src evd ctx' =
   {evd with universes = UState.merge_sort_context ?loc ~sideff rigid src evd.universes ctx'}
 
 let merge_sort_variables ?loc ?(sideff=false) evd qs =
   { evd with universes = UState.merge_sort_variables ?loc ~sideff evd.universes QGraph.Static qs Sorts.ElimConstraints.empty }
-
-let with_context_set ?loc rigid evd (a, uctx) =
-  (merge_context_set ?loc rigid evd uctx, a)
 
 let with_sort_context_set ?loc rigid src d (a, ctx) =
   (merge_sort_context_set ?loc rigid src d ctx, a)
@@ -1143,7 +1144,7 @@ let is_eq_sort s1 s2 =
 let universe_rigidity evd l =
   let uctx = evd.universes in
   (* XXX why are we considering all locals to be flexible here? *)
-  if Univ.Level.Set.mem l (PConstraints.ContextSet.levels (UState.context_set uctx)) then
+  if Univ.Level.Set.mem l (fst (UState.universe_context_set uctx)) then
     UnivFlexible (UState.is_algebraic l uctx)
   else UnivRigid
 
