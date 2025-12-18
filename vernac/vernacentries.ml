@@ -2426,7 +2426,8 @@ let show_goal goalref proof oldp =
   match goalref with
     | OpenSubgoals -> pr_open_subgoals ~oldp proof
     | NthGoal n -> pr_nth_open_subgoal ~oldp ~proof n
-    | GoalId id -> pr_goal_by_id ~oldp ~proof id
+    | GoalId qid ->
+      pr_goal_by_id ~oldp ~proof qid
 
 (* Stack is needed due to show proof names, should deprecate / remove
    and take pstate *)
