@@ -621,8 +621,7 @@ val universe_subst : evar_map -> UnivFlex.t
 val universes : evar_map -> UGraph.t
 
 (** [to_universe_context evm] extracts the local universes and
-    constraints of [evm] and orders the universes the same as
-    [PConstraints.ContextSet.to_context]. *)
+    constraints of [evm] and orders the universes *)
 val to_universe_context : evar_map -> UVars.UContext.t
 
 val univ_entry : poly:PolyFlags.t -> evar_map -> UState.named_universes_entry
