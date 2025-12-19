@@ -159,7 +159,6 @@ val ppuniverse_instance : UVars.Instance.t -> unit
 val ppuniverse_einstance : EConstr.EInstance.t -> unit
 val ppuniverse_context : UVars.UContext.t -> unit
 val ppaucontext : UVars.AbstractContext.t -> unit
-val ppuniverse_context_set : PConstraints.ContextSet.t -> unit
 val ppuniverse_subst : UnivSubst.universe_subst -> unit
 val ppuniverse_opt_subst : UState.universe_opt_subst -> unit
 val pppoly_flags : PolyFlags.t -> unit

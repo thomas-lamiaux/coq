@@ -15,6 +15,29 @@ open Univ
 open Sorts
 open UVars
 
+module PContextSet = struct
+  open PConstraints
+  type t = Level.Set.t constrained
+
+  let empty = (Level.Set.empty, empty)
+  let is_empty (univs, cst) = Level.Set.is_empty univs && is_empty cst
+
+  let union (univs, cst as x) (univs', cst' as y) =
+    if x == y then x
+    else Level.Set.union univs univs', union cst cst'
+
+  let add_level u (univs, cst) =
+    Level.Set.add u univs, cst
+
+  let pr prv prl (univs, cst) =
+    UnivGen.pr_sort_context prv prl ((Sorts.QVar.Set.empty, univs), cst)
+
+  let univ_context_set (uvars, (_, uctx)) = (uvars, uctx)
+  let univ_constraints (_, (_,csts)) = csts
+  let levels (univs, _cst) = univs
+
+end
+
 let template_default_univs = Summary.ref ~name:"template default univs" Univ.Level.Set.empty
 
 let cache_template_default_univs us =
@@ -310,7 +333,7 @@ type univ_names = UnivNames.universe_binders * (uinfo QVar.Map.t * uinfo Level.M
 (* 2nd part used to check consistency on the fly. *)
 type t =
  { names : univ_names; (** Printing/location information *)
-   local : PConstraints.ContextSet.t; (** The local graph of universes (variables and constraints) *)
+   local : PContextSet.t; (** The local graph of universes (variables and constraints) *)
    univ_variables : UnivFlex.t;
    (** The local universes that are unification variables *)
    sort_variables : QState.t;
@@ -323,7 +346,7 @@ type t =
 
 let empty =
   { names = UnivNames.empty_binders, (QMap.empty, Level.Map.empty);
-    local = PConstraints.ContextSet.empty;
+    local = PContextSet.empty;
     univ_variables = UnivFlex.empty;
     sort_variables = QState.empty;
     universes = UGraph.initial_universes;
@@ -338,7 +361,7 @@ let make ~qualities univs =
   }
 
 let is_empty uctx =
-  PConstraints.ContextSet.is_empty uctx.local &&
+  PContextSet.is_empty uctx.local &&
   UnivFlex.is_empty uctx.univ_variables
 
 let id_of_level uctx l =
@@ -412,10 +435,10 @@ let union uctx uctx' =
   if uctx == uctx' then uctx
   else if is_empty uctx' then uctx
   else
-    let local = PConstraints.ContextSet.union uctx.local uctx'.local in
+    let local = PContextSet.union uctx.local uctx'.local in
     let names = names_union uctx.names uctx'.names in
-    let newus = Level.Set.diff (PConstraints.ContextSet.levels uctx'.local)
-                               (PConstraints.ContextSet.levels uctx.local) in
+    let newus = Level.Set.diff (PContextSet.levels uctx'.local)
+                               (PContextSet.levels uctx.local) in
     let newus = Level.Set.diff newus (UnivFlex.domain uctx.univ_variables) in
     let extra = UnivMinim.extra_union uctx.minim_extra uctx'.minim_extra in
     let declarenew g =
@@ -437,7 +460,7 @@ let union uctx uctx' =
         universes =
           (if local == uctx.local then uctx.universes
            else
-             let cstrsr = PConstraints.ContextSet.univ_constraints uctx'.local in
+             let cstrsr = PContextSet.univ_constraints uctx'.local in
              merge_univ_constraints uctx cstrsr (declarenew uctx.universes));
         minim_extra = extra}
 
@@ -1106,7 +1129,7 @@ let check_template_univ_decl uctx ~template_qvars decl =
     then check_universe_context_set ~prefix levels uctx.names
   in
   if decl.univdecl_extensible_constraints then
-    PConstraints.ContextSet.univ_context_set uctx.local
+    PContextSet.univ_context_set uctx.local
   else
     let () = check_implication uctx (univ_decl_csts decl) csts in
     (levels, decl.univdecl_univ_constraints)
@@ -1309,7 +1332,7 @@ let emit_side_effects eff u =
   demote_global_univs uctx u
 
 let merge_seff uctx uctx' =
-  let levels = PConstraints.ContextSet.levels uctx' in
+  let levels = PContextSet.levels uctx' in
   let declare g =
     Level.Set.fold (fun u g ->
         try UGraph.add_universe ~strict:false u g
@@ -1318,7 +1341,7 @@ let merge_seff uctx uctx' =
   in
   let initial_universes = declare uctx.initial_universes in
   let univs = declare uctx.universes in
-  let universes = merge_univ_constraints uctx (PConstraints.ContextSet.univ_constraints uctx') univs in
+  let universes = merge_univ_constraints uctx (PContextSet.univ_constraints uctx') univs in
   { uctx with universes; initial_universes }
 
 let update_sigma_univs uctx univs =
@@ -1356,7 +1379,7 @@ let add_loc l loc (names, (qnames_rev,unames_rev) as orig) =
 let add_universe ?loc name strict uctx u =
   let initial_universes = UGraph.add_universe ~strict u uctx.initial_universes in
   let universes = UGraph.add_universe ~strict u uctx.universes in
-  let local = PConstraints.ContextSet.add_level u uctx.local in
+  let local = PContextSet.add_level u uctx.local in
   let names =
     match name with
     | Some n -> add_names ?loc n u uctx.names
@@ -1543,7 +1566,7 @@ let pr ctx =
   else
     v 0
       (str"UNIVERSES:"++brk(0,1)++
-       h (PConstraints.ContextSet.pr prq prl (context_set ctx)) ++ fnl () ++
+       h (PContextSet.pr prq prl (context_set ctx)) ++ fnl () ++
        UnivFlex.pr prl (subst ctx) ++ fnl() ++
        str"SORTS:"++brk(0,1)++
        h (pr_sort_opt_subst ctx) ++ fnl() ++
