@@ -1217,9 +1217,7 @@ let univ_flexible_alg = UnivFlexible true
 (** ~sideff indicates that it is ok to redeclare a universe.
     Also merges the universe context in the local constraint structures
     and not only in the graph. *)
-let merge ?loc ~sideff rigid uctx uctx' =
-  let levels = PConstraints.ContextSet.levels uctx' in
-  let local = PConstraints.ContextSet.append uctx' uctx.local in
+let merge_universe_context ?loc ~sideff rigid uctx (levels, ucst) =
   let declare g =
     Level.Set.fold (fun u g ->
         try UGraph.add_universe ~strict:false u g
@@ -1240,7 +1238,7 @@ let merge ?loc ~sideff rigid uctx uctx' =
   in
   let initial = declare uctx.initial_universes in
   let univs = declare uctx.universes in
-  let universes = merge_univ_constraints uctx (PConstraints.ContextSet.univ_constraints uctx') univs in
+  let universes = merge_univ_constraints uctx ucst univs in
   let uctx =
     match rigid with
     | UnivRigid -> uctx
@@ -1249,6 +1247,8 @@ let merge ?loc ~sideff rigid uctx uctx' =
       let uvars' = UnivFlex.add_levels levels ~algebraic:b uctx.univ_variables in
       { uctx with univ_variables = uvars' }
   in
+  let (us, (qcst, ucst0)) = uctx.local in
+  let local = (Univ.Level.Set.union us levels, (qcst, Univ.UnivConstraints.union ucst0 ucst)) in
   { uctx with names; local; universes;
               initial_universes = initial }
 
@@ -1272,14 +1272,13 @@ let merge_sort_variables ?loc ~sideff uctx src qvars csts =
     (fst uctx.names, (qrev, snd (snd uctx.names)))
   in
   let sort_variables = QState.merge_constraints (merge_elim_constraints src uctx csts) sort_variables in
-  { uctx with sort_variables; names }
+  let (us, (qcst, ucst)) = uctx.local in
+  let local = (us, (Sorts.ElimConstraints.union qcst csts, ucst)) in
+  { uctx with local; sort_variables; names }
 
-let merge_universe_context ?loc ~sideff rigid uctx (us, ucst) =
-  merge ?loc ~sideff rigid uctx (us, (Sorts.ElimConstraints.empty, ucst))
-
-let merge_sort_context ?loc ~sideff rigid src uctx ((qvars,levels),csts) =
-  let uctx = merge_sort_variables ?loc ~sideff uctx src qvars (PConstraints.qualities csts) in
-  merge ?loc ~sideff rigid uctx (levels,csts)
+let merge_sort_context ?loc ~sideff rigid src uctx ((qvars, levels), (qcst, ucst)) =
+  let uctx = merge_sort_variables ?loc ~sideff uctx src qvars qcst in
+  merge_universe_context ?loc ~sideff rigid uctx (levels, ucst)
 
 let demote_global_univs (lvl_set, univ_csts) uctx =
   let (local_univs, local_constraints) = uctx.local in
