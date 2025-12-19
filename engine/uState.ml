@@ -1252,7 +1252,7 @@ let merge_universe_context ?loc ~sideff rigid uctx (levels, ucst) =
   { uctx with names; local; universes;
               initial_universes = initial }
 
-let merge_sort_variables ?loc ~sideff uctx src qvars csts =
+let merge_sort_variables ?loc ~sideff uctx src (qvars, csts) =
   let sort_variables =
     QVar.Set.fold (fun qv qstate -> QState.add ~check_fresh:(not sideff) ~rigid:false qv qstate)
       qvars
@@ -1277,7 +1277,7 @@ let merge_sort_variables ?loc ~sideff uctx src qvars csts =
   { uctx with local; sort_variables; names }
 
 let merge_sort_context ?loc ~sideff rigid src uctx ((qvars, levels), (qcst, ucst)) =
-  let uctx = merge_sort_variables ?loc ~sideff uctx src qvars qcst in
+  let uctx = merge_sort_variables ?loc ~sideff uctx src (qvars, qcst) in
   merge_universe_context ?loc ~sideff rigid uctx (levels, ucst)
 
 let demote_global_univs (lvl_set, univ_csts) uctx =
