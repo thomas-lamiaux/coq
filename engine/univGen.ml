@@ -207,25 +207,16 @@ let fresh_sort_in_quality =
      let u = fresh_level () in
      sort_of_univ (Univ.Universe.make u), ((QVar.Set.empty,Level.Set.singleton u), PConstraints.empty)
 
-let fresh_universe_context_set_instance ctx =
-  if PConstraints.ContextSet.is_empty ctx then Level.Map.empty, ctx
-  else
-    let (univs, cst) = PConstraints.ContextSet.levels ctx, PConstraints.ContextSet.constraints ctx in
-    let univs',subst = Level.Set.fold
-      (fun u (univs',subst) ->
-        let u' = fresh_level () in
-          (Level.Set.add u' univs', Level.Map.add u u' subst))
-      univs (Level.Set.empty, Level.Map.empty)
-    in
-    let cst' = subst_poly_constraints (QVar.Map.empty,subst) cst in
-      subst, (univs', cst')
-
-let fresh_sort_context_instance ((qs,us),csts) =
-  let usubst, (us, csts) = fresh_universe_context_set_instance (us,csts) in
-  let qsubst, qs = QVar.Set.fold (fun q (qsubst,qs) ->
-      let q' = fresh_sort_quality () in
-      QVar.Map.add q (Sorts.Quality.QVar q') qsubst, QVar.Set.add q' qs)
-      qs
-      (QVar.Map.empty, QVar.Set.empty)
+let fresh_sort_context_instance ((qs, us), csts) =
+  let ufold u (us, usubst) =
+    let u' = fresh_level () in
+    (Level.Set.add u' us, Level.Map.add u u' usubst)
   in
+  let qfold q (qs, qsubst) =
+    let q' = fresh_sort_quality () in
+    QVar.Set.add q' qs, QVar.Map.add q (Sorts.Quality.QVar q') qsubst
+  in
+  let us, usubst = Level.Set.fold ufold us (Level.Set.empty, Level.Map.empty) in
+  let qs, qsubst = QVar.Set.fold qfold qs (QVar.Set.empty, QVar.Map.empty) in
+  let csts = subst_poly_constraints (qsubst, usubst) csts in
   (qsubst, usubst), ((qs, us), csts)
