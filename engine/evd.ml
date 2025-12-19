@@ -1139,14 +1139,6 @@ let is_eq_sort s1 s2 =
   if Sorts.equal s1 s2 then None
   else Some (s1, s2)
 
-(* Precondition: l is not defined in the substitution *)
-let universe_rigidity evd l =
-  let uctx = evd.universes in
-  (* XXX why are we considering all locals to be flexible here? *)
-  if Univ.Level.Set.mem l (fst (UState.universe_context_set uctx)) then
-    UnivFlexible (UState.is_algebraic l uctx)
-  else UnivRigid
-
 let normalize_universe_instance evd l =
   UState.nf_instance evd.universes l
 
