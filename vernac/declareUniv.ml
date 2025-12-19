@@ -253,9 +253,9 @@ let do_constraint ~poly l =
   in
   match poly with
   | false ->
-    let uctx = PConstraints.ContextSet.add_constraints constraints PConstraints.ContextSet.empty in
-    let () = Global.push_qualities QGraph.Rigid (PConstraints.ContextSet.sort_context_set uctx) in (* XXX *)
-    Global.push_context_set (PConstraints.ContextSet.univ_context_set uctx)
+    let qcst, ucst = constraints in
+    let () = Global.push_qualities QGraph.Rigid (Sorts.QVar.Set.empty, qcst) in (* XXX *)
+    Global.push_context_set (Univ.Level.Set.empty, ucst)
   | true ->
     let uctx = UVars.UContext.make
         UVars.empty_bound_names
