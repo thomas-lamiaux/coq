@@ -89,6 +89,16 @@ let sort_context_union ((qs,us),csts) ((qs',us'),csts') =
 let diff_sort_context ((qs,us),csts) ((qs',us'),csts') =
   (QVar.Set.diff qs qs', Level.Set.diff us us'), PConstraints.diff csts csts'
 
+let pr_sort_context prv prl ((vs, us), cst as ctx) =
+  let open Pp in
+  if is_empty_sort_context ctx then mt ()
+  else
+    let vs =
+      if Sorts.QVar.Set.is_empty vs then mt ()
+      else Sorts.QVar.Set.pr prv vs ++ pr_semicolon ()
+    in
+    hov 0 (h (vs ++ Level.Set.pr prl us ++ str " |=") ++ brk(1,2) ++ h (PConstraints.pr prv prl cst))
+
 type univ_length_mismatch = {
   gref : GlobRef.t;
   actual : int * int;

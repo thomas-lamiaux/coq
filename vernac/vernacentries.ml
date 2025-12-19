@@ -168,11 +168,10 @@ let show_top_evars ~proof =
 
 let show_universes ~proof =
   let Proof.{goals;sigma} = Proof.data proof in
-  let (qs, us), (qcst, ucst) = Evd.sort_context_set (Evd.minimize_universes sigma) in
-  let ctx = (us, (qcst, ucst)) in (* XXX *)
+  let ctx = Evd.sort_context_set (Evd.minimize_universes sigma) in
   UState.pr (Evd.ustate sigma) ++ fnl () ++
   v 1 (str "Normalized constraints:" ++ cut() ++
-       PConstraints.ContextSet.pr (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma) ctx)
+       UnivGen.pr_sort_context (Termops.pr_evd_qvar sigma) (Termops.pr_evd_level sigma) ctx)
 
 (* Simulate the Intro(s) tactic *)
 let show_intro ~proof all =
