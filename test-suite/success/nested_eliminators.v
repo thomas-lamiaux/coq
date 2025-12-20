@@ -107,15 +107,15 @@ Module Template.
 
   Scheme SparseParametricity for PairTree.
 
-  (* Inductive LeftTree A : Type :=
+  Inductive LeftTree A : Type :=
   | Lleaf (a : A) : LeftTree A
-  | Lnode (p : prod (LeftTree A) nat) : LeftTree A. *)
+  | Lnode (p : prod (LeftTree A) nat) : LeftTree A.
 
   (* Scheme SparseParametricity for LeftTree. *)
 
-  (* Inductive RightTree A : Type :=
+  Inductive RightTree A : Type :=
   | Rleaf (a : A) : RightTree A
-  | Rnode (p : prod nat (RightTree A)) : RightTree A. *)
+  | Rnode (p : prod nat (RightTree A)) : RightTree A.
 
   (* Scheme SparseParametricity for RightTree. *)
 
@@ -197,7 +197,7 @@ Module Template.
   | typ_cons : forall (lA : list A) (lB : list B),
               All2i A B (fun n => typing A B n) n lA lB -> typing A B n a b.
 
-  (* Scheme SparseParametricity for typing. *)
+  Scheme SparseParametricity for typing.
 
   (* Example All2i_bis_bis with trivial nesting on R *)
   Inductive All2i_bis (A B C : Type) (R : nat -> A -> B -> Type) (n : nat) : list A -> list B -> Type :=

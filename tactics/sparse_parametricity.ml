@@ -31,11 +31,22 @@ let rec pp_list f l = match l with
 let pp_lint l = Pp.str "[" ++ pp_list Pp.int l
 let pp_lbool l = Pp.str "[" ++ pp_list Pp.bool l
 
-
 let (let@) x f = x f
 let (let*) x f = State.bind x f
 let dbg = CDebug.create ~name:"sparse_parametricity" ()
 
+let print_term s t =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  return @@ dbg Pp.(fun () -> str s ++ Termops.Internal.print_constr_env env sigma t)
+
+let print_context s =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  return @@ dbg Pp.(fun () -> str s ++ Termops.Internal.print_rel_context env sigma)
+
+let print_str s =
+  dbg Pp.(fun () -> str s)
 
   (** {6 Lookup Sparse Parametricity } *)
 
@@ -142,6 +153,7 @@ let check_key_in k keys =
 let view_arg kn mib key_uparams strpos t : arg State.t =
   let* (cxt, hd) = whd_decompose_prod_decls t in
   let* (hd, iargs) = decompose_app hd in
+  let* () = print_term " hd is = " hd in
   let* sigma = get_sigma in
   match kind sigma hd with
   | Rel k -> begin
@@ -183,22 +195,6 @@ let view_arg kn mib key_uparams strpos t : arg State.t =
 - For each argument [a : A] add [PA a], for each inductive a recursion hypothesis
 - Replace [tInd] by the corresponding [rel]
 *)
-
-
-  (** {7 Check if an anductive type is nested including for positve parameters } *)
-
-let print_tm s t =
-  let* env = get_env in
-  let* sigma = get_sigma in
-  return @@ dbg Pp.(fun () -> str s ++ Termops.Internal.print_constr_env env sigma t)
-
-let print_context s =
-  let* env = get_env in
-  let* sigma = get_sigma in
-  return @@ dbg Pp.(fun () -> str s ++ Termops.Internal.print_rel_context env sigma)
-
-let print_str s =
-  dbg Pp.(fun () -> str s)
 
   (** {7 Functions on Parameters } *)
 
@@ -316,6 +312,7 @@ let context_uparams_preds uparams strpos fresh_sorts =
 (* Compute if an inductive is nested including for positive parameters to
    be able to create a fresh universe to handle the lack of algebraic universes *)
 let rec is_nested_arg_nested kn mib key_uparams strpos arg : bool t =
+  let* () = print_term "arg is = " arg in
   let* (locs, hd) = view_arg kn mib key_uparams strpos arg in
   let@ _ = add_context Old naming_id locs in
   match hd with
@@ -323,9 +320,15 @@ let rec is_nested_arg_nested kn mib key_uparams strpos arg : bool t =
       let uparams_nested = of_rel_context @@ fst @@
             Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
+      let* inst_uparams = array_mapi (fun _ arg ->
+            let* (loc, hd) = decompose_lambda_decls arg in
+            let@ _ = add_context Old naming_id loc in
+            return hd
+            ) inst_uparams
+      in
       let* inst_uparams = array_mapi (fun _ -> is_nested_arg_nested kn mib key_uparams strpos) inst_uparams in
       return @@ Array.exists (fun x -> x) inst_uparams
-  | ArgIsSPUparam  _ | ArgIsInd _ -> return true
+  | ArgIsSPUparam  _ | ArgIsInd _ -> print_str "foo"; return true
   | _ -> return false
 
 let is_nested_arg kn mib key_uparams strpos arg =
@@ -333,9 +336,16 @@ let is_nested_arg kn mib key_uparams strpos arg =
   let@ _ = add_context Old naming_id locs in
   match hd with
   | ArgIsNested (_, _, mib_nested, _, _, inst_uparams, _) ->
+      let () = print_str "NESTED" in
       let uparams_nested = of_rel_context @@ fst @@
             Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
+      let* inst_uparams = array_mapi (fun _ arg ->
+            let* (loc, hd) = decompose_lambda_decls arg in
+            let@ _ = add_context Old naming_id loc in
+            return hd
+            ) inst_uparams
+      in
       let* inst_uparams = array_mapi (fun _ -> is_nested_arg_nested kn mib key_uparams strpos) inst_uparams in
       return @@ Array.exists (fun x -> x) inst_uparams
   | _ -> return false
@@ -355,7 +365,6 @@ let is_nested_ind kn mib ind uparams nuparams strpos : bool t =
           return (arg_is_nested || b)
         ) (fun _ -> return false) ) s
     ) ind.mind_nf_lc
-
 
 let sup_list us u =
   List.fold_right Univ.Universe.sup us u
@@ -406,6 +415,7 @@ let compute_return_sort kn u sub_temp mib uparams nuparams strpos fresh_sorts =
   array_mapi (fun pos_ind ind ->
       let rev = ERelevance.make ind.mind_relevance in
       let* ind_is_nested = is_nested_ind kn mib ind uparams nuparams strpos in
+      dbg Pp.(fun () -> str "is nested = " ++ bool ind_is_nested);
       let* (fu, sort) = compute_one_return_sort mib ind ind_is_nested u sub_temp fresh_sorts in
       let fu = Option.map (fun x -> mkSort @@ ESorts.make x) fu in
       let return_sort = mkSort @@ ESorts.make sort in
@@ -640,7 +650,7 @@ let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mut
 let gen_sparse_parametricity env sigma kn u mib =
   let (sigma, uparams, nuparams, sub_temp) = get_params_sep sigma mib u in
   let strpos = Positive_parameters.compute_params_rec_strpos env kn mib in
-  (* dbg Pp.(fun () -> str "strpos = " ++ pp_lbool strpos); *)
+  dbg Pp.(fun () -> str "strpos = " ++ pp_lbool strpos);
   run env sigma @@ gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams
 
 let type_sparse_parametricity env sigma kn pos_ind u mib =
