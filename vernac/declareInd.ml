@@ -311,7 +311,7 @@ let do_scheme_fundamental_theorem kn mib kn_nested =
 
 
 let do_scheme_sparse_parametricity id =
-  (* let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux id in *)
+  let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux id in
   (* let () = do_scheme_fundamental_theorem kn mib kn_nested in *)
   ()
 

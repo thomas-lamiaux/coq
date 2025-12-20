@@ -436,7 +436,7 @@ let gen_elim_term print_constr rec_hyp kn u mdecl uparams nuparams (ind_bodies :
     let (sigma, t) = t s in
     let env = snd @@ get_env s in
     dbg Pp.(fun () -> str "TERM = " ++ print_constr env sigma t ++ str "\n");
-    let _ = type_sparse_parametricity env sigma kn focus u mdecl s in
+    (* let _ = type_sparse_parametricity env sigma kn focus u mdecl s in *)
     (sigma, t)
 
 (**********************************************************************)
