@@ -51,7 +51,7 @@ Module Template.
   Inductive MRT : Set :=
   | MRTnode : list MRT -> MRT.
 
-  (* Scheme SparseParametricity for MRT. *)
+  Scheme SparseParametricity for MRT.
 
   Inductive RoseTree A : Type :=
   | RTleaf (a : A) : RoseTree A

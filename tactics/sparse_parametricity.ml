@@ -386,7 +386,17 @@ let compute_one_return_sort mib ind is_nested u sub_temp fresh_sorts =
   match ind_sort with
   | SProp -> return (None, sprop)
   | Prop -> return (None, prop)
-  | Set -> assert false
+  | Set ->
+      let nu = sup_list (List.map snd fresh_sorts) Univ.Universe.type0 in
+      if is_nested then begin
+        let* sigma = get_sigma in
+        let (sigma, lalg) = Evd.new_univ_level_variable UnivRigid sigma in
+        let ualg = Univ.Universe.make lalg in
+        let return_sort = sort_of_univ @@ Univ.Universe.sup nu ualg in
+        (fun s -> return (Some (sort_of_univ ualg), return_sort) (update_sigma s sigma))
+      end
+      else
+        return (None, sort_of_univ nu)
   | Type u ->
       let nu = sup_list (List.map snd fresh_sorts) u in
       if is_nested then begin
