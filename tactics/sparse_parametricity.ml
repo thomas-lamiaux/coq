@@ -653,13 +653,6 @@ let gen_sparse_parametricity env sigma kn u mib =
   dbg Pp.(fun () -> str "strpos = " ++ pp_lbool strpos);
   run env sigma @@ gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams
 
-let type_sparse_parametricity env sigma kn pos_ind u mib =
-  let env = set_rel_context_val empty_rel_context_val env in
-  let (sigma, uparams, nuparams, sub_temp) = get_params_sep sigma mib u in
-  let strpos = List.map (fun _ -> true) uparams in
-  let _ = run env sigma @@ gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams in
-  return ()
-
 
 
 (** {6 Generate the Local Fundamental Theorem for Sparse Parametricity } *)

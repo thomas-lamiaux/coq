@@ -54,8 +54,5 @@ val view_arg : MutInd.t -> mutual_inductive_body -> access_key list -> bool list
 val gen_sparse_parametricity : env -> evar_map -> MutInd.t -> einstance ->
     mutual_inductive_body -> evar_map * mutual_inductive_entry
 
-val type_sparse_parametricity : env -> evar_map -> MutInd.t -> int -> einstance ->
-  mutual_inductive_body -> unit State.t
-
 val gen_fundamental_theorem : env -> evar_map -> MutInd.t -> MutInd.t -> int -> einstance ->
   mutual_inductive_body -> evar_map * constr
