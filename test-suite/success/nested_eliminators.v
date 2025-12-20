@@ -1,5 +1,7 @@
 Notation "A -> B" := (forall (_ : A), B) (right associativity, at level 99).
 
+Set Printing Universes.
+
 Inductive nat : Type :=
 | zero : nat
 | S : nat -> nat.
@@ -31,6 +33,9 @@ Module Template.
   Infix "::" := cons (at level 60, right associativity) : list_scope.
 
   Scheme SparseParametricity for list.
+  Scheme SparseParametricity for list_all.
+  Scheme SparseParametricity for list_all_all.
+  Scheme SparseParametricity for list_all_all_all.
 
   #[universes(polymorphic)]
   Definition lfth_list_all@{sP; uP+} A (PA : A -> Type@{sP;uP}) (HPA : forall pA : A, PA pA) :=
@@ -46,27 +51,37 @@ Module Template.
   Inductive MRT : Set :=
   | MRTnode : list MRT -> MRT.
 
+  (* Scheme SparseParametricity for MRT. *)
+
   Inductive RoseTree A : Type :=
   | RTleaf (a : A) : RoseTree A
   | RTnode (l : list (RoseTree A)) : RoseTree A.
+
+  Scheme SparseParametricity for RoseTree.
 
   Inductive RoseRoseTree A : Type :=
   | Nleaf (a : A) : RoseRoseTree A
   | Nnode (p : (list (list (RoseRoseTree A)))) : RoseRoseTree A.
 
+  Scheme SparseParametricity for RoseRoseTree.
+
   Inductive ArrowTree1 A : Type :=
   | ATleaf1 (a : A) : ArrowTree1 A
   | ATnode1 (l : (bool -> list (ArrowTree1 A))) : ArrowTree1 A.
+
+  Scheme SparseParametricity for ArrowTree1.
 
   Inductive ArrowTree2 A : Type :=
   | ATleaf2 (a : A) : ArrowTree2 A
   | ATnode2 (l : list (nat -> ArrowTree2 A)) : ArrowTree2 A.
 
+  Scheme SparseParametricity for ArrowTree2.
+
   Inductive ArrowTree3 A : Type :=
   | ATleaf3 (a : A) : ArrowTree3 A
   | ATnode3 (l : (bool -> list (nat -> ArrowTree3 A))) : ArrowTree3 A.
 
-
+  Scheme SparseParametricity for ArrowTree3.
 
   (* Example Prod *)
   Inductive prod (A B : Type) : Type :=
@@ -90,29 +105,41 @@ Module Template.
   | Pleaf (a : A) : PairTree A
   | Pnode (p : prod (PairTree A) (PairTree A)) : PairTree A.
 
-  Inductive LeftTree A : Type :=
-  | Lleaf (a : A) : LeftTree A
-  | Lnode (p : prod (LeftTree A) nat) : LeftTree A.
+  Scheme SparseParametricity for PairTree.
 
-  Inductive RightTree A : Type :=
+  (* Inductive LeftTree A : Type :=
+  | Lleaf (a : A) : LeftTree A
+  | Lnode (p : prod (LeftTree A) nat) : LeftTree A. *)
+
+  (* Scheme SparseParametricity for LeftTree. *)
+
+  (* Inductive RightTree A : Type :=
   | Rleaf (a : A) : RightTree A
-  | Rnode (p : prod nat (RightTree A)) : RightTree A.
+  | Rnode (p : prod nat (RightTree A)) : RightTree A. *)
+
+  (* Scheme SparseParametricity for RightTree. *)
 
   Inductive nu_nested (A B C : Type) : Type :=
   | nu_nested_nil : A -> nu_nested A B C
   | nu_nested_cons : list (nu_nested A (prod B B) C) -> nu_nested A B C.
 
-  (* test not nested *)
+  Scheme SparseParametricity for nu_nested.
+
   Inductive tricky1 A : Type :=
   | tricky11 : prod A nat -> tricky1 A.
 
+  (* Scheme SparseParametricity for tricky1. *)
+
   Inductive tricky2 A : Type :=
   | tricky21 : list A -> tricky2 A.
+
+  Scheme SparseParametricity for tricky2.
 
   Inductive tricky3 A : Type :=
   | tricky31 : prod A A -> tricky3 A
   | tricky32 : prod (list A) A -> tricky3 A.
 
+  Scheme SparseParametricity for tricky3.
 
 
   (* Nesting with vec *)
@@ -120,7 +147,7 @@ Module Template.
   | vnil : vec A zero
   | vcons : A -> forall n, vec A n -> vec A (S n).
 
-    Scheme SparseParametricity for vec.
+  Scheme SparseParametricity for vec.
 
   #[universes(polymorphic)]
   Fixpoint lfth_vec_all@{s;ua+} A (PA : A -> Type@{s;ua}) (HPA : forall a : A, PA a)
@@ -136,6 +163,7 @@ Module Template.
   | VNleaf (a : A) : VecTree A
   | VNnode n (p : vec (VecTree A) n) : VecTree A.
 
+  Scheme SparseParametricity for VecTree.
 
 
   (* Example All2i *)
@@ -162,7 +190,6 @@ Module Template.
     | All2i_cons a b lA lB r x => All2i_cons_all a b lA lB r (HPR n a b r) x (f (S n) lA lB x)
     end.
 
-  Register Scheme All2i_all as sparse_parametricity for All2i.
   Register Scheme lfth_All2i_all as local_fundamental_theorem for All2i.
 
   Inductive typing A B (n : nat) (a : A) (b : B) : Type :=
@@ -170,7 +197,7 @@ Module Template.
   | typ_cons : forall (lA : list A) (lB : list B),
               All2i A B (fun n => typing A B n) n lA lB -> typing A B n a b.
 
-
+  (* Scheme SparseParametricity for typing. *)
 
   (* Example All2i_bis_bis with trivial nesting on R *)
   Inductive All2i_bis (A B C : Type) (R : nat -> A -> B -> Type) (n : nat) : list A -> list B -> Type :=
@@ -182,6 +209,7 @@ Module Template.
   Arguments All2i_bis_cons {_ _ _ _ _}.
 
   Scheme SparseParametricity for All2i_bis.
+
   Arguments All2i_bis_nil_all  {_ _ _ _ _ _ _}.
   Arguments All2i_bis_cons_all {_ _ _ _ _ _ _}.
 
@@ -200,6 +228,8 @@ Module Template.
   Inductive triv_All2_bis : Type :=
   | ctriv_All2_bis : All2i_bis bool bool triv_All2_bis (fun _ _ _ => nat) zero (@nil bool) (@nil bool) ->
                     triv_All2_bis.
+
+  (* Scheme SparseParametricity for triv_All2_bis. *)
 
 End Template.
 

@@ -176,8 +176,6 @@ let view_arg kn mib key_uparams strpos t : arg State.t =
     end
   | _ -> return @@ (cxt, ArgIsCst)
 
-
-
   (** {6 Generate Sparse Parametricity } *)
 
 (* To build sparse parametricity:
@@ -186,6 +184,21 @@ let view_arg kn mib key_uparams strpos t : arg State.t =
 - Replace [tInd] by the corresponding [rel]
 *)
 
+
+  (** {7 Check if an anductive type is nested including for positve parameters } *)
+
+let print_tm s t =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  return @@ dbg Pp.(fun () -> str s ++ Termops.Internal.print_constr_env env sigma t)
+
+let print_context s =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  return @@ dbg Pp.(fun () -> str s ++ Termops.Internal.print_rel_context env sigma)
+
+let print_str s =
+  dbg Pp.(fun () -> str s)
 
   (** {7 Functions on Parameters } *)
 
@@ -276,7 +289,6 @@ let closure_uparams_preds_gen binder uparams strpos fresh_sorts cc =
     | [] -> cc ((List.rev key_uparams), (List.rev key_preds), (List.rev key_both))
     | decl :: tel ->
         let@ key_up = binder Old naming_id decl in
-        (* dbg Pp.(fun () -> str "strpos = " ++ bool (List.nth strpos i)) *)
         if (Option.has_some @@ get_value decl) then
           aux i key_uparams key_preds key_both tel cc
         else if not (List.nth strpos i) then
@@ -298,9 +310,60 @@ let closure_uparams_preds binder uparams strpos fresh_sorts cc =
 let context_uparams_preds uparams strpos fresh_sorts =
   closure_uparams_preds_gen add_decl uparams strpos fresh_sorts
 
+    (** {7 Compute Return Sort}  *)
+
+
+(* Compute if an inductive is nested including for positive parameters to
+   be able to create a fresh universe to handle the lack of algebraic universes *)
+let rec is_nested_arg_nested kn mib key_uparams strpos arg : bool t =
+  let* (locs, hd) = view_arg kn mib key_uparams strpos arg in
+  let@ _ = add_context Old naming_id locs in
+  match hd with
+  | ArgIsNested (_, _, mib_nested, _, _, inst_uparams, _) ->
+      let uparams_nested = of_rel_context @@ fst @@
+            Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
+      let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
+      let* inst_uparams = array_mapi (fun _ -> is_nested_arg_nested kn mib key_uparams strpos) inst_uparams in
+      return @@ Array.exists (fun x -> x) inst_uparams
+  | ArgIsSPUparam  _ | ArgIsInd _ -> return true
+  | _ -> return false
+
+let is_nested_arg kn mib key_uparams strpos arg =
+  let* (locs, hd) = view_arg kn mib key_uparams strpos arg in
+  let@ _ = add_context Old naming_id locs in
+  match hd with
+  | ArgIsNested (_, _, mib_nested, _, _, inst_uparams, _) ->
+      let uparams_nested = of_rel_context @@ fst @@
+            Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
+      let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
+      let* inst_uparams = array_mapi (fun _ -> is_nested_arg_nested kn mib key_uparams strpos) inst_uparams in
+      return @@ Array.exists (fun x -> x) inst_uparams
+  | _ -> return false
+
+let is_nested_ind kn mib ind uparams nuparams strpos : bool t =
+  let@ key_uparams = add_context Old naming_id uparams in
+  let@ _ = add_context Old naming_id nuparams in
+  let* s = get_state in
+  return @@
+  Array.exists (fun ctor -> snd @@
+      (let* (args, indices) = get_args mib EInstance.empty ctor in
+      fold_left_state (fun a l -> a::l) args (
+          fun _ arg cc ->
+          let* arg_is_nested = is_nested_arg kn mib key_uparams strpos (get_type arg) in
+          let@ key_arg  = add_decl Old naming_id arg in
+          let* b = cc key_arg in
+          return (arg_is_nested || b)
+        ) (fun _ -> return false) ) s
+    ) ind.mind_nf_lc
+
+
 let sup_list us u =
   List.fold_right Univ.Universe.sup us u
 
+(** Compute the return sort of sparse parametricity adding to original type
+    the sorts level of the predicates, and if nested a new universe level to accumulates
+    constrains coming from the instantation of the sparse parametricity of nested arguments
+    which would require algebraic universes otherwise *)
 let compute_one_return_sort mib ind is_nested u sub_temp fresh_sorts =
   let open Sorts in
   (* Return the sort of the inductive *)
@@ -338,23 +401,12 @@ let compute_one_return_sort mib ind is_nested u sub_temp fresh_sorts =
       else
         return (None, qsort q nu)
 
-let is_nested kn ind =
-  let one_is_rec rvec =
-    Array.exists (fun ra ->
-      match Inductiveops.dest_recarg ra with
-        | Mrec (RecArgInd (kn_arg, _)) ->
-            if MutInd.CanOrd.equal kn kn_arg then false else true
-        | Mrec (RecArgPrim _) | Norec -> false
-    )
-  rvec in
-  Array.exists one_is_rec (Inductiveops.dest_subterms @@ Rtree.Kind.make ind.mind_recargs)
-
 (** Add the inductive blocks in the context *)
-let compute_return_sort kn u sub_temp mib fresh_sorts =
+let compute_return_sort kn u sub_temp mib uparams nuparams strpos fresh_sorts =
   array_mapi (fun pos_ind ind ->
       let rev = ERelevance.make ind.mind_relevance in
-      let is_nested = is_nested kn ind in
-      let* (fu, sort) = compute_one_return_sort mib ind is_nested u sub_temp fresh_sorts in
+      let* ind_is_nested = is_nested_ind kn mib ind uparams nuparams strpos in
+      let* (fu, sort) = compute_one_return_sort mib ind ind_is_nested u sub_temp fresh_sorts in
       let fu = Option.map (fun x -> mkSort @@ ESorts.make x) fu in
       let return_sort = mkSort @@ ESorts.make sort in
       return (fu, return_sort)
@@ -417,29 +469,19 @@ let rec make_rec_call_ty kn pos_ind mib key_inds ((key_uparams, key_preds, key_u
   (* Match head *)
   match hd with
   | ArgIsSPUparam (pos_uparam, iargs) ->
-      (* instantiate predicate *)
-      (* dbg Pp.(fun () -> str "  UP =" ++ int pos_uparam); *)
       let pos_in_keys = up_to_spup pos_uparam strpos in
-      (* dbg Pp.(fun () -> str "  SUP =" ++ int pos_in_keys); *)
-      (* dbg Pp.(fun () -> str "  pred =" ++ pp_lint key_preds); *)
       let* pred_tm = geti_term key_preds pos_in_keys in
-      (* dbg Pp.(fun () -> str "  WORKED UP"); *)
       let pred = mkApp (pred_tm, Array.concat [ iargs; [|inst_arg|] ]) in
-      (* return *)
       return @@ Some pred
   | ArgIsInd (pos_ind_block, inst_nuparams, inst_indices) ->
-      (* dbg Pp.(fun () -> str "  IND"); *)
-      (* instantiate inductive *)
       let* inst_uparams_preds = get_terms key_uparams_preds in
       let ind_args = Array.concat [inst_uparams_preds; inst_nuparams; inst_indices; [|inst_arg|]] in
       let* ind = geti_term key_inds pos_ind in
       let ind_term = mkApp (ind, ind_args) in
-      (* return *)
       return @@ Some ind_term
   | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
                   inst_uparams, inst_nuparams_indices) ->
     begin
-      (* dbg Pp.(fun () -> str "  BUG NOT NESTED"); *)
       (* eta expand arguments *)
       let uparams_nested = of_rel_context @@ fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
@@ -483,15 +525,12 @@ let rec make_rec_call_ty kn pos_ind mib key_inds ((key_uparams, key_preds, key_u
 (** Create and bind the recursive call *)
 let make_rec_call_cc kn pos_ind mib key_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos ualg _ key_arg cc =
   let* ty_arg = State.get_type key_arg in
-  (* dbg Pp.(fun () -> str "DEBUG"); *)
   let* rec_call = make_rec_call_ty kn pos_ind mib key_inds key_up strpos ualg key_arg ty_arg in
-  (* dbg Pp.(fun () -> str "OK"); *)
   match rec_call with
   | Some rec_hyp ->
       (* Compute the relevance after the instantiation *)
       let* env = get_env in
       let* sigma = get_sigma in
-      (* dbg Pp.(fun () -> Termops.Internal.debug_print_constr sigma rec_hyp); *)
       let* rec_hyp_sort = retyping_sort_of rec_hyp in
       let rec_hyp_rev = relevance_of_sort rec_hyp_sort in
       let name_rec_hyp = make_annot Anonymous rec_hyp_rev in
@@ -532,7 +571,6 @@ open Entries
 
 let gen_one_ind_sparse_param kn pos_ind ind u mib return_sorts key_inds key_up strpos key_nuparams : one_inductive_entry t =
   let suff v = Id.of_string @@ Id.to_string v ^ "_all" in
-  dbg Pp.(fun () -> MutInd.print kn ++ str " is_nested = " ++ bool (is_nested kn ind));
   let sparam_name = suff ind.mind_typename in
   let sparam_ctors_name = Array.map suff ind.mind_consnames in
   let ulag, return_sort = return_sorts.(pos_ind) in
@@ -560,7 +598,7 @@ let create_fresh_sorts_pred strpos =
 let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mutual_inductive_entry t =
   (* create fresh sorts, return types, and add the inductives *)
   let* fresh_sorts = create_fresh_sorts_pred strpos in
-  let* return_sorts = compute_return_sort kn u sub_temp mib fresh_sorts in
+  let* return_sorts = compute_return_sort kn u sub_temp mib uparams nuparams strpos fresh_sorts in
   let@ key_inds = add_inductive kn u mib (Array.map snd return_sorts) uparams strpos fresh_sorts nuparams in
   (*uparams + preds, nuparams and recover the context of parameters *)
   let@ key_up = context_uparams_preds uparams strpos fresh_sorts in
@@ -585,7 +623,7 @@ let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mut
   }
   in
   (* DEBUG *)
-  (* let params = EConstr.of_rel_context mie.mind_entry_params in
+  let params = EConstr.of_rel_context mie.mind_entry_params in
   let ind = List.hd @@ mie.mind_entry_inds in
   let ind_ty = EConstr.of_constr @@ ind.mind_entry_arity in
   let ctors_ty = List.map EConstr.of_constr ind.mind_entry_lc in
@@ -594,7 +632,7 @@ let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mut
   List.iteri (fun i ty_cst -> dbg Pp.(fun () -> str "TY CST_" ++ int i ++ str " = " ++ Termops.Internal.print_constr_env env sigma (it_mkProd_or_LetIn ty_cst params) ++ str "\n")) ctors_ty;
   let* sigma = get_sigma in
   let uv = Evd.ustate sigma in
-  dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n"); *)
+  dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n");
   (* RETURN *)
   return mie
 
