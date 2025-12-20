@@ -2213,7 +2213,7 @@ let by env tac pf =
   let sideff = SideEff.concat eff pf.sideff in
   { pf with proof; sideff }, safe
 
-let build_constant_by_tactic ~name ?(warn_incomplete = true) ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
+let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
   let proof = Proof.start ~name ~poly sigma [Global.env_of_context sign, typ] in
   let proof, status = Proof.solve env (Goal_select.select_nth 1) None tac proof in
   let (body, typ, output_ustate) =
@@ -2230,7 +2230,6 @@ let build_constant_by_tactic ~name ?(warn_incomplete = true) ~sigma ~env ~sign ~
     in
     let body = to_constr body in
     let typ = to_constr typ in
-    let () = if warn_incomplete then check_incomplete_proof evd in
     (body, typ, Evd.ustate evd)
   in
   let univs =
@@ -2261,7 +2260,7 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
 
 let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
   let (const, safe, sigma') =
-    try build_constant_by_tactic ~warn_incomplete:false ~name ~poly ~env ~sigma ~sign:secsign concl solve_tac
+    try build_constant_by_tactic ~name ~poly ~env ~sigma ~sign:secsign concl solve_tac
     with Logic_monad.TacticFailure e as src ->
     (* if the tactic [tac] fails, it reports a [TacticFailure e],
        which is an error irrelevant to the proof system (in fact it
