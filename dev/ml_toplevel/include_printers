@@ -32,7 +32,6 @@
 #install_printer (* univ context *) Top_printers.ppuniverse_context;;
 #install_printer (* univ context *) Top_printers.ppaucontext;;
 #install_printer (* univ context future *) Top_printers.ppuniverse_context_future;;
-#install_printer (* univ context set *) Top_printers.ppuniverse_context_set;;
 #install_printer (* qvar set *) Top_printers.ppqvarset;;
 #install_printer (* univ set *) Top_printers.ppuniverse_set;;
 #install_printer (* univ instance *) Top_printers.ppuniverse_instance;;

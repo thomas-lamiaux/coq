@@ -54,9 +54,6 @@ val union : t -> t -> t
 
 (** {5 Projections and other destructors} *)
 
-val context_set : t -> PConstraints.ContextSet.t
-(* Use the functions below instead. *)
-
 val universe_context_set : t -> Univ.ContextSet.t
 
 val sort_context_set : t -> UnivGen.sort_context_set
@@ -181,8 +178,6 @@ val univ_rigid : rigid
 val univ_flexible : rigid
 val univ_flexible_alg : rigid
 
-val merge : ?loc:Loc.t -> sideff:bool -> rigid -> t -> PConstraints.ContextSet.t -> t
-val merge_sort_variables : ?loc:Loc.t -> sideff:bool -> t -> QGraph.constraint_source -> Sorts.QVar.Set.t -> Sorts.ElimConstraints.t -> t
 val merge_sort_context : ?loc:Loc.t -> sideff:bool -> rigid -> QGraph.constraint_source -> t -> UnivGen.sort_context_set -> t
 val merge_universe_context : ?loc:Loc.t -> sideff:bool -> rigid -> t -> Univ.ContextSet.t -> t
 

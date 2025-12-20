@@ -619,8 +619,7 @@ val universe_subst : evar_map -> UnivFlex.t
 val universes : evar_map -> UGraph.t
 
 (** [to_universe_context evm] extracts the local universes and
-    constraints of [evm] and orders the universes the same as
-    [PConstraints.ContextSet.to_context]. *)
+    constraints of [evm] and orders the universes *)
 val to_universe_context : evar_map -> UVars.UContext.t
 
 val univ_entry : poly:PolyFlags.t -> evar_map -> UState.named_universes_entry
@@ -634,14 +633,9 @@ val check_univ_decl_early : poly:PolyFlags.t -> with_obls:bool -> evar_map -> US
 val merge_universe_context : evar_map -> UState.t -> evar_map
 val set_universe_context : evar_map -> UState.t -> evar_map
 
-val merge_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> PConstraints.ContextSet.t -> evar_map
-(** Don't use, use the ones below instead *)
-
 val merge_universe_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> evar_map -> Univ.ContextSet.t -> evar_map
 
 val merge_sort_context_set : ?loc:Loc.t -> ?sideff:bool -> rigid -> QGraph.constraint_source -> evar_map -> UnivGen.sort_context_set -> evar_map
-
-val merge_sort_variables : ?loc:Loc.t -> ?sideff:bool -> evar_map -> Sorts.QVar.Set.t -> evar_map
 
 val with_sort_context_set : ?loc:Loc.t -> rigid -> QGraph.constraint_source -> evar_map -> 'a UnivGen.in_sort_context_set -> evar_map * 'a
 

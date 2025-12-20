@@ -78,7 +78,6 @@ install_printer Top_printers.ppuniverse_instance
 install_printer Top_printers.ppuniverse_einstance
 install_printer Top_printers.ppuniverse_context
 install_printer Top_printers.ppaucontext
-install_printer Top_printers.ppuniverse_context_set
 install_printer Top_printers.ppuniverse_subst
 install_printer Top_printers.ppuniverse_opt_subst
 install_printer Top_printers.ppqvar_subst

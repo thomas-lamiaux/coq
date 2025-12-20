@@ -208,7 +208,8 @@ let glob_qvar ?loc evd : glob_qvar -> _ = function
     let evd, q = new_quality_variable ?loc evd in
     evd, q
   | GRawQVar q ->
-    let evd = Evd.merge_sort_variables ~sideff:true evd (Sorts.QVar.Set.singleton q) in
+    let ctx = (Sorts.QVar.Set.singleton q, Univ.Level.Set.empty), PConstraints.empty in
+    let evd = Evd.merge_sort_context_set UState.univ_rigid QGraph.Static evd ctx in
     evd, q
   | GLocalQVar {v=Name id; loc} ->
     try evd, (Evd.quality_of_name evd id)

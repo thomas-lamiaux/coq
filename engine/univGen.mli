@@ -62,6 +62,8 @@ val fresh_sort_quality : unit -> Sorts.QVar.t
 (** Build a fresh instance for a given context, its associated substitution and
     the instantiated constraints. *)
 
+(* TODO: move this type and its associated functions somewhere reasonable *)
+
 type sort_context_set = (Sorts.QVar.Set.t * Univ.Level.Set.t) * PConstraints.t
 
 type 'a in_sort_context_set = 'a * sort_context_set
@@ -73,6 +75,9 @@ val empty_sort_context : sort_context_set
 val is_empty_sort_context : sort_context_set -> bool
 
 val diff_sort_context : sort_context_set -> sort_context_set -> sort_context_set
+
+val pr_sort_context : (Sorts.QVar.t -> Pp.t) -> (Univ.Level.Set.elt -> Pp.t) ->
+  sort_context_set -> Pp.t
 
 val fresh_instance : AbstractContext.t -> Instance.t in_sort_context_set
 

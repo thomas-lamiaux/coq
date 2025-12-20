@@ -1043,17 +1043,11 @@ let restrict_universe_context evd vars =
 let universe_subst evd =
   UState.subst evd.universes
 
-let merge_context_set ?loc ?(sideff=false) rigid evd uctx' =
-  {evd with universes = UState.merge ?loc ~sideff rigid evd.universes uctx'}
-
 let merge_universe_context_set ?loc ?(sideff=false) rigid evd uctx' =
   {evd with universes = UState.merge_universe_context ?loc ~sideff rigid evd.universes uctx'}
 
 let merge_sort_context_set ?loc ?(sideff=false) rigid src evd ctx' =
   {evd with universes = UState.merge_sort_context ?loc ~sideff rigid src evd.universes ctx'}
-
-let merge_sort_variables ?loc ?(sideff=false) evd qs =
-  { evd with universes = UState.merge_sort_variables ?loc ~sideff evd.universes QGraph.Static qs Sorts.ElimConstraints.empty }
 
 let with_sort_context_set ?loc rigid src d (a, ctx) =
   (merge_sort_context_set ?loc rigid src d ctx, a)
