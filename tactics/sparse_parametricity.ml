@@ -80,9 +80,9 @@ let lookup_sparse_parametricity ind ind_nested =
 
   (** {6 Instantiate Sparse Parametricity } *)
 
-let mkFunTrue x =
+let mkFunUnit x =
   let@ _ = rebind fid Lambda Fresh naming_id x in
-  return @@ mkRef ((Rocqlib.lib_ref "core.True.type"), EInstance.empty)
+  return @@ mkRef ((Rocqlib.lib_ref "core.unit.type"), EInstance.empty)
 
 let instantiate_sparse_parametricity inst_uparams strpos preds =
   let preds = Array.to_list preds in
@@ -92,16 +92,16 @@ let instantiate_sparse_parametricity inst_uparams strpos preds =
     List.fold_right (fun (inst_uparam, b, pred) acc ->
       if not b then inst_uparam :: acc else
       match pred with
-      | None -> inst_uparam :: (snd @@ mkFunTrue inst_uparam s) :: acc
+      | None -> inst_uparam :: (snd @@ mkFunUnit inst_uparam s) :: acc
       | Some pred -> inst_uparam :: pred :: acc
       )
     (List.combine3 inst_uparams strpos preds) []
   in
   return @@ Array.of_list inst_sparam
 
-let mkFunI x =
+let mkFuntt x =
   let@ _ = rebind fid Lambda Fresh naming_id x in
-  return @@ mkRef ((Rocqlib.lib_ref "core.True.I"), EInstance.empty)
+  return @@ mkRef ((Rocqlib.lib_ref "core.unit.tt"), EInstance.empty)
 
 let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
   let inst_uparams = Array.to_list inst_uparams in
@@ -112,7 +112,7 @@ let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
     List.fold_right (fun (inst_uparam, b, (pred, pred_hold)) acc ->
       if not b then inst_uparam :: acc else
       match pred, pred_hold with
-      | None, None -> inst_uparam :: (snd @@ mkFunTrue inst_uparam s) :: (snd @@ mkFunI inst_uparam s) :: acc
+      | None, None -> inst_uparam :: (snd @@ mkFunUnit inst_uparam s) :: (snd @@ mkFuntt inst_uparam s) :: acc
       | Some pred, Some pred_hold -> inst_uparam :: pred :: pred_hold :: acc
       | _, _ -> assert false
     )
@@ -153,7 +153,6 @@ let check_key_in k keys =
 let view_arg kn mib key_uparams strpos t : arg State.t =
   let* (cxt, hd) = whd_decompose_prod_decls t in
   let* (hd, iargs) = decompose_app hd in
-  let* () = print_term " hd is = " hd in
   let* sigma = get_sigma in
   match kind sigma hd with
   | Rel k -> begin
@@ -312,7 +311,6 @@ let context_uparams_preds uparams strpos fresh_sorts =
 (* Compute if an inductive is nested including for positive parameters to
    be able to create a fresh universe to handle the lack of algebraic universes *)
 let rec is_nested_arg_nested kn mib key_uparams strpos arg : bool t =
-  let* () = print_term "arg is = " arg in
   let* (locs, hd) = view_arg kn mib key_uparams strpos arg in
   let@ _ = add_context Old naming_id locs in
   match hd with
@@ -328,7 +326,7 @@ let rec is_nested_arg_nested kn mib key_uparams strpos arg : bool t =
       in
       let* inst_uparams = array_mapi (fun _ -> is_nested_arg_nested kn mib key_uparams strpos) inst_uparams in
       return @@ Array.exists (fun x -> x) inst_uparams
-  | ArgIsSPUparam  _ | ArgIsInd _ -> print_str "foo"; return true
+  | ArgIsSPUparam  _ | ArgIsInd _ -> return true
   | _ -> return false
 
 let is_nested_arg kn mib key_uparams strpos arg =
@@ -336,7 +334,6 @@ let is_nested_arg kn mib key_uparams strpos arg =
   let@ _ = add_context Old naming_id locs in
   match hd with
   | ArgIsNested (_, _, mib_nested, _, _, inst_uparams, _) ->
-      let () = print_str "NESTED" in
       let uparams_nested = of_rel_context @@ fst @@
             Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
@@ -425,7 +422,6 @@ let compute_return_sort kn u sub_temp mib uparams nuparams strpos fresh_sorts =
   array_mapi (fun pos_ind ind ->
       let rev = ERelevance.make ind.mind_relevance in
       let* ind_is_nested = is_nested_ind kn mib ind uparams nuparams strpos in
-      dbg Pp.(fun () -> str "is nested = " ++ bool ind_is_nested);
       let* (fu, sort) = compute_one_return_sort mib ind ind_is_nested u sub_temp fresh_sorts in
       let fu = Option.map (fun x -> mkSort @@ ESorts.make x) fu in
       let return_sort = mkSort @@ ESorts.make sort in
@@ -526,6 +522,7 @@ let rec make_rec_call_ty kn pos_ind mib key_inds ((key_uparams, key_preds, key_u
         let* loc = get_terms key_locals in
         let arg = mkApp (arg , loc) in
         (* Instantiation *)
+        let* _ = array_mapi (fun _ t -> print_term "arg is = " t) inst_uparams in
         let* rec_hyp = typing_checked_appvect ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|]] in
         (* Add constrains with return sort *)
         match ualg with

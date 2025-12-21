@@ -11,11 +11,12 @@ Inductive bool : Type :=
 | false : bool.
 
 (* The type True needs to be defined and registered to instantiate constant nesting. *)
-Inductive True : Prop :=
-  I : True.
+Inductive unit : Set :=
+    tt : unit.
 
-Register True as core.True.type.
-Register I as core.True.I.
+Register unit as core.unit.type.
+Register tt as core.unit.tt.
+
 
 
 Module Template.
@@ -111,13 +112,13 @@ Module Template.
   | Lleaf (a : A) : LeftTree A
   | Lnode (p : prod (LeftTree A) nat) : LeftTree A.
 
-  (* Scheme SparseParametricity for LeftTree. *)
+  Scheme SparseParametricity for LeftTree.
 
   Inductive RightTree A : Type :=
   | Rleaf (a : A) : RightTree A
   | Rnode (p : prod nat (RightTree A)) : RightTree A.
 
-  (* Scheme SparseParametricity for RightTree. *)
+  Scheme SparseParametricity for RightTree.
 
   Inductive nu_nested (A B C : Type) : Type :=
   | nu_nested_nil : A -> nu_nested A B C
@@ -128,7 +129,7 @@ Module Template.
   Inductive tricky1 A : Type :=
   | tricky11 : prod A nat -> tricky1 A.
 
-  (* Scheme SparseParametricity for tricky1. *)
+  Scheme SparseParametricity for tricky1.
 
   Inductive tricky2 A : Type :=
   | tricky21 : list A -> tricky2 A.
@@ -229,7 +230,7 @@ Module Template.
   | ctriv_All2_bis : All2i_bis bool bool triv_All2_bis (fun _ _ _ => nat) zero (@nil bool) (@nil bool) ->
                     triv_All2_bis.
 
-  (* Scheme SparseParametricity for triv_All2_bis. *)
+  Scheme SparseParametricity for triv_All2_bis.
 
 End Template.
 
