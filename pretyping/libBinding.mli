@@ -234,6 +234,7 @@ type freshness = Fresh | Old
 type binder = Lambda | Prod
 
 val fid : ('a -> 'b) -> 'a -> 'b
+val fright : ('a -> 'b) -> 'c * 'a -> 'c * 'b
 val fopt : ('a -> 'b) -> 'a option -> 'b option
 val fropt : ('a -> 'b) -> ('c * 'a) option -> ('c * 'b) option
 

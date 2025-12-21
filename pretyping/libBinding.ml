@@ -339,6 +339,7 @@ let wrap_decl map f fresh naming_scheme decl cc s =
              sigma, map (f decl) v
 
 let fid f x = f x
+let fright f (a,b) = (a, f b)
 let fopt = Option.map
 let fropt = fun f -> Option.map (fun (a,b) -> (a, f b))
 

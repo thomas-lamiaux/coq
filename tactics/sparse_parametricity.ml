@@ -228,8 +228,8 @@ let get_params_sep sigma mib u =
   (sigma, uparams, nuparams, sub_temp)
 
 (** Closure of non-uniform parameters if [b], forgetting letins  *)
-let closure_nuparams binder naming_scheme nuparams =
-  closure_context fid binder Old naming_scheme nuparams
+let closure_nuparams m binder naming_scheme nuparams =
+  closure_context m binder Old naming_scheme nuparams
 
 let add_context_nuparams naming_scheme nuparams =
   add_context Old naming_scheme nuparams
@@ -240,9 +240,9 @@ let ind_relevance ind u =
   return @@ ERelevance.make @@ relevance_of_ind_body ind (EInstance.kind sigma u)
 
 (** Closure for indices. They are considered as [Fresh] as they are not in the context of the arguments *)
-let closure_indices binder freshness naming_scheme indb u f =
+let closure_indices m binder freshness naming_scheme indb u f =
   let* i = get_indices indb u in
-  closure_context fid binder freshness naming_scheme i f
+  closure_context m binder freshness naming_scheme i f
 
 
     (** {7 Generate the Type of the Sparse Parametricity } *)
@@ -432,7 +432,7 @@ let compute_return_sort kn u sub_temp mib uparams nuparams strpos fresh_sorts =
 let gen_type_sparse_parametricity_param kn pos_ind u mib key_uparams key_nuparams return_sort =
   (* Closure uparams and predicates, nuparams and indices *)
   let ind = mib.mind_packets.(pos_ind) in
-  let@ key_indices = closure_indices Prod Fresh naming_hd ind u in
+  let@ key_indices = closure_indices fid Prod Fresh naming_hd ind u in
   (* Bind the inductive *)
   let* rev_ind = ind_relevance ind u in
   let name_ind = make_annot Anonymous rev_ind in
@@ -442,7 +442,7 @@ let gen_type_sparse_parametricity_param kn pos_ind u mib key_uparams key_nuparam
 
 let gen_type_sparse_parametricity kn pos_ind u mib uparams strpos fresh_sorts nuparams return_sort =
     let@ (key_uparams, _, _) = closure_uparams_preds Prod uparams strpos fresh_sorts in
-    let@ key_nuparams = closure_nuparams Prod naming_id nuparams in
+    let@ key_nuparams = closure_nuparams fid Prod naming_id nuparams in
     gen_type_sparse_parametricity_param kn pos_ind u mib key_uparams key_nuparams return_sort
 
 (** Add the inductive blocks in the context *)
@@ -712,21 +712,38 @@ let closure_uparams_preds_holds uparams strpos fresh_sorts cc =
   in
   aux 0 [] [] [] [] (List.rev uparams) cc
 
+let fresh_inductive_instance ind =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  let sigma, ((_, u) as pind) = Evd.fresh_inductive_instance env sigma ind in
+  (fun s -> return (u, mkIndU pind)  (update_sigma s sigma))
+
+let make_ind_fresh_instance (kn, pos_ind) key_uparams key_nuparams key_indices =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  let* (u, tInd) = fresh_inductive_instance (kn, pos_ind) in
+  let* inst_ind = get_terms (key_uparams @ key_nuparams @ key_indices) in
+  let* ind = typing_checked_appvect tInd inst_ind in
+  return (u, ind)
+
 let make_ccl kn_nested pos_ind unested key_uparams_preds key_nuparams key_indices key_VarMatch =
   make_ind ((kn_nested, pos_ind), unested) key_uparams_preds key_nuparams (key_indices @ [key_VarMatch])
 
-let return_type kn kn_nested pos_ind u unested mib key_uparams key_uparams_preds nuparams =
-  let@ key_nuparams = closure_nuparams Prod naming_id nuparams in
+let make_ccl_finstance kn_nested pos_ind key_uparams_preds key_nuparams key_indices key_VarMatch =
+  make_ind_fresh_instance (kn_nested, pos_ind) key_uparams_preds key_nuparams (key_indices @ [key_VarMatch])
+
+let return_type kn kn_nested pos_ind u mib key_uparams key_uparams_preds nuparams =
+  let@ key_nuparams = closure_nuparams fright Prod naming_id nuparams in
   (* Closure uparams and predicates, nuparams and indices *)
   let ind = mib.mind_packets.(pos_ind) in
-  let@ key_indices = closure_indices Prod Fresh naming_hd ind u in
+  let@ key_indices = closure_indices fright Prod Fresh naming_hd ind u in
   (* Bind the inductive *)
   let* rev_ind = ind_relevance ind u in
   let name_ind = make_annot Anonymous rev_ind in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
-  let@ key_VarMatch = make_binder fid Prod naming_hd_fresh name_ind tind in
+  let@ key_VarMatch = make_binder fright Prod naming_hd_fresh name_ind tind in
   (* Return the sort of the inductive *)
-  make_ccl kn_nested pos_ind unested key_uparams_preds key_nuparams key_indices key_VarMatch
+  make_ccl_finstance kn_nested pos_ind key_uparams_preds key_nuparams key_indices key_VarMatch
 
 let add_ind mib =
   List.rev @@ Array.to_list @@
@@ -734,11 +751,11 @@ let add_ind mib =
       LocalAssum (make_annot Anonymous @@ ERelevance.make ind.mind_relevance, EConstr.of_constr ind.mind_user_arity)
     ) mib.mind_packets
 
-let gen_fundamental_theorem_type kn kn_nested focus u unested mib uparams strpos nuparams =
+(* let gen_fundamental_theorem_type kn kn_nested focus u mib uparams strpos nuparams =
   let@ key_inds = add_context Old naming_id (add_ind mib) in
   let* fresh_sorts = create_fresh_sorts_pred strpos in
   let@ ((key_uparams, key_preds, key_uparams_preds) as key_up, key_preds_hold) = closure_uparams_preds_holds uparams strpos fresh_sorts in
-  return_type kn kn_nested focus u unested mib key_uparams key_uparams_preds nuparams
+  return_type kn kn_nested focus u mib key_uparams key_uparams_preds nuparams *)
 
 let rec make_rec_call kn kn_nested pos_ind mib key_inds ((key_uparams, _, _) as key_up) key_preds_hold key_fixs strpos key_arg ty : (constr option) State.t =
   let* (loc, v) = view_arg kn mib key_uparams strpos ty in
@@ -799,32 +816,48 @@ let compute_args_fix kn kn_nested pos_ind mib key_inds key_up key_preds_hold key
         | None -> return @@ tm_arg :: acc
   ) 0 key_args (return [])
 
+
+(* make fix *)
+let make_fix_instance ind_bodies focus fix_rarg fix_name fix_type tmc =
+  (* data fix *)
+  let rargs = List.mapi fix_rarg ind_bodies in
+  let fix_names = List.mapi fix_name ind_bodies in
+  let* fix_instance_types = list_mapi fix_type ind_bodies in
+  let fix_instance = List.map fst fix_instance_types in
+  let fix_types = List.map snd fix_instance_types in
+  (* update context continuation *)
+  let fix_context = List.rev @@ List.map2_i (fun i na ty -> LocalAssum (na, Vars.lift i ty)) 0 fix_names fix_types in
+  let@ key_Fix = add_context Fresh naming_id fix_context in
+  let* fix_bodies = list_mapi (fun pos_list ind -> tmc (key_Fix, pos_list, ind)) (List.combine fix_instance ind_bodies) in
+  (* result *)
+  return @@ EConstr.mkFix ((Array.of_list rargs, focus), (Array.of_list fix_names, Array.of_list fix_types, Array.of_list fix_bodies))
+
 let gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams : constr t =
   (* 1. Create fresh sorts + new unfiform parameters *)
   let@ key_inds = add_context Old naming_id (add_ind mib) in
   let* fresh_sorts = create_fresh_sorts_pred strpos in
-  let unested = EInstance.empty in
   let@ ((key_uparams, key_preds, key_uparams_preds) as key_up, key_preds_hold) = closure_uparams_preds_holds uparams strpos fresh_sorts in
   (* 2. Fixpoint *)
   let fix_name pos_ind ind = make_annot (Name (Id.of_string "F")) (relevance_of_sort @@ ESorts.make ind.mind_sort) in
-  let fix_type pos_ind ind = return_type kn kn_nested pos_ind u unested mib key_uparams key_uparams_preds nuparams in
+  let fix_type pos_ind ind = return_type kn kn_nested pos_ind u mib key_uparams key_uparams_preds nuparams in
   let fix_rarg pos_ind ind = (mib.mind_nparams - mib.mind_nparams_rec) + ind.mind_nrealargs in
   let is_rec = Array.length mib.mind_packets > 1 || (Inductiveops.mis_is_recursive mib.mind_packets.(0)) in
-  let@ (key_fixs, pos_ind, ind) =
+  let@ (key_fixs, pos_ind, (unested, ind)) =
     (* Doe not create a fix if it is not-recursive and only has one inductive body *)
     if is_rec
-    then make_fix (Array.to_list mib.mind_packets) focus fix_rarg fix_name fix_type
-    else fun cc -> cc ([], 0, mib.mind_packets.(0)) in
-    let@ key_nuparams = closure_nuparams Prod naming_id nuparams in
-  (* 3. Closure Nuparams / Indices / Var *)
+    then make_fix_instance (Array.to_list mib.mind_packets) focus fix_rarg fix_name fix_type
+    else fun cc -> cc ([], 0, (EInstance.empty, mib.mind_packets.(0)))
+  in
+    (* 3. Closure Nuparams / Indices / Var *)
+  let@ key_nuparams = closure_nuparams fid Prod naming_id nuparams in
   let ind = mib.mind_packets.(pos_ind) in
-  let@ key_indices = closure_indices Lambda Fresh naming_hd ind u in
+  let@ key_indices = closure_indices fid Lambda Fresh naming_hd ind u in
   let* rev_ind = ind_relevance ind u in
   let name_ind = make_annot Anonymous rev_ind in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
   let@ key_VarMatch = make_binder fid Lambda naming_hd_fresh name_ind tind in
   (* 4 Match to prove P ... x *)
-  let case_pred = make_ccl kn_nested pos_ind u key_uparams_preds key_nuparams in
+  let case_pred = make_ccl kn_nested pos_ind unested key_uparams_preds key_nuparams in
   let* inst_params = get_terms (key_uparams @ key_nuparams )in
   let* var_match = get_term key_VarMatch in
   let* inst_indices = get_terms key_indices in
@@ -833,7 +866,7 @@ let gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams
       inst_indices case_pred (relevance_of_sort @@ ESorts.make ind.mind_sort) var_match in
   (* 5 Body of the branch *)
   let* args = compute_args_fix kn kn_nested pos_ind mib key_inds key_up key_preds_hold key_fixs strpos key_args in
-  make_cst ((kn_nested, pos_ind), u) pos_ctor key_uparams_preds key_nuparams (Array.of_list args)
+  make_cst ((kn_nested, pos_ind), unested) pos_ctor key_uparams_preds key_nuparams (Array.of_list args)
 
 let gen_fundamental_theorem env sigma kn kn_nested focus u mib =
   let (sigma, uparams, nuparams, _) = get_params_sep sigma mib u in
@@ -841,6 +874,7 @@ let gen_fundamental_theorem env sigma kn kn_nested focus u mib =
   dbg Pp.(fun () -> str "strpos = " ++ pp_lbool strpos);
   let (sigma, tm) = run env sigma @@ gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams in
   (* let (_, ty) = run env sigma @@ gen_fundamental_theorem_type kn kn_nested focus u mib uparams strpos nuparams in *)
-  dbg Pp.(fun () -> str "Fundamental Theorem = " ++
-          Termops.Internal.print_constr_env env sigma tm ++ str "\n");
+  dbg Pp.(fun () -> str "Fundamental Theorem = " ++ Termops.Internal.print_constr_env env sigma tm ++ str "\n");
+  (* let uv = Evd.ustate sigma in
+  dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n"); *)
   (sigma, tm)

@@ -299,12 +299,14 @@ let do_scheme_fundamental_theorem kn mib kn_nested =
   let (sigma, thm) = Sparse_parametricity.gen_fundamental_theorem env sigma kn kn_nested 0 u mib in
   let uctx = Evd.ustate sigma in
   let info = Declare.Info.make ~poly:true () in
-  let cinfo = Declare.CInfo.make ~name:(Id.of_string "thm") ~typ:(None : (Evd.econstr option)) () in
+  let suff v = Id.of_string @@ Id.to_string v ^ "_all_thm" in
+  let fth_name = suff mib.mind_packets.(0).mind_typename in
+  let cinfo = Declare.CInfo.make ~name:fth_name ~typ:(None : (Evd.econstr option)) () in
   let _ = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:thm sigma in
   ()
 
 let do_scheme_sparse_parametricity id =
   let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux id in
-  let () = do_scheme_fundamental_theorem kn mib kn_nested in
+  (* let () = do_scheme_fundamental_theorem kn mib kn_nested in *)
   ()
 
