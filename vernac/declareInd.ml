@@ -303,9 +303,8 @@ let do_scheme_fundamental_theorem kn mib kn_nested =
   let _ = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:thm sigma in
   ()
 
-
 let do_scheme_sparse_parametricity id =
   let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux id in
-  (* let () = do_scheme_fundamental_theorem kn mib kn_nested in *)
+  let () = do_scheme_fundamental_theorem kn mib kn_nested in
   ()
 
