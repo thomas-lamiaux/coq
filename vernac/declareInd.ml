@@ -284,13 +284,7 @@ let do_scheme_sparse_parametricity_aux id =
   let (sigma, mentry) = Sparse_parametricity.gen_sparse_parametricity env sigma kn u mib in
   (* Simplify Univ *)
   let uctx = Evd.ustate sigma in
-  (* let uctx = UState.collapse_above_prop_sort_variables ~to_prop:true uctx in
-  let uctx = UState.normalize_variables uctx in
-  let uctx = UState.minimize uctx in
-  let c = UState.nf_universes uctx c in *)
-  (* let uctx = UState.restrict uctx (Vars.universes_of_constr m) in *)
   let univs = UState.univ_entry ~poly:true uctx in
-
   (* Declaration and Register *)
   let kn_nested = declare_mutual_inductive_with_eliminations mentry univs [] in
   let _ = Array.iteri (fun i _ -> DeclareScheme.declare_scheme

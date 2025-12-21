@@ -527,10 +527,10 @@ let rec make_rec_call_ty kn pos_ind mib key_inds ((key_uparams, key_preds, key_u
         let arg = mkApp (arg , loc) in
         (* Instantiation *)
         let* rec_hyp = typing_checked_appvect ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|arg|]] in
+        (* Add constrains with return sort *)
         match ualg with
         | None -> return (Some rec_hyp)
         | Some ualg ->
-        (* Add constrains with return sort *)
         let* env = get_env in
         let* sigma = get_sigma in
         let ujud_rec_hyp = Retyping.get_judgment_of env sigma rec_hyp in
@@ -637,7 +637,6 @@ let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mut
     mind_entry_record = None;
     mind_entry_finite = mib.mind_finite;
     mind_entry_params = EConstr.to_rel_context sigma ctxt_params ;
-    (* mind_entry_params = []; *)
     mind_entry_inds = Array.to_list ind_bodies;
     mind_entry_universes = Polymorphic_ind_entry (Evd.to_universe_context sigma);
     mind_entry_variance = None;
