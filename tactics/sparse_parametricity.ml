@@ -452,9 +452,11 @@ let gen_type_sparse_parametricity kn pos_ind u mib uparams strpos fresh_sorts nu
 (** Add the inductive blocks in the context *)
 let add_inductive kn u mib return_sorts uparams strpos fresh_sorts nuparams cc =
   let* cxt = array_map2i (fun pos_ind ind return_sort ->
+      let suff v = Id.of_string @@ Id.to_string v ^ "_all" in
+      let sparam_name = Name (suff ind.mind_typename) in
       let rev = ERelevance.make ind.mind_relevance in
       let* ty = gen_type_sparse_parametricity kn pos_ind u mib uparams strpos fresh_sorts nuparams return_sort in
-      return (LocalAssum (make_annot Anonymous rev, ty))
+      return (LocalAssum (make_annot sparam_name rev, ty))
     ) mib.mind_packets return_sorts in
   add_context Fresh naming_id (List.rev @@ Array.to_list cxt) cc
 
