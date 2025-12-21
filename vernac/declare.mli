@@ -481,7 +481,7 @@ val build_by_tactic
   -> poly:PolyFlags.t
   -> typ:EConstr.types
   -> unit Proofview.tactic
-  -> Constr.constr * Constr.types option * UState.named_universes_entry * bool * UState.t
+  -> Constr.constr * Constr.types * UState.named_universes_entry * bool * UState.t
 
 (** {2 Program mode API} *)
 

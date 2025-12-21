@@ -307,7 +307,7 @@ let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
        Don't forget to close the goal if an error is raised !!!!
     *)
     let uctx = Evd.ustate sigma in
-    let entry = Declare.definition_entry ~univs ?types body in
+    let entry = Declare.definition_entry ~univs ~types body in
     let (_ : Names.GlobRef.t) =
       Declare.declare_entry ~name:new_princ_name ~hook
         ~kind:Decls.(IsProof Theorem)
@@ -1411,7 +1411,7 @@ let make_scheme evd (fas : (Constant.t EConstr.puniverses * UnivGen.QualityOrSet
             let princ_body =
               Term.it_mkLambda_or_LetIn (Constr.mkFix ((idxs, i), decl)) ctxt
             in
-            (princ_body, Some scheme_type, univs, opaque))
+            (princ_body, scheme_type, univs, opaque))
         other_fun_princ_types
     in
     (body, typ, univs, opaque) :: other_result
@@ -1467,7 +1467,7 @@ let derive_correctness (funs : Constant.t EConstr.puniverses list) (graphs : ind
           Array.of_list
             (List.map
                (fun (body, typ, _opaque, _univs) ->
-                 (EConstr.of_constr body, EConstr.of_constr (Option.get typ)))
+                 (EConstr.of_constr body, EConstr.of_constr typ))
                (make_scheme evd
                   (Array.map_to_list (fun const -> (const, UnivGen.QualityOrSet.qtype)) funs)))
       in
@@ -2159,7 +2159,7 @@ let build_scheme fas =
     (fun (princ_id, _, _) (body, types, univs, opaque) ->
       let (_ : Constant.t) =
         let opaque = if opaque = Vernacexpr.Opaque then true else false in
-        let def_entry = Declare.definition_entry ~univs ~opaque ?types body in
+        let def_entry = Declare.definition_entry ~univs ~opaque ~types body in
         Declare.declare_constant ?loc:princ_id.CAst.loc ~name:princ_id.CAst.v
           ~kind:Decls.(IsProof Theorem)
           (Declare.DefinitionEntry def_entry)

@@ -426,7 +426,7 @@ module ProofEntry = struct
     in
     let (ctx, body, typ) = Term.decompose_lambda_prod_n_decls (List.length sign) body typ in
     let (body, typ, args) = shrink ctx sign body typ [] in
-    body, Some typ, args
+    body, typ, args
 
 end
 
@@ -2237,26 +2237,25 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac
     let uctx = UState.restrict output_ustate used_univs in
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
-  let entry = definition_entry_core ~univs ~types:typ body in
   (* FIXME: return the locally introduced effects *)
   let { Proof.sigma } = Proof.data proof in
   let sigma = Evd.set_universe_context sigma output_ustate in
-  entry, status, sigma
+  (univs, body, typ), status, sigma
 
 let build_by_tactic env ~uctx ~poly ~typ tac =
   let name = Id.of_string ("temporary_proof"^string_of_int (next())) in
   let sign = Environ.(val_of_named_context (named_context env)) in
   let sigma = Evd.from_ctx uctx in
-  let ce, status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in
+  let (univs, body, typ), status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in
   let uctx = Evd.ustate sigma in
   (* ignore side effect universes:
      we don't reset the global env in this code path so the side effects are still present
      cf #13271 and discussion in #18874
      (but due to #13324 we still want to inline them) *)
-  let body = ce.proof_entry_body in
-  let effs = SideEff.make @@ Evd.eval_side_effects sigma in
-  let body, _uctx = inline_private_constants ~uctx env ((body, Univ.ContextSet.empty), effs) in
-  body, ce.proof_entry_type, ce.proof_entry_universes, status, uctx
+  let effs = Evd.seff_private @@ Evd.eval_side_effects sigma in
+  let body, ctx = Safe_typing.inline_private_constants env ((body, Univ.ContextSet.empty), effs) in
+  let _uctx = UState.merge_universe_context ~sideff:true Evd.univ_rigid uctx ctx in
+  body, typ, univs, status, uctx
 
 let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
   let (const, safe, sigma') =
@@ -2269,22 +2268,53 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
     let (_, info) = Exninfo.capture src in
     Exninfo.iraise (e, info)
   in
+  let (univs, body, typ) = const in
   let sigma = Evd.drop_new_defined ~original:sigma sigma' in
-  let body = const.proof_entry_body in
   (* EJGA: Hack related to the above call to
      `build_constant_by_tactic` with `~opaque:Transparent`. Even if
      the abstracted term is destined to be opaque, if we trigger the
      `if poly && opaque && private_poly_univs ()` in `close_proof`
      kernel will boom. This deserves more investigation. *)
-  let body, typ, args = ProofEntry.shrink_entry sign body const.proof_entry_type in
+  let body, typ, args = ProofEntry.shrink_entry sign body (Some typ) in
   let ts = Environ.oracle env in
   let cst, effs =
     (* No side-effects in the entry, they already exist in the ambient environment *)
-    let const = { const with proof_entry_body = body; proof_entry_type = typ } in
-    declare_private_constant ~name ~opaque ~ts const (Evd.eval_side_effects sigma)
+    let effs = Evd.eval_side_effects sigma in
+    let de, ctx =
+      let univ_entry, ctx = extract_monomorphic (fst univs) in
+      if not opaque then
+        DefinitionEff { Entries.definition_entry_body = body;
+          definition_entry_secctx = None;
+          definition_entry_type = Some typ;
+          definition_entry_universes = univ_entry;
+          definition_entry_inline_code = false;
+        }, ctx
+      else
+        let secctx =
+          let env = Global.env () in
+          let hyps =
+            if List.is_empty (Environ.named_context env) then Id.Set.empty
+            else
+              let ids_typ = Environ.global_vars_set env typ in
+              let vars = Environ.global_vars_set env body in
+              Id.Set.union ids_typ vars
+          in
+          Environ.really_needed env hyps
+        in
+        OpaqueEff { Entries.opaque_entry_body = body;
+          opaque_entry_secctx = secctx;
+          opaque_entry_type = typ;
+          opaque_entry_universes = univ_entry;
+        },
+        ctx
+    in
+    Evd.push_side_effects ~ts name de ctx effs
   in
   let sigma = Evd.emit_side_effects effs sigma in
-  let inst = instance_of_univs const.proof_entry_universes in
+  let inst = match univs with
+  | UState.Monomorphic_entry _, _ -> UVars.Instance.empty
+  | UState.Polymorphic_entry uctx, _ -> UVars.UContext.instance uctx
+  in
   let lem = EConstr.of_constr (Constr.mkConstU (cst, inst)) in
   sigma, lem, args, safe
 
@@ -2379,7 +2409,7 @@ let finish_proved_equations ~pm ~kind ~hook i entries types sigma0 =
         in
         let body, opaque = match entry.proof_entry_body with Default { body; opaque } -> body, opaque | _ -> assert false in
         let body, typ, args = ProofEntry.shrink_entry local_context body entry.proof_entry_type in
-        let entry = { entry with proof_entry_body = Default { body; opaque }; proof_entry_type = typ } in
+        let entry = { entry with proof_entry_body = Default { body; opaque }; proof_entry_type = Some typ } in
         let cst = declare_constant ~loc:None ~name:id ~kind ~typing_flags:None (DefinitionEntry entry) in
         let sigma, app = Evd.fresh_global (Global.env ()) sigma (GlobRef.ConstRef cst) in
         let sigma = Evd.define ev (EConstr.applist (app, args)) sigma in
@@ -2607,7 +2637,7 @@ let solve_and_declare_by_tac prg obls i tac =
   | None -> None
   | Some (t, ty, uctx) ->
     let obl = obls.(i) in
-    let prg, obl', _cst = declare_obligation prg obl ~body:t ~types:ty ~uctx in
+    let prg, obl', _cst = declare_obligation prg obl ~body:t ~types:(Some ty) ~uctx in
     obls.(i) <- obl';
     Some prg
 
