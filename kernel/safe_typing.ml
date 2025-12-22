@@ -555,11 +555,13 @@ let push_context_set ~strict cst senv =
       sections }
 
 let push_qualities src qs senv =
-  if Sorts.QVar.Set.is_empty (fst qs) && Sorts.ElimConstraints.is_empty (snd qs) then senv
+  if Sorts.QVar.Set.is_empty (fst qs) && Sorts.ElimConstraints.is_empty (snd qs) then
+    senv
+  else if is_modtype senv then
+    CErrors.user_err (Pp.str "Cannot declare global sort qualities inside module types.")
+  else if Option.has_some senv.sections then
+    CErrors.user_err (Pp.str "Cannot declare global sort qualities inside sections")
   else
-    let () = if is_modtype senv
-      then CErrors.user_err (Pp.str "Cannot declare global sort qualities inside module types.")  ;
-    in
     let check_local qv = match Sorts.QVar.repr qv with
     | Sorts.QVar.Global gv ->
       let (dp, _) = Sorts.QGlobal.repr gv in
@@ -567,12 +569,9 @@ let push_qualities src qs senv =
     | Sorts.QVar.Unif _ | Sorts.QVar.Var _ -> assert false
     in
     let () = Sorts.QVar.Set.iter check_local (fst qs) in
-    let sections = Option.map (Section.push_mono_qualities qs) senv.sections
-    in
     { senv with
       env = Environ.push_qualities src qs senv.env ;
       qualities = Sorts.QContextSet.union qs senv.qualities ;
-      sections
     }
 
 let is_curmod_library senv =
@@ -1640,7 +1639,7 @@ let close_section senv =
   let sections0 = get_section senv.sections in
   let env0 = senv.env in
   (* First phase: revert the declarations added in the section *)
-  let sections, entries, cstrs, qs, revert = Section.close_section sections0 in
+  let sections, entries, cstrs, revert = Section.close_section sections0 in
   (* Don't revert the delayed constraints (future_cst). If some delayed constraints
      were forced inside the section, they have been turned into global monomorphic
      that are going to be replayed. Those that are not forced are not readded
@@ -1654,12 +1653,7 @@ let close_section senv =
       senv (List.rev rev_reimport)
   in
   (* Third phase: replay the discharged section contents *)
-  let filter_unif qs = Sorts.QVar.Set.filter (fun q -> not @@ Sorts.QVar.is_unif q) qs in
-  let senv = { senv with qualities = on_fst filter_unif senv.qualities } in
-  let qs = Sorts.QContextSet.filter_constant_qualities qs in
-  let senv = push_qualities QGraph.Rigid qs senv in
   let senv = push_context_set ~strict:true cstrs senv in
-  (* XXX: this whole filtering dance sounds pretty suspect *)
   let fold entry senv =
     match entry with
   | SecDefinition kn ->
