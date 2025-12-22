@@ -560,6 +560,13 @@ let push_qualities src qs senv =
     let () = if is_modtype senv
       then CErrors.user_err (Pp.str "Cannot declare global sort qualities inside module types.")  ;
     in
+    let check_local qv = match Sorts.QVar.repr qv with
+    | Sorts.QVar.Global gv ->
+      let (dp, _) = Sorts.QGlobal.repr gv in
+      assert (DirPath.equal dp (ModPath.dp senv.modpath))
+    | Sorts.QVar.Unif _ | Sorts.QVar.Var _ -> assert false
+    in
+    let () = Sorts.QVar.Set.iter check_local (fst qs) in
     let sections = Option.map (Section.push_mono_qualities qs) senv.sections
     in
     { senv with
@@ -684,6 +691,7 @@ let push_section_context uctx senv =
   let sections = Section.push_local_universe_context uctx sections in
   let senv = { senv with sections=Some sections } in
   let qctx, ctx = UVars.UContext.to_context_set uctx in
+  let () = assert (Sorts.QVar.Set.for_all Sorts.QVar.is_global (fst qctx)) in
   let () = assert Sorts.QVar.Set.(is_empty (inter (fst qctx) (fst senv.qualities))) in
   (* push_context checks freshness *)
   { senv with
@@ -1582,6 +1590,7 @@ let import lib vmtab vodigest senv =
   let mb = lib.comp_mod in
   let univs = lib.comp_univs in
   let qualities = lib.comp_sorts in
+  let () = assert (Sorts.QVar.Set.for_all Sorts.QVar.is_global (fst qualities)) in
   let env = Environ.push_qualities QGraph.Static qualities senv.env in
   let env = Environ.push_context_set ~strict:true univs env in
   let env = Environ.link_vm_library vmtab env in
