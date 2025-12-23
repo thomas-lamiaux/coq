@@ -178,6 +178,18 @@ struct
   let (acc, s) = aux 0 l [] s in
   return (List.rev acc) s
 
+  let list_map2i (f : int -> 'a -> 'b -> 'c t) (la : 'a list) (lb : 'b list) : 'c list t =
+    let rec aux i la lb acc s =
+      match la, lb with
+      | [], [] -> (acc, s)
+      | a::la, b::lb -> let (sigma, t) = (f i a b) s in
+                aux (i + 1) la lb (t::acc) (update_sigma s sigma)
+      | _,_ -> assert false
+    in
+  fun s ->
+  let (acc, s) = aux 0 la lb [] s in
+  return (List.rev acc) s
+
   let array_mapi (f : int -> 'a -> 'b t) (ar : 'a array) : ('b array) t =
     fun s ->
     let sigma_ref = ref s.sigma in
@@ -340,6 +352,7 @@ let wrap_decl map f fresh naming_scheme decl cc s =
 
 let fid f x = f x
 let fright f (a,b) = (a, f b)
+let fleft f (a,b) = (f a, b)
 let fopt = Option.map
 let fropt = fun f -> Option.map (fun (a,b) -> (a, f b))
 
@@ -422,11 +435,13 @@ let make_fix ind_bodies focus fix_rarg fix_name fix_type tmc =
   (* data fix *)
   let rargs = List.mapi fix_rarg ind_bodies in
   let fix_names = List.mapi fix_name ind_bodies in
-  let* fix_types = list_mapi fix_type ind_bodies in
+  let* fix_aux_types = list_mapi fix_type ind_bodies in
+  let fix_types = List.map fst fix_aux_types in
+  let fix_aux = List.map snd fix_aux_types in
   (* update context continuation *)
   let fix_context = List.rev @@ List.map2_i (fun i na ty -> LocalAssum (na, Vars.lift i ty)) 0 fix_names fix_types in
   let@ key_Fix = add_context Fresh naming_id fix_context in
-  let* fix_bodies = list_mapi (fun pos_list ind -> tmc (key_Fix, pos_list, ind)) ind_bodies in
+  let* fix_bodies = list_map2i (fun pos_list ind b -> tmc (key_Fix, pos_list, ind, b)) ind_bodies fix_aux in
   (* result *)
   return @@ EConstr.mkFix ((Array.of_list rargs, focus), (Array.of_list fix_names, Array.of_list fix_types, Array.of_list fix_bodies))
 
@@ -456,23 +471,22 @@ let make_case_or_projections naming_vars mdecl ind indb u key_uparams key_nupara
     let@ key_var_match = add_decl Fresh naming_vars (LocalAssum (name_var_match, ty_var)) in
     (* return type *)
     let* fresh_annot = get_anames (key_both @ [key_var_match]) in
-    let* return_type = mk_case_pred key_fresh_indices key_var_match in
-    return @@ ((fresh_annot, return_type), case_relevance)
+    let* (return_type, b) = mk_case_pred key_fresh_indices key_var_match in
+    return @@ (((fresh_annot, return_type), case_relevance), b)
   in
 
-  let branch pos_ctor ctor =
+  let branch b pos_ctor ctor =
     let* args = get_args mdecl u ctor in
     let args = fst args in
     let@ key_args, key_letin, key_both = add_context_sep Old naming_vars args in
-    let* branches_body = tc (key_args, key_letin, key_both, pos_ctor) in
+    let* branches_body = tc (key_args, key_letin, key_both, pos_ctor, b) in
     let* names_args = get_anames key_both in
     return (names_args, branches_body)
   in
 
   let* case_info, pred, case_invert, c, branches =
-    let* case_pred = case_pred in
-    let* s = get_state in
-    let* branches = array_mapi branch indb.mind_nf_lc in
+    let* (case_pred, b) = case_pred in
+    let* branches = array_mapi (branch b) indb.mind_nf_lc in
     let* env = get_env in
     let* sigma = get_sigma in
     return @@ EConstr.expand_case env sigma (case_info, u, params, case_pred, case_invert, tm_match, branches)

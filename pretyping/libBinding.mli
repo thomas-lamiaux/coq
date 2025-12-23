@@ -150,6 +150,7 @@ module State :
 
   (** {6 Debug Functions } *)
   val list_mapi : (int -> 'a -> 'b t) -> 'a list -> 'b list t
+  val list_map2i : (int -> 'a -> 'b -> 'c t) -> 'a list -> 'b list -> 'c list t
   val array_mapi : (int -> 'a -> 'b t) -> 'a array -> 'b array t
   val array_map2i : (int -> 'a -> 'b -> 'c t) -> 'a array -> 'b array -> 'c array t
 
@@ -234,6 +235,7 @@ type freshness = Fresh | Old
 type binder = Lambda | Prod
 
 val fid : ('a -> 'b) -> 'a -> 'b
+val fleft : ('a -> 'b) -> 'a * 'c -> 'b * 'c
 val fright : ('a -> 'b) -> 'c * 'a -> 'c * 'b
 val fopt : ('a -> 'b) -> 'a option -> 'b option
 val fropt : ('a -> 'b) -> ('c * 'a) option -> ('c * 'b) option
@@ -318,8 +320,8 @@ val make_cst : inductive * EInstance.t -> int -> access_key list -> access_key l
 (** Create a term refering to an inductive type given the [access_key]
     for uniform paramters, non-uniform parameters, and indices. *)
 val make_fix : 'a list -> int -> (int -> 'a -> int) ->
-  (int -> 'a -> Name.t binder_annot) -> (int -> 'a -> types t) ->
-  (access_key list * int * 'a -> constr t) -> constr t
+  (int -> 'a -> Name.t binder_annot) -> (int -> 'a -> (types * 'b) t) ->
+  (access_key list * int * 'a * 'b -> constr t) -> constr t
 
 (** Recover the indices of an inductive block, and weaken them in the current context. *)
 val get_indices : one_inductive_body -> einstance -> rel_context t
@@ -335,5 +337,5 @@ val get_indices : one_inductive_body -> einstance -> rel_context t
   *)
 val make_case_or_projections : naming_scheme -> mutual_inductive_body -> inductive -> one_inductive_body ->
   einstance -> access_key list -> access_key list -> constr array -> constr array ->
-  (access_key list -> access_key -> types t) -> erelevance -> constr ->
-  (access_key list * access_key list * access_key list * int -> constr t) -> constr t
+  (access_key list -> access_key -> (types * 'b) t) -> erelevance -> constr ->
+  (access_key list * access_key list * access_key list * int * 'b -> constr t) -> constr t

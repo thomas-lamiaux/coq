@@ -272,7 +272,8 @@ let make_ccl rec_hyp key_preds focus dep key_nuparams key_indices key_VarMatch =
   let* inst_nuparams = get_terms key_nuparams in
   let* inst_indices = get_terms key_indices in
   let* var = get_term key_VarMatch in
-  make_pred rec_hyp key_preds focus dep inst_nuparams inst_indices var
+  let* pred = make_pred rec_hyp key_preds focus dep inst_nuparams inst_indices var in
+  return (pred)
 
 
 (** Make the return type
@@ -386,16 +387,18 @@ let gen_elim_term print_constr rec_hyp kn u mdecl uparams nuparams (ind_bodies :
   let@ key_ctors = closure_ctors rec_hyp kn mdecl u ind_bodies Lambda key_uparams nuparams key_nuparams_opt key_preds in
   (* 2. Fixpoint *)
   let fix_name pos_list (_,_,_,sort) = make_annot (Name (Id.of_string "F")) (relevance_of_sort sort) in
-  let fix_type pos_list _ = make_return_type kn u ind_bodies pos_list key_uparams nuparams key_nuparams_opt key_preds in
+  let fix_type pos_list _ =
+    State.map (fun x -> (x,None)) @@
+    make_return_type kn u ind_bodies pos_list key_uparams nuparams key_nuparams_opt key_preds in
   let fix_rarg pos_list (_,ind,_,_) = (mdecl.mind_nparams - mdecl.mind_nparams_rec) + ind.mind_nrealargs in
   let is_rec =
     let (_, ind, _, _) = List.hd ind_bodies in
     List.length ind_bodies > 1 || (rec_hyp && Inductiveops.mis_is_recursive ind) in
-  let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort)) =
+  let@ (key_fixs, pos_list, (pos_ind, ind, dep, sort), _) =
     (* Doe not create a fix if it is not-recursive and only has one inductive body *)
     if is_rec
     then make_fix ind_bodies focus fix_rarg fix_name fix_type
-    else fun cc -> cc ([], 0, List.hd ind_bodies) in
+    else fun cc -> cc ([], 0, List.hd ind_bodies, None) in
   (* 3. Closure Nuparams / Indices / Var *)
   let@ key_nuparams = closure_nuparams Lambda naming_hd_fresh nuparams key_nuparams_opt in
   let@ key_indices = closure_indices Lambda naming_hd_fresh ind u in
@@ -406,10 +409,10 @@ let gen_elim_term print_constr rec_hyp kn u mdecl uparams nuparams (ind_bodies :
   let ccl =
   (* 4 Match to prove P ... x *)
     let* inst_params = get_terms (key_uparams @ key_nuparams )in
-    let case_pred = make_ccl rec_hyp key_preds pos_list dep key_nuparams in
+    let case_pred fi fv =  State.map (fun x -> (x,None)) @@ make_ccl rec_hyp key_preds pos_list dep key_nuparams fi fv in
     let* var_match = get_term key_VarMatch in
     let* inst_indices = get_terms key_indices in
-    let@ (key_args, _, _, pos_ctor) =
+    let@ (key_args, _, _, pos_ctor, _) =
       make_case_or_projections naming_hd_fresh mdecl (kn, pos_ind) ind u key_uparams key_nuparams inst_params
         inst_indices case_pred (relevance_of_sort sort) var_match in
     (* 5 Body of the branch *)

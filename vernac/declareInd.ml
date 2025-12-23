@@ -302,7 +302,10 @@ let do_scheme_fundamental_theorem kn mib kn_nested =
   let suff v = Id.of_string @@ Id.to_string v ^ "_all_thm" in
   let fth_name = suff mib.mind_packets.(0).mind_typename in
   let cinfo = Declare.CInfo.make ~name:fth_name ~typ:(None : (Evd.econstr option)) () in
-  let _ = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:thm sigma in
+  let fth_ref = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:thm sigma in
+  (* let _ = DeclareScheme.declare_scheme
+              SuperGlobal "local_fundamental_theorem" ((kn,0), fth_ref)
+            in *)
   ()
 
 let do_scheme_sparse_parametricity id =
