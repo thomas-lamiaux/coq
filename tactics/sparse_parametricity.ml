@@ -476,8 +476,10 @@ let compute_pred to_compute f i x : (constr option) t =
     return @@ res
 else return None
 
+type ('a, 'b) sum = Left of 'a | Right of 'b
+
 (** Compute the new argument *)
-let rec make_rec_call_ty kn pos_ind mib key_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos ualg key_arg ty : constr option t =
+let rec make_rec_call_ty kn pos_ind mib rep_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos ualg key_arg ty : constr option t =
   let* (loc, hd) = view_arg kn mib key_uparams strpos ty in
   (* Compute the argument *)
   let@ key_locals = closure_context fopt Prod Fresh naming_id loc in
@@ -492,11 +494,17 @@ let rec make_rec_call_ty kn pos_ind mib key_inds ((key_uparams, key_preds, key_u
       let pred = mkApp (pred_tm, Array.concat [ iargs; [|inst_arg|] ]) in
       return @@ Some pred
   | ArgIsInd (pos_ind_block, inst_nuparams, inst_indices) ->
+    begin
       let* inst_uparams_preds = get_terms key_uparams_preds in
       let ind_args = Array.concat [inst_uparams_preds; inst_nuparams; inst_indices; [|inst_arg|]] in
-      let* ind = geti_term key_inds pos_ind in
-      let ind_term = mkApp (ind, ind_args) in
-      return @@ Some ind_term
+      match rep_inds with
+      | Left key_inds -> let* ind = geti_term key_inds pos_ind in
+                return @@ Some (mkApp (ind, ind_args))
+      | Right (kn_nested, unested) ->
+          dbg Pp.(fun () -> MutInd.print kn);
+          dbg Pp.(fun () -> MutInd.print kn_nested);
+          return @@ Some (mkApp (mkIndU ((kn_nested, pos_ind), unested), ind_args))
+    end
   | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
                   inst_uparams, inst_nuparams_indices) ->
     begin
@@ -505,7 +513,7 @@ let rec make_rec_call_ty kn pos_ind mib key_inds ((key_uparams, key_preds, key_u
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       (* Compute the recursive predicates *)
       let compute_pred i x b = compute_pred b (fun a b ->
-            make_rec_call_ty kn pos_ind mib key_inds key_up strpos ualg a b) i x in
+            make_rec_call_ty kn pos_ind mib rep_inds key_up strpos ualg a b) i x in
       let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list mib_nested_strpos) in
       (* If at least one argument is nested, lookup the sparse parametricity *)
       if Array.for_all Option.is_empty rec_preds then
@@ -544,7 +552,7 @@ let rec make_rec_call_ty kn pos_ind mib key_inds ((key_uparams, key_preds, key_u
 (** Create and bind the recursive call *)
 let make_rec_call_cc kn pos_ind mib key_inds ((key_uparams, key_preds, key_uparams_preds) as key_up) strpos ualg _ key_arg cc =
   let* ty_arg = State.get_type key_arg in
-  let* rec_call = make_rec_call_ty kn pos_ind mib key_inds key_up strpos ualg key_arg ty_arg in
+  let* rec_call = make_rec_call_ty kn pos_ind mib (Left key_inds) key_up strpos ualg key_arg ty_arg in
   match rec_call with
   | Some rec_hyp ->
       (* Compute the relevance after the instantiation *)
@@ -603,16 +611,17 @@ let gen_one_ind_sparse_param kn pos_ind ind u mib return_sorts key_inds key_up s
     mind_entry_lc = Array.to_list @@ Array.map (to_constr sigma) sparam_ctors_type;
   }
 
-let fresh_sort =
+let fresh_sort i =
   let open UState in
     let* sigma = get_sigma in
-    let sigma, q, u = Evd.new_sort_info UnivRigid sigma in
+    let name_s = Id.of_string @@ "s" ^ string_of_int i in
+    let sigma, q, u = Evd.new_sort_info ~name:name_s UnivRigid sigma in
     fun state -> return (q,u) (update_sigma state sigma)
 
 let create_fresh_sorts_pred strpos =
   let nb_sorts = List.fold_right (fun a b -> a + b) (List.map Bool.to_int strpos) 0 in
   let init = List.make nb_sorts 0 in
-  list_mapi (fun _ _ -> fresh_sort) init
+  list_mapi (fun i _ -> fresh_sort i) init
 
 let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mutual_inductive_entry t =
   (* create fresh sorts, return types, and add the inductives *)
@@ -687,6 +696,7 @@ let mkPredHold1 key_arg key_pred =
   return @@ mkApp (pred, Array.concat [loc; [|hd|]])
 
 let closure_uparams_preds_holds uparams strpos fresh_sorts cc =
+  (* let open Sorts in *)
   let rec aux i key_uparams key_preds key_uparams_preds key_preds_hold tel cc =
     match tel with
     | [] -> cc (((List.rev key_uparams), (List.rev key_preds), (List.rev key_uparams_preds)), (List.rev key_preds_hold))
@@ -705,7 +715,8 @@ let closure_uparams_preds_holds uparams strpos fresh_sorts cc =
           let@ key_pred = build_binder fid Lambda Fresh naming_id @@ LocalAssum (name_pred, type_pred) in
           (* create (HPA : forall a, PA a) *)
           let id_pred_hold = Name.map_id (fun id -> Id.of_string @@ "HP" ^ Id.to_string id) (get_name decl) in
-          let name_pred_hold = make_annot id_pred_hold (get_relevance decl) in
+          let pred_hold_sort = ERelevance.make @@ Sorts.relevance_of_sort @@ Sorts.qsort (fst pred_sort_info) (snd pred_sort_info) in
+          let name_pred_hold = make_annot id_pred_hold pred_hold_sort in
           let* type_pred_hold = mkPredHold1 key_up key_pred in
           let@ key_pred_hold = build_binder fid Lambda Fresh naming_id @@ LocalAssum (name_pred_hold, type_pred_hold) in
           aux (i+1) (key_up::key_uparams) (key_pred::key_preds) (key_pred::key_up::key_uparams_preds) (key_pred_hold::key_preds_hold) tel cc
@@ -750,19 +761,13 @@ let return_type kn kn_nested pos_ind u mib key_uparams key_uparams_preds nuparam
   (* Return the sort of the inductive *)
   make_ccl_finstance kn_nested pos_ind key_uparams_preds key_nuparams key_indices key_VarMatch
 
-let add_ind mib =
-  List.rev @@ Array.to_list @@
-  Array.mapi (fun pos_ind ind ->
-      LocalAssum (make_annot Anonymous @@ ERelevance.make ind.mind_relevance, EConstr.of_constr ind.mind_user_arity)
-    ) mib.mind_packets
-
 (* let gen_fundamental_theorem_type kn kn_nested focus u mib uparams strpos nuparams =
   let@ key_inds = add_context Old naming_id (add_ind mib) in
   let* fresh_sorts = create_fresh_sorts_pred strpos in
   let@ ((key_uparams, key_preds, key_uparams_preds) as key_up, key_preds_hold) = closure_uparams_preds_holds uparams strpos fresh_sorts in
   return_type kn kn_nested focus u mib key_uparams key_uparams_preds nuparams *)
 
-let rec make_rec_call kn kn_nested pos_ind mib key_inds ((key_uparams, _, _) as key_up) key_preds_hold key_fixs strpos key_arg ty : (constr option) State.t =
+let rec make_rec_call kn knu pos_ind mib ((key_uparams, _, _) as key_up) key_preds_hold key_fixs strpos key_arg ty : (constr option) State.t =
   let* (loc, v) = view_arg kn mib key_uparams strpos ty in
     (* inst argument *)
   let@ key_locals = closure_context fopt Lambda Fresh naming_id loc in
@@ -791,9 +796,9 @@ let rec make_rec_call kn kn_nested pos_ind mib key_inds ((key_uparams, _, _) as 
         let uparams_nested = of_rel_context @@ fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
         let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
         (* Compute the recursive predicates, and their proofs *)
-        let compute_pred_preds i x b = compute_pred b (make_rec_call_ty kn pos_ind mib key_inds key_up strpos (Obj.magic ())) i x in
+        let compute_pred_preds i x b = compute_pred b (make_rec_call_ty kn pos_ind mib (Right knu) key_up strpos (Obj.magic ())) i x in
         let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list mib_nested_strpos) in
-        let compute_pred_holds i x b = compute_pred b (make_rec_call kn kn_nested pos_ind mib key_inds key_up key_preds_hold key_fixs strpos) i x in
+        let compute_pred_holds i x b = compute_pred b (make_rec_call kn knu pos_ind mib key_up key_preds_hold key_fixs strpos) i x in
         let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list mib_nested_strpos) in
         (* If at least one argument is nested, lookup the local fundamental theorem *)
         if Array.for_all Option.is_empty rec_preds_hold then return None else begin
@@ -804,18 +809,23 @@ let rec make_rec_call kn kn_nested pos_ind mib key_inds ((key_uparams, _, _) as 
         let* fth = fresh_global ref_fth in
         let* inst_uparams = instantiate_fundamental_theorem inst_uparams mib_nested_strpos rec_preds rec_preds_hold in
         (* Instantiation *)
+        print_str "DEBUG";
+        let x = mkApp (fth, Array.concat [inst_uparams; inst_nuparams_indices; [|inst_arg|]] ) in
+        let* () = print_context "ctx = " in
+        let* () = print_term "VAL IS = " x in
         let* rec_hyp = typing_checked_appvect fth (Array.concat [inst_uparams; inst_nuparams_indices; [|inst_arg|] ]) in
+        print_str "OK";
         return @@ Some (rec_hyp)
         end
       end
   | _ -> return None
 
-let compute_args_fix kn kn_nested pos_ind mib key_inds key_up key_preds_hold key_fixs strpos key_args =
+let compute_args_fix kn knu pos_ind mib key_up key_preds_hold key_fixs strpos key_args =
   CList.fold_right_i (fun pos_arg key_arg acc ->
     let* acc = acc in
     let* tm_arg = get_term key_arg in
       let* ty_arg = State.get_type key_arg in
-      let* rec_call = make_rec_call kn kn_nested pos_ind mib key_inds key_up key_preds_hold key_fixs strpos key_arg ty_arg in
+      let* rec_call = make_rec_call kn knu pos_ind mib key_up key_preds_hold key_fixs strpos key_arg ty_arg in
       match rec_call with
         | Some rc_tm -> return @@ tm_arg :: rc_tm :: acc
         | None -> return @@ tm_arg :: acc
@@ -823,7 +833,6 @@ let compute_args_fix kn kn_nested pos_ind mib key_inds key_up key_preds_hold key
 
 let gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams : constr t =
   (* 1. Create fresh sorts + new unfiform parameters *)
-  let@ key_inds = add_context Old naming_id (add_ind mib) in
   let* fresh_sorts = create_fresh_sorts_pred strpos in
   let@ ((key_uparams, key_preds, key_uparams_preds) as key_up, key_preds_hold) = closure_uparams_preds_holds uparams strpos fresh_sorts in
   (* 2. Fixpoint *)
@@ -854,7 +863,7 @@ let gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams
     make_case_or_projections naming_hd_fresh mib (kn, pos_ind) ind u key_uparams key_nuparams inst_params
       inst_indices case_pred (relevance_of_sort @@ ESorts.make ind.mind_sort) var_match in
   (* 5 Body of the branch *)
-  let* args = compute_args_fix kn kn_nested pos_ind mib key_inds key_up key_preds_hold key_fixs strpos key_args in
+  let* args = compute_args_fix kn (kn_nested, unested) pos_ind mib key_up key_preds_hold key_fixs strpos key_args in
   make_cst ((kn_nested, pos_ind), unested) pos_ctor key_uparams_preds key_nuparams (Array.of_list args)
 
 let gen_fundamental_theorem env sigma kn kn_nested focus u mib =
