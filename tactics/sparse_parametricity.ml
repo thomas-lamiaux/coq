@@ -847,7 +847,7 @@ let gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams
     else fun cc -> cc ([], 0, mib.mind_packets.(0), None)
   in
     (* 3. Closure Nuparams / Indices / Var *)
-  let@ key_nuparams = closure_nuparams fid Prod naming_id nuparams in
+  let@ key_nuparams = closure_nuparams fid Lambda naming_id nuparams in
   let ind = mib.mind_packets.(pos_ind) in
   let@ key_indices = closure_indices fid Lambda Fresh naming_hd ind u in
   let* rev_ind = ind_relevance ind u in
