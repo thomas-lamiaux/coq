@@ -501,8 +501,6 @@ let rec make_rec_call_ty kn pos_ind mib rep_inds ((key_uparams, key_preds, key_u
       | Left key_inds -> let* ind = geti_term key_inds pos_ind in
                 return @@ Some (mkApp (ind, ind_args))
       | Right (kn_nested, unested) ->
-          dbg Pp.(fun () -> MutInd.print kn);
-          dbg Pp.(fun () -> MutInd.print kn_nested);
           return @@ Some (mkApp (mkIndU ((kn_nested, pos_ind), unested), ind_args))
     end
   | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
@@ -655,11 +653,11 @@ let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mut
   let ind_ty = EConstr.of_constr @@ ind.mind_entry_arity in
   let ctors_ty = List.map EConstr.of_constr ind.mind_entry_lc in
   let* env = get_env in
-  dbg Pp.(fun () -> str "Type Sparse Parametricity = " ++ (Termops.Internal.print_constr_env env sigma (it_mkProd_or_LetIn ind_ty params)) ++ str "\n");
+  (* dbg Pp.(fun () -> str "Type Sparse Parametricity = " ++ (Termops.Internal.print_constr_env env sigma (it_mkProd_or_LetIn ind_ty params)) ++ str "\n");
   List.iteri (fun i ty_cst -> dbg Pp.(fun () -> str "TY CST_" ++ int i ++ str " = " ++ Termops.Internal.print_constr_env env sigma (it_mkProd_or_LetIn ty_cst params) ++ str "\n")) ctors_ty;
   let* sigma = get_sigma in
   let uv = Evd.ustate sigma in
-  dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n");
+  dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n"); *)
   (* RETURN *)
   return mie
 
@@ -667,7 +665,7 @@ let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mut
 let gen_sparse_parametricity env sigma kn u mib =
   let (sigma, uparams, nuparams, sub_temp) = get_params_sep sigma mib u in
   let strpos = Positive_parameters.compute_params_rec_strpos env kn mib in
-  dbg Pp.(fun () -> str "strpos = " ++ pp_lbool strpos);
+  (* dbg Pp.(fun () -> str "strpos = " ++ pp_lbool strpos); *)
   run env sigma @@ gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams
 
 
@@ -780,8 +778,6 @@ let rec make_rec_call kn knu pos_ind mib ((key_uparams, _, _) as key_up) key_pre
       let pos_in_keys = up_to_spup pos_uparam strpos in
       let* pred_hold_tm = geti_term key_preds_hold pos_in_keys in
       let* sigma = get_sigma in
-      dbg Pp.(fun () -> str "key_preds_hold = " ++ pp_lint key_preds_hold);
-      dbg Pp.(fun () -> str "VAR = " ++ Termops.Internal.debug_print_constr sigma pred_hold_tm);
       let rec_hyp = mkApp (pred_hold_tm, Array.concat [ iargs; [|inst_arg|] ]) in
       return @@ Some rec_hyp
   | ArgIsInd (pos_ind_block, inst_nuparams, inst_indices) ->
@@ -809,12 +805,7 @@ let rec make_rec_call kn knu pos_ind mib ((key_uparams, _, _) as key_up) key_pre
         let* fth = fresh_global ref_fth in
         let* inst_uparams = instantiate_fundamental_theorem inst_uparams mib_nested_strpos rec_preds rec_preds_hold in
         (* Instantiation *)
-        print_str "DEBUG";
-        let x = mkApp (fth, Array.concat [inst_uparams; inst_nuparams_indices; [|inst_arg|]] ) in
-        let* () = print_context "ctx = " in
-        let* () = print_term "VAL IS = " x in
         let* rec_hyp = typing_checked_appvect fth (Array.concat [inst_uparams; inst_nuparams_indices; [|inst_arg|] ]) in
-        print_str "OK";
         return @@ Some (rec_hyp)
         end
       end
@@ -830,6 +821,11 @@ let compute_args_fix kn knu pos_ind mib key_up key_preds_hold key_fixs strpos ke
         | Some rc_tm -> return @@ tm_arg :: rc_tm :: acc
         | None -> return @@ tm_arg :: acc
   ) 0 key_args (return [])
+
+let make_cst_typing ((kn, pos_ind), u) pos_ctor key_uparams key_nuparams args =
+  let tCst = mkConstructU (((kn, pos_ind), 1+pos_ctor), u) in
+  let* params = get_terms (key_uparams @ key_nuparams) in
+  typing_checked_appvect tCst (Array.concat [params; args])
 
 let gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams : constr t =
   (* 1. Create fresh sorts + new unfiform parameters *)
@@ -864,7 +860,7 @@ let gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams
       inst_indices case_pred (relevance_of_sort @@ ESorts.make ind.mind_sort) var_match in
   (* 5 Body of the branch *)
   let* args = compute_args_fix kn (kn_nested, unested) pos_ind mib key_up key_preds_hold key_fixs strpos key_args in
-  make_cst ((kn_nested, pos_ind), unested) pos_ctor key_uparams_preds key_nuparams (Array.of_list args)
+  make_cst_typing ((kn_nested, pos_ind), unested) pos_ctor key_uparams_preds key_nuparams (Array.of_list args)
 
 let gen_fundamental_theorem env sigma kn kn_nested focus u mib =
   let (sigma, uparams, nuparams, _) = get_params_sep sigma mib u in
@@ -874,5 +870,10 @@ let gen_fundamental_theorem env sigma kn kn_nested focus u mib =
   (* let (_, ty) = run env sigma @@ gen_fundamental_theorem_type kn kn_nested focus u mib uparams strpos nuparams in *)
   dbg Pp.(fun () -> str "Fundamental Theorem = " ++ Termops.Internal.print_constr_env env sigma tm ++ str "\n");
   let uv = Evd.ustate sigma in
-  dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n");
+  (* dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n\n"); *)
+  let uv = UState.collapse_above_prop_sort_variables ~to_prop:true uv in
+  let uv = UState.normalize_variables uv in
+  let uv = UState.minimize uv in
+  dbg Pp.(fun () -> str "MIN EVAR MAP = " ++ UState.pr uv ++ str "\n\n");
+
   (sigma, tm)
