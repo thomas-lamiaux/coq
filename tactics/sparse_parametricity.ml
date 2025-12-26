@@ -875,5 +875,4 @@ let gen_fundamental_theorem env sigma kn kn_nested focus u mib =
   let uv = UState.normalize_variables uv in
   let uv = UState.minimize uv in
   dbg Pp.(fun () -> str "MIN EVAR MAP = " ++ UState.pr uv ++ str "\n\n");
-
   (sigma, tm)

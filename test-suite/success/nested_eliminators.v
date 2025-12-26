@@ -38,8 +38,6 @@ Module Template.
   Inductive MRT : Set :=
   | MRTnode : list MRT -> MRT.
 
-  Print list_all_thm.
-
   Scheme SparseParametricity for MRT.
 
   Inductive RoseTree A : Type :=
@@ -254,7 +252,7 @@ Module SortPoly.
   Arguments nil {_}.
   Arguments cons {_}.
 
-  (* Scheme SparseParametricity for list. *)
+  Scheme SparseParametricity for list.
 
   Definition lfth_list_all@{sA sP; uA uP+} (A : Type@{sA; uA}) (PA : A -> Type@{sP;uP}) (HPA : forall pA : A, PA pA) :=
     fix F0_list (x : list A) : list_all A PA x :=
