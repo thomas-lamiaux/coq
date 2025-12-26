@@ -51,29 +51,29 @@ let print_str s =
   (** {6 Lookup Sparse Parametricity } *)
 
 let warn_no_sparse_parametricity =
-  CWarnings.create ~name:"no-sparse-parametricity" ~category:Deprecation.Version.v9_2
+  CWarnings.create ~name:"no-All" ~category:Deprecation.Version.v9_2
   Pp.(fun (ind, ind_nested) ->
     Nametab.XRefs.pr (TrueGlobal (IndRef ind)) ++ str " is nested using " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
-    str " but sparse parametricity for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++ str " is not registered.\n"
+    str " but no all predicate for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++ str " is registered.\n"
     )
 
 let warn_no_local_fundamental_theorem =
-  CWarnings.create ~name:"no-local_fundamental_theorem" ~category:Deprecation.Version.v9_2
+  CWarnings.create ~name:"no-All_Forall" ~category:Deprecation.Version.v9_2
   Pp.(fun (ind,ind_nested) ->
     Nametab.XRefs.pr (TrueGlobal (IndRef ind)) ++ str " is nested using " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
-    str " but the local fundamental theorem for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++ str " is not registered.\n"
+    str " but no lemma Forall lemma for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++ str " is registered.\n"
     )
 
 let lookup_sparse_parametricity_only ind ind_nested =
-    match Ind_tables.lookup_scheme "sparse_parametricity" ind_nested with
+    match Ind_tables.lookup_scheme "All" ind_nested with
     | None -> warn_no_sparse_parametricity (ind, ind_nested); None
     | Some ref_sparam -> Some ref_sparam
 
 let lookup_sparse_parametricity ind ind_nested =
-    match Ind_tables.lookup_scheme "sparse_parametricity" ind_nested with
+    match Ind_tables.lookup_scheme "All" ind_nested with
     | None -> warn_no_sparse_parametricity (ind, ind_nested); None
     | Some ref_sparam ->
-    match Ind_tables.lookup_scheme "local_fundamental_theorem" ind_nested with
+    match Ind_tables.lookup_scheme "AllForall" ind_nested with
     | None -> warn_no_local_fundamental_theorem (ind, ind_nested); None
     | Some ref_lfth -> Some (ref_sparam, ref_lfth)
 
@@ -653,11 +653,11 @@ let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mut
   let ind_ty = EConstr.of_constr @@ ind.mind_entry_arity in
   let ctors_ty = List.map EConstr.of_constr ind.mind_entry_lc in
   let* env = get_env in
-  (* dbg Pp.(fun () -> str "Type Sparse Parametricity = " ++ (Termops.Internal.print_constr_env env sigma (it_mkProd_or_LetIn ind_ty params)) ++ str "\n");
+  dbg Pp.(fun () -> str "Type Sparse Parametricity = " ++ (Termops.Internal.print_constr_env env sigma (it_mkProd_or_LetIn ind_ty params)) ++ str "\n");
   List.iteri (fun i ty_cst -> dbg Pp.(fun () -> str "TY CST_" ++ int i ++ str " = " ++ Termops.Internal.print_constr_env env sigma (it_mkProd_or_LetIn ty_cst params) ++ str "\n")) ctors_ty;
   let* sigma = get_sigma in
   let uv = Evd.ustate sigma in
-  dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n"); *)
+  dbg Pp.(fun () -> str "EVAR MAP = " ++ UState.pr uv ++ str "\n");
   (* RETURN *)
   return mie
 
@@ -874,5 +874,6 @@ let gen_fundamental_theorem env sigma kn kn_nested focus u mib =
   let uv = UState.collapse_above_prop_sort_variables ~to_prop:true uv in
   let uv = UState.normalize_variables uv in
   let uv = UState.minimize uv in
-  dbg Pp.(fun () -> str "MIN EVAR MAP = " ++ UState.pr uv ++ str "\n\n");
+  dbg Pp.(fun () -> str "MIN EVAR MAP = " ++ UState.pr uv ++ str "\n");
+  dbg Pp.(fun () -> str "---------------------------------------- \n\n");
   (sigma, tm)

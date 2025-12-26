@@ -288,7 +288,7 @@ let do_scheme_sparse_parametricity_aux id =
   (* Declaration and Register *)
   let kn_nested = declare_mutual_inductive_with_eliminations mentry univs [] in
   let _ = Array.iteri (fun i _ -> DeclareScheme.declare_scheme
-              SuperGlobal "sparse_parametricity" ((kn,i), GlobRef.IndRef (kn_nested,i))
+              SuperGlobal "All" ((kn,i), GlobRef.IndRef (kn_nested,i))
             ) mib.mind_packets in
   (kn, mib, kn_nested)
 
@@ -303,13 +303,13 @@ let do_scheme_one_fundamental_theorem kn mib kn_nested focus =
   let fth_name = suffix mib.mind_packets.(focus).mind_typename in
   let cinfo = Declare.CInfo.make ~name:fth_name ~typ:(None : (Evd.econstr option)) () in
   let fth_ref = Declare.declare_definition ~info:info ~cinfo:cinfo ~opaque:false ~body:thm sigma in
-  let _ = DeclareScheme.declare_scheme SuperGlobal "local_fundamental_theorem" ((kn,focus), fth_ref) in
+  let _ = DeclareScheme.declare_scheme SuperGlobal "AllForall" ((kn,focus), fth_ref) in
   ()
 
-let warn_no_sparse_parametricity =
-  CWarnings.create ~name:"fail_theorem" ~category:CWarnings.CoreCategories.automation
+let warn_fail_AllForall =
+  CWarnings.create ~name:"warn_fail_AllForall" ~category:CWarnings.CoreCategories.automation
   Pp.(fun (ind_nested) ->
-    str " Automatic generation of the theorem for " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
+    str " Automatic generation of the Forall theorem for " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
     str " failed." ++ str " Please report at " ++ str Coq_config.wwwbugtracker ++ str ".")
 
 let do_scheme_sparse_parametricity id =
@@ -317,5 +317,5 @@ let do_scheme_sparse_parametricity id =
   Array.iteri (fun focus _ ->
     (* do_scheme_one_fundamental_theorem kn mib kn_nested focus *)
     try do_scheme_one_fundamental_theorem kn mib kn_nested focus with
-    | _ -> warn_no_sparse_parametricity (kn_nested, focus)
+    | _ -> warn_fail_AllForall (kn_nested, focus)
   ) mib.mind_packets

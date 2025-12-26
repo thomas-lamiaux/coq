@@ -1385,7 +1385,7 @@ let vernac_cofixpoint ~pm ~refine ~atts cofixl =
     (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition CoFixpoint) ~poly ?typing_flags ?user_warns ?using (CCoFixRecOrder, cofixl))
     pm
 
-let vernac_scheme_sparse_parametricity id =
+let vernac_scheme_All id =
   DeclareInd.do_scheme_sparse_parametricity id
 
 let vernac_scheme atts l =
@@ -2719,10 +2719,10 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacScheme l ->
     vtdefault(fun () ->
         vernac_scheme atts l)
-  | VernacSchemeSparseParametricity id ->
+  | VernacSchemeAll id ->
     vtdefault(fun () ->
         unsupported_attributes atts;
-        vernac_scheme_sparse_parametricity id)
+        vernac_scheme_All id)
   | VernacSchemeEquality (sch,id) ->
     vtdefault(fun () ->
         unsupported_attributes atts;
