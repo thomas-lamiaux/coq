@@ -143,7 +143,7 @@ Module Template.
                   R n a b -> All2i A B R (S n) lA lB -> All2i A B R n (cons a lA) (cons b lB).
 
   Scheme All for All2i.
-  (* Scheme All for All2i_all. *)
+  Scheme All for All2i_all.
 
   Inductive typing A B (n : nat) (a : A) (b : B) : Type :=
   | typ_nil  : typing A B n a b

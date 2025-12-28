@@ -333,17 +333,14 @@ let is_nested_arg kn mib key_uparams strpos arg =
   let* (locs, hd) = view_arg kn mib key_uparams strpos arg in
   let@ _ = add_context Old naming_id locs in
   match hd with
-  | ArgIsNested (_, _, mib_nested, _, _, inst_uparams, _) ->
+  | ArgIsNested (kn_nested, _, mib_nested, _, _, inst_uparams, _) ->
       let uparams_nested = of_rel_context @@ fst @@
             Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
       let* inst_uparams = array_mapi (fun _ arg ->
-            let* (loc, hd) = decompose_lambda_decls arg in
-            let@ _ = add_context Old naming_id loc in
-            return hd
-            ) inst_uparams
-      in
-      let* inst_uparams = array_mapi (fun _ -> is_nested_arg_nested kn mib key_uparams strpos) inst_uparams in
+        let* (loc, hd) = decompose_lambda_decls arg in
+        let@ _ = add_context Old naming_hd loc in
+        is_nested_arg_nested kn mib key_uparams strpos hd) inst_uparams in
       return @@ Array.exists (fun x -> x) inst_uparams
   | _ -> return false
 
@@ -353,7 +350,7 @@ let is_nested_ind kn mib ind uparams nuparams strpos : bool t =
   let* s = get_state in
   return @@
   Array.exists (fun ctor -> snd @@
-      (let* (args, indices) = get_args mib EInstance.empty ctor in
+      (let* (args, _) = get_args mib EInstance.empty ctor in
       fold_left_state (fun a l -> a::l) args (
           fun _ arg cc ->
           let* arg_is_nested = is_nested_arg kn mib key_uparams strpos (get_type arg) in
@@ -665,7 +662,6 @@ let gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams : mut
 let gen_sparse_parametricity env sigma kn u mib =
   let (sigma, uparams, nuparams, sub_temp) = get_params_sep sigma mib u in
   let strpos = Positive_parameters.compute_params_rec_strpos env kn mib in
-  (* dbg Pp.(fun () -> str "strpos = " ++ pp_lbool strpos); *)
   run env sigma @@ gen_sparse_parametricity_aux kn u sub_temp mib uparams strpos nuparams
 
 
