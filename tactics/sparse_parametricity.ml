@@ -851,9 +851,10 @@ let gen_fundamental_theorem_aux kn kn_nested focus u mib uparams strpos nuparams
   let* inst_params = get_terms (key_uparams @ key_nuparams )in
   let* var_match = get_term key_VarMatch in
   let* inst_indices = get_terms key_indices in
+  let case_rev = Vars.subst_instance_relevance u @@ relevance_of_sort @@ ESorts.make ind.mind_sort in
   let@ (key_args, _, _, pos_ctor, unested) =
     make_case_or_projections naming_hd_fresh mib (kn, pos_ind) ind u key_uparams key_nuparams inst_params
-      inst_indices case_pred (relevance_of_sort @@ ESorts.make ind.mind_sort) var_match in
+      inst_indices case_pred case_rev var_match in
   (* 5 Body of the branch *)
   let* args = compute_args_fix kn (kn_nested, unested) pos_ind mib key_up key_preds_hold key_fixs strpos key_args in
   make_cst_typing ((kn_nested, pos_ind), unested) pos_ctor key_uparams_preds key_nuparams (Array.of_list args)
