@@ -475,7 +475,8 @@ object(self)
         script#recenter_insert
       end
     end;
-    let flags = { gf_mode = "full"; gf_fg = true; gf_bg = true; gf_shelved = false; gf_given_up = false } in
+    let gf_bg = PrintOpt.printing_unfocused () in
+    let flags = { gf_mode = "full"; gf_fg = true; gf_bg; gf_shelved = false; gf_given_up = false } in
     let return x = RocqDriver.return (Good x) in
     let (>>=) m f = RocqDriver.bind m (function
     | Fail x -> RocqDriver.return (Fail x)
