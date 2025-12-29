@@ -543,13 +543,20 @@ let do_combined_scheme name csts =
 
 (**********************************************************************)
 
-let do_scheme_sparse_parametricity_aux declare_schemes id =
+(** Depth Generation of all predicate at definition of a new inductive type *)
+let default_all_depth = 0
+
+let { Goptions.get = default_all_depth } =
+  Goptions.declare_int_option_and_ref ~key:["All";"Depth"] ~value:default_all_depth ()
+
+let default_all_depth () = (default_all_depth())
+
+let do_scheme_sparse_parametricity_aux declare_schemes kn  =
   (* Recover Info *)
   let env = Global.env () in
   let sigma = Evd.from_env env in
-  let kn,_ as ind = smart_ind id in
   let mib = Environ.lookup_mind kn env in
-  let sigma, (_, u) = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma ind in
+  let sigma, (_, u) = Evd.fresh_inductive_instance ~rigid:UState.univ_rigid env sigma (kn,0) in
   (* Generation of the Sparse Parametricity *)
   let (sigma, mentry) = Sparse_parametricity.gen_sparse_parametricity env sigma kn u mib in
   (* Simplify Univ *)
@@ -560,7 +567,7 @@ let do_scheme_sparse_parametricity_aux declare_schemes id =
   let _ = Array.iteri (fun i _ -> DeclareScheme.declare_scheme
               SuperGlobal "All" ((kn,i), GlobRef.IndRef (kn_nested,i))
             ) mib.mind_packets in
-  (kn, mib, kn_nested)
+  (mib, kn_nested)
 
 let do_scheme_one_fundamental_theorem kn mib kn_nested focus =
   let env = Global.env () in
@@ -582,13 +589,18 @@ let warn_fail_AllForall =
     str " Automatic generation of the Forall theorem for " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
     str " failed." ++ str " Please report at " ++ str Coq_config.wwwbugtracker ++ str ".")
 
-let do_scheme_sparse_parametricity declare_schemes id =
-  let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux declare_schemes id in
+let do_sparse_parametricity declare_schemes kn =
+  let (mib, kn_nested) = do_scheme_sparse_parametricity_aux declare_schemes kn in
   Array.iteri (fun focus _ ->
     (* do_scheme_one_fundamental_theorem kn mib kn_nested focus *)
     try do_scheme_one_fundamental_theorem kn mib kn_nested focus with
     | _ -> warn_fail_AllForall (kn_nested, focus)
   ) mib.mind_packets
+
+let do_scheme_sparse_parametricity declare_schemes id =
+  let kn,_ = smart_ind id in
+  do_sparse_parametricity declare_schemes kn
+
 
 (**********************************************************************)
 
@@ -598,14 +610,21 @@ let map_inductive_block ?(locmap=Locmap.default None) f kn n =
     f ?loc (kn,i)
   done
 
-let declare_default_schemes ?locmap kn =
+let rec declare_default_schemes_aux ?(all_depth = 0) ?locmap kn =
   let mib = Global.lookup_mind kn in
   let n = Array.length mib.mind_packets in
   if !elim_flag && (mib.mind_finite <> Declarations.BiFinite || !bifinite_elim_flag)
      && mib.mind_typing_flags.check_positive then
     declare_induction_schemes kn ?locmap;
+  if all_depth > 0 then do_sparse_parametricity (declare_default_schemes_aux ~all_depth:(all_depth-1)) kn ;
+  (* if !all_flag then do_scheme_sparse_parametricity  *)
   if !case_flag then map_inductive_block ?locmap declare_one_case_analysis_scheme kn n;
   if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
   if !eq_dec_flag then try_declare_eq_decidability kn ?locmap;
   if !rewriting_flag then map_inductive_block ?locmap declare_congr_scheme kn n;
   if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n
+
+
+
+let rec declare_default_schemes ?locmap kn = declare_default_schemes_aux ?locmap ~all_depth:(default_all_depth ()) kn
+
