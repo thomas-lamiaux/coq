@@ -272,6 +272,7 @@ Module SortPoly.
 
 End SortPoly.
 
+
 Module TestWarning.
 
   Inductive list (A : Type) : Type :=

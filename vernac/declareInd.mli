@@ -29,6 +29,7 @@ val declare_mutual_inductive_with_eliminations
   -> ?indlocs:indlocs
   -> ?default_dep_elim:default_dep_elim list
   -> ?schemes:declare_schemes
+  -> (?locmap:Ind_tables.Locmap.t -> Names.MutInd.t -> unit)
   -> Entries.mutual_inductive_entry (* Inductive types declaration *)
   -> UState.named_universes_entry (* Global universes, including the template default instance *)
   -> one_inductive_impls list (* Implicit arguments *)
@@ -45,5 +46,3 @@ end
 
 val declare_primitive_projection :
   Names.Projection.Repr.t -> Names.Constant.t -> unit
-
-val do_scheme_sparse_parametricity : Libnames.qualid Constrexpr.or_by_notation -> unit

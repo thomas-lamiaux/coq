@@ -50,6 +50,10 @@ val build_combined_scheme : env -> Constant.t list -> Evd.evar_map * constr * ty
 
 val do_combined_scheme : lident -> Constant.t list -> unit
 
+(** Create the All predicate with its theorem all_forall  *)
+val do_scheme_sparse_parametricity : Libnames.qualid Constrexpr.or_by_notation -> unit
+
 (** Hook called at each inductive type definition *)
 
 val declare_default_schemes : ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
+
