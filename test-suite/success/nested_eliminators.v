@@ -273,6 +273,66 @@ Module SortPoly.
 End SortPoly.
 
 
+Module Sparser.
+
+  Set Universe Polymorphism.
+
+  Inductive prod (A B : Type) : Type :=
+  pair : A -> B -> prod A B.
+
+  Arguments pair {_ _}.
+
+  Scheme All for prod.
+  Scheme All for prod_all.
+
+  Inductive PairTree A : Type :=
+  | Pleaf (a : A) : PairTree A
+  | Pnode (p : prod (PairTree A) (PairTree A)) : PairTree A.
+
+  Inductive prod_all_left@{s0 ; u u0 u1} (A : Type@{u}) (PA : A -> Type@{s0 ; u1})
+    (B : Type@{u0}) : prod A B -> Type@{max(u,u0,u1)} :=
+  | pair_all_left : forall a : A, PA a -> forall b : B, prod_all_left A PA B (pair a b).
+
+  Register Scheme prod_all_left as All10 for prod.
+
+  Definition prod_all_left_forall@{sPA; uA uB uPA+} (A : Type@{uA}) (PA : A -> Type@{sPA;uPA})
+      (HPA : forall pA : A, PA pA) (B : Type@{uB}) x :=
+    match x with
+    | pair a b  => pair_all_left A PA B a (HPA a) b
+    end.
+
+  Register Scheme prod_all_left_forall as AllForall10 for prod.
+
+  Inductive LeftTree A : Type :=
+  | Lleaf (a : A) : LeftTree A
+  | Lnode (p : prod (LeftTree A) nat) : LeftTree A.
+
+  About LeftTree_ind.
+
+  Inductive prod_all_right@{s0 ; u u0 u1} (A : Type@{u})
+    (B : Type@{u0}) (PB : B -> Type@{s0 ; u1}) : prod A B -> Type@{max(u,u0,u1)} :=
+  | pair_all_right : forall a : A, forall b : B, PB b -> prod_all_right A B PB (pair a b).
+
+  Register Scheme prod_all_right as All01 for prod.
+
+  Definition prod_all_right_forall@{sPA; uA uB uPA+} (A : Type@{uA}) (B : Type@{uB})
+      (PB : B -> Type@{sPA;uPA}) (HPB : forall pA : B, PB pA) x :=
+    match x with
+    | pair a b  => pair_all_right A B PB a b (HPB b)
+    end.
+
+  Register Scheme prod_all_right_forall as AllForall01 for prod.
+
+  Inductive RightTree A : Type :=
+  | Rleaf (a : A) : RightTree A
+  | Rnode (p : prod nat (RightTree A)) : RightTree A.
+
+  About RightTree_ind.
+
+End Sparser.
+
+
+
 Module TestWarning.
 
   Inductive list (A : Type) : Type :=

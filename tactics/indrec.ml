@@ -197,15 +197,16 @@ let rec make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds key_arg ty : (ERe
       let compute_pred i x b = compute_pred b (fun a b -> State.map (fun x -> Option.map snd x) @@ make_rec_call_ty kn pos_ind mdecl ind_bodies key_preds a b) i x in
       let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list mib_nested_strpos) in
       (* If at least one argument is nested, lookup the sparse parametricity *)
-      if Array.for_all Option.is_empty rec_preds then
+      let args_are_nested = Array.map Option.has_some rec_preds in
+      if Array.for_all not args_are_nested then
         return None
       else begin
-        match lookup_sparse_parametricity (kn, pos_ind) (kn_nested, pos_nested) with
+        match lookup_sparse_parametricity (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
         | None -> return None
-        | Some (ref_sparam, _) ->
+        | Some (exact_all, ref_sparam, _) ->
         (* Create: Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (arg a0 ... an) *)
         let* ref_ind = fresh_global ref_sparam in
-        let* inst_uparams = instantiate_sparse_parametricity inst_uparams mib_nested_strpos rec_preds in
+        let* inst_uparams = instantiate_sparse_parametricity exact_all inst_uparams mib_nested_strpos rec_preds in
         (* Instantiation *)
         let* rec_hyp = typing_checked_appvect ref_ind @@ Array.concat [inst_uparams; inst_nuparams_indices; [|inst_arg|]] in
         (* Compute the relevance after the instantiation *)
@@ -347,16 +348,20 @@ let rec make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs key_arg ty 
         let compute_pred_holds i x b = compute_pred b (make_rec_call kn pos_ind mdecl ind_bodies key_preds key_fixs) i x in
         let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list mib_nested_strpos) in
         (* If at least one argument is nested, lookup the local fundamental theorem *)
-        if Array.for_all Option.is_empty rec_preds_hold then return None else begin
-        match lookup_sparse_parametricity (kn, pos_ind) (kn_nested, pos_nested) with
-        | None -> return None
-        | Some (_, ref_fth) ->
-        (* fth A0 PA0 HPA0 ... An PAn HPAn B0 ... Bm i0 ... il (arg a0 ... an) *)
-        let* fth = fresh_global ref_fth in
-        let* inst_uparams = instantiate_fundamental_theorem inst_uparams mib_nested_strpos rec_preds rec_preds_hold in
-        (* Instantiation *)
-        let* rec_hyp = typing_checked_appvect fth (Array.concat [inst_uparams; inst_nuparams_indices; [|inst_arg|] ]) in
-        return @@ Some (rec_hyp)
+        let args_are_nested = Array.map Option.has_some rec_preds_hold in
+        if Array.for_all not args_are_nested then
+          return None
+        else begin
+          match lookup_sparse_parametricity (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
+          | None -> return None
+          | Some (exact_all, _, ref_fth) ->
+          dbg Pp.(fun () -> GlobRef.print ref_fth);
+          (* fth A0 PA0 HPA0 ... An PAn HPAn B0 ... Bm i0 ... il (arg a0 ... an) *)
+          let* fth = fresh_global ref_fth in
+          let* inst_uparams = instantiate_fundamental_theorem exact_all inst_uparams mib_nested_strpos rec_preds rec_preds_hold in
+          (* Instantiation *)
+          let* rec_hyp = typing_checked_appvect fth (Array.concat [inst_uparams; inst_nuparams_indices; [|inst_arg|] ]) in
+          return @@ Some (rec_hyp)
         end
       end
   | _ -> return None

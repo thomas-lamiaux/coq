@@ -549,7 +549,7 @@ let default_all_depth = 0
 let { Goptions.get = default_all_depth } =
   Goptions.declare_int_option_and_ref ~key:["All";"Depth"] ~value:default_all_depth ()
 
-let default_all_depth () = (default_all_depth())
+let default_all_depth () = default_all_depth()
 
 let do_scheme_sparse_parametricity_aux declare_schemes kn  =
   (* Recover Info *)
@@ -610,13 +610,13 @@ let map_inductive_block ?(locmap=Locmap.default None) f kn n =
     f ?loc (kn,i)
   done
 
-let rec declare_default_schemes_aux ?(all_depth = 0) ?locmap kn =
+let rec declare_default_schemes_aux all_depth ?locmap kn =
   let mib = Global.lookup_mind kn in
   let n = Array.length mib.mind_packets in
   if !elim_flag && (mib.mind_finite <> Declarations.BiFinite || !bifinite_elim_flag)
      && mib.mind_typing_flags.check_positive then
     declare_induction_schemes kn ?locmap;
-  if all_depth > 0 then do_sparse_parametricity (declare_default_schemes_aux ~all_depth:(all_depth-1)) kn ;
+  if all_depth > 0 then do_sparse_parametricity (declare_default_schemes_aux (all_depth-1)) kn ;
   (* if !all_flag then do_scheme_sparse_parametricity  *)
   if !case_flag then map_inductive_block ?locmap declare_one_case_analysis_scheme kn n;
   if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
@@ -624,7 +624,4 @@ let rec declare_default_schemes_aux ?(all_depth = 0) ?locmap kn =
   if !rewriting_flag then map_inductive_block ?locmap declare_congr_scheme kn n;
   if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n
 
-
-
-let rec declare_default_schemes ?locmap kn = declare_default_schemes_aux ?locmap ~all_depth:(default_all_depth ()) kn
-
+let declare_default_schemes ?locmap kn = declare_default_schemes_aux ?locmap (default_all_depth ()) kn

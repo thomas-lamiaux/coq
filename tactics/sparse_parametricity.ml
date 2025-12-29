@@ -50,6 +50,12 @@ let print_str s =
 
   (** {6 Lookup Sparse Parametricity } *)
 
+let rec lbool_to_string lb =
+  match lb with
+  | [] -> ""
+  | true::l  -> "1" ^ lbool_to_string l
+  | false::l -> "0" ^ lbool_to_string l
+
 let warn_no_sparse_parametricity =
   CWarnings.create ~name:"no-All" ~category:Deprecation.Version.v9_2
   Pp.(fun (ind, ind_nested) ->
@@ -57,25 +63,46 @@ let warn_no_sparse_parametricity =
     str " but no all predicate for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++ str " is registered.\n"
     )
 
-let warn_no_local_fundamental_theorem =
+let warn_no_local_fundamental_theorem ?nested =
   CWarnings.create ~name:"no-All_Forall" ~category:Deprecation.Version.v9_2
   Pp.(fun (ind,ind_nested) ->
     Nametab.XRefs.pr (TrueGlobal (IndRef ind)) ++ str " is nested using " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
-    str " but no lemma Forall lemma for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++ str " is registered.\n"
+    str " but no Forall lemma for " ++ Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
+    (match nested with
+    | None -> str ""
+    | Some nested -> str "with positivity of parameters " ++ str (lbool_to_string nested)
+    )
+    ++ str " is registered.\n"
     )
 
-let lookup_sparse_parametricity_only ind ind_nested =
-    match Ind_tables.lookup_scheme "All" ind_nested with
-    | None -> warn_no_sparse_parametricity (ind, ind_nested); None
-    | Some ref_sparam -> Some ref_sparam
+let lookup_sparse_parametricity_only ind ind_nested args_are_nested =
+    match Ind_tables.lookup_scheme ("All" ^ lbool_to_string args_are_nested) ind_nested with
+    | Some ref_sparam -> Some (true, ref_sparam)
+    | None ->
+        match Ind_tables.lookup_scheme "All" ind_nested with
+        | Some ref_sparam -> Some (false, ref_sparam)
+        | None -> warn_no_sparse_parametricity (ind, ind_nested); None
 
-let lookup_sparse_parametricity ind ind_nested =
-    match Ind_tables.lookup_scheme "All" ind_nested with
-    | None -> warn_no_sparse_parametricity (ind, ind_nested); None
-    | Some ref_sparam ->
-    match Ind_tables.lookup_scheme "AllForall" ind_nested with
-    | None -> warn_no_local_fundamental_theorem (ind, ind_nested); None
-    | Some ref_lfth -> Some (ref_sparam, ref_lfth)
+let lookup_sparse_parametricity_aux ind ind_nested =
+  match Ind_tables.lookup_scheme "All" ind_nested with
+  | None -> warn_no_sparse_parametricity (ind, ind_nested); None
+  | Some ref_sparam ->
+      match Ind_tables.lookup_scheme "AllForall" ind_nested with
+      | None -> warn_no_local_fundamental_theorem (ind, ind_nested); None
+      | Some ref_lfth -> Some (false, ref_sparam, ref_lfth)
+
+let lookup_sparse_parametricity ind ind_nested args_are_nested =
+  dbg Pp.(fun () -> MutInd.print (fst ind) ++ str "debug args_arg_nested" ++ (pp_lbool args_are_nested));
+  match Ind_tables.lookup_scheme ("All" ^ lbool_to_string args_are_nested) ind_nested with
+  | Some ref_sparam ->
+      print_str "FOUND EXACR";
+      begin
+        match Ind_tables.lookup_scheme ("AllForall" ^ lbool_to_string args_are_nested) ind_nested with
+        | Some ref_lfth -> Some (true ,ref_sparam, ref_lfth)
+        | None -> warn_no_local_fundamental_theorem ?nested:(Some args_are_nested) (ind,ind_nested);
+                lookup_sparse_parametricity_aux ind ind_nested
+      end
+  | None -> lookup_sparse_parametricity_aux ind ind_nested
 
 
   (** {6 Instantiate Sparse Parametricity } *)
@@ -84,7 +111,7 @@ let mkFunUnit x =
   let@ _ = rebind fid Lambda Fresh naming_id x in
   return @@ mkRef ((Rocqlib.lib_ref "core.unit.type"), EInstance.empty)
 
-let instantiate_sparse_parametricity inst_uparams strpos preds =
+let instantiate_sparse_parametricity all_exact inst_uparams strpos preds =
   let preds = Array.to_list preds in
   let inst_uparams = Array.to_list inst_uparams in
   let* s = get_state in
@@ -92,8 +119,10 @@ let instantiate_sparse_parametricity inst_uparams strpos preds =
     List.fold_right (fun (inst_uparam, b, pred) acc ->
       if not b then inst_uparam :: acc else
       match pred with
-      | None -> inst_uparam :: (snd @@ mkFunUnit inst_uparam s) :: acc
       | Some pred -> inst_uparam :: pred :: acc
+      | None -> if all_exact
+                then inst_uparam :: acc
+                else inst_uparam :: (snd @@ mkFunUnit inst_uparam s) :: acc
       )
     (List.combine3 inst_uparams strpos preds) []
   in
@@ -103,7 +132,7 @@ let mkFuntt x =
   let@ _ = rebind fid Lambda Fresh naming_id x in
   return @@ mkRef ((Rocqlib.lib_ref "core.unit.tt"), EInstance.empty)
 
-let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
+let instantiate_fundamental_theorem exact_all inst_uparams strpos preds preds_hold =
   let inst_uparams = Array.to_list inst_uparams in
   let preds = Array.to_list preds in
   let preds_hold = Array.to_list preds_hold in
@@ -112,14 +141,16 @@ let instantiate_fundamental_theorem inst_uparams strpos preds preds_hold =
     List.fold_right (fun (inst_uparam, b, (pred, pred_hold)) acc ->
       if not b then inst_uparam :: acc else
       match pred, pred_hold with
-      | None, None -> inst_uparam :: (snd @@ mkFunUnit inst_uparam s) :: (snd @@ mkFuntt inst_uparam s) :: acc
       | Some pred, Some pred_hold -> inst_uparam :: pred :: pred_hold :: acc
+      | None, None ->
+        if exact_all
+        then inst_uparam :: acc
+        else inst_uparam :: (snd @@ mkFunUnit inst_uparam s) :: (snd @@ mkFuntt inst_uparam s) :: acc
       | _, _ -> assert false
     )
     (List.combine3 inst_uparams strpos @@ List.combine preds preds_hold) []
   in
   return @@ Array.of_list inst_lfth
-
 
   (** {6 View for Arguments } *)
 
@@ -511,15 +542,16 @@ let rec make_rec_call_ty kn pos_ind mib rep_inds ((key_uparams, key_preds, key_u
             make_rec_call_ty kn pos_ind mib rep_inds key_up strpos ualg a b) i x in
       let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list mib_nested_strpos) in
       (* If at least one argument is nested, lookup the sparse parametricity *)
-      if Array.for_all Option.is_empty rec_preds then
+      let args_are_nested = Array.map Option.has_some rec_preds in
+      if Array.for_all not args_are_nested then
         return None
       else begin
-        match lookup_sparse_parametricity_only (kn, pos_ind) (kn_nested, pos_nested) with
+        match lookup_sparse_parametricity_only (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
         | None -> return None
-        | Some ref_sparam ->
+        | Some (exact_all, ref_sparam) ->
         (* Create: Indε A0 PA0 ... An PAn B0 ... Bm i0 ... il (arg a0 ... an) *)
         let* ref_ind = fresh_global ref_sparam in
-        let* inst_uparams = instantiate_sparse_parametricity inst_uparams mib_nested_strpos rec_preds in
+        let* inst_uparams = instantiate_sparse_parametricity exact_all inst_uparams mib_nested_strpos rec_preds in
           (* arg a0 ... an *)
         let* arg = get_term key_arg in
         let* loc = get_terms key_locals in
@@ -783,28 +815,31 @@ let rec make_rec_call kn knu pos_ind mib ((key_uparams, _, _) as key_up) key_pre
         return @@ Some (mkApp (fix, Array.concat [inst_nuparams; inst_indices; [|inst_arg|]]))
   | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
                   inst_uparams, inst_nuparams_indices) ->
-      begin
-        (* eta expand arguments *)
-        let uparams_nested = of_rel_context @@ fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
-        let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
-        (* Compute the recursive predicates, and their proofs *)
-        let compute_pred_preds i x b = compute_pred b (make_rec_call_ty kn pos_ind mib (Right knu) key_up strpos (Obj.magic ())) i x in
-        let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list mib_nested_strpos) in
-        let compute_pred_holds i x b = compute_pred b (make_rec_call kn knu pos_ind mib key_up key_preds_hold key_fixs strpos) i x in
-        let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list mib_nested_strpos) in
-        (* If at least one argument is nested, lookup the local fundamental theorem *)
-        if Array.for_all Option.is_empty rec_preds_hold then return None else begin
-        match lookup_sparse_parametricity (kn, pos_ind) (kn_nested, pos_nested) with
+    begin
+      (* eta expand arguments *)
+      let uparams_nested = of_rel_context @@ fst @@ Declareops.split_uparans_nuparams mib_nested.mind_nparams_rec mib_nested.mind_params_ctxt in
+      let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
+      (* Compute the recursive predicates, and their proofs *)
+      let compute_pred_preds i x b = compute_pred b (make_rec_call_ty kn pos_ind mib (Right knu) key_up strpos (Obj.magic ())) i x in
+      let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list mib_nested_strpos) in
+      let compute_pred_holds i x b = compute_pred b (make_rec_call kn knu pos_ind mib key_up key_preds_hold key_fixs strpos) i x in
+      let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list mib_nested_strpos) in
+      (* If at least one argument is nested, lookup the local fundamental theorem *)
+      let args_are_nested = Array.map Option.has_some rec_preds_hold in
+      if Array.for_all not args_are_nested then
+        return None
+      else begin
+        match lookup_sparse_parametricity (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
         | None -> return None
-        | Some (_, ref_fth) ->
+        | Some (exact_all, _, ref_fth) ->
         (* fth A0 PA0 HPA0 ... An PAn HPAn B0 ... Bm i0 ... il (arg a0 ... an) *)
         let* fth = fresh_global ref_fth in
-        let* inst_uparams = instantiate_fundamental_theorem inst_uparams mib_nested_strpos rec_preds rec_preds_hold in
+        let* inst_uparams = instantiate_fundamental_theorem exact_all inst_uparams mib_nested_strpos rec_preds rec_preds_hold in
         (* Instantiation *)
         let* rec_hyp = typing_checked_appvect fth (Array.concat [inst_uparams; inst_nuparams_indices; [|inst_arg|] ]) in
         return @@ Some (rec_hyp)
-        end
       end
+    end
   | _ -> return None
 
 let compute_args_fix kn knu pos_ind mib key_up key_preds_hold key_fixs strpos key_args =
