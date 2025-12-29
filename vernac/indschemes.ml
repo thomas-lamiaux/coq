@@ -543,25 +543,7 @@ let do_combined_scheme name csts =
 
 (**********************************************************************)
 
-let map_inductive_block ?(locmap=Locmap.default None) f kn n =
-  for i=0 to n-1 do
-    let loc = Ind_tables.Locmap.lookup ~locmap (kn,i) in
-    f ?loc (kn,i)
-  done
-
-let declare_default_schemes ?locmap kn =
-  let mib = Global.lookup_mind kn in
-  let n = Array.length mib.mind_packets in
-  if !elim_flag && (mib.mind_finite <> Declarations.BiFinite || !bifinite_elim_flag)
-     && mib.mind_typing_flags.check_positive then
-    declare_induction_schemes kn ?locmap;
-  if !case_flag then map_inductive_block ?locmap declare_one_case_analysis_scheme kn n;
-  if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
-  if !eq_dec_flag then try_declare_eq_decidability kn ?locmap;
-  if !rewriting_flag then map_inductive_block ?locmap declare_congr_scheme kn n;
-  if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n
-
-let do_scheme_sparse_parametricity_aux id =
+let do_scheme_sparse_parametricity_aux declare_schemes id =
   (* Recover Info *)
   let env = Global.env () in
   let sigma = Evd.from_env env in
@@ -574,7 +556,7 @@ let do_scheme_sparse_parametricity_aux id =
   let uctx = Evd.ustate sigma in
   let univs = UState.univ_entry ~poly:true uctx in
   (* Declaration and Register *)
-  let kn_nested = DeclareInd.declare_mutual_inductive_with_eliminations declare_default_schemes mentry univs [] in
+  let kn_nested = DeclareInd.declare_mutual_inductive_with_eliminations declare_schemes mentry univs [] in
   let _ = Array.iteri (fun i _ -> DeclareScheme.declare_scheme
               SuperGlobal "All" ((kn,i), GlobRef.IndRef (kn_nested,i))
             ) mib.mind_packets in
@@ -600,10 +582,30 @@ let warn_fail_AllForall =
     str " Automatic generation of the Forall theorem for " ++  Nametab.XRefs.pr (TrueGlobal (IndRef ind_nested)) ++
     str " failed." ++ str " Please report at " ++ str Coq_config.wwwbugtracker ++ str ".")
 
-let do_scheme_sparse_parametricity id =
-  let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux id in
+let do_scheme_sparse_parametricity declare_schemes id =
+  let (kn, mib, kn_nested) = do_scheme_sparse_parametricity_aux declare_schemes id in
   Array.iteri (fun focus _ ->
     (* do_scheme_one_fundamental_theorem kn mib kn_nested focus *)
     try do_scheme_one_fundamental_theorem kn mib kn_nested focus with
     | _ -> warn_fail_AllForall (kn_nested, focus)
   ) mib.mind_packets
+
+(**********************************************************************)
+
+let map_inductive_block ?(locmap=Locmap.default None) f kn n =
+  for i=0 to n-1 do
+    let loc = Ind_tables.Locmap.lookup ~locmap (kn,i) in
+    f ?loc (kn,i)
+  done
+
+let declare_default_schemes ?locmap kn =
+  let mib = Global.lookup_mind kn in
+  let n = Array.length mib.mind_packets in
+  if !elim_flag && (mib.mind_finite <> Declarations.BiFinite || !bifinite_elim_flag)
+     && mib.mind_typing_flags.check_positive then
+    declare_induction_schemes kn ?locmap;
+  if !case_flag then map_inductive_block ?locmap declare_one_case_analysis_scheme kn n;
+  if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
+  if !eq_dec_flag then try_declare_eq_decidability kn ?locmap;
+  if !rewriting_flag then map_inductive_block ?locmap declare_congr_scheme kn n;
+  if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n

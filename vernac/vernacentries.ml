@@ -1386,7 +1386,7 @@ let vernac_cofixpoint ~pm ~refine ~atts cofixl =
     pm
 
 let vernac_scheme_All id =
-  Indschemes.do_scheme_sparse_parametricity id
+  Indschemes.do_scheme_sparse_parametricity Indschemes.declare_default_schemes id
 
 let vernac_scheme atts l =
   if Dumpglob.dump () then
