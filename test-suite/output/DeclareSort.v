@@ -12,6 +12,7 @@ Check fun (A:Type@{s;Set}) => A : Type@{s;_}.
 Sort S1.
 
 Section S.
+  Fail Sort S2.
   Local Set Universe Polymorphism.
   Sort S2.
 
