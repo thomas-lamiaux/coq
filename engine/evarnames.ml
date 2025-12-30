@@ -344,15 +344,30 @@ let transfer_name ev ev' evn =
   in
   { evn with basename_map; name_resolution; parent_map; children_map }
 
+type set_kind =
+| SetEmpty
+| SetSingleton of Evar.t
+| SetOther
+
+let classify_set s =
+  if Evar.Set.is_empty s then SetEmpty
+  else
+    let evk = Evar.Set.choose s in
+    let s = Evar.Set.remove evk s in
+    if Evar.Set.is_empty s then SetSingleton evk
+    else SetOther
+
 let name_of ev evn =
   match shortest_name ev evn with
+  | None -> None
   | Some name ->
     let conflicts = NameResolution.find name evn.name_resolution in
-    let nconflicts = Evar.Set.cardinal conflicts in
     (* TODO: we should the caller handle the conflict themselves instead of
-       generating nonsensical names. *)
-    if nconflicts <= 1 then Some (EvarQualid.repr name)
-    else
+       generating nonsensical names in linear time. *)
+    match classify_set conflicts with
+    | SetEmpty | SetSingleton _ -> Some (EvarQualid.repr name)
+    | SetOther ->
+      let nconflicts = Evar.Set.cardinal conflicts in
       (* If the qualified name is ambiguous, we append a suffix corresponding to the index in the list. *)
       let { EvarQualid.basename; path } = name in
       let i = nconflicts - CList.index Evar.equal ev (Evar.Set.elements conflicts) - 1 in
@@ -361,30 +376,28 @@ let name_of ev evn =
         else Id.of_string ((Id.to_string name.basename) ^ (string_of_int i))
       in
       Some (Libnames.make_path (DirPath.make path) basename)
-  | None -> None
 
 let has_name ev evn =
   not (EvSet.mem ev evn.removed_evars) && EvMap.mem ev evn.basename_map
 
 let has_unambiguous_name ev evn =
   match shortest_name ev evn with
+  | None -> false
   | Some name ->
     let ans = NameResolution.find name evn.name_resolution in
-    if Int.equal (Evar.Set.cardinal ans) 1 then
-      let e = Evar.Set.choose ans in
+    match classify_set ans with
+    | SetEmpty | SetOther -> false
+    | SetSingleton e ->
       Evar.equal e ev && not (EvSet.mem ev evn.removed_evars)
-    else false
-  | None -> false
 
 let resolve fp evn =
   let qualid = EvarQualid.make fp in
   let evs = NameResolution.find qualid evn.name_resolution in
   let open Pp in
-  match Evar.Set.cardinal evs with
-  | 0 -> raise Not_found
-  | 1 ->
-    let ev = Evar.Set.choose evs in
+  match classify_set evs with
+  | SetEmpty -> raise Not_found
+  | SetSingleton ev ->
     if EvSet.mem ev evn.removed_evars then raise Not_found
     else ev
-  | _ ->
+  | SetOther ->
     CErrors.user_err ?loc:fp.loc (str "Ambiguous evar name " ++ Libnames.pr_qualid fp ++ str ".")
