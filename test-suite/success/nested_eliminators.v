@@ -44,7 +44,7 @@ Module Template.
   | RTleaf (a : A) : RoseTree A
   | RTnode (l : list (RoseTree A)) : RoseTree A.
 
-  Scheme All for RoseTree.
+  Scheme All for RoseTree with true, false.
 
   Inductive RoseRoseTree A : Type :=
   | Nleaf (a : A) : RoseRoseTree A

@@ -118,6 +118,9 @@ GRAMMAR EXTEND Gram
   lstring:
     [ [ s = string -> { CAst.make ~loc s } ] ]
   ;
+  boolean:
+    [ [ s = boolean -> { s } ] ]
+  ;
   integer:
     [ [ i = bigint -> { my_int_of_string ~loc i } ] ]
   ;
