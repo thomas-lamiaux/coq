@@ -276,8 +276,6 @@ val add_univ_constraints : evar_map -> Univ.UnivConstraints.t -> evar_map
 
 val add_poly_constraints : QGraph.constraint_source -> evar_map -> PConstraints.t -> evar_map
 
-val add_quconstraints : evar_map -> UnivProblem.QUConstraints.t -> evar_map
-
 val undefined_map : evar_map -> undefined evar_info Evar.Map.t
 (** Access the undefined evar mapping directly. *)
 

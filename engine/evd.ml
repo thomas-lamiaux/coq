@@ -840,9 +840,6 @@ let add_univ_constraints d c =
 let add_poly_constraints src d c =
   { d with universes = UState.add_poly_constraints src d.universes c }
 
-let add_quconstraints d c =
-  { d with universes = UState.add_quconstraints d.universes c }
-
 let add_constraints d c =
   { d with universes = UState.add_constraints QGraph.Internal d.universes c }
 

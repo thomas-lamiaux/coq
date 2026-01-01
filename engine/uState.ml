@@ -888,13 +888,6 @@ let problem_of_univ_constraints cstrs =
       in UnivProblem.Set.add cstr' acc)
     cstrs UnivProblem.Set.empty
 
-let problem_of_qcumul_constraints qcstrs =
-  UnivProblem.QCumulConstraints.fold (fun (l,d,r) cstrs ->
-      match d with
-      | Eq -> UnivProblem.Set.add (QEq (l,r)) cstrs
-      | Leq -> UnivProblem.Set.add (QLeq (l,r)) cstrs)
-    qcstrs UnivProblem.Set.empty
-
 let add_univ_constraints uctx cstrs =
   let cstrs = problem_of_univ_constraints cstrs in
   add_constraints QGraph.Static uctx cstrs
@@ -912,12 +905,6 @@ let add_poly_constraints src uctx (qcstrs, ucstrs) =
   let local = on_snd (fun cst -> PConstraints.union cst (PConstraints.of_qualities qcstrs)) uctx.local in
   let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints src uctx qcstrs cst) uctx.sort_variables in
   { uctx with local; sort_variables }
-
-let add_quconstraints uctx (qcstrs,ucstrs) =
-  let ucstrs = problem_of_univ_constraints ucstrs in
-  let qcstrs = problem_of_qcumul_constraints qcstrs in
-  (* Here the source shouldn't matter as there are no elim constraints *)
-  add_constraints QGraph.Static uctx (UnivProblem.Set.union ucstrs qcstrs)
 
 let check_qconstraints uctx csts =
   UnivProblem.QCumulConstraints.for_all (fun (l,k,r) ->
