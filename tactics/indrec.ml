@@ -8,7 +8,6 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
-open Pp
 open CErrors
 open Util
 open Names
@@ -20,6 +19,7 @@ open Inductive
 open Environ
 open LibBinding
 open State
+open AllScheme
 open Retyping
 
 type dep_flag = bool
@@ -34,32 +34,6 @@ exception RecursionSchemeError of env * recursion_scheme_error
 let (let@) x f = x f
 let (let*) x f = State.bind x f
 let dbg = CDebug.create ~name:"generate_eliminators" ()
-
-(* ************************************************************************** *)
-(*                              View Argument                                 *)
-(* ************************************************************************** *)
-
-type head_argument =
-  | ArgIsInd of int * constr array * constr array
-  (** constant context, position of the one_inductive body, inst_nuparams inst_indices *)
-  | ArgIsCst
-
-(** Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is a uniform parameter, Ind, nested or a constant *)
-let view_argument kn mib t =
-  let* (cxt, hd) = whd_decompose_prod_decls t in
-  let* (hd, iargs) = decompose_app hd in
-  let* sigma = get_sigma in
-  match kind sigma hd with
-  | Ind ((kn_ind, pos_ind), _) ->
-    (* If it is the inductive *)
-    if kn = kn_ind then
-      let (_, local_nuparams_indices) = Array.chop mib.mind_nparams_rec iargs in
-      let nb_nuparams = mib.mind_nparams - mib.mind_nparams_rec in
-      let (local_nuparams, local_indices) = Array.chop nb_nuparams local_nuparams_indices in
-      return @@ (cxt, ArgIsInd (pos_ind, local_nuparams, local_indices))
-    (* if there is no argument, it cannot be nested *)
-    else return @@ (cxt, ArgIsCst)
-  | _ -> return @@ (cxt, ArgIsCst)
 
 (* ************************************************************************** *)
 (*                          Functions on Parameters                           *)
@@ -156,10 +130,34 @@ let closure_preds kn u ind_bodies binder key_uparams nuparams key_nuparams_opt c
     make_binder fid binder naming_hd_fresh pred_name pred_type cc
   ) cc
 
+(** Recursively compute the predicate, returns [None] if it is not nested *)
+let compute_pred to_compute f i x =
+  if to_compute then
+    let* (locs, head) = decompose_lambda_decls x in
+    let@ key_loc = closure_context fopt Lambda Fresh naming_id locs in
+    (* create new variable *)
+    let* head_sort = retyping_sort_of head in
+    let arg_rev = relevance_of_sort head_sort in
+    let arg_name = make_annot Anonymous arg_rev in
+    (* let name_var = make_annot Anonymous ERelevance.relevant in *)
+    let@ key_arg = make_binder fopt Lambda naming_id arg_name head in
+    let* arg_type = State.get_type key_arg in
+    (* compute rec call *)
+    let* res = f key_arg arg_type in
+    return @@ res
+else return None
+
+(** Recursively compute the predicate, returns [None] if it is not nested *)
+let compute_pred_eta to_compute f i x =
+  let* res = compute_pred to_compute f i x in
+  let* sigma = get_sigma in
+  let res = Option.map (Reductionops.shrink_eta sigma) res in
+  return res
+
 (** Compute the type of the recursive call *)
-let make_rec_call_hyp kn pos_ind mib ind_bodies key_preds key_arg arg_type =
+let rec make_rec_call_hyp kn pos_ind mib ind_bodies key_preds key_arg arg_type =
   (* Decompose the argument, rebind local variables and compute the argument *)
-  let* (locs, head) = view_argument kn mib arg_type in
+  let* (locs, head) = view_argument kn mib [] [] arg_type in
   let@ key_locals = closure_context fopt Prod Fresh naming_id locs in
   let* arg_term = get_term key_arg in
   let* locs_term = get_terms key_locals in
@@ -175,6 +173,28 @@ let make_rec_call_hyp kn pos_ind mib ind_bodies key_preds key_arg arg_type =
           let* rec_hyp = make_pred true key_preds pred_pos pred_dep inst_nuparams inst_indices inst_arg in
           return (Some (rec_hyp))
     end
+  | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
+                  inst_uparams, inst_nuparams_indices) ->
+      (* eta expand arguments *)
+      let uparams_nested = of_rel_context @@ fst @@
+                split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
+      let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
+      (* Compute the recursive predicates *)
+      let compute_pred i x b = compute_pred_eta b (make_rec_call_hyp kn pos_ind mib ind_bodies key_preds) i x in
+      let* rec_preds = array_map2i compute_pred inst_uparams (Array.of_list mib_nested_strpos) in
+      (* If at least one argument is nested, lookup the sparse parametricity *)
+      let args_are_nested = Array.map Option.has_some rec_preds in
+      if Array.for_all not args_are_nested then
+        return None
+      else begin
+        match lookup_all_theorem (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
+        | None -> return None
+        | Some (partial_nesting, ref_pred, _) ->
+          let* rec_hyp = make_all_predicate ~partial_nesting ref_pred mib_nested_strpos
+                          inst_uparams rec_preds inst_nuparams_indices inst_arg in
+          (* return *)
+          return (Some (rec_hyp))
+      end
   | _ -> return None
 
 (** Create and bind the recursive call, if [rec_hyp] and if any *)
@@ -288,9 +308,9 @@ let gen_elim_type print_constr rec_hyp kn u mib uparams nuparams ind_bodies focu
 (* ************************************************************************** *)
 
 (** Compute the recursive call *)
-let make_rec_call_proof kn pos_ind mib ind_bodies key_preds key_fixs key_arg arg_type =
+let rec make_rec_call_proof kn pos_ind mib ind_bodies key_preds key_fixs key_arg arg_type =
   (* Decompose the argument, rebind local variables and compute the argument *)
-  let* (locs, head) = view_argument kn mib arg_type in
+  let* (locs, head) = view_argument kn mib [] [] arg_type in
   let@ key_locals = closure_context fopt Lambda Fresh naming_id locs in
   let* arg_term = get_term key_arg in
   let* locs_term = get_terms key_locals in
@@ -307,6 +327,29 @@ let make_rec_call_proof kn pos_ind mib ind_bodies key_preds key_fixs key_arg arg
         let* fix = geti_term key_fixs pred_pos in
         return @@ Some (mkApp (fix, Array.concat [inst_nuparams; inst_indices; [|inst_arg|]]))
     end
+  | ArgIsNested (kn_nested, pos_nested, mib_nested, mib_nested_strpos, ind_nested,
+                  inst_uparams, inst_nuparams_indices) ->
+      (* eta expand arguments *)
+      let uparams_nested = of_rel_context @@ fst @@
+              split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
+      let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
+      (* Compute the recursive predicates, and their proofs *)
+      let compute_pred_preds i x b = compute_pred_eta b (make_rec_call_hyp kn pos_ind mib ind_bodies key_preds) i x in
+      let* rec_preds = array_map2i compute_pred_preds inst_uparams (Array.of_list mib_nested_strpos) in
+      let compute_pred_holds i x b = compute_pred_eta b (make_rec_call_proof kn pos_ind mib ind_bodies key_preds key_fixs) i x in
+      let* rec_preds_hold = array_map2i compute_pred_holds inst_uparams (Array.of_list mib_nested_strpos) in
+      (* If at least one argument is nested, lookup the local fundamental theorem *)
+      let args_are_nested = Array.map Option.has_some rec_preds_hold in
+      if Array.for_all not args_are_nested then
+        return None
+      else begin
+        match lookup_all_theorem (kn, pos_ind) (kn_nested, pos_nested) (Array.to_list args_are_nested) with
+        | None -> return None
+        | Some (partial_nesting, _, ref_thm) ->
+          let* rec_hyp = make_all_theorem ~partial_nesting ref_thm mib_nested_strpos inst_uparams
+                          rec_preds rec_preds_hold inst_nuparams_indices inst_arg in
+          return @@ Some rec_hyp
+      end
   | _ -> return None
 
 (** Compute the arguments of the rec call *)
@@ -405,7 +448,7 @@ let gen_elim_term print_constr rec_hyp kn u mib uparams nuparams ind_bodies focu
 let check_valid_elimination env sigma (kn, n) mib u lrecspec rec_hyp =
   (* Check the mutual can be eliminated. *)
   if mib.mind_private = Some true
-  then user_err (str "case analysis on a private inductive type is not allowed");
+  then user_err (Pp.str "case analysis on a private inductive type is not allowed");
   (* Check all the blocks can be eliminated *)
   List.iter (fun ((kni, ni),dep,s) ->
     (* Check that all the blocks can be eliminated to s *)

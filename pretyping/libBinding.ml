@@ -307,6 +307,11 @@ let decompose_app t =
   let* sigma = get_sigma in
   return @@ decompose_app sigma t
 
+let eta_expand_instantiation inst ctxt =
+  let* env = get_env in
+  let* sigma = get_sigma in
+  return @@ Reductionops.eta_expand_instantiation env sigma inst ctxt
+
 let fresh_global ref =
   fun s sigma ->
   let (sigma, t) = fresh_global s.env sigma ref in

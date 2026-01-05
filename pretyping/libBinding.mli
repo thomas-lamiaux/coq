@@ -211,6 +211,7 @@ val ind_relevance : one_inductive_body -> einstance -> erelevance t
 val whd_decompose_prod_decls : constr -> (rel_context * constr) t
 val decompose_lambda_decls : constr -> (rel_context * constr) t
 val decompose_app : constr -> (constr * constr array) t
+val eta_expand_instantiation : constr array -> rel_context -> constr array t
 val fresh_global : GlobRef.t -> constr t
 
 (* Typing and Retyping *)
