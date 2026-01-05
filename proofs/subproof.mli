@@ -21,3 +21,30 @@ val refine_by_tactic
     evars solved by side-effects are NOT purged, so that unexpected failures may
     occur. Ideally all code using this function should be rewritten in the
     monad. *)
+
+exception OpenProof of Names.Id.t
+(** XXX This can be raised by {!build_by_tactic}, but you shouldn't rely on it *)
+
+val build_by_tactic :
+  Environ.env ->
+  uctx:UState.t -> poly:PolyFlags.t ->
+  typ:EConstr.types ->
+  unit Proofview.tactic ->
+  Constr.constr * Constr.types * UState.named_universes_entry * bool * UState.t
+(** Semantics of this function is a bit dubious, use with care *)
+
+val declare_abstract :
+  name:Names.Id.t ->
+  poly:PolyFlags.t ->
+  sign:EConstr.named_context ->
+  secsign:Environ.named_context_val ->
+  opaque:bool ->
+  solve_tac:unit Proofview.tactic ->
+  Environ.env ->
+  Evd.evar_map ->
+  EConstr.t -> Evd.evar_map * EConstr.t * EConstr.t list * bool
+
+val shrink_entry :
+  ('a, 'b, 'c) Context.Named.Declaration.pt list ->
+  Constr.constr ->
+  Constr.types -> Constr.constr * Constr.constr * EConstr.t list

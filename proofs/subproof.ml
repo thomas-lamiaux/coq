@@ -8,7 +8,11 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open Util
+open Names
 open Proof
+
+module NamedDecl = Context.Named.Declaration
 
 (**********************************************************************)
 (* Shortcut to build a term using tactics *)
@@ -56,3 +60,161 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
   let (ans, uctx) = Safe_typing.inline_private_constants env ((ans, Univ.ContextSet.empty), neff) in
   let sigma = Evd.merge_universe_context_set ~sideff:true UState.UnivRigid sigma uctx in
   EConstr.of_constr ans, sigma
+
+(* Abstract internals *)
+
+exception OpenProof of Id.t
+
+let () = CErrors.register_handler begin function
+| OpenProof pid ->
+  let open Pp in
+  Some (str " (in proof " ++ Names.Id.print pid ++ str "): " ++
+        str "Attempt to save an incomplete proof.")
+| _ -> None
+end
+
+let universes_of_body_type ~used_univs body typ =
+  let used_univs_typ = Option.cata (Vars.universes_of_constr ~init:used_univs) used_univs typ in
+  let used_univs = Vars.universes_of_constr body ~init:used_univs_typ in
+  used_univs_typ, used_univs
+
+let rec shrink ctx sign c t accu =
+  let open Constr in
+  let open Vars in
+  match ctx, sign with
+  | [], [] -> (c, t, accu)
+  | p :: ctx, decl :: sign ->
+    if noccurn 1 c && noccurn 1 t then
+      let c = subst1 mkProp c in
+      let t = subst1 mkProp t in
+      shrink ctx sign c t accu
+    else
+      let c = Term.mkLambda_or_LetIn p c in
+      let t = Term.mkProd_or_LetIn p t in
+      let accu = if Context.Rel.Declaration.is_local_assum p
+        then EConstr.mkVar (NamedDecl.get_id decl) :: accu
+        else accu
+      in
+      shrink ctx sign c t accu
+  | _ -> assert false
+
+(* If [sign] is [x1:T1..xn:Tn], [c] is [fun x1:T1..xn:Tn => c']
+    and [t] is [forall x1:T1..xn:Tn, t'], returns a new [c'] and [t'],
+    where all non-dependent [xi] are removed, as well as a
+    restriction [args] of [x1..xn] such that [c' args] = [c x1..xn] *)
+let shrink_entry sign body typ =
+  let (ctx, body, typ) = Term.decompose_lambda_prod_n_decls (List.length sign) body typ in
+  let (body, typ, args) = shrink ctx sign body typ [] in
+  body, typ, args
+
+let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
+  let proof = Proof.start ~name ~poly sigma [Global.env_of_context sign, typ] in
+  let proof, status = Proof.solve env (Goal_select.select_nth 1) None tac proof in
+  let (body, typ, output_ustate) =
+    let Proof.{ entry; sigma = evd } = Proof.data proof in
+    let body, typ = match Proofview.initial_goals entry with
+    | [_, body, typ] -> body, typ
+    | _ -> assert false
+    in
+    let () = if not @@ Proof.is_done proof then raise (OpenProof name) in
+    let evd = Evd.minimize_universes evd in
+    let to_constr c = match EConstr.to_constr_opt evd c with
+    | Some p -> p
+    | None -> raise (OpenProof name)
+    in
+    let body = to_constr body in
+    let typ = to_constr typ in
+    (body, typ, Evd.ustate evd)
+  in
+  let univs =
+    let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body (Some typ) in
+    let uctx = UState.restrict output_ustate used_univs in
+    UState.check_univ_decl ~poly uctx UState.default_univ_decl
+  in
+  (* FIXME: return the locally introduced effects *)
+  let { Proof.sigma } = Proof.data proof in
+  let sigma = Evd.set_universe_context sigma output_ustate in
+  (univs, body, typ), status, sigma
+
+let next = let n = ref 0 in fun () -> incr n; !n
+
+let build_by_tactic env ~uctx ~poly ~typ tac =
+  let name = Id.of_string ("temporary_proof"^string_of_int (next())) in
+  let sign = Environ.(val_of_named_context (named_context env)) in
+  let sigma = Evd.from_ctx uctx in
+  let (univs, body, typ), status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in
+  let uctx = Evd.ustate sigma in
+  (* ignore side effect universes:
+     we don't reset the global env in this code path so the side effects are still present
+     cf #13271 and discussion in #18874
+     (but due to #13324 we still want to inline them) *)
+  let effs = Evd.seff_private @@ Evd.eval_side_effects sigma in
+  let body, ctx = Safe_typing.inline_private_constants env ((body, Univ.ContextSet.empty), effs) in
+  let _uctx = UState.merge_universe_context ~sideff:true Evd.univ_rigid uctx ctx in
+  body, typ, univs, status, uctx
+
+let extract_monomorphic = function
+  | UState.Monomorphic_entry ctx ->
+    Entries.Monomorphic_entry, ctx
+  | UState.Polymorphic_entry uctx -> Entries.Polymorphic_entry uctx, Univ.ContextSet.empty
+
+let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma concl =
+  let (const, safe, sigma') =
+    try build_constant_by_tactic ~name ~poly ~env ~sigma ~sign:secsign concl solve_tac
+    with Logic_monad.TacticFailure e as src ->
+    (* if the tactic [tac] fails, it reports a [TacticFailure e],
+       which is an error irrelevant to the proof system (in fact it
+       means that [e] comes from [tac] failing to yield enough
+       success). Hence it reraises [e]. *)
+    let (_, info) = Exninfo.capture src in
+    Exninfo.iraise (e, info)
+  in
+  let (univs, body, typ) = const in
+  let sigma = Evd.drop_new_defined ~original:sigma sigma' in
+  (* EJGA: Hack related to the above call to
+     `build_constant_by_tactic` with `~opaque:Transparent`. Even if
+     the abstracted term is destined to be opaque, if we trigger the
+     `if poly && opaque && private_poly_univs ()` in `close_proof`
+     kernel will boom. This deserves more investigation. *)
+  let body, typ, args = shrink_entry sign body typ in
+  let ts = Environ.oracle env in
+  let cst, effs =
+    (* No side-effects in the entry, they already exist in the ambient environment *)
+    let effs = Evd.eval_side_effects sigma in
+    let de, ctx =
+      let univ_entry, ctx = extract_monomorphic (fst univs) in
+      if not opaque then
+        Safe_typing.DefinitionEff { Entries.definition_entry_body = body;
+          definition_entry_secctx = None;
+          definition_entry_type = Some typ;
+          definition_entry_universes = univ_entry;
+          definition_entry_inline_code = false;
+        }, ctx
+      else
+        let secctx =
+          let env = Global.env () in
+          let hyps =
+            if List.is_empty (Environ.named_context env) then Id.Set.empty
+            else
+              let ids_typ = Environ.global_vars_set env typ in
+              let vars = Environ.global_vars_set env body in
+              Id.Set.union ids_typ vars
+          in
+          Environ.really_needed env hyps
+        in
+        Safe_typing.OpaqueEff { Entries.opaque_entry_body = body;
+          opaque_entry_secctx = secctx;
+          opaque_entry_type = typ;
+          opaque_entry_universes = univ_entry;
+        },
+        ctx
+    in
+    Evd.push_side_effects ~ts name de ctx effs
+  in
+  let sigma = Evd.emit_side_effects effs sigma in
+  let inst = match univs with
+  | UState.Monomorphic_entry _, _ -> UVars.Instance.empty
+  | UState.Polymorphic_entry uctx, _ -> UVars.UContext.instance uctx
+  in
+  let lem = EConstr.of_constr (Constr.mkConstU (cst, inst)) in
+  sigma, lem, args, safe
