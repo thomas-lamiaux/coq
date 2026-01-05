@@ -216,20 +216,14 @@ let change_property_sort evd toSort princ princName =
   let toSort = EConstr.ESorts.kind evd toSort in
   let princ = EConstr.of_constr princ in
   let princ_info = Induction.compute_elim_sig evd princ in
-  let change_sort_in_predicate decl =
-    LocalAssum
-      ( EConstr.Unsafe.to_binder_annot @@ get_annot decl
-      , let args, ty =
-          Term.decompose_prod (EConstr.Unsafe.to_constr (get_type decl))
-        in
-        let s = Constr.destSort ty in
-        let qcsts, ucsts = UnivSubst.enforce_leq_sort toSort s UnivProblem.QUConstraints.empty in
-        if not (UnivProblem.QCumulConstraints.trivial qcsts) then begin
-          let (l, _, r) = UnivProblem.QCumulConstraints.find_first (fun cst -> not @@ UnivProblem.QCumulConstraint.trivial cst) qcsts in
-          raise (QGraph.EliminationError (QualityInconsistency (None, (Equal, l, r, None))))
-        end;
-        Global.add_univ_constraints ucsts;
-        Term.compose_prod args (Constr.mkSort toSort) )
+  let change_sort_in_predicate evd decl =
+    let args, ty =
+      Term.decompose_prod (EConstr.Unsafe.to_constr (get_type decl))
+    in
+    let s = Constr.destSort ty in
+    let evd = Evd.set_leq_sort evd (EConstr.ESorts.make toSort) (EConstr.ESorts.make s) in
+    let ty = Term.compose_prod args (Constr.mkSort toSort) in
+    evd, LocalAssum (EConstr.Unsafe.to_binder_annot @@ get_annot decl, ty)
   in
   let evd, princName_as_constr =
     Evd.fresh_global (Global.env ()) evd
@@ -243,10 +237,12 @@ let change_property_sort evd toSort princ princName =
       ( EConstr.Unsafe.to_constr princName_as_constr
       , Array.init nargs (fun i -> Constr.mkRel (nargs - i)) )
   in
+  let evd, predicates =
+    List.fold_left_map change_sort_in_predicate evd princ_info.Induction.predicates
+  in
   ( evd
   , Term.it_mkLambda_or_LetIn
-      (Term.it_mkLambda_or_LetIn init
-         (List.map change_sort_in_predicate princ_info.Induction.predicates))
+      (Term.it_mkLambda_or_LetIn init predicates)
       (EConstr.Unsafe.to_rel_context princ_info.Induction.params) )
 
 let generate_functional_principle (evd : Evd.evar_map ref) old_princ_type sorts
