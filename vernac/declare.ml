@@ -1803,8 +1803,6 @@ module Proof_object = struct
 
 end
 
-(* Alias *)
-module Proof_ = Proof
 module Proof = struct
 
 type nonrec closed_proof_output = closed_proof_output
@@ -2929,7 +2927,7 @@ let program_inference_hook env sigma ev =
     then None
     else
       let c, sigma =
-        Proof_.refine_by_tactic ~name:(Id.of_string "program_subproof")
+        Subproof.refine_by_tactic ~name:(Id.of_string "program_subproof")
           ~poly:PolyFlags.default env sigma concl (Tacticals.tclSOLVE [tac])
       in
       Some (sigma, c)
