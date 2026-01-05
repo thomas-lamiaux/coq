@@ -22,7 +22,7 @@ val refine_by_tactic
     occur. Ideally all code using this function should be rewritten in the
     monad. *)
 
-exception OpenProof of Names.Id.t
+exception OpenProof
 (** XXX This can be raised by {!build_by_tactic}, but you shouldn't rely on it *)
 
 val build_by_tactic :

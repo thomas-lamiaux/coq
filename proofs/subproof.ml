@@ -63,13 +63,12 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
 
 (* Abstract internals *)
 
-exception OpenProof of Id.t
+exception OpenProof
 
 let () = CErrors.register_handler begin function
-| OpenProof pid ->
+| OpenProof ->
   let open Pp in
-  Some (str " (in proof " ++ Names.Id.print pid ++ str "): " ++
-        str "Attempt to save an incomplete proof.")
+  Some (str "Attempt to save an incomplete proof.")
 | _ -> None
 end
 
@@ -111,11 +110,11 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac
     | [_, body, typ] -> body, typ
     | _ -> assert false
     in
-    let () = if not @@ Proof.is_done proof then raise (OpenProof name) in
+    let () = if not @@ Proof.is_done proof then raise OpenProof in
     let evd = Evd.minimize_universes evd in
     let to_constr c = match EConstr.to_constr_opt evd c with
     | Some p -> p
-    | None -> raise (OpenProof name)
+    | None -> raise OpenProof
     in
     let body = to_constr body in
     let typ = to_constr typ in
@@ -132,10 +131,8 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac
   let sigma = Evd.set_universe_context sigma output_ustate in
   (univs, body, typ), status, sigma
 
-let next = let n = ref 0 in fun () -> incr n; !n
-
 let build_by_tactic env ~uctx ~poly ~typ tac =
-  let name = Id.of_string ("temporary_proof"^string_of_int (next())) in
+  let name = Id.of_string "temporary_proof" in
   let sign = Environ.(val_of_named_context (named_context env)) in
   let sigma = Evd.from_ctx uctx in
   let (univs, body, typ), status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in

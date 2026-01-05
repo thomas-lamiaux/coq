@@ -2480,7 +2480,7 @@ let solve_by_tac prg obls i tac =
     let loc = fst obl.obl_location in
     CErrors.user_err ?loc (Lazy.force s)
   (* If the proof is open we absorb the error and leave the obligation open *)
-  | Proof.OpenProof _ | Subproof.OpenProof _ ->
+  | Proof.OpenProof _ | Subproof.OpenProof ->
     None
   | e when CErrors.noncritical e ->
     let err = CErrors.print e in
