@@ -129,8 +129,6 @@ val add_constraints : QGraph.constraint_source -> t -> UnivProblem.Set.t -> t
   @raise UniversesDiffer when universes differ
 *)
 
-val check_qconstraints : t -> UnivProblem.QCumulConstraints.t -> bool
-
 val check_elim_constraints : t -> ElimConstraints.t -> bool
 
 val check_constraints : t -> UnivProblem.Set.t -> bool

@@ -906,18 +906,6 @@ let add_poly_constraints src uctx (qcstrs, ucstrs) =
   let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints src uctx qcstrs cst) uctx.sort_variables in
   { uctx with local; sort_variables }
 
-let check_qconstraints uctx csts =
-  UnivProblem.QCumulConstraints.for_all (fun (l,k,r) ->
-    let l = nf_quality uctx l in
-    let r = nf_quality uctx r in
-    match k with
-    | Eq -> QGraph.check_eq (QState.elims uctx.sort_variables) l r
-    | Leq ->
-      match l, r with
-      | QConstant QProp, QConstant QType -> true
-      | _ -> QGraph.check_eq (QState.elims uctx.sort_variables) l r)
-  csts
-
 let check_elim_constraints uctx csts =
   Sorts.ElimConstraints.for_all (fun (l,k,r) ->
       let l = nf_quality uctx l in

@@ -1191,14 +1191,8 @@ let check_leq evd s s' =
 let check_univ_constraints evd csts =
   UGraph.check_constraints csts (UState.ugraph evd.universes)
 
-let check_qconstraints evd csts =
-  UState.check_qconstraints evd.universes csts
-
 let check_elim_constraints evd csts =
   UState.check_elim_constraints evd.universes csts
-
-let check_quconstraints evd (qcsts,ucsts) =
-  check_qconstraints evd qcsts && check_univ_constraints evd ucsts
 
 let check_poly_constraints evd (qcsts,ucsts) =
   check_elim_constraints evd qcsts && check_univ_constraints evd ucsts
