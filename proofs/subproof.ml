@@ -73,11 +73,6 @@ let () = CErrors.register_handler begin function
 | _ -> None
 end
 
-let universes_of_body_type ~used_univs body typ =
-  let used_univs_typ = Option.cata (Vars.universes_of_constr ~init:used_univs) used_univs typ in
-  let used_univs = Vars.universes_of_constr body ~init:used_univs_typ in
-  used_univs_typ, used_univs
-
 let rec shrink ctx sign c t accu =
   let open Constr in
   let open Vars in
@@ -127,7 +122,8 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac
     (body, typ, Evd.ustate evd)
   in
   let univs =
-    let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body (Some typ) in
+    let used_univs = Vars.universes_of_constr typ in
+    let used_univs = Vars.universes_of_constr body ~init:used_univs in
     let uctx = UState.restrict output_ustate used_univs in
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
