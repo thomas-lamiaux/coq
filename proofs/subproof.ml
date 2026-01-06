@@ -101,8 +101,9 @@ let shrink_entry sign body typ =
   let (body, typ, args) = shrink ctx sign body typ [] in
   body, typ, args
 
-let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
-  let proof = Proof.start ~name ~poly sigma [Global.env_of_context sign, typ] in
+let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly typ tac =
+  let pfenv = Environ.reset_with_named_context sign env in
+  let proof = Proof.start ~name ~poly sigma [pfenv, typ] in
   let proof, status = Proof.solve env (Goal_select.select_nth 1) None tac proof in
   let (body, typ, output_ustate) =
     let Proof.{ entry; sigma = evd } = Proof.data proof in
