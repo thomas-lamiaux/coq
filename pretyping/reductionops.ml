@@ -1664,21 +1664,75 @@ let is_arity env sigma c =
 
 module Infer = struct
 
+open Sorts
+
+let get_algebraic = function
+| Prop | SProp -> assert false
+| Set -> Universe.type0
+| QSort (_, u) | Type u -> u
+
+let is_impredicative_sort = function
+| Prop | SProp -> true
+| _ -> false
+(* Only used for universe level comparisons, so impredicative set is still fine *)
+
+(* XXX Despite their names, we force sort quality equality in the functions
+   below. We should use a different data structure of constraints here *)
+let enforce_eq_sort s1 s2 (qcsts, ucsts as cst) = match s1, s2 with
+| QSort (q1, u1), s2 ->
+  let q2 = quality s2 in
+  let qcsts = Sorts.ElimConstraints.add (QVar q1, Sorts.ElimConstraint.Equal, q2) qcsts in
+  let ucsts = if is_impredicative_sort s2 then ucsts else UnivSubst.enforce_eq u1 (get_algebraic s2) ucsts in
+  (qcsts, ucsts)
+| s1, QSort (q2, u2) ->
+  let q1 = quality s1 in
+  let qcsts = Sorts.ElimConstraints.add (q1, Sorts.ElimConstraint.Equal, QVar q2) qcsts in
+  let ucsts = if is_impredicative_sort s2 then ucsts else UnivSubst.enforce_eq (get_algebraic s1) u2 ucsts in
+  (qcsts, ucsts)
+| (SProp, SProp) | (Prop, Prop) | (Set, Set) -> cst
+| (((Prop | Set | Type _) as s1), (Prop | SProp as s2))
+| ((Prop | SProp as s1), ((Prop | Set | Type _) as s2)) ->
+  raise (UGraph.UniverseInconsistency (None, (Eq, s1, s2, None)))
+| (Set | Type _), (Set | Type _) ->
+  let ucsts' = UnivSubst.enforce_eq (get_algebraic s1) (get_algebraic s2) ucsts in
+  if ucsts == ucsts' then cst else (qcsts, ucsts')
+
+let enforce_leq_alg_sort s1 s2 g = match s1, s2 with
+| QSort (q1, u1), s2 ->
+  let q2 = quality s2 in
+  let qcsts = Sorts.ElimConstraints.singleton (QVar q1, Sorts.ElimConstraint.Equal, q2) in
+  let ucsts, g = if is_impredicative_sort s2 then UnivConstraints.empty, g else UGraph.enforce_leq_alg u1 (get_algebraic s2) g in
+  (qcsts, ucsts), g
+| s1, QSort (q2, u2) ->
+  let q1 = quality s1 in
+  let qcsts = Sorts.ElimConstraints.singleton (q1, Sorts.ElimConstraint.Equal, QVar q2) in
+  let ucsts, g = if is_impredicative_sort s2 then UnivConstraints.empty, g else UGraph.enforce_leq_alg (get_algebraic s1) u2 g  in
+  (qcsts, ucsts), g
+| (SProp, SProp) | (Prop, Prop) | (Set, Set) -> PConstraints.empty, g
+| (Prop, (Set | Type _)) -> PConstraints.empty, g
+| (((Prop | Set | Type _) as s1), (Prop | SProp as s2))
+| ((SProp as s1), ((Prop | Set | Type _) as s2)) ->
+  raise (UGraph.UniverseInconsistency (None, (Le, s1, s2, None)))
+| (Set | Type _), (Set | Type _) ->
+  let ucsts, g = UGraph.enforce_leq_alg (get_algebraic s1) (get_algebraic s2) g in
+  (Sorts.ElimConstraints.empty, ucsts), g
+
 open Conversion
+
 let infer_eq elims (univs, cstrs as cuniv) s s' =
   if UGraph.check_eq_sort elims univs s s' then Result.Ok cuniv
   else try
-    let qcsts', ucstrs' as cstrs' = UnivSubst.enforce_eq_sort s s' UnivProblem.QUConstraints.empty in
-    if QGraph.check_constraints (UnivProblem.QCumulConstraints.to_elims qcsts') elims then
+    let qcsts', ucstrs' as cstrs' = enforce_eq_sort s s' PConstraints.empty in
+    if QGraph.check_constraints qcsts' elims then
       Result.Ok (UGraph.merge_constraints ucstrs' univs, UnivConstraints.union cstrs ucstrs')
     else Result.Error None
   with UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
 
 let infer_leq elims (univs, cstrs as cuniv) s s' =
   if UGraph.check_leq_sort elims univs s s' then Result.Ok cuniv
-  else match UnivSubst.enforce_leq_alg_sort s s' univs with
+  else match enforce_leq_alg_sort s s' univs with
   | (qcsts, ucsts), ugraph ->
-    if QGraph.check_constraints (UnivProblem.QCumulConstraints.to_elims qcsts) elims then
+    if QGraph.check_constraints qcsts elims then
       Result.Ok (univs, UnivConstraints.union cstrs ucsts)
     else Result.Error None
   | exception UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
