@@ -10,7 +10,6 @@
 
 open Util
 open Names
-open Proof
 
 module NamedDecl = Context.Named.Declaration
 
@@ -24,17 +23,17 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
   (* Save the existing goals *)
   let sigma = Evd.push_future_goals sigma in
   (* Start a proof *)
-  let prf = start ~name ~poly sigma [env, ty] in
+  let prf = Proof.start ~name ~poly sigma [env, ty] in
   let (prf, _, ()) =
-    try run_tactic env tac prf
+    try Proof.run_tactic env tac prf
     with Logic_monad.TacticFailure e as src ->
       (* Catch the inner error of the monad tactic *)
       let (_, info) = Exninfo.capture src in
       Exninfo.iraise (e, info)
   in
   (* Plug back the retrieved sigma *)
-  let { goals; stack; sigma; entry } = data prf in
-  assert (stack = []);
+  let Proof.{ goals; stack; sigma; entry } = Proof.data prf in
+  let () = assert (stack = []) in
   let ans = match Proofview.initial_goals entry with
   | [_, c, _] -> c
   | _ -> assert false
