@@ -168,11 +168,6 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
   in
   let (univs, body, typ) = const in
   let sigma = Evd.drop_new_defined ~original:sigma sigma' in
-  (* EJGA: Hack related to the above call to
-     `build_constant_by_tactic` with `~opaque:Transparent`. Even if
-     the abstracted term is destined to be opaque, if we trigger the
-     `if poly && opaque && private_poly_univs ()` in `close_proof`
-     kernel will boom. This deserves more investigation. *)
   let body, typ, args = shrink_entry sign body typ in
   let ts = Environ.oracle env in
   let cst, effs =
