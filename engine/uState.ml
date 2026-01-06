@@ -411,7 +411,16 @@ let merge_univ_constraints uctx cstrs g =
     raise (UGraph.UniverseInconsistency (Some printers, i))
 
 let merge_elim_constraints src uctx cstrs g =
-  try QGraph.merge_constraints src cstrs g
+  try
+    let g = QGraph.merge_constraints cstrs g in
+    match src with
+    | QGraph.Static -> g
+    | QGraph.Internal ->
+      let () = if not (ElimConstraints.is_empty cstrs) then QGraph.check_rigid_paths g in
+      g
+    | QGraph.Rigid ->
+      let fold (q1, _, q2) accu = QGraph.add_rigid_path q1 q2 accu in
+      Sorts.ElimConstraints.fold fold cstrs g
   with QGraph.(EliminationError (QualityInconsistency (_, i))) ->
     let printer = pr_uctx_qvar uctx in
     raise (QGraph.(EliminationError (QualityInconsistency (Some printer, i))))

@@ -55,7 +55,7 @@ type constraint_source =
 
 val merge : t -> t -> t
 
-val merge_constraints : constraint_source -> ElimConstraints.t -> t -> t
+val merge_constraints : ElimConstraints.t -> t -> t
 
 val update_dominance_if_valid : t -> ElimConstraint.t -> t option
 (** Checks if the given constraint satisfies the dominance condition:
@@ -69,7 +69,7 @@ val update_dominance_if_valid : t -> ElimConstraint.t -> t option
 val check_constraint : t -> ElimConstraint.t -> bool
 val check_constraints : ElimConstraints.t -> t -> bool
 
-val enforce_eliminates_to : constraint_source -> Quality.t -> Quality.t -> t -> t
+val enforce_eliminates_to : Quality.t -> Quality.t -> t -> t
 (** Set the first quality to eliminate to the second one in the graph.
 
     If this constraint creates a cycle that violates the constraints,
@@ -90,6 +90,8 @@ val initial_graph : t
     [Quality.Constants.eliminates_to]. *)
 
 val update_rigids : t -> t -> t
+val check_rigid_paths : t -> unit
+val add_rigid_path : Quality.t -> Quality.t -> t -> t
 
 val eliminates_to : t -> Quality.t -> Quality.t -> bool
 

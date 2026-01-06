@@ -477,7 +477,16 @@ let set_qualities g env = {env with env_qualities = g}
 let add_qualities src ctx g =
   let qs, _ = UVars.Instance.to_array (UVars.UContext.instance ctx) in
   let g = Array.fold_right QGraph.add_quality qs g in
-  QGraph.merge_constraints src (UVars.UContext.elim_constraints ctx) g
+  let cstrs = UVars.UContext.elim_constraints ctx in
+  let g = QGraph.merge_constraints cstrs g in
+  match src with
+  | QGraph.Static -> g
+  | QGraph.Internal ->
+    let () = if not (Sorts.ElimConstraints.is_empty cstrs) then QGraph.check_rigid_paths g in
+    g
+  | QGraph.Rigid ->
+    let fold (q1, _, q2) accu = QGraph.add_rigid_path q1 q2 accu in
+    Sorts.ElimConstraints.fold fold cstrs g
 
 let push_context ?(strict=false) src ctx env =
   let env = map_qualities (add_qualities src ctx) env in
@@ -498,7 +507,18 @@ let push_qualities src (qs, qcsts) env =
   let () = assert Sorts.QVar.Set.(is_empty @@ inter qs (QGraph.qvar_domain env.env_qualities)) in
   let fold v = QGraph.add_quality (Sorts.Quality.QVar v) in
   let g = Sorts.QVar.Set.fold fold qs env.env_qualities in
-  map_qualities (fun g -> QGraph.merge_constraints src qcsts g) @@ set_qualities g env
+  let merge g =
+    let g = QGraph.merge_constraints qcsts g in
+    match src with
+    | QGraph.Static -> g
+    | QGraph.Internal ->
+      let () = if not (Sorts.ElimConstraints.is_empty qcsts) then QGraph.check_rigid_paths g in
+      g
+    | QGraph.Rigid ->
+      let fold (q1, _, q2) accu = QGraph.add_rigid_path q1 q2 accu in
+      Sorts.ElimConstraints.fold fold qcsts g
+  in
+  map_qualities merge @@ set_qualities g env
 
 let push_subgraph (levels, univ_csts) env =
   let add_subgraph g =
