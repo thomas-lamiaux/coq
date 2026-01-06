@@ -10,7 +10,6 @@
 
 open Util
 open Names
-open Proof
 
 module NamedDecl = Context.Named.Declaration
 
@@ -24,17 +23,17 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
   (* Save the existing goals *)
   let sigma = Evd.push_future_goals sigma in
   (* Start a proof *)
-  let prf = start ~name ~poly sigma [env, ty] in
+  let prf = Proof.start ~name ~poly sigma [env, ty] in
   let (prf, _, ()) =
-    try run_tactic env tac prf
+    try Proof.run_tactic env tac prf
     with Logic_monad.TacticFailure e as src ->
       (* Catch the inner error of the monad tactic *)
       let (_, info) = Exninfo.capture src in
       Exninfo.iraise (e, info)
   in
   (* Plug back the retrieved sigma *)
-  let { goals; stack; sigma; entry } = data prf in
-  assert (stack = []);
+  let Proof.{ goals; stack; sigma; entry } = Proof.data prf in
+  let () = assert (stack = []) in
   let ans = match Proofview.initial_goals entry with
   | [_, c, _] -> c
   | _ -> assert false
@@ -63,20 +62,14 @@ let refine_by_tactic ~name ~poly env sigma ty tac =
 
 (* Abstract internals *)
 
-exception OpenProof of Id.t
+exception OpenProof
 
 let () = CErrors.register_handler begin function
-| OpenProof pid ->
+| OpenProof ->
   let open Pp in
-  Some (str " (in proof " ++ Names.Id.print pid ++ str "): " ++
-        str "Attempt to save an incomplete proof.")
+  Some (str "Attempt to save an incomplete proof.")
 | _ -> None
 end
-
-let universes_of_body_type ~used_univs body typ =
-  let used_univs_typ = Option.cata (Vars.universes_of_constr ~init:used_univs) used_univs typ in
-  let used_univs = Vars.universes_of_constr body ~init:used_univs_typ in
-  used_univs_typ, used_univs
 
 let rec shrink ctx sign c t accu =
   let open Constr in
@@ -107,8 +100,9 @@ let shrink_entry sign body typ =
   let (body, typ, args) = shrink ctx sign body typ [] in
   body, typ, args
 
-let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac =
-  let proof = Proof.start ~name ~poly sigma [Global.env_of_context sign, typ] in
+let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly typ tac =
+  let pfenv = Environ.reset_with_named_context sign env in
+  let proof = Proof.start ~name ~poly sigma [pfenv, typ] in
   let proof, status = Proof.solve env (Goal_select.select_nth 1) None tac proof in
   let (body, typ, output_ustate) =
     let Proof.{ entry; sigma = evd } = Proof.data proof in
@@ -116,18 +110,19 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac
     | [_, body, typ] -> body, typ
     | _ -> assert false
     in
-    let () = if not @@ Proof.is_done proof then raise (OpenProof name) in
+    let () = if not @@ Proof.is_done proof then raise OpenProof in
     let evd = Evd.minimize_universes evd in
     let to_constr c = match EConstr.to_constr_opt evd c with
     | Some p -> p
-    | None -> raise (OpenProof name)
+    | None -> raise OpenProof
     in
     let body = to_constr body in
     let typ = to_constr typ in
     (body, typ, Evd.ustate evd)
   in
   let univs =
-    let _, used_univs = universes_of_body_type ~used_univs:Univ.Level.Set.empty body (Some typ) in
+    let used_univs = Vars.universes_of_constr typ in
+    let used_univs = Vars.universes_of_constr body ~init:used_univs in
     let uctx = UState.restrict output_ustate used_univs in
     UState.check_univ_decl ~poly uctx UState.default_univ_decl
   in
@@ -136,10 +131,8 @@ let build_constant_by_tactic ~name ~sigma ~env ~sign ~poly (typ : EConstr.t) tac
   let sigma = Evd.set_universe_context sigma output_ustate in
   (univs, body, typ), status, sigma
 
-let next = let n = ref 0 in fun () -> incr n; !n
-
 let build_by_tactic env ~uctx ~poly ~typ tac =
-  let name = Id.of_string ("temporary_proof"^string_of_int (next())) in
+  let name = Id.of_string "temporary_proof" in
   let sign = Environ.(val_of_named_context (named_context env)) in
   let sigma = Evd.from_ctx uctx in
   let (univs, body, typ), status, sigma = build_constant_by_tactic ~name ~env ~sigma ~sign ~poly typ tac in
@@ -152,6 +145,10 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
   let body, ctx = Safe_typing.inline_private_constants env ((body, Univ.ContextSet.empty), effs) in
   let _uctx = UState.merge_universe_context ~sideff:true Evd.univ_rigid uctx ctx in
   body, typ, univs, status, uctx
+
+let build_by_tactic_opt env ~uctx ~poly ~typ tac =
+  try Some (build_by_tactic env ~uctx ~poly ~typ tac)
+  with OpenProof -> None
 
 let extract_monomorphic = function
   | UState.Monomorphic_entry ctx ->
@@ -171,11 +168,6 @@ let declare_abstract ~name ~poly ~sign ~secsign ~opaque ~solve_tac env sigma con
   in
   let (univs, body, typ) = const in
   let sigma = Evd.drop_new_defined ~original:sigma sigma' in
-  (* EJGA: Hack related to the above call to
-     `build_constant_by_tactic` with `~opaque:Transparent`. Even if
-     the abstracted term is destined to be opaque, if we trigger the
-     `if poly && opaque && private_poly_univs ()` in `close_proof`
-     kernel will boom. This deserves more investigation. *)
   let body, typ, args = shrink_entry sign body typ in
   let ts = Environ.oracle env in
   let cst, effs =

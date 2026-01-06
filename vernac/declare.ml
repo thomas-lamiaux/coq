@@ -2470,18 +2470,18 @@ let solve_by_tac prg obls i tac =
   (* the status of [build_by_tactic] is dropped. *)
   try
     let env = Global.env () in
-    let body, types, _univs, _, uctx =
-      Subproof.build_by_tactic env ~uctx ~poly ~typ:(EConstr.of_constr obl.obl_type) tac in
-    Inductiveops.control_only_guard env (Evd.from_ctx uctx) (EConstr.of_constr body);
-    Some (body, types, uctx)
+    let typ = EConstr.of_constr obl.obl_type in
+    (* If the proof is open we absorb the error and leave the obligation open *)
+    match Subproof.build_by_tactic_opt env ~uctx ~poly ~typ tac with
+    | None -> None
+    | Some (body, types, _univs, _, uctx) ->
+      let () = Inductiveops.control_only_guard env (Evd.from_ctx uctx) (EConstr.of_constr body) in
+      Some (body, types, uctx)
   with
   | Tacticals.FailError (_, s) as exn ->
     let _ = Exninfo.capture exn in
     let loc = fst obl.obl_location in
     CErrors.user_err ?loc (Lazy.force s)
-  (* If the proof is open we absorb the error and leave the obligation open *)
-  | Proof.OpenProof _ | Subproof.OpenProof _ ->
-    None
   | e when CErrors.noncritical e ->
     let err = CErrors.print e in
     let loc = fst obl.obl_location in
