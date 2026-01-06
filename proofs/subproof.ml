@@ -146,6 +146,10 @@ let build_by_tactic env ~uctx ~poly ~typ tac =
   let _uctx = UState.merge_universe_context ~sideff:true Evd.univ_rigid uctx ctx in
   body, typ, univs, status, uctx
 
+let build_by_tactic_opt env ~uctx ~poly ~typ tac =
+  try Some (build_by_tactic env ~uctx ~poly ~typ tac)
+  with OpenProof -> None
+
 let extract_monomorphic = function
   | UState.Monomorphic_entry ctx ->
     Entries.Monomorphic_entry, ctx

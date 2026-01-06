@@ -22,9 +22,6 @@ val refine_by_tactic
     occur. Ideally all code using this function should be rewritten in the
     monad. *)
 
-exception OpenProof
-(** XXX This can be raised by {!build_by_tactic}, but you shouldn't rely on it *)
-
 val build_by_tactic :
   Environ.env ->
   uctx:UState.t -> poly:PolyFlags.t ->
@@ -32,6 +29,14 @@ val build_by_tactic :
   unit Proofview.tactic ->
   Constr.constr * Constr.types * UState.named_universes_entry * bool * UState.t
 (** Semantics of this function is a bit dubious, use with care *)
+
+val build_by_tactic_opt :
+  Environ.env ->
+  uctx:UState.t -> poly:PolyFlags.t ->
+  typ:EConstr.types ->
+  unit Proofview.tactic ->
+  (Constr.constr * Constr.types * UState.named_universes_entry * bool * UState.t) option
+(** Same as above but returns None rather than an exception if the proof is not finished *)
 
 val declare_abstract :
   name:Names.Id.t ->
