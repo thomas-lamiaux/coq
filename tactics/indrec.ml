@@ -57,7 +57,7 @@ let paramdecls_fresh_template sigma (mib,u) =
         templ.template_param_arguments
     in
     let csts, params, _ = Inductive.instantiate_template_universes mib univs in
-    let sigma = Evd.add_poly_constraints QGraph.Internal sigma csts in
+    let sigma = Evd.add_poly_constraints ~src:UState.Internal sigma csts in
     sigma, EConstr.of_rel_context params
 
 (* ************************************************************************** *)

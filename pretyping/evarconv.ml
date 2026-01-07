@@ -460,7 +460,7 @@ let compare_heads pbty env evd ~nargs term term' =
   let check_strict evd u u' =
     let cstrs = UVars.enforce_eq_instances u u' PConstraints.empty in
     (* source does not matter because no elimination constraints *)
-    try Success (Evd.add_poly_constraints QGraph.Static evd cstrs)
+    try Success (Evd.add_poly_constraints ~src:UState.Static evd cstrs)
     with UGraph.UniverseInconsistency p -> UnifFailure (evd, UnifUnivInconsistency p)
   in
   match EConstr.kind evd term, EConstr.kind evd term' with

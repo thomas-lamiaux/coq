@@ -117,14 +117,25 @@ val nf_relevance : t -> relevance -> relevance
 
 (** {5 UnivConstraints handling} *)
 
+type constraint_source =
+| Internal
+| Rigid
+| Static
+(** On an [Internal] enforcement, checks whether a path is created
+    between two ground/global sorts.
+    The [Rigid] [constraint_source] should be used for constraints entered by
+    the user. It allows to create paths between ground/global sorts, but
+    disables path creation between two ground sorts.
+    No additional check is performed on a [Static] constraint. *)
+
 val add_univ_constraints : t -> Univ.UnivConstraints.t -> t
 (**
   @raise UniversesDiffer when universes differ
 *)
 
-val add_poly_constraints : QGraph.constraint_source -> t -> PConstraints.t -> t
+val add_poly_constraints : ?src:constraint_source -> t -> PConstraints.t -> t
 
-val add_constraints : QGraph.constraint_source -> t -> UnivProblem.Set.t -> t
+val add_constraints : ?src:constraint_source -> t -> UnivProblem.Set.t -> t
 (**
   @raise UniversesDiffer when universes differ
 *)
@@ -174,7 +185,7 @@ val univ_rigid : rigid
 val univ_flexible : rigid
 val univ_flexible_alg : rigid
 
-val merge_sort_context : ?loc:Loc.t -> sideff:bool -> rigid -> QGraph.constraint_source -> t -> UnivGen.sort_context_set -> t
+val merge_sort_context : ?loc:Loc.t -> ?src:constraint_source -> sideff:bool -> rigid -> t -> UnivGen.sort_context_set -> t
 val merge_universe_context : ?loc:Loc.t -> sideff:bool -> rigid -> t -> Univ.ContextSet.t -> t
 
 val demote_global_univs : Univ.ContextSet.t -> t -> t

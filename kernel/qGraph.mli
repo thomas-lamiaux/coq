@@ -48,11 +48,6 @@ val add_quality : Quality.t -> t -> t
     a constraint or calling [eliminates_to].
     Forces [Type] to eliminate to this quality. *)
 
-type constraint_source =
-  | Internal
-  | Rigid
-  | Static
-
 val merge : t -> t -> t
 
 val merge_constraints : ElimConstraints.t -> t -> t
@@ -73,13 +68,7 @@ val enforce_eliminates_to : Quality.t -> Quality.t -> t -> t
 (** Set the first quality to eliminate to the second one in the graph.
 
     If this constraint creates a cycle that violates the constraints,
-    [QualityInconsistency] is raised.
-    On an [Internal] enforcement, it also checks whether a path is created
-    between two ground/global sorts.
-    The [Rigid] [constraint_source] should be used for constraints entered by
-    the user. It allows to create paths between ground/global sorts, but
-    disables path creation between two ground sorts.
-    No additional check is performed on a [Static] constraint. *)
+    [QualityInconsistency] is raised. *)
 
 val enforce_eq : Quality.t -> Quality.t -> t -> t
 (** Set the first quality equal to the second one in the graph.

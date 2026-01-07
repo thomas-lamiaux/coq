@@ -117,11 +117,6 @@ let enforce_func k =
   | ElimConstraint.ElimTo -> G.enforce_leq
   | ElimConstraint.Equal -> G.enforce_eq
 
-type constraint_source =
-  | Internal
-  | Rigid
-  | Static
-
 type elimination_error =
   | IllegalConstraint
   | CreatesForbiddenPath of Quality.t * Quality.t
