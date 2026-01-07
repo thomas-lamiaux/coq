@@ -1176,8 +1176,9 @@ let rec explain_pretype_error env sigma err =
   | CannotUnifyOccurrences (b,c1,c2) -> explain_cannot_unify_occurrences env sigma b c1 c2
   | UnsatisfiableConstraints (c,comp) -> explain_unsatisfiable_constraints env sigma c comp
   | NotAllowedSProp -> explain_not_allowed_sprop ()
-  | NotAllowedElimination (isrec, k, (ind,u)) -> explain_elim_arity env sigma (ind, (EConstr.EInstance.kind sigma u))
-                                                  None (Some (EConstr.ESorts.kind sigma k))
+  | NotAllowedElimination (isrec, k, (ind,u)) ->
+    explain_elim_arity env sigma (ind, (EConstr.EInstance.kind sigma u))
+      None (Some (EConstr.ESorts.kind sigma k))
   | NotAllowedDependentElimination (isrec, i) -> explain_not_allowed_dependent_eliminitation env isrec i
 
 (* Module errors *)
