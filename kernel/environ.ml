@@ -474,22 +474,13 @@ let add_universes ~strict ctx g =
 
 let set_qualities g env = {env with env_qualities = g}
 
-let add_qualities src ctx g =
+let add_qualities ctx g =
   let qs, _ = UVars.Instance.to_array (UVars.UContext.instance ctx) in
   let g = Array.fold_right QGraph.add_quality qs g in
-  let cstrs = UVars.UContext.elim_constraints ctx in
-  let g = QGraph.merge_constraints cstrs g in
-  match src with
-  | QGraph.Static -> g
-  | QGraph.Internal ->
-    let () = if not (Sorts.ElimConstraints.is_empty cstrs) then QGraph.check_rigid_paths g in
-    g
-  | QGraph.Rigid ->
-    let fold (q1, _, q2) accu = QGraph.add_rigid_path q1 q2 accu in
-    Sorts.ElimConstraints.fold fold cstrs g
+  QGraph.merge_constraints (UVars.UContext.elim_constraints ctx) g
 
-let push_context ?(strict=false) src ctx env =
-  let env = map_qualities (add_qualities src ctx) env in
+let push_context ?(strict=false) ctx env =
+  let env = map_qualities (add_qualities ctx) env in
   map_universes (add_universes ~strict ctx) env
 
 let add_universes_set ~strict (lvl, cstr) g =
@@ -1081,7 +1072,11 @@ module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
 
 module Internal = struct
   let push_template_context uctx env =
-    let env = push_context ~strict:false QGraph.Internal uctx env in
+    let env = push_context ~strict:false uctx env in
+    let () =
+      if not (Sorts.ElimConstraints.is_empty @@ UVars.UContext.elim_constraints uctx) then
+        QGraph.check_rigid_paths env.env_qualities
+    in
     let (qvars, _), _ = UVars.UContext.to_context_set uctx in
     let env = map_universes (UGraph.Internal.add_template_qvars qvars) env in
     env

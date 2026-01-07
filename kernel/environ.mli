@@ -379,8 +379,8 @@ val check_univ_constraints : Univ.UnivConstraints.t -> env -> bool
 val check_constraints : PConstraints.t -> env -> bool
 (** Check constraints are satifiable in the environment. *)
 
-val push_context : ?strict:bool -> QGraph.constraint_source -> UContext.t -> env -> env
-(** [push_context ?(strict=false) src ctx env] pushes the universe context to the environment.
+val push_context : ?strict:bool -> UContext.t -> env -> env
+(** [push_context ?(strict=false) ctx env] pushes the universe context to the environment.
     @raise UGraph.AlreadyDeclared if one of the universes is already declared. *)
 
 val push_context_set : ?strict:bool -> Univ.ContextSet.t -> env -> env

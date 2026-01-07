@@ -693,8 +693,12 @@ let push_section_context uctx senv =
   let () = assert (Sorts.QVar.Set.for_all Sorts.QVar.is_global (fst qctx)) in
   let () = assert Sorts.QVar.Set.(is_empty (inter (fst qctx) (fst senv.qualities))) in
   (* push_context checks freshness *)
+  let env = Environ.push_context_set ~strict:false ctx senv.env in
+  (* FIXME: check validity of the sort context *)
+  (* FIXME: marking the section-local sorts as rigid makes little sense *)
+  let env = Environ.push_qualities QGraph.Rigid qctx env in
   { senv with
-    env = Environ.push_context ~strict:false QGraph.Rigid uctx senv.env;
+    env;
     univ = Univ.ContextSet.union ctx senv.univ ;
     qualities = Sorts.QContextSet.union qctx senv.qualities }
 
