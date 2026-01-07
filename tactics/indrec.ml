@@ -65,7 +65,7 @@ let paramdecls_fresh_template sigma (mib,u) =
 (* ************************************************************************** *)
 
 let (let@) x f = x f
-let (let*) x f = fun s -> let a = x s in f a s
+let (let*) x f = State.bind x f
 
 type elim_info = int * one_inductive_body * bool * Evd.esorts
 
@@ -85,8 +85,8 @@ type arg =
 let view_arg kname mdecl t : arg State.t =
   let* env = get_env in
   let* sigma = get_sigma in
-  let (cxt, hd) = Reductionops.whd_decompose_prod_decls env sigma t in
-  let (hd, iargs) = decompose_app sigma hd in
+  let* (cxt, hd) = whd_decompose_prod_decls t in
+  let* (hd, iargs) = decompose_app hd in
   match kind sigma hd with
   (* If it is nested *)
   | Ind ((kname_indb, pos_indb), _) ->
@@ -123,12 +123,12 @@ let get_params_sep sigma mdecl u =
 
 (** Closure of uniform parameters forgetting letins *)
 let closure_uparams binder naming_scheme uparams cc =
-  closure_context_sep binder Old naming_scheme uparams (fun (x,_,_) -> cc x)
+  closure_context fid binder Old naming_scheme uparams cc
 
 (** Closure of non-uniform parameters if [b], forgetting letins  *)
 let closure_nuparams_opt b binder naming_scheme nuparams =
     if b
-    then fun cc -> closure_context_sep binder Old naming_scheme nuparams (fun (x,_,_) -> cc (Some x))
+    then fun cc -> closure_context fid binder Old naming_scheme nuparams (fun x -> cc (Some x))
     else fun cc -> cc None
 
 (** Closure of non-uniform parameters if [key_uparams_opt = None], forgetting letins  *)
@@ -152,7 +152,7 @@ let ind_relevance ind u = ERelevance.make @@ relevance_of_ind_body ind (EConstr.
 (** Closure for indices. They are considered as [Fresh] as tey are not in the context of the arguments *)
 let closure_indices binder naming_scheme indb u f =
   let* i = get_indices indb u in
-  closure_context_sep binder Fresh naming_scheme i f
+  closure_context_sep fid binder Fresh naming_scheme i f
 
 (* Convention for comments:
   - A1 ... An : uniform parameters = uparams
@@ -172,7 +172,7 @@ let make_type_pred kn u (pos_ind, ind, dep, sort) key_uparams nuparams key_nupar
   (* DEP: bind the inductive, and return the sort *)
   let name_ind = make_annot Anonymous (ind_relevance ind u) in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
-  let@ _ = make_binder Prod naming_hd_fresh name_ind tind in
+  let@ _ = make_binder fid Prod naming_hd_fresh name_ind tind in
   return @@ mkSort sort
 
 (** Closure Predicates *)
@@ -180,7 +180,7 @@ let closure_preds kn u ind_bodies binder key_uparams nuparams key_nuparams_opt c
   fold_right_state (fun a l -> a :: l) ind_bodies (fun _ ind cc ->
     let name_pred = make_annot (Name (Id.of_string "P")) ERelevance.relevant in
     let* ty_pred = make_type_pred kn u ind key_uparams nuparams key_nuparams_opt in
-    make_binder binder naming_hd_fresh name_pred ty_pred cc
+    make_binder fid binder naming_hd_fresh name_pred ty_pred cc
   ) cc
 
  (** Make the predicate P B0 ... Bm i0 ... il t *)
@@ -205,10 +205,10 @@ let make_rec_call kn mdecl ind_bodies key_preds key_arg ty =
       Some (
         relevance_of_sort sort,
         (* Pi B0 ... Bm i0 ... il (x a0 ... an) *)
-        let@ (key_locals, _, _) = closure_context_sep Prod Fresh naming_id loc in
+        let@ (key_locals, _, _) = closure_context_sep fid Prod Fresh naming_id loc in
         let* arg = get_term key_arg in
         let* loc = get_terms key_locals in
-        let arg = mkApp (arg , Array.of_list loc) in
+        let arg = mkApp (arg, loc) in
         make_pred true key_preds pred_pos pred_dep inst_nuparams inst_indices arg
       )
     end
@@ -223,7 +223,7 @@ let make_rec_call_cc rec_hyp kn mdecl ind_bodies key_preds _ key_arg cc =
     | Some (rec_hyp_rev, rec_hyp_ty) ->
         let name_rec_hyp = make_annot Anonymous rec_hyp_rev in
         let* rec_hyp_ty = rec_hyp_ty in
-        let@ _ = make_binder Prod naming_id name_rec_hyp rec_hyp_ty in
+        let@ _ = make_binder fid Prod naming_id name_rec_hyp rec_hyp_ty in
         cc [key_arg]
     | _ -> cc [key_arg]
   else cc [key_arg]
@@ -231,7 +231,7 @@ let make_rec_call_cc rec_hyp kn mdecl ind_bodies key_preds _ key_arg cc =
 (** Closure of the args, and of the rec call if [rec_hyp], and if any *)
 let closure_args_and_rec_call rec_hyp kn u mdecl ind_bodies dep key_preds args =
   read_by_decl args
-    (build_binder Prod Old (naming_hd_dep dep))
+    (build_binder fid Prod Old (naming_hd_dep dep))
     (fun _ _ cc -> cc [])
     (make_rec_call_cc rec_hyp kn mdecl ind_bodies key_preds)
 
@@ -248,10 +248,8 @@ let make_type_ctor kn u mdecl ind_bodies pos_list (pos_ind, ind, dep, sort) pos_
   let* cst = make_cst ((kn, pos_ind), u) pos_ctor key_uparams key_nuparams k in
   (* make pred cst *)
   let* inst_nuparams = get_terms key_nuparams in
-  let* state = get_state in
-  let weaken a = weaken a state in
-  let inst_indices = Array.map weaken indices in
-  make_pred rec_hyp key_preds pos_list dep (Array.of_list inst_nuparams) inst_indices cst
+  let* inst_indices = array_mapi (fun _ -> weaken) indices in
+  make_pred rec_hyp key_preds pos_list dep inst_nuparams inst_indices cst
 
 (** Closure assumptions functions over all the ctors *)
 let closure_ctors rec_hyp kn mdecl u ind_bodies binder key_uparams nuparams key_nuparams_opt key_preds =
@@ -261,7 +259,7 @@ let closure_ctors rec_hyp kn mdecl u ind_bodies binder key_uparams nuparams key_
       fun pos_ctor ctor cc ->
       let name_assumption = make_annot (Name ind.mind_consnames.(pos_ctor)) (relevance_of_sort sort) in
       let* fct = make_type_ctor kn u mdecl ind_bodies pos_list (pos_ind, ind, dep, sort) pos_ctor ctor key_uparams nuparams key_nuparams_opt key_preds in
-      make_binder binder naming_hd_fresh name_assumption fct cc
+      make_binder fid binder naming_hd_fresh name_assumption fct cc
     ) cc
   )
 
@@ -271,7 +269,7 @@ let make_ccl rec_hyp key_preds focus dep key_nuparams key_indices key_VarMatch =
   let* x = get_terms key_nuparams in
   let* y = get_terms key_indices in
   let* var = get_term key_VarMatch in
-  make_pred rec_hyp key_preds focus dep (Array.of_list x) (Array.of_list y) var
+  make_pred rec_hyp key_preds focus dep x y var
 
 (** Make the return type
     forall (B0 ... Bm : nuparams),
@@ -284,12 +282,12 @@ let make_return_type kn u ind_bodies focus key_uparams nuparams key_nuparams_opt
   let@ (key_indices , _, _) = closure_indices Prod naming_hd_fresh ind u in
   let name_ind = make_annot Anonymous (ind_relevance ind u) in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
-  let@ (key_VarMatch) = make_binder Prod naming_hd_fresh name_ind tind in
+  let@ (key_VarMatch) = make_binder fid Prod naming_hd_fresh name_ind tind in
   let rec_hyp = Option.is_empty key_nuparams_opt in
   make_ccl rec_hyp key_preds focus dep key_nuparams key_indices key_VarMatch
 
 (** Generate the type of the recursor, useful for debugging *)
-let gen_elim_type print_constr rec_hyp env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
+let gen_elim_type print_constr rec_hyp kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
 
   dbg Pp.(fun () -> str "\n------------------------------------------------------------- \n"
     ++ str (MutInd.to_string kn) ++ str " ## pos_ind = " ++ int focus
@@ -302,9 +300,12 @@ let gen_elim_type print_constr rec_hyp env sigma kn u mdecl uparams nuparams (in
     let@ key_ctors = closure_ctors rec_hyp kn mdecl u ind_bodies Prod key_uparams nuparams key_nuparams_opt key_preds in
     make_return_type kn u ind_bodies focus key_uparams nuparams key_nuparams_opt key_preds
   in
-  let x = t @@ State.make env sigma in
-  dbg Pp.(fun () -> print_constr env sigma x ++ str "\n");
-  x
+  (* DEBUG *)
+  let* t = t in
+  let* env = get_env in
+  let* sigma = get_sigma in
+  dbg Pp.(fun () -> print_constr env sigma t ++ str "\n");
+  return t
 
 (** Compute the recursive call *)
 let make_rec_call kn mdecl ind_bodies key_fixs key_arg ty : ((constr State.t) option) State.t =
@@ -317,12 +318,12 @@ let make_rec_call kn mdecl ind_bodies key_fixs key_arg ty : ((constr State.t) op
       | Some (pred_pos, _) ->
       return @@ Some (
         (* Fi B0 ... Bm i0 ... il (x a0 ... an) *)
-        let@ (key_locals, _, _) = closure_context_sep Lambda Fresh naming_id loc in
+        let@ (key_locals, _, _) = closure_context_sep fid Lambda Fresh naming_id loc in
         let* kpos = geti_term key_fixs pred_pos in
         let fix = mkApp (kpos, (Array.append inst_nuparams inst_indices)) in
         let* karg = get_term key_arg in
         let* kloc = get_terms key_locals in
-        let arg = mkApp (karg, Array.of_list kloc) in
+        let arg = mkApp (karg, kloc) in
         return @@ mkApp (fix, [| arg |])
       )
     end
@@ -341,7 +342,7 @@ let compute_args_fix kn mdecl ind_bodies pos_list key_fixs key_args =
       | None -> return @@ karg' :: t
   ) 0 key_args (return [])
 
-let gen_elim_term print_constr (rec_hyp : bool) env sigma kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
+let gen_elim_term print_constr (rec_hyp : bool) kn u mdecl uparams nuparams (ind_bodies : elim_info list) (focus : int) =
 
   let t =
 
@@ -367,12 +368,12 @@ let gen_elim_term print_constr (rec_hyp : bool) env sigma kn u mdecl uparams nup
   let@ (key_indices , _, _) = closure_indices Lambda naming_hd_fresh ind u in
   let name_ind = make_annot Anonymous (ind_relevance ind u) in
   let* tind = make_ind ((kn, pos_ind), u) key_uparams key_nuparams key_indices in
-  let@ key_VarMatch = make_binder Lambda naming_hd_fresh name_ind tind in
+  let@ key_VarMatch = make_binder fid Lambda naming_hd_fresh name_ind tind in
   let ccl =
   (* 4 Match to prove P ... x *)
     let* xup = get_terms key_uparams in
     let* xnup = get_terms key_nuparams in
-    let params = Array.of_list (xup @ xnup) in
+    let params = Array.concat [xup; xnup] in
     let case_pred = make_ccl rec_hyp key_preds pos_list dep key_nuparams in
     let* xmatch = get_term key_VarMatch in
     let* xind = get_terms key_indices in
@@ -385,10 +386,10 @@ let gen_elim_term print_constr (rec_hyp : bool) env sigma kn u mdecl uparams nup
     if rec_hyp
     (* REC: apply to nuparams + args + rec call *)
     then let* cfix = compute_args_fix kn mdecl ind_bodies pos_list key_fixs key_args in
-          return @@ mkApp (hyp, Array.of_list (xnup @ cfix))
+          return @@ mkApp (hyp, Array.concat [xnup ; Array.of_list cfix])
     (* NOT REC : apply to args *)
     else let* args = get_terms key_args in
-          return @@ mkApp (hyp, Array.of_list args)
+          return @@ mkApp (hyp, args)
 
   in
   (* 6. If it is not-recursive, has primitive projections and is dependent => add a cast *)
@@ -400,9 +401,12 @@ let gen_elim_term print_constr (rec_hyp : bool) env sigma kn u mdecl uparams nup
   return @@ mkCast (ccl, DEFAULTcast, ty)
 
   in
-  let t = t @@ State.make env sigma in
+  (* DEBUG *)
+  let* t = t in
+  let* env = get_env in
+  let* sigma = get_sigma in
   dbg Pp.(fun () -> print_constr env sigma t ++ str "\n");
-  t
+  return t
 
 
 (**********************************************************************)
@@ -423,8 +427,7 @@ let check_valid_elimination env sigma (kn, n) mib u lrecspec rec_hyp =
       raise (Pretype_errors.error_not_allowed_dependent_elimination env sigma rec_hyp (kni, ni))
   ) lrecspec
 
-
-(** Check all the blocks are mutual, and not given twice *)
+  (** Check all the blocks are mutual, and not given twice *)
 let check_valid_mutual env sigma (kn, n) mib u lrecspec =
   let _ : int list =
     List.fold_left (fun ln ((kni, ni),dep,s) ->
@@ -447,25 +450,32 @@ let build_mutual_induction_scheme_gen rec_hyp env sigma lrecspec u =
       let () = check_valid_mutual env sigma mind mib u tail in
       let () = check_valid_elimination env sigma mind mib u lrecspec rec_hyp in
       (* Compute values for gen_elim *)
-      let listdepkind = (snd mind, mip, dep, s) :: List.map (fun ((_,ni), dep, s) -> (ni, mib.mind_packets.(ni), dep, s)) tail in
+      let listdepkind = (snd mind, mip, dep, s) ::
+        List.map (fun ((_,ni), dep, s) -> (ni, mib.mind_packets.(ni), dep, s)) tail in
       (* Get parameters, and generalized them for UnivPoly + TemplatePoly *)
       let (sigma, uparams, nuparams) = get_params_sep sigma mib u in
       (* Compute eliminators' types and terms *)
-      let recs_ty = List.init (List.length listdepkind)
-        (gen_elim_type Termops.Internal.print_constr_env rec_hyp env sigma (fst mind) u mib uparams nuparams listdepkind) in
-      let recs_tm = List.init (List.length listdepkind)
-        (gen_elim_term Termops.Internal.print_constr_env rec_hyp env sigma (fst mind) u mib uparams nuparams listdepkind) in
-      (sigma, recs_ty, recs_tm)
+      let f =
+        let* recs_ty = list_mapi
+          (fun i _ -> gen_elim_type Termops.Internal.print_constr_env rec_hyp (fst mind) u mib uparams nuparams listdepkind i)
+          (List.init (List.length listdepkind) (fun _ -> 2))
+        in
+        let* recs_tm = list_mapi
+          (fun i _ -> gen_elim_term Termops.Internal.print_constr_env rec_hyp (fst mind) u mib uparams nuparams listdepkind i)
+          (List.init (List.length listdepkind) (fun _ -> 2))
+        in
+        return @@ (recs_ty, recs_tm)
+      in run env sigma f
   | _ -> anomaly (Pp.str "build_mutual_induction_scheme expects a non empty list of inductive types.")
 
 let build_mutual_induction_scheme env sigma ?(force_mutual=false) lrecspec u =
-  let (sigma, _, recs_tm) = build_mutual_induction_scheme_gen true env sigma lrecspec u in
+  let (sigma, (_, recs_tm)) = build_mutual_induction_scheme_gen true env sigma lrecspec u in
   sigma, recs_tm
 
 let build_induction_scheme env sigma (ind, u) dep kind =
-  let (sigma, _, recs_tm) = build_mutual_induction_scheme_gen true env sigma [(ind, dep, kind)] u in
+  let (sigma, (_, recs_tm)) = build_mutual_induction_scheme_gen true env sigma [(ind, dep, kind)] u in
   (sigma, List.hd recs_tm)
 
 let build_case_analysis_scheme env sigma (ind, u) dep kind =
-  let (sigma, recs_ty, recs_tm) = build_mutual_induction_scheme_gen false env sigma [(ind, dep, kind)] u in
+  let (sigma, (recs_ty, recs_tm)) = build_mutual_induction_scheme_gen false env sigma [(ind, dep, kind)] u in
   (sigma, List.hd recs_tm, List.hd recs_ty)
