@@ -494,20 +494,16 @@ let add_universes_set ~strict (lvl, cstr) g =
 let push_context_set ?(strict=false) ctx env =
   map_universes (add_universes_set ~strict ctx) env
 
-let push_qualities src (qs, qcsts) env =
+let push_qualities ~rigid (qs, qcsts) env =
   let () = assert Sorts.QVar.Set.(is_empty @@ inter qs (QGraph.qvar_domain env.env_qualities)) in
   let fold v = QGraph.add_quality (Sorts.Quality.QVar v) in
   let g = Sorts.QVar.Set.fold fold qs env.env_qualities in
   let merge g =
     let g = QGraph.merge_constraints qcsts g in
-    match src with
-    | QGraph.Static -> g
-    | QGraph.Internal ->
-      let () = if not (Sorts.ElimConstraints.is_empty qcsts) then QGraph.check_rigid_paths g in
-      g
-    | QGraph.Rigid ->
+    if rigid then
       let fold (q1, _, q2) accu = QGraph.add_rigid_path q1 q2 accu in
       Sorts.ElimConstraints.fold fold qcsts g
+    else g
   in
   map_qualities merge @@ set_qualities g env
 
