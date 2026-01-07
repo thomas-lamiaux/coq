@@ -302,7 +302,7 @@ val whd_betaiota_deltazeta_for_iota_state :
   TransparentState.t -> ?metas:meta_handler -> state_reduction_function
 
 exception PatternFailure
-val apply_rules : (state -> state) -> env -> evar_map -> EInstance.t ->
+val apply_rules : (rel_context -> state -> state) -> env -> evar_map -> EInstance.t ->
   Declarations.machine_rewrite_rule list -> Stack.t -> econstr * Stack.t
 
 val is_head_evar : env -> evar_map -> constr -> bool

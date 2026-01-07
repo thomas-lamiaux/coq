@@ -818,7 +818,7 @@ let expand_table_key ~metas ts env sigma args = function
           let metas = Meta.meta_handler metas in
           let sk = Stack.( append_app args empty ) in
           let rhs, stack = Reductionops.apply_rules
-            (whd_betaiota_deltazeta_for_iota_state ts ~metas env sigma) env sigma (EInstance.make u) r sk
+            (fun ctx -> whd_betaiota_deltazeta_for_iota_state ts ~metas (push_rel_context ctx env) sigma) env sigma (EInstance.make u) r sk
           in
           let args' = Stack.list_of_app_stack stack
             |> (function Some l -> l | None -> assert false)
