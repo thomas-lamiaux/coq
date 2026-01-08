@@ -264,34 +264,23 @@ let squash_elim_sort sigma squash rtnsort =
   | SquashToQuality (QVar q) ->
      add_unif_if_cannot_elim_into Evd.set_leq_sort (Sorts.qsort q Univ.Universe.type0)
 
-(* [s] is the sort of an inductive definition. *)
-let loc_indsort_to_quality sigma u s =
-  let u = (EConstr.Unsafe.to_instance u) in
-  ESorts.quality sigma (EConstr.ESorts.make @@ UVars.subst_instance_sort u s)
-
-(* [q] is a quality an inductive has to be squashed to. *)
-let loc_squashed_to_quality sigma u q =
-  let u = EConstr.Unsafe.to_instance u in
-  UState.nf_quality (Evd.ustate sigma) (UVars.subst_instance_quality u q)
-
-let is_squashed sigma specifu =
+let is_squashed sigma (specif,u) =
   Inductive.is_squashed_gen
     (Evd.elim_graph sigma)
-    (loc_indsort_to_quality sigma)
-    (loc_squashed_to_quality sigma)
-    specifu
+    (UState.nf_quality (Evd.ustate sigma))
+    (specif,EConstr.Unsafe.to_instance u)
 
-let is_allowed_elimination sigma (((_,mip),_) as specifu) s =
+let is_allowed_elimination sigma ((_,mip) as specif,u) s =
   match mip.mind_record with
   | PrimRecord _ -> true
   | NotRecord | FakeRecord ->
-     let s = EConstr.ESorts.kind sigma s in
-     let g = Evd.elim_graph sigma in
-     Inductive.allowed_elimination_gen g
-        (loc_indsort_to_quality sigma)
-        (loc_squashed_to_quality sigma)
-        (Inductive.is_allowed_elimination_actions g s)
-        specifu s
+    let s = EConstr.ESorts.kind sigma s in
+    let g = Evd.elim_graph sigma in
+    Inductive.allowed_elimination_gen g
+      (UState.nf_quality (Evd.ustate sigma))
+      (Inductive.is_allowed_elimination_actions g s)
+      (specif,EConstr.Unsafe.to_instance u)
+      s
 
 let make_allowed_elimination_actions sigma s =
   Inductive.
@@ -309,17 +298,16 @@ let make_allowed_elimination_actions sigma s =
                  try Some (Evd.set_leq_sort sigma (mk sq) (mk indq))
                  with UGraph.UniverseInconsistency _ -> None }
 
-let make_allowed_elimination sigma ((_,mip),_ as specifu) s =
+let make_allowed_elimination sigma ((_,mip) as specif,u) s =
   match mip.mind_record with
   | PrimRecord _ -> Some sigma
   | NotRecord | FakeRecord ->
-     Inductive.allowed_elimination_gen
-        (Evd.elim_graph sigma)
-        (loc_indsort_to_quality sigma)
-        (loc_squashed_to_quality sigma)
-        (make_allowed_elimination_actions sigma s)
-        specifu
-        (EConstr.ESorts.kind sigma s)
+    Inductive.allowed_elimination_gen
+      (Evd.elim_graph sigma)
+      (UState.nf_quality (Evd.ustate sigma))
+      (make_allowed_elimination_actions sigma s)
+      (specif,EConstr.Unsafe.to_instance u)
+      (EConstr.ESorts.kind sigma s)
 
 (* XXX questionable for sort poly inductives *)
 let elim_sort (mib,mip) =
