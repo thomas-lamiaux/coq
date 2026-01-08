@@ -2354,8 +2354,16 @@ let vernac_register ~atts qid r =
   | RegisterScheme { inductive; scheme_kind } ->
     let local = Attributes.parse hint_locality_default_superglobal atts in
     let scheme_kind_s = Libnames.string_of_qualid scheme_kind in
-    let () = if not (Ind_tables.is_declared_scheme_object scheme_kind_s) then
-        warn_unknown_scheme_kind ?loc:scheme_kind.loc scheme_kind
+    (* Specific test for the All and AllForall keys, as there are an infinite number of them *)
+    let test_all prefix s =
+      String.starts_with ~prefix s &&
+      String.for_all (function '0' | '1' -> true | _ -> false) @@
+        String.sub s (String.length prefix) (String.length s - String.length prefix)
+    in
+    let () =
+      if not (Ind_tables.is_declared_scheme_object scheme_kind_s
+          || test_all "All_" scheme_kind_s || test_all "AllForall_" scheme_kind_s) then
+      warn_unknown_scheme_kind ?loc:scheme_kind.loc scheme_kind
     in
     let ind = Smartlocate.global_inductive_with_alias inductive in
     Dumpglob.add_glob ?loc:inductive.loc (IndRef ind);
