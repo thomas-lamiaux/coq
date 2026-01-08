@@ -1333,6 +1333,10 @@ for the different sorts `Prop`, `Type`, etc.
 The `AllForall` theorem must also be transparent to ensure termination checking.
 The corresponding theory can found in :cite:`NestedInductiveTypes`.
 
+.. warning:: Use `Scheme All`
+
+   There is a command :cmd:`Scheme All` to generate and register them automatically
+
 The type `unit` is used to instantiate the predicates if some parameters are
 not nested on. For instance, if `prod A B` is nested on `A` but not on `B`,
 then the predicate for `B` is instantiated with `fun _ => unit`.
@@ -1361,7 +1365,7 @@ predicate on `A` but not on `B`, one should use `All_10`.
 .. example:: Nesting With Prod
 
    The inductive type `prod` has two uniform-parameters `A, B : Type` that are
-   positive, and hence nestable.
+   strictly positive, and hence nestable.
 
    .. rocqtop:: in reset
 
@@ -1372,6 +1376,8 @@ predicate on `A` but not on `B`, one should use `All_10`.
    parameters `PA : A -> Type@{s;u}` and `PB : B -> Type@{s';u'}`, and requires
    `PA a` and `PB b` for `prod A PA B PB (pair a b)` to hold.
    Its theorem will then state that if `PA` and `PB` hold, then `prod_all` holds.
+   In this example, we define and register them by hand.
+   In practice, they can and should be generated with the :cmd:`Scheme All` command.
 
    .. rocqtop:: in
 
@@ -1434,6 +1440,70 @@ predicate on `A` but not on `B`, one should use `All_10`.
 
       Scheme LeftTree_ind_partial := Induction for LeftTree Sort Prop.
       About LeftTree_ind_partial.
+
+Scheme All
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. cmd:: Scheme All for @reference {? with {+, @ident } }
+   :name: Scheme All
+
+   For an inductive type `ind`, it generates the sort and universe polymorphic
+   inductive predicate `ind_all` and its theorem `ind_all_forall`, and register
+   them with the keys `All` and `AllForall`.
+
+   The `All` predicate and its theorem are looked up and used to generate
+   eliminators for inductive types nested with `ind`.
+   They definitions generatedmust be sort polymorphic to generate eliminators
+   for the different sorts `Prop`, `Type`, etc...
+   They need to be generated (and registered) before the definition of the nested
+   inductive type, as they are not generated on the fly if they are not found.
+
+   The `All` predicate must feature a predicate `PA : A -> Type@{s;u}` for each
+   strictly positive uniform parameter `A : Type` (or more generally an arity), and
+   enforces they hold for each subterm of type `A` in the body of `ind`.
+   The theorem `AllForall` then states that if all the predicates `PA` hold,
+   that is `forall a, PA a`, then `ind_all` holds.
+   The corresponding theory can found in :cite:`NestedInductiveTypes`.
+
+   The `with` clause enables to specify for which positive uniform parameter
+   a predicate should be generated for. This enables better eliminators when a
+   type `ind` is nested only on some of its parameters.
+
+.. example:: All Predicates for Prod
+
+   The inductive type `prod` has two uniform-parameters `A, B : Type` that are
+   strictly positive, and hence nestable.
+   `Scheme All` will generate an inductive predicate `prod_all` with additional
+   parameters `PA : A -> Type@{s;u}` and `PB : B -> Type@{s';u'}`, and requires
+   `PA a` and `PB b` for `prod A PA B PB (pair a b)` to hold.
+   Its theorem will then state that if `PA` and `PB` hold, then `prod_all` holds.
+
+   .. rocqtop:: in reset
+
+     Inductive prod (A B : Type) : Type :=
+       pair : A -> B -> prod A B.
+
+     Scheme All for prod.
+
+   .. rocqtop:: all
+
+     Print prod_all.
+     About prod_all_forall.
+
+   To provide better eliminators for partially nesting it is possible to
+   generate partial version of `prod_all` by specifing the exact list of uniform
+   parameters a predicate should be generated for.
+   For instance, for `prod A B`, we can generate a predicate only for `A` if we
+   do not intend to nest on `B`.
+
+   .. rocqtop:: in
+
+     Scheme All for prod with A.
+
+   .. rocqtop:: all
+
+     Print prod_all_10.
+     About prod_all_forall_10.
 
 Scheme Equality, and Rewriting
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

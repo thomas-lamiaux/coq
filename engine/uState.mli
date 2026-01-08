@@ -185,7 +185,8 @@ val univ_rigid : rigid
 val univ_flexible : rigid
 val univ_flexible_alg : rigid
 
-val merge_sort_context : ?loc:Loc.t -> ?src:constraint_source -> sideff:bool -> rigid -> t -> UnivGen.sort_context_set -> t
+val merge_sort_context : ?loc:Loc.t -> ?sort_rigid:bool -> ?src:constraint_source ->
+    sideff:bool -> rigid -> t -> UnivGen.sort_context_set -> t
 val merge_universe_context : ?loc:Loc.t -> sideff:bool -> rigid -> t -> Univ.ContextSet.t -> t
 
 val demote_global_univs : Univ.ContextSet.t -> t -> t
@@ -210,7 +211,7 @@ val demote_global_univ_entry : universes_entry -> t -> t
 val emit_side_effects : Safe_typing.private_constants -> t -> t
 (** Calls [demote_global_univs] for the private constant universes. *)
 
-val new_sort_variable : ?loc:Loc.t -> ?name:Id.t -> t -> t * QVar.t
+val new_sort_variable : ?loc:Loc.t -> ?sort_rigid:bool -> ?name:Id.t -> t -> t * QVar.t
 (** Declare a new local sort. *)
 
 val new_univ_variable : ?loc:Loc.t -> rigid -> Id.t option -> t -> t * Univ.Level.t

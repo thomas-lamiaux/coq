@@ -36,7 +36,7 @@ val do_mutual_induction_scheme : register:bool -> ?force_mutual:bool
 
 (** Main calls to interpret the Scheme command *)
 
-val do_scheme : register:bool -> Environ.env -> (Names.Id.t CAst.t option * Vernacexpr.scheme) list -> unit
+val do_scheme : register:bool -> Environ.env -> (Id.t CAst.t option * Vernacexpr.scheme) list -> unit
 
 (** Main call to Scheme Equality command *)
 
@@ -45,6 +45,10 @@ val do_scheme_equality : ?locmap:Ind_tables.Locmap.t -> Vernacexpr.equality_sche
 (** Combine a list of schemes into a conjunction of them *)
 
 val do_combined_scheme : lident -> Constant.t list -> unit
+
+(** Create the All predicate with its theorem all_forall  *)
+val do_scheme_all : (?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit) ->
+  Libnames.qualid Constrexpr.or_by_notation -> Id.t list option -> unit
 
 (** Hook called at each inductive type definition *)
 

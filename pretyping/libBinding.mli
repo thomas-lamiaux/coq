@@ -213,6 +213,9 @@ val decompose_lambda_decls : constr -> (rel_context * constr) t
 val decompose_app : constr -> (constr * constr array) t
 val eta_expand_instantiation : constr array -> rel_context -> constr array t
 val fresh_global : GlobRef.t -> constr t
+val fresh_inductive_instance : inductive -> einstance t
+val fresh_sort_ql : ?sort_rigid:bool -> ?name:variable -> rigid -> (Sorts.QVar.t * Univ.Universe.t) t
+val new_univ_level_variable : ?name:variable -> rigid -> Univ.Level.t t
 
 (* Typing and Retyping *)
 val typing_checked_appvect : constr -> constr array -> constr t
