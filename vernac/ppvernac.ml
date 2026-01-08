@@ -979,6 +979,11 @@ let pr_synpure_vernac_expr v =
       hov 0 (local ++ keyword "CoFixpoint" ++ spc() ++
              prlist_with_sep (fun _ -> fnl() ++ keyword "with" ++ spc ()) pr_onecorec corecs)
     )
+  | VernacSchemeAll (id, lid) ->
+    return (
+      hov 2 (keyword "Scheme " ++ keyword "All" ++ str " for" ++ spc() ++ pr_smart_global id
+              ++ pr_opt (fun x -> str " over" ++ spc() ++ prlist_with_sep pr_comma Id.print x) lid)
+    )
   | VernacScheme l ->
     return (
       hov 2 (keyword "Scheme" ++ spc() ++

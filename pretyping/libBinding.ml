@@ -317,6 +317,21 @@ let fresh_global ref =
   let (sigma, t) = fresh_global s.env sigma ref in
   return t s sigma
 
+let fresh_inductive_instance ind =
+  fun s sigma ->
+  let sigma, ((_, u)) = Evd.fresh_inductive_instance s.env sigma ind in
+  return u s sigma
+
+let fresh_sort_ql ?sort_rigid ?name r =
+  fun s sigma ->
+  let sigma, q, u = Evd.new_sort_info ?sort_rigid ?name r sigma in
+  return (q,u) s sigma
+
+let new_univ_level_variable ?name r =
+  fun s sigma ->
+  let (sigma, l) = Evd.new_univ_level_variable ?name r sigma in
+  return l s sigma
+
 (* Typing and Retyping *)
 let typing_checked_appvect f xs s sigma =
   let (sigma, t) = Typing.checked_appvect s.env sigma f xs in

@@ -1043,11 +1043,11 @@ let universe_subst evd =
 let merge_universe_context_set ?loc ?(sideff=false) rigid evd uctx' =
   {evd with universes = UState.merge_universe_context ?loc ~sideff rigid evd.universes uctx'}
 
-let merge_sort_context_set ?loc ?(sideff=false) ?src rigid evd ctx' =
-  {evd with universes = UState.merge_sort_context ?loc ~sideff rigid ?src evd.universes ctx'}
+let merge_sort_context_set ?loc ?sort_rigid ?(sideff=false) ?src rigid evd ctx' =
+  {evd with universes = UState.merge_sort_context ?loc ?sort_rigid ~sideff rigid ?src evd.universes ctx'}
 
-let with_sort_context_set ?loc ?src rigid d (a, ctx) =
-  (merge_sort_context_set ?loc ?src rigid d ctx, a)
+let with_sort_context_set ?loc ?sort_rigid ?src rigid d (a, ctx) =
+  (merge_sort_context_set ?loc ?sort_rigid ?src rigid d ctx, a)
 
 let new_univ_level_variable ?loc ?name rigid evd =
   let uctx', u = UState.new_univ_variable ?loc rigid name evd.universes in
@@ -1061,9 +1061,14 @@ let new_quality_variable ?loc ?name evd =
   let uctx, q = UState.new_sort_variable ?loc ?name evd.universes in
   {evd with universes = uctx}, q
 
-let new_sort_variable ?loc rigid sigma =
+let new_sort_info ?loc ?sort_rigid ?name rigid sigma =
   let (sigma, u) = new_univ_variable ?loc rigid sigma in
-  let uctx, q = UState.new_sort_variable sigma.universes in
+  let uctx, q = UState.new_sort_variable ?sort_rigid ?name sigma.universes in
+  ({ sigma with universes = uctx }, q, u)
+
+let new_sort_variable ?loc ?sort_rigid ?name rigid sigma =
+  let (sigma, u) = new_univ_variable ?loc rigid sigma in
+  let uctx, q = UState.new_sort_variable ?loc ?sort_rigid ?name sigma.universes in
   ({ sigma with universes = uctx }, Sorts.qsort q u)
 
 let add_forgotten_univ d u =
@@ -1109,8 +1114,8 @@ let fresh_constant_instance ?loc ?(rigid=univ_flexible) env evd c =
   let (u, ctx) = fresh_instance env evd (GlobRef.ConstRef c) in
   with_sort_context_set ?loc rigid ~src:UState.Internal evd ((c, u), ctx)
 
-let fresh_inductive_instance ?loc ?(rigid=univ_flexible) env evd i =
-  with_sort_context_set ?loc rigid ~src:UState.Internal evd (UnivGen.fresh_inductive_instance env i)
+let fresh_inductive_instance ?loc ?sort_rigid ?(rigid=univ_flexible) env evd i =
+  with_sort_context_set ?loc ?sort_rigid rigid ~src:UState.Internal evd (UnivGen.fresh_inductive_instance env i)
 
 let fresh_constructor_instance ?loc ?(rigid=univ_flexible) env evd c =
   with_sort_context_set ?loc rigid ~src:UState.Internal evd (UnivGen.fresh_constructor_instance env c)

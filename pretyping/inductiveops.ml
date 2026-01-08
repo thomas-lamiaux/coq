@@ -125,6 +125,17 @@ let mis_is_recursive mip =
     in
   Array.exists one_is_rec (dest_subterms @@ Rtree.Kind.make mip.mind_recargs)
 
+let mis_is_nested kn mib =
+  Array.exists (fun mip ->
+    Array.exists (fun rvec ->
+      Array.exists (fun ra ->
+        match dest_recarg ra with
+        | Mrec (RecArgInd (kni, _)) -> not @@ MutInd.CanOrd.equal kn kni
+        | Mrec (RecArgPrim _) | Norec -> false
+      ) rvec
+    ) (dest_subterms @@ Rtree.Kind.make mip.mind_recargs)
+  ) mib.mind_packets
+
 let mis_nf_constructor_type ((_,j),u) (mib,mip) =
   let nconstr = Array.length mip.mind_consnames in
   if j > nconstr then user_err Pp.(str "Not enough constructors in the type.");

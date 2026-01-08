@@ -2362,6 +2362,7 @@ let vernac_register ~atts qid r =
     in
     let () =
       if not (Ind_tables.is_declared_scheme_object scheme_kind_s
+          || String.equal "All" scheme_kind_s || String.equal "AllForall" scheme_kind_s
           || test_all "All_" scheme_kind_s || test_all "AllForall_" scheme_kind_s) then
       warn_unknown_scheme_kind ?loc:scheme_kind.loc scheme_kind
     in
@@ -2687,6 +2688,10 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacScheme l ->
     vtdefault(fun () ->
         vernac_scheme atts l)
+  | VernacSchemeAll (id, strpos) ->
+    vtdefault(fun () ->
+        unsupported_attributes atts;
+        DeclareInd.do_scheme_all id strpos)
   | VernacSchemeEquality (sch,id) ->
     vtdefault(fun () ->
         unsupported_attributes atts;

@@ -36,7 +36,7 @@ val do_mutual_induction_scheme : register:bool -> ?force_mutual:bool
 
 (** Main calls to interpret the Scheme command *)
 
-val do_scheme : register:bool -> Environ.env -> (Names.Id.t CAst.t option * Vernacexpr.scheme) list -> unit
+val do_scheme : register:bool -> Environ.env -> (Id.t CAst.t option * Vernacexpr.scheme) list -> unit
 
 (** Main call to Scheme Equality command *)
 
@@ -46,6 +46,23 @@ val do_scheme_equality : ?locmap:Ind_tables.Locmap.t -> Vernacexpr.equality_sche
 
 val do_combined_scheme : lident -> Constant.t list -> unit
 
+type declare_mind_function = ?all_depth:int ->
+  Entries.mutual_inductive_entry ->
+  UState.named_universes_entry ->
+  MutInd.t
+
 (** Hook called at each inductive type definition *)
 
-val declare_default_schemes : ?locmap:Ind_tables.Locmap.t -> MutInd.t -> unit
+val declare_default_schemes : ?locmap:Ind_tables.Locmap.t ->
+  ?all_depth:int ->
+  declare_mind:declare_mind_function ->
+  MutInd.t -> unit
+
+module Internal : sig
+  (** Create the All predicate with its theorem all_forall.
+
+      Use the reexported function in DeclareInd instead to avoid
+      needing to pass [declare_mind]. *)
+  val do_scheme_all : user_call_scheme:bool -> declare_mind:declare_mind_function ->
+    Libnames.qualid Constrexpr.or_by_notation -> Id.t list option -> unit
+end

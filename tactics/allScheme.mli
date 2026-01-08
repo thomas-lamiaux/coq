@@ -1,9 +1,26 @@
 open Names
 open Declarations
 open EConstr
+open Evd
+open Environ
+open Entries
 open LibBinding
+open State
+
+  (** {6 Strictly Positive Uniform Parameters } *)
+
+(** Computes which uniform parameters are strictly positive in a mutual inductive body *)
+val compute_params_rec_strpos : env -> MutInd.t -> mutual_inductive_body -> bool list
 
   (** {6 Lookup All Predicate and its Theorem } *)
+
+(** Compute the default positivity of the uniform parameters, and generates the
+    suffix for naming the all predicate, and its predicate, as well as the key
+    for registering.
+    If a positivity specification is given by users [bool list option], it is
+    checked to be included in the default one, and the suffix are modified accordingly. *)
+val compute_positive_uparams_and_suffix : env -> MutInd.t -> mutual_inductive_body ->
+  Id.t list option -> bool list * (string * string) * (string * string)
 
 (** Lookup the partial [all] predicate and its theorem for [ind_nested] for [args_are_nested].
     If they are not found, lookup the general [all] predicate and its theorem.
@@ -55,5 +72,15 @@ type head_argument =
 type argument = rel_context * head_argument
 
 (** Decompose the argument in [it_Prod_or_LetIn local, X] where [X] is a uniform parameter, Ind, nested or a constant *)
-val view_argument : MutInd.t -> mutual_inductive_body -> State.access_key list ->
+val view_argument : MutInd.t -> mutual_inductive_body -> access_key list ->
   bool list -> constr -> argument State.t
+
+  (** {6 Generate All Predicate } *)
+
+val generate_all_predicate : env -> evar_map -> MutInd.t -> einstance ->
+  mutual_inductive_body -> bool list -> string -> UState.t * mutual_inductive_entry
+
+(** {6 Generate the Theorem for the All Predicate } *)
+
+val generate_all_theorem : env -> evar_map -> MutInd.t -> MutInd.t -> int -> einstance ->
+  mutual_inductive_body -> bool list -> evar_map * constr

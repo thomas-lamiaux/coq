@@ -29,10 +29,15 @@ val declare_mutual_inductive_with_eliminations
   -> ?indlocs:indlocs
   -> ?default_dep_elim:default_dep_elim list
   -> ?schemes:declare_schemes
+  -> ?all_depth:int
   -> Entries.mutual_inductive_entry (* Inductive types declaration *)
   -> UState.named_universes_entry (* Global universes, including the template default instance *)
   -> one_inductive_impls list (* Implicit arguments *)
   -> Names.MutInd.t
+
+(** Create the All predicate with its theorem all_forall. *)
+val do_scheme_all : Libnames.qualid Constrexpr.or_by_notation -> Names.Id.t list option -> unit
+
 
 (** {6 For legacy support, do not use}  *)
 module Internal :
