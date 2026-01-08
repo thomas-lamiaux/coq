@@ -419,10 +419,11 @@ let is_squashed_gen g indsort_to_quality squashed_to_quality ((_,mip),u) =
   | Some squash ->
      let indq = indsort_to_quality u s in
      match squash with
-     | AlwaysSquashed -> begin match s with
-                         | Set -> Some SquashToSet
-                         | _ -> Some (SquashToQuality indq)
-                         end
+     | AlwaysSquashed ->
+       begin match s with
+       | Set -> Some SquashToSet
+       | _ -> Some (SquashToQuality indq)
+       end
      | SometimesSquashed squash ->
         (* impredicative set squashes are always quashed,
            so here if inds=Set it is a sort poly squash (see "foo6" in test sort_poly.v) *)

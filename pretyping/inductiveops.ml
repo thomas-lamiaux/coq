@@ -267,9 +267,7 @@ let squash_elim_sort sigma squash rtnsort =
 (* [s] is the sort of an inductive definition. *)
 let loc_indsort_to_quality sigma u s =
   let u = (EConstr.Unsafe.to_instance u) in
-  Sorts.quality
-    (EConstr.ESorts.kind sigma
-        (EConstr.ESorts.make @@ UVars.subst_instance_sort u s))
+  ESorts.quality sigma (EConstr.ESorts.make @@ UVars.subst_instance_sort u s)
 
 (* [q] is a quality an inductive has to be squashed to. *)
 let loc_squashed_to_quality sigma u q =
