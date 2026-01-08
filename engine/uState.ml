@@ -410,8 +410,22 @@ let merge_univ_constraints uctx cstrs g =
     let printers = (pr_uctx_qvar uctx, pr_uctx_level uctx) in
     raise (UGraph.UniverseInconsistency (Some printers, i))
 
-let merge_elim_constraints src uctx cstrs g =
-  try QGraph.merge_constraints src cstrs g
+type constraint_source =
+| Internal
+| Rigid
+| Static
+
+let merge_elim_constraints ?(src = Internal) uctx cstrs g =
+  try
+    let g = QGraph.merge_constraints cstrs g in
+    match src with
+    | Static -> g
+    | Internal ->
+      let () = if not (ElimConstraints.is_empty cstrs) then QGraph.check_rigid_paths g in
+      g
+    | Rigid ->
+      let fold (q1, _, q2) accu = QGraph.add_rigid_path q1 q2 accu in
+      Sorts.ElimConstraints.fold fold cstrs g
   with QGraph.(EliminationError (QualityInconsistency (_, i))) ->
     let printer = pr_uctx_qvar uctx in
     raise (QGraph.(EliminationError (QualityInconsistency (Some printer, i))))
@@ -865,7 +879,7 @@ let process_constraints uctx cstrs =
   let () = warn_template uctx (PConstraints.univs local.local_cst) in
   !vars, extra, local.local_cst, local.local_sorts
 
-let add_constraints src uctx cstrs =
+let add_constraints ?src uctx cstrs =
   let univs, local = uctx.local in
   let vars, extra, local', sorts = process_constraints uctx cstrs in
   { uctx with
@@ -873,7 +887,7 @@ let add_constraints src uctx cstrs =
     univ_variables = vars;
     universes = merge_univ_constraints uctx (PConstraints.univs local') uctx.universes;
     sort_variables =
-          QState.merge_constraints (merge_elim_constraints src uctx (PConstraints.qualities local')) sorts ;
+          QState.merge_constraints (merge_elim_constraints ?src uctx (PConstraints.qualities local')) sorts ;
     minim_extra = extra; }
 
 let problem_of_univ_constraints cstrs =
@@ -890,9 +904,9 @@ let problem_of_univ_constraints cstrs =
 
 let add_univ_constraints uctx cstrs =
   let cstrs = problem_of_univ_constraints cstrs in
-  add_constraints QGraph.Static uctx cstrs
+  add_constraints ~src:Static uctx cstrs
 
-let add_poly_constraints src uctx (qcstrs, ucstrs) =
+let add_poly_constraints ?src uctx (qcstrs, ucstrs) =
   let ucstrs = problem_of_univ_constraints ucstrs in
   (* XXX when elimination constraints become available in unification we should
      rely on it rather than playing this little dance *)
@@ -901,9 +915,9 @@ let add_poly_constraints src uctx (qcstrs, ucstrs) =
   | ElimConstraint.Equal -> (UnivProblem.Set.add (QEq (s1, s2)) qeq, qelm)
   in
   let qeq, qcstrs = ElimConstraints.fold fold qcstrs (UnivProblem.Set.empty, ElimConstraints.empty) in
-  let uctx = add_constraints src uctx (UnivProblem.Set.union ucstrs qeq) in
+  let uctx = add_constraints ?src uctx (UnivProblem.Set.union ucstrs qeq) in
   let local = on_snd (fun cst -> PConstraints.union cst (PConstraints.of_qualities qcstrs)) uctx.local in
-  let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints src uctx qcstrs cst) uctx.sort_variables in
+  let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints ?src uctx qcstrs cst) uctx.sort_variables in
   { uctx with local; sort_variables }
 
 let check_elim_constraints uctx csts =
@@ -1075,7 +1089,7 @@ let check_univ_implication uctx cstrs cstrs' =
 
 let check_elim_implication uctx cstrs cstrs' =
   let g = initial_elim_graph uctx in
-  let grext = merge_elim_constraints QGraph.Rigid uctx cstrs g in
+  let grext = merge_elim_constraints ~src:Rigid uctx cstrs g in
   let cstrs' = ElimConstraints.filter (fun c -> not (QGraph.check_constraint grext c)) cstrs' in
   if ElimConstraints.is_empty cstrs' then ()
   else CErrors.user_err
@@ -1199,12 +1213,12 @@ let restrict_univ_constraints uctx csts =
   let uctx' = { uctx with local = (levels,(elim_csts,UnivConstraints.empty)); universes = uctx.initial_universes } in
   add_univ_constraints uctx' csts
 
-let restrict_elim_constraints src uctx csts =
+let restrict_elim_constraints ?src uctx csts =
   let levels, (elim_csts,univ_csts) = uctx.local in
   let g = initial_elim_graph uctx in
   (* XXX we are wreaking havoc with elimination constraints *)
   let sort_variables = QState.set_elims g uctx.sort_variables in
-  let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints src uctx elim_csts cst) sort_variables in
+  let sort_variables = QState.merge_constraints (fun cst -> merge_elim_constraints ?src uctx elim_csts cst) sort_variables in
   { uctx with local = (levels, (csts, univ_csts)); sort_variables }
 
 type rigid =
@@ -1253,7 +1267,7 @@ let merge_universe_context ?loc ~sideff rigid uctx (levels, ucst) =
   { uctx with names; local; universes;
               initial_universes = initial }
 
-let merge_sort_variables ?loc ~sideff uctx src (qvars, csts) =
+let merge_sort_variables ?loc ?src ~sideff uctx (qvars, csts) =
   let sort_variables =
     QVar.Set.fold (fun qv qstate -> QState.add ~check_fresh:(not sideff) ~rigid:false qv qstate)
       qvars
@@ -1272,13 +1286,13 @@ let merge_sort_variables ?loc ~sideff uctx src (qvars, csts) =
     let qrev = QVar.Set.fold fold qvars (fst (snd uctx.names)) in
     (fst uctx.names, (qrev, snd (snd uctx.names)))
   in
-  let sort_variables = QState.merge_constraints (merge_elim_constraints src uctx csts) sort_variables in
+  let sort_variables = QState.merge_constraints (merge_elim_constraints ?src uctx csts) sort_variables in
   let (us, (qcst, ucst)) = uctx.local in
   let local = (us, (Sorts.ElimConstraints.union qcst csts, ucst)) in
   { uctx with local; sort_variables; names }
 
-let merge_sort_context ?loc ~sideff rigid src uctx ((qvars, levels), (qcst, ucst)) =
-  let uctx = merge_sort_variables ?loc ~sideff uctx src (qvars, qcst) in
+let merge_sort_context ?loc ?src ~sideff rigid uctx ((qvars, levels), (qcst, ucst)) =
+  let uctx = merge_sort_variables ?loc ?src ~sideff uctx (qvars, qcst) in
   merge_universe_context ?loc ~sideff rigid uctx (levels, ucst)
 
 let demote_global_univs (lvl_set, univ_csts) uctx =
@@ -1494,7 +1508,7 @@ let check_univ_decl_rev uctx decl =
   let uctx, elim_csts =
     if decl.univdecl_extensible_constraints
     then uctx, elim_csts
-    else restrict_elim_constraints QGraph.Rigid uctx decl.univdecl_elim_constraints,
+    else restrict_elim_constraints ~src:Rigid uctx decl.univdecl_elim_constraints,
          elim_csts
   in
   let uctx' = UContext.make nas (inst, (elim_csts,univ_csts)) in

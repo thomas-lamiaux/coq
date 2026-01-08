@@ -554,7 +554,7 @@ let push_context_set ~strict cst senv =
       univ = Univ.ContextSet.union cst senv.univ;
       sections }
 
-let push_qualities src qs senv =
+let push_qualities ~rigid qs senv =
   if Sorts.QVar.Set.is_empty (fst qs) && Sorts.ElimConstraints.is_empty (snd qs) then
     senv
   else if is_modtype senv then
@@ -570,7 +570,7 @@ let push_qualities src qs senv =
     in
     let () = Sorts.QVar.Set.iter check_local (fst qs) in
     { senv with
-      env = Environ.push_qualities src qs senv.env ;
+      env = Environ.push_qualities ~rigid qs senv.env ;
       qualities = Sorts.QContextSet.union qs senv.qualities ;
     }
 
@@ -693,8 +693,12 @@ let push_section_context uctx senv =
   let () = assert (Sorts.QVar.Set.for_all Sorts.QVar.is_global (fst qctx)) in
   let () = assert Sorts.QVar.Set.(is_empty (inter (fst qctx) (fst senv.qualities))) in
   (* push_context checks freshness *)
+  let env = Environ.push_context_set ~strict:false ctx senv.env in
+  (* FIXME: check validity of the sort context *)
+  (* FIXME: marking the section-local sorts as rigid makes little sense *)
+  let env = Environ.push_qualities ~rigid:true qctx env in
   { senv with
-    env = Environ.push_context ~strict:false QGraph.Rigid uctx senv.env;
+    env;
     univ = Univ.ContextSet.union ctx senv.univ ;
     qualities = Sorts.QContextSet.union qctx senv.qualities }
 
@@ -1590,7 +1594,8 @@ let import lib vmtab vodigest senv =
   let univs = lib.comp_univs in
   let qualities = lib.comp_sorts in
   let () = assert (Sorts.QVar.Set.for_all Sorts.QVar.is_global (fst qualities)) in
-  let env = Environ.push_qualities QGraph.Static qualities senv.env in
+  (* XXX why are these global constraints not rigid??? *)
+  let env = Environ.push_qualities ~rigid:false qualities senv.env in
   let env = Environ.push_context_set ~strict:true univs env in
   let env = Environ.link_vm_library vmtab env in
   let env =

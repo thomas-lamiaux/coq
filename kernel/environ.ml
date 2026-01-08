@@ -474,13 +474,13 @@ let add_universes ~strict ctx g =
 
 let set_qualities g env = {env with env_qualities = g}
 
-let add_qualities src ctx g =
+let add_qualities ctx g =
   let qs, _ = UVars.Instance.to_array (UVars.UContext.instance ctx) in
   let g = Array.fold_right QGraph.add_quality qs g in
-  QGraph.merge_constraints src (UVars.UContext.elim_constraints ctx) g
+  QGraph.merge_constraints (UVars.UContext.elim_constraints ctx) g
 
-let push_context ?(strict=false) src ctx env =
-  let env = map_qualities (add_qualities src ctx) env in
+let push_context ?(strict=false) ctx env =
+  let env = map_qualities (add_qualities ctx) env in
   map_universes (add_universes ~strict ctx) env
 
 let add_universes_set ~strict (lvl, cstr) g =
@@ -494,11 +494,18 @@ let add_universes_set ~strict (lvl, cstr) g =
 let push_context_set ?(strict=false) ctx env =
   map_universes (add_universes_set ~strict ctx) env
 
-let push_qualities src (qs, qcsts) env =
+let push_qualities ~rigid (qs, qcsts) env =
   let () = assert Sorts.QVar.Set.(is_empty @@ inter qs (QGraph.qvar_domain env.env_qualities)) in
   let fold v = QGraph.add_quality (Sorts.Quality.QVar v) in
   let g = Sorts.QVar.Set.fold fold qs env.env_qualities in
-  map_qualities (fun g -> QGraph.merge_constraints src qcsts g) @@ set_qualities g env
+  let merge g =
+    let g = QGraph.merge_constraints qcsts g in
+    if rigid then
+      let fold (q1, _, q2) accu = QGraph.add_rigid_path q1 q2 accu in
+      Sorts.ElimConstraints.fold fold qcsts g
+    else g
+  in
+  map_qualities merge @@ set_qualities g env
 
 let push_subgraph (levels, univ_csts) env =
   let add_subgraph g =
@@ -1061,7 +1068,11 @@ module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
 
 module Internal = struct
   let push_template_context uctx env =
-    let env = push_context ~strict:false QGraph.Internal uctx env in
+    let env = push_context ~strict:false uctx env in
+    let () =
+      if not (Sorts.ElimConstraints.is_empty @@ UVars.UContext.elim_constraints uctx) then
+        QGraph.check_rigid_paths env.env_qualities
+    in
     let (qvars, _), _ = UVars.UContext.to_context_set uctx in
     let env = map_universes (UGraph.Internal.add_template_qvars qvars) env in
     env

@@ -2092,7 +2092,7 @@ let check_may_eval env sigma redexp rc =
       Evarutil.j_nf_evar sigma (Retyping.get_judgment_of env sigma c)
     else
       let env = Evarutil.nf_env_evar sigma env in
-      let env = Environ.push_qualities QGraph.Static (qs, fst csts) env in (* XXX *)
+      let env = Environ.push_qualities ~rigid:false (qs, fst csts) env in (* XXX *)
       let env = Environ.push_context_set (us, snd csts) env in
       let c = EConstr.to_constr sigma c in
       let env = Safe_typing.push_private_constants env (Evd.seff_private @@ Evd.eval_side_effects sigma) in
@@ -2137,7 +2137,7 @@ let vernac_global_check c =
   let sigma = Evd.collapse_sort_variables sigma in
   let senv = Global.safe_env() in
   let (qs, us), (qcst, ucst) as uctx = Evd.sort_context_set sigma in
-  let senv = Safe_typing.push_qualities QGraph.Static (qs, qcst) senv in (* XXX *)
+  let senv = Safe_typing.push_qualities ~rigid:false (qs, qcst) senv in (* XXX *)
   let senv = Safe_typing.push_context_set ~strict:false (us, ucst) senv in
   let c = EConstr.to_constr sigma c in
   let j = Safe_typing.typing senv c in
