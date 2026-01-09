@@ -1321,35 +1321,16 @@ Eliminators for Nested Inductive Types
 When generating eliminators for a predicate `P`, if an argument is nested
 with :n:`@reference`, the `All` predicate and its theorem will be looked up with the key
 :n:`All` and :n:`AllForall`, and used to enforce `P` holds on the nested argument.
-See :ref:`examples <scheme_example_nested>`.
 
-The `All` predicate must feature a predicate `PA : A -> Type@{s;u}` for each
-strictly positive uniform-parameter `A : Type` (or more generally an arity), and
-enforces they hold for each subterm of type `A` in the body of `ind`.
-The theorem `AllForall` then states that if all the predicates `PA` hold,
-that is `forall a, PA a`, then `ind_all` holds.
-The definitions registered must be sort polymorphic to generate eliminators
-for the different sorts `Prop`, `Type`, etc.
-The `AllForall` theorem must also be transparent to ensure termination checking.
-The corresponding theory can found in :cite:`NestedInductiveTypes`.
+.. opt:: All Depth @natural
 
-.. warning:: Use `Scheme All`
-
-   There is a command :cmd:`Scheme All` to generate and register them automatically
-
-The type `unit` is used to instantiate the predicates if some parameters are
-not nested on. For instance, if `prod A B` is nested on `A` but not on `B`,
-then the predicate for `B` is instantiated with `fun _ => unit`.
-To enable the generation of cleaner eliminators for partial nesting,
-it is also possible to register partial version of `All` and `AllForall` with
-predicates only for some of the strictly positive parameters.
-The partial versions of `All` and `AllForall` will be looked up first,
-and the implementation will fallback on the general ones if they are not found.
-The partial version should be registered with `All_s` and `AllForall_s` where
-`s` is a list of `1` and `0` specifying which parameters can be nested or not.
-`1` means the parameter can be nested with the partial version, `0` that it cannot.
-For instance, to register a partial version of `All` for `prod A B` with a
-predicate on `A` but not on `B`, one should use `All_10`.
+   The `All` predicate for an inductive type is itself an inductive type.
+   Consequently, generating automatically the `All` predicate at the definition
+   of an inductive type would create an infinite loop.
+   To prevent this, `All depth` controls to which depth should the `All` predicate be defined.
+   For instance, if `All_depth = 1`, the `All` predicate for `prod` will be
+   generated, `prod_all`, but the `All` predicate for `prod_all` will not be generated.
+   It is default value is `0`
 
 .. warn:: @reference is nested using @reference. No Lemma for @reference is registered for @ident
    :name: register-all
@@ -1360,7 +1341,39 @@ predicate on `A` but not on `B`, one should use `All_10`.
    If they are not declared, no induction hypothesis is created for the
    nested argument.
 
-.. _scheme_example_nested:
+.. cmd:: Scheme All for @reference {? with {+, @ident } }
+   :name: Scheme All
+
+   For an inductive type `ind`, it generates the sort and universe polymorphic
+   inductive predicate `ind_all` and its theorem `ind_all_forall`, and register
+   them with the keys `All` and `AllForall`.
+
+   The `All` predicate features a predicate `PA : A -> Type@{s;u}` for each
+   strictly positive uniform-parameter `A : Type` (or more generally an arity), and
+   enforces they hold for each subterm of type `A` in the body of `ind`.
+   The theorem `AllForall` then states that if all the predicates `PA` hold,
+   that is `forall a, PA a`, then `ind_all` holds.
+   The definitions must be sort polymorphic to generate eliminators
+   for the different sorts `Prop`, `Type`, etc.
+   The `AllForall` theorem must also be transparent to ensure termination checking.
+   The corresponding theory can found in :cite:`NestedInductiveTypes`.
+
+   Wen used to generate eliminators, the type `unit` is used to instantiate the
+   predicates if some parameters are not nested on.
+   For instance, if `prod A B` is nested on `A` but not on `B`,
+   then the predicate for `B` is instantiated with `fun _ => unit`.
+
+   To provide better eliminators, the `with` clause enables to generate partial
+   version of the `All` predicate, with predicates only for strictly positive
+   uniform-parameter specified.
+   The partial versions of `All` and `AllForall` are looked up first,
+   and the implementation fallbacks on the general ones if they are not found.
+
+   Partial versions can be registered by hand using the key with `All_s` and
+   `AllForall_s` where `s` is a list of `1` and `0` specifying which parameters
+   can be nested or not.
+   For instance, to register a partial version of `All` for `prod A B` with a
+   predicate on `A` but not on `B`, one should use `All_10`.
 
 .. example:: Nesting With Prod
 
@@ -1376,26 +1389,13 @@ predicate on `A` but not on `B`, one should use `All_10`.
    parameters `PA : A -> Type@{s;u}` and `PB : B -> Type@{s';u'}`, and requires
    `PA a` and `PB b` for `prod A PA B PB (pair a b)` to hold.
    Its theorem will then state that if `PA` and `PB` hold, then `prod_all` holds.
-   In this example, we define and register them by hand.
-   In practice, they can and should be generated with the :cmd:`Scheme All` command.
+   They can be generated with :cmd:`Scheme All` command.
 
    .. rocqtop:: in
 
-      #[universes(polymorphic)]
-      Inductive prod_all@{sa sb ; ua ub +} A (PA : A -> Type@{sa;ua})
-         B (PB : B -> Type@{sb;ub}) : prod A B -> Type :=
-      | pair_all : forall a, PA a -> forall b, PB b -> prod_all A PA B PB (pair A B a b).
-
-      #[universes(polymorphic)]
-      Definition prod_all_forall@{sa sb ; ua ub +} A (PA : A -> Type@{sa;ua})
-         (HPA : forall a, PA a) B (PB : B -> Type@{sb;ub}) (HPB : forall b, PB b) :
-            forall (x : prod A B), prod_all A PA B PB x :=
-            fun x => match x with
-            | pair _ _ a b => pair_all A PA B PB a (HPA a) b (HPB b)
-            end.
-
-      Register Scheme prod_all as All for prod.
-      Register Scheme prod_all_forall as AllForall for prod.
+      Scheme All for prod.
+      Print prod_all.
+      About prod_all_forall.
 
    When generating eliminators for a predicate `P`, if an argument is nested with
    `prod`, the `prod_all` predicate and its theorem will be looked up, and used
@@ -1413,97 +1413,23 @@ predicate on `A` but not on `B`, one should use `All_10`.
       About LeftTree_ind.
 
    To provide better eliminators for partially nesting like `LeftTree`, it is
-   possible to regsiter partial version of `prod_all`
+   possible to generate partial version of `prod_all`
 
    .. rocqtop:: in
 
-      #[universes(polymorphic)]
-      Inductive prod_all_10@{sa; ua+} A (PA : A -> Type@{sa;ua}) B : prod A B -> Type :=
-      | pair_all_10 : forall a, PA a -> forall b, prod_all_10 A PA B (pair A B a b).
-
-      #[universes(polymorphic)]
-      Definition prod_all_forall_10@{sa; ua+} A (PA : A -> Type@{sa;ua})
-         (HPA : forall a, PA a) B : forall (x : prod A B), prod_all_10 A PA B x :=
-         fun x => match x with
-         | pair _ _ a b => pair_all_10 A PA B a (HPA a) b
-         end.
-
-      Register Scheme prod_all_10 as All_10 for prod.
-      Register Scheme prod_all_forall_10 as AllForall_10 for prod.
+      Scheme All for prod with A.
+      Print prod_all_10.
+      About prod_all_forall_10.
 
    This partial verion of the `All` predicate will then be used in priority,
    falling back on the general version if they are not found.
-   For instance, we define `LeftTree` after the generation of `prod_all_10`,
-   `prod_all_10` will be used for generating the eliminators instead of `prod_all`.
+   For instance, if generate an eliminator for `LeftTree` after the generation
+   of `prod_all_10`, it will be used instead of `prod_all`.
 
    .. rocqtop:: all
 
       Scheme LeftTree_ind_partial := Induction for LeftTree Sort Prop.
       About LeftTree_ind_partial.
-
-Scheme All
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. cmd:: Scheme All for @reference {? with {+, @ident } }
-   :name: Scheme All
-
-   For an inductive type `ind`, it generates the sort and universe polymorphic
-   inductive predicate `ind_all` and its theorem `ind_all_forall`, and register
-   them with the keys `All` and `AllForall`.
-
-   The `All` predicate and its theorem are looked up and used to generate
-   eliminators for inductive types nested with `ind`.
-   They definitions generatedmust be sort polymorphic to generate eliminators
-   for the different sorts `Prop`, `Type`, etc...
-   They need to be generated (and registered) before the definition of the nested
-   inductive type, as they are not generated on the fly if they are not found.
-
-   The `All` predicate must feature a predicate `PA : A -> Type@{s;u}` for each
-   strictly positive uniform parameter `A : Type` (or more generally an arity), and
-   enforces they hold for each subterm of type `A` in the body of `ind`.
-   The theorem `AllForall` then states that if all the predicates `PA` hold,
-   that is `forall a, PA a`, then `ind_all` holds.
-   The corresponding theory can found in :cite:`NestedInductiveTypes`.
-
-   The `with` clause enables to specify for which positive uniform parameter
-   a predicate should be generated for. This enables better eliminators when a
-   type `ind` is nested only on some of its parameters.
-
-.. example:: All Predicates for Prod
-
-   The inductive type `prod` has two uniform-parameters `A, B : Type` that are
-   strictly positive, and hence nestable.
-   `Scheme All` will generate an inductive predicate `prod_all` with additional
-   parameters `PA : A -> Type@{s;u}` and `PB : B -> Type@{s';u'}`, and requires
-   `PA a` and `PB b` for `prod A PA B PB (pair a b)` to hold.
-   Its theorem will then state that if `PA` and `PB` hold, then `prod_all` holds.
-
-   .. rocqtop:: in reset
-
-     Inductive prod (A B : Type) : Type :=
-       pair : A -> B -> prod A B.
-
-     Scheme All for prod.
-
-   .. rocqtop:: all
-
-     Print prod_all.
-     About prod_all_forall.
-
-   To provide better eliminators for partially nesting it is possible to
-   generate partial version of `prod_all` by specifing the exact list of uniform
-   parameters a predicate should be generated for.
-   For instance, for `prod A B`, we can generate a predicate only for `A` if we
-   do not intend to nest on `B`.
-
-   .. rocqtop:: in
-
-     Scheme All for prod with A.
-
-   .. rocqtop:: all
-
-     Print prod_all_10.
-     About prod_all_forall_10.
 
 Scheme Equality, and Rewriting
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
