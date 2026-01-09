@@ -270,7 +270,7 @@ let do_scheme_all id strpos =
   let declare_mind ?all_depth entry univs =
     declare_mutual_inductive_with_eliminations ?all_depth entry univs []
   in
-  Indschemes.Internal.do_scheme_all ~declare_mind id strpos
+  Indschemes.Internal.do_scheme_all ~user_call_scheme:true ~declare_mind id strpos
 
 module Internal =
 struct

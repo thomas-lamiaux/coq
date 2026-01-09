@@ -575,14 +575,20 @@ let do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm =
   let _ = DeclareScheme.declare_scheme SuperGlobal keyAllThm ((kn,focus), fth_ref) in
   ()
 
-let do_all_forall ?all_depth ~declare_mind kn strpos =
+let do_all_forall ?(user_call_scheme=false) ?all_depth ~declare_mind kn strpos =
   let env = Global.env () in
   let mib = Environ.lookup_mind kn env in
-  let (strpos, (sAll, sAllThm), (keyAll, keyAllThm)) =
-        AllScheme.compute_positive_uparams_and_suffix env kn mib strpos in
-  if List.exists (fun b -> b) strpos then
-  let kn_nested = do_scheme_all_predicate ?all_depth ~declare_mind kn mib strpos sAll keyAll in
-  Array.iteri (fun focus _ -> do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm) mib.mind_packets
+  let isPrimRecord = Array.exists (fun ind -> match ind.mind_record with PrimRecord _ -> true | _ -> false) mib.mind_packets in
+  if not isPrimRecord then begin
+    let (strpos, (sAll, sAllThm), (keyAll, keyAllThm)) =
+          AllScheme.compute_positive_uparams_and_suffix env kn mib strpos in
+    if List.exists (fun b -> b) strpos then
+    let kn_nested = do_scheme_all_predicate ?all_depth ~declare_mind kn mib strpos sAll keyAll in
+    Array.iteri (fun focus _ -> do_scheme_all_theorem kn mib kn_nested focus strpos sAllThm keyAllThm) mib.mind_packets
+    end
+  else
+    if user_call_scheme then
+      CErrors.user_err Pp.(str "Not Implemented For Primitive Records")
 
 
 (**********************************************************************)
@@ -615,7 +621,8 @@ let declare_default_schemes ?locmap ?all_depth ~(declare_mind:declare_mind_funct
   if !elim_flag && (mib.mind_finite <> Declarations.BiFinite || !bifinite_elim_flag)
      && mib.mind_typing_flags.check_positive then
     declare_induction_schemes kn ?locmap;
-  if all_depth > 0 then do_all_forall ~all_depth:(all_depth-1) ~declare_mind:declare_mind kn None;
+  if all_depth > 0 && mib.mind_finite <> CoFinite then
+    do_all_forall ~all_depth:(all_depth-1) ~declare_mind:declare_mind kn None;
   if !case_flag then map_inductive_block ?locmap declare_one_case_analysis_scheme kn n;
   if is_eq_flag() then try_declare_beq_scheme kn ?locmap;
   if !eq_dec_flag then try_declare_eq_decidability kn ?locmap;
@@ -623,7 +630,7 @@ let declare_default_schemes ?locmap ?all_depth ~(declare_mind:declare_mind_funct
   if !rewriting_flag then map_inductive_block ?locmap declare_rewriting_schemes kn n
 
 module Internal = struct
-  let do_scheme_all ~declare_mind id strpos =
+  let do_scheme_all ~user_call_scheme ~declare_mind id strpos =
     let kn,_ = smart_ind id in
-    do_all_forall ~declare_mind kn strpos
+    do_all_forall ~user_call_scheme ~declare_mind kn strpos
 end

@@ -337,7 +337,7 @@ open Rel.Declaration
 
 let (let@) x f = x f
 let (let*) x f = State.bind x f
-let dbg = CDebug.create ~name:"generate_all" ()
+let dbg = CDebug.create ~name:"scheme-all" ()
 
 let mkFunUnit x =
   let@ _ = rebind fid Lambda Fresh naming_id x in
@@ -741,9 +741,9 @@ let gen_all_type_param kn pos_ind u mib key_uparams key_nuparams return_sort =
 
 (** Generate the type of the [all] predicate *)
 let gen_all_type kn pos_ind u mib uparams strpos fresh_sorts nuparams return_sort =
-    let@ (key_uparams, _, _) = closure_uparams_preds fid Prod uparams strpos fresh_sorts in
-    let@ key_nuparams = closure_nuparams fid Prod naming_id nuparams in
-    gen_all_type_param kn pos_ind u mib key_uparams key_nuparams return_sort
+  let@ (key_uparams, _, _) = closure_uparams_preds fid Prod uparams strpos fresh_sorts in
+  let@ key_nuparams = closure_nuparams fid Prod naming_id nuparams in
+  gen_all_type_param kn pos_ind u mib key_uparams key_nuparams return_sort
 
 (** Add the [one_inductive_body] of the [all] predicate in the context *)
 let add_inductive kn u mib return_sorts uparams strpos fresh_sorts nuparams cc =
@@ -807,7 +807,7 @@ let rec make_rec_call_hyp kn pos_ind mib rep_inds ((key_uparams, key_preds, key_
       let ind_args = Array.concat [inst_uparams_preds; inst_nuparams; inst_indices; [|inst_arg|]] in
       match rep_inds with
       | IndIsVars key_inds ->
-          let* ind = geti_term key_inds pos_ind in
+          let* ind = geti_term key_inds pos_ind_block in
           return @@ Some (mkApp (ind, ind_args))
       | IndIsKn (kn_all, u_all) ->
           return @@ Some (mkApp (mkIndU ((kn_all, pos_ind), u_all), ind_args))
@@ -921,8 +921,8 @@ let generate_all_aux suffix kn u sub_temp mib uparams strpos nuparams : mutual_i
         gen_all_one_ind suffix kn pos_ind ind u mib return_sorts key_inds key_up strpos key_nuparams
       )  mib.mind_packets
   in
-  let* sigma = get_sigma in
   (* build entry *)
+  let* sigma = get_sigma in
   let mie =
   {
     mind_entry_record = None;

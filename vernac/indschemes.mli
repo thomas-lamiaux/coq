@@ -63,6 +63,6 @@ module Internal : sig
 
       Use the reexported function in DeclareInd instead to avoid
       needing to pass [declare_mind]. *)
-  val do_scheme_all : declare_mind:declare_mind_function ->
+  val do_scheme_all : user_call_scheme:bool -> declare_mind:declare_mind_function ->
     Libnames.qualid Constrexpr.or_by_notation -> Id.t list option -> unit
 end

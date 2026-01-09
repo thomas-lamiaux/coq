@@ -55,6 +55,22 @@ Module Template.
   Print RoseTree_all.
   About RoseTree_all_forall.
 
+  Inductive RoseTreeMut A :=
+  | node_mut : forest A -> RoseTreeMut A
+  with forest A :=
+  | forest_nil : forest A
+  | forest_cons : A -> RoseTreeMut A -> forest A.
+
+  Print RoseTreeMut_all.
+  About RoseTreeMut_all_forall.
+  Print RoseTreeMut_all_all.
+  About RoseTreeMut_all_all_forall.
+
+  Print forest_all.
+  About forest_all_forall.
+  Print forest_all_all.
+  About forest_all_all_forall.
+
   Inductive RoseRoseTree A : Type :=
   | Nleaf (a : A) : RoseRoseTree A
   | Nnode (p : (list (list (RoseRoseTree A)))) : RoseRoseTree A.
@@ -219,6 +235,18 @@ Module Template.
                     triv_All2_bis.
 
   About triv_All2_bis_ind.
+
+  Module PrimRecord.
+
+    Set Primitive Projections.
+
+    Inductive X (U:Type) := { b : U }.
+
+    Fail X_all.
+
+    Fail Scheme All for X.
+
+  End PrimRecord.
 
 End Template.
 
