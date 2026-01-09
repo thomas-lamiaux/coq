@@ -1382,6 +1382,8 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
 
    .. rocqtop:: in reset
 
+      Set All Depth 0.
+
       Inductive prod (A B : Type) : Type :=
       | pair : A -> B -> prod A B.
 

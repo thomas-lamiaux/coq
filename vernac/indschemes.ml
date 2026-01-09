@@ -606,7 +606,7 @@ type declare_mind_function = ?all_depth:int ->
 
 (** Depth Generation of all predicate at definition of a new inductive type *)
 let { Goptions.get = default_all_depth } =
-  Goptions.declare_int_option_and_ref ~key:["All";"Depth"] ~value:0 ()
+  Goptions.declare_int_option_and_ref ~key:["All";"Depth"] ~value:1 ()
 
 let default_all_depth kn mib =
   let mib = Global.lookup_mind kn in
