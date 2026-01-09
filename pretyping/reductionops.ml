@@ -727,7 +727,7 @@ let rec match_arg_pattern whrec env sigma ctx psubst p t =
   | EHole i -> Partial_subst.add_term i t' psubst
   | EHoleIgnored -> psubst
   | ERigid (ph, es) ->
-      let t, stk = whrec (t, Stack.empty) in
+      let t, stk = whrec ctx (t, Stack.empty) in
       let psubst = match_rigid_arg_pattern whrec env sigma ctx psubst ph t in
       let psubst, stk = apply_rule whrec env sigma ctx psubst es stk in
       if Stack.is_empty stk then psubst else raise PatternFailure
@@ -818,7 +818,7 @@ let rec apply_rules whrec env sigma u r stk =
       (rhs', stk)
     with PatternFailure -> apply_rules whrec env sigma u rs stk
 
-let whd_state_gen flags ?metas env sigma =
+let rec whd_state_gen flags ?metas env sigma =
   let open Context.Named.Declaration in
   let rec whrec (x, stack) : state =
     let () =
@@ -867,7 +867,11 @@ let whd_state_gen flags ?metas env sigma =
           whrec (a,Stack.Primitive(p,const,before,kargs)::after)
        | exception NotEvaluableConst (HasRules (u', b, r)) ->
           begin try
-            let rhs, stack = apply_rules whrec env sigma u r stack in
+            let red_fun ctx =
+              let env = push_rel_context ctx env in
+              whd_state_gen flags ?metas env sigma
+            in
+            let rhs, stack = apply_rules red_fun env sigma u r stack in
             whrec (rhs, stack)
           with PatternFailure ->
             if not b then fold () else
@@ -1617,7 +1621,8 @@ let whd_betaiota_deltazeta_for_iota_state ts ?metas env sigma s =
       match kind sigma t with
       | Const (cst, u) when is_symbol env sigma cst ->
         let r = Environ.lookup_rewrite_rules cst env in
-        begin match apply_rules whrec env sigma u r stack with
+        let red_fun ctx = whd_state_gen RedFlags.all ?metas (push_rel_context ctx env) sigma in
+        begin match apply_rules red_fun env sigma u r stack with
         | r -> Some r
         | exception PatternFailure -> None
         end
