@@ -1346,9 +1346,6 @@ let vernac_cofixpoint ~pm ~refine ~atts cofixl =
     (fun pm -> ComFixpoint.do_mutually_recursive ?pm ~refine ~scope ?clearbody ~kind:(IsDefinition CoFixpoint) ~poly ?typing_flags ?user_warns ?using (CCoFixRecOrder, cofixl))
     pm
 
-let vernac_scheme_all id strpos =
-  Indschemes.do_scheme_all Indschemes.declare_default_schemes id strpos
-
 let vernac_scheme atts l =
   if Dumpglob.dump () then
     List.iter (fun (lid, sch) ->
@@ -2693,7 +2690,7 @@ let translate_pure_vernac ?loc ~atts v = let open Vernactypes in match v with
   | VernacSchemeAll (id, strpos) ->
     vtdefault(fun () ->
         unsupported_attributes atts;
-        vernac_scheme_all id strpos)
+        DeclareInd.do_scheme_all id strpos)
   | VernacSchemeEquality (sch,id) ->
     vtdefault(fun () ->
         unsupported_attributes atts;
