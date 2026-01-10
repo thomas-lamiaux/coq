@@ -1391,7 +1391,7 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
    Its theorem will then state that if `PA` and `PB` hold, then `prod_all` holds.
    They can be generated with :cmd:`Scheme All` command.
 
-   .. rocqtop:: in
+   .. rocqtop:: all
 
       Scheme All for prod.
       Print prod_all.
@@ -1415,7 +1415,7 @@ with :n:`@reference`, the `All` predicate and its theorem will be looked up with
    To provide better eliminators for partially nesting like `LeftTree`, it is
    possible to generate partial version of `prod_all`
 
-   .. rocqtop:: in
+   .. rocqtop:: all
 
       Scheme All for prod with A.
       Print prod_all_10.
