@@ -1241,7 +1241,7 @@ Arguments triv_All2_bis_ind (P ctriv_All2_bis)%_function_scope t
 triv_All2_bis_ind is transparent
 Expands to: Constant nested_eliminators.Template.triv_All2_bis_ind
 Declared in library nested_eliminators, line 233, characters 2-176
-File "./output/nested_eliminators.v", line 245, characters 9-14:
+File "./output/nested_eliminators.v", line 247, characters 9-14:
 Error:
 Syntax error: [control_flag] or [decorated_vernac] expected (in [vernac_control]).
 

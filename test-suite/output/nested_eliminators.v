@@ -236,6 +236,8 @@ Module Template.
 
   About triv_All2_bis_ind.
 
+
+  (* Test Primtive Projections *)
   Module PrimRecord.
 
     Set Primitive Projections.
@@ -247,6 +249,25 @@ Module Template.
     Fail Scheme All for X.
 
   End PrimRecord.
+
+
+  (* Test Deeply Nested + variable binding *)
+  Inductive ex (A:Type) (P:A -> Prop) : Prop :=
+  ex_intro : forall x:A, P x -> ex A P.
+
+  Print ex_all.
+  About ex_all_forall.
+
+  Record language := Language {
+    expr : Type;
+    prim_step : expr -> Prop;
+  }.
+
+  Inductive adequate L (φ : unit -> Type) :=
+  | cadequate : prod False (ex (expr L) (fun e2 => prim_step L e2)) -> adequate L φ.
+
+  About adequate_ind.
+  About adequate_all.
 
 End Template.
 

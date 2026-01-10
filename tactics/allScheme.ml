@@ -539,13 +539,12 @@ let rec is_nested_arg_nested kn mib key_uparams strpos arg : bool t =
       let uparams_nested = of_rel_context @@ fst @@
             split_uparans_nuparams mib_nested mib_nested.mind_params_ctxt in
       let* inst_uparams = eta_expand_instantiation inst_uparams uparams_nested in
-      let add_local_vars arg =
+      let is_nested_arg_nested arg =
         let* (loc, hd) = decompose_lambda_decls arg in
-        let@ _ = add_context Old naming_id loc in
-        return hd
+        let@ _ = add_context Old naming_hd loc in
+        is_nested_arg_nested kn mib key_uparams strpos hd
       in
-      let* inst_uparams = array_mapi (fun _ -> add_local_vars) inst_uparams in
-      let* inst_uparams = array_mapi (fun _ -> is_nested_arg_nested kn mib key_uparams strpos) inst_uparams in
+      let* inst_uparams = array_mapi (fun _ -> is_nested_arg_nested) inst_uparams in
       return @@ Array.exists (fun x -> x) inst_uparams
   | ArgIsSPUparam  _ | ArgIsInd _ -> return true
   | _ -> return false
