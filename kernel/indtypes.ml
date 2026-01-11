@@ -53,6 +53,110 @@ exception InductiveError = Type_errors.InductiveError
 
 (************************************************************************)
 (************************************************************************)
+(* Compute Uniform Parameters *)
+
+let dbg_uparams = CDebug.create ~name:"uparams" ()
+
+let eta_expand_instantiation ?evars env inst ctxt =
+  let open Context.Rel.Declaration in
+  let eta_inst = Array.make (Array.length inst) mkProp in
+  let rec fold subst i = function
+  | [] -> assert (Array.length inst = i)
+  | LocalAssum (_, ty) :: ctx ->
+    let ty = substl subst ty in
+    let eta_t = Reduction.eta_expand ?evars env inst.(i) ty in
+    let () = eta_inst.(i) <- eta_t in
+    fold (eta_t :: subst) (i + 1) ctx
+  | LocalDef (_, bd, _) :: ctx ->
+    fold (bd :: subst) i ctx
+  in
+  let () = fold [] 0 (List.rev ctxt) in
+  eta_inst
+
+let min_array_mapi ar default f = Array.fold_right min (Array.mapi f ar) default
+
+(* Check which parameters are uniform *)
+(* let check_cst_iargs env nb_params iargs =
+  let size_ctx = List.length @@ rel_context env in
+  let check_rel i k = Int.equal (size_ctx - i) k in
+  let cst = Array.mapi (fun i t -> match kind t with Rel k -> check_rel i k | _ -> false) iargs in
+  match Array.findi (fun _ b -> not b) cst with
+  | Some i -> i
+  | None -> nb_params *)
+
+let check_cst_iargs env params iargs =
+  let size_ctx = List.length @@ rel_context env in
+  let check_rel i k = Int.equal (size_ctx - i) k in
+  let check_term i t =
+    let t = Reduction.whd_all env t in
+    match kind t with
+    | Rel k -> check_rel i k
+    |  _ -> false
+  in
+  let rec check_tel nb_up pos_tel tel =
+    match tel with
+    | [] -> nb_up
+    | LocalDef _ ::tel -> check_tel nb_up (pos_tel+1) tel
+    | LocalAssum _ :: tel ->
+      if check_term pos_tel iargs.(nb_up) then
+        check_tel (nb_up+1) (pos_tel+1) tel
+      else nb_up
+  in
+  check_tel 0 0 @@ List.rev params
+
+(** Computes which uniform parameters are strictly positive in an argument *)
+let rec compute_nb_uparams_arg env params nb_nparams arg =
+  let (local_vars, hd) = Reduction.whd_decompose_prod_decls env arg in
+  let env = push_rel_context local_vars env in
+  let (hd, iargs) = decompose_app hd in
+  match kind hd with
+  | Rel k ->
+      (* Check if it is the inductive *)
+      if List.length (rel_context env) < k then
+        let iparams = fst @@ Array.chop nb_nparams iargs in
+        check_cst_iargs env params iparams
+      else
+        nb_nparams
+  | Ind ((kn_nested, _), _) ->
+      let mib_nested = lookup_mind kn_nested env in
+      let uparams_nested = List.rev @@ fst @@
+            Context.Rel.chop_nhyps mib_nested.mind_nparams_rec @@
+            List.rev mib_nested.mind_params_ctxt in
+      let inst_uparams = fst @@ Array.chop mib_nested.mind_nparams_rec iargs in
+      let inst_uparams = eta_expand_instantiation env inst_uparams uparams_nested in
+      min_array_mapi inst_uparams nb_nparams @@
+        fun _ t ->
+        let (loc, hd) = Reduction.whd_decompose_lambda_decls env t in
+        let env = push_rel_context loc env in
+        compute_nb_uparams_arg env params nb_nparams hd
+  | _ -> nb_nparams
+
+let compute_nb_uparams env params inds : int =
+  let env = set_rel_context_val empty_rel_context_val env in
+  dbg_uparams Pp.(fun () -> str "size env =" ++ int (List.length @@ rel_context env));
+  let nb_nparams = Context.Rel.nhyps params in
+  let env = push_rel_context params env in
+  min_array_mapi inds nb_nparams @@ fun _ (_, ctors) ->
+    min_array_mapi ctors nb_nparams @@ fun _ (args, return_type) ->
+      (* Check Arguments *)
+      let (env, up_args) =
+        List.fold_right (
+            fun arg (env, acc) ->
+            if Option.has_some @@ get_value arg then
+              push_rel arg env, acc
+            else
+              let arg_up = compute_nb_uparams_arg env params nb_nparams @@ get_type arg in
+              (push_rel arg env, min acc arg_up)
+          ) args (env, nb_nparams)
+      in
+      (* Check Return Type *)
+      let (_, iargs) = decompose_app return_type in
+      let iparams = fst @@ Array.chop nb_nparams iargs in
+      let up_return_type = check_cst_iargs env params iparams in
+      min up_args up_return_type
+
+(************************************************************************)
+(************************************************************************)
 (* Positivity *)
 
 type ill_formed_ind =
@@ -579,10 +683,14 @@ let check_inductive env ~sec_univs kn mie =
   let names = Array.map_of_list (fun entry -> entry.mind_entry_typename, entry.mind_entry_consnames)
       mie.mind_entry_inds
   in
-  let (nmr,recargs) = check_positivity ~chkpos kn names
+  let (_,recargs) = check_positivity ~chkpos kn names
       env_ar_par paramsctxt mie.mind_entry_finite
       (Array.map (fun ((_,lc),(indices,_),_) -> Context.Rel.nhyps indices,lc) inds)
   in
+  (* Compute uniform parameters *)
+  let nmr = compute_nb_uparams env_ar_par paramsctxt @@
+              Array.map (fun (_, x, _) -> x) inds in
+  dbg_uparams Pp.(fun () -> str "UPARAMS = " ++ int nmr);
   (* Build the inductive packets *)
   let mib =
     build_inductive env ~sec_univs names mie.mind_entry_private univs template variance
