@@ -692,7 +692,11 @@ let push_section_context uctx senv =
   let qctx, ctx = UVars.UContext.to_context_set uctx in
   let () = assert (Sorts.QVar.Set.for_all Sorts.QVar.is_global (fst qctx)) in
   let () = assert Sorts.QVar.Set.(is_empty (inter (fst qctx) (fst senv.qualities))) in
-  (* push_context checks freshness *)
+  let check_fresh u = match UGraph.check_declared_universes (Environ.universes senv.env) (Univ.Level.Set.singleton u) with
+  | Result.Ok _ -> assert false
+  | Result.Error _ -> ()
+  in
+  let () = Univ.Level.Set.iter check_fresh (fst ctx) in
   let env = Environ.push_context_set ~strict:false ctx senv.env in
   (* FIXME: check validity of the sort context *)
   (* FIXME: marking the section-local sorts as rigid makes little sense *)
