@@ -1606,8 +1606,7 @@ let import lib vmtab vodigest senv =
     not (QGraph.is_declared (Sorts.Quality.QVar q) (Environ.qualities senv.env))
   in
   let () = assert (Sorts.QVar.Set.for_all check_quality (fst qualities)) in
-  (* XXX why are these global constraints not rigid??? *)
-  let env = Environ.push_qualities ~rigid:false qualities senv.env in
+  let env = Environ.push_qualities ~rigid:true qualities senv.env in
   let env = Environ.push_context_set ~strict:true univs env in
   let env = Environ.link_vm_library vmtab env in
   let env =
