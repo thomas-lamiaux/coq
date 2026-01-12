@@ -114,11 +114,8 @@ let rec check_with_def (cst, ustate) env struc (idl, wth) mp reso =
               error (WithSignatureMismatch (IncompatibleUnivConstraints { got = ctx; expect = uctx }))
           in
           (** Terms are compared in a context with De Bruijn universe indices *)
+          let () = check_ucontext (UVars.AbstractContext.repr uctx) env in
           let env' = Environ.push_context ~strict:false (UVars.AbstractContext.repr uctx) env in
-          let () =
-            if not (Sorts.ElimConstraints.is_empty @@ UVars.UContext.elim_constraints (UVars.AbstractContext.repr uctx)) then
-              QGraph.check_rigid_paths (Environ.qualities env')
-          in
           let () = match cb.const_body with
             | Undef _ | OpaqueDef _ ->
               let j = Typeops.infer env' wth.w_def in

@@ -379,6 +379,10 @@ val check_univ_constraints : Univ.UnivConstraints.t -> env -> bool
 val check_constraints : PConstraints.t -> env -> bool
 (** Check constraints are satifiable in the environment. *)
 
+val check_ucontext : UContext.t -> env -> unit
+(** Check that the sort context of the argument satisfies the well-formedness
+    conditions ensuring the existence of an instance. *)
+
 val push_context : ?strict:bool -> UContext.t -> env -> env
 (** [push_context ?(strict=false) ctx env] pushes the universe context to the environment.
     @raise UGraph.AlreadyDeclared if one of the universes is already declared. *)
