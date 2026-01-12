@@ -82,6 +82,8 @@ val update_rigids : t -> t -> t
 val check_rigid_paths : t -> unit
 val add_rigid_path : Quality.t -> Quality.t -> t -> t
 
+val is_declared : Quality.t -> t -> bool
+
 val eliminates_to : t -> Quality.t -> Quality.t -> bool
 
 val eliminates_to_prop : t -> Quality.t -> bool

@@ -565,7 +565,8 @@ let push_qualities ~rigid qs senv =
     let check_local qv = match Sorts.QVar.repr qv with
     | Sorts.QVar.Global gv ->
       let (dp, _) = Sorts.QGlobal.repr gv in
-      assert (DirPath.equal dp (ModPath.dp senv.modpath))
+      let () = assert (DirPath.equal dp (ModPath.dp senv.modpath)) in
+      assert (not @@ QGraph.is_declared (Sorts.Quality.QVar qv) (Environ.qualities senv.env))
     | Sorts.QVar.Unif _ | Sorts.QVar.Var _ -> assert false
     in
     let () = Sorts.QVar.Set.iter check_local (fst qs) in
@@ -690,8 +691,11 @@ let push_section_context uctx senv =
   let sections = Section.push_local_universe_context uctx sections in
   let senv = { senv with sections=Some sections } in
   let qctx, ctx = UVars.UContext.to_context_set uctx in
-  let () = assert (Sorts.QVar.Set.for_all Sorts.QVar.is_global (fst qctx)) in
-  let () = assert Sorts.QVar.Set.(is_empty (inter (fst qctx) (fst senv.qualities))) in
+  let check_quality q =
+    Sorts.QVar.is_global q &&
+    not (QGraph.is_declared (Sorts.Quality.QVar q) (Environ.qualities senv.env))
+  in
+  let () = assert (Sorts.QVar.Set.for_all check_quality (fst qctx)) in
   let check_fresh u = match UGraph.check_declared_universes (Environ.universes senv.env) (Univ.Level.Set.singleton u) with
   | Result.Ok _ -> assert false
   | Result.Error _ -> ()
@@ -1597,7 +1601,11 @@ let import lib vmtab vodigest senv =
   let mb = lib.comp_mod in
   let univs = lib.comp_univs in
   let qualities = lib.comp_sorts in
-  let () = assert (Sorts.QVar.Set.for_all Sorts.QVar.is_global (fst qualities)) in
+  let check_quality q =
+    Sorts.QVar.is_global q &&
+    not (QGraph.is_declared (Sorts.Quality.QVar q) (Environ.qualities senv.env))
+  in
+  let () = assert (Sorts.QVar.Set.for_all check_quality (fst qualities)) in
   (* XXX why are these global constraints not rigid??? *)
   let env = Environ.push_qualities ~rigid:false qualities senv.env in
   let env = Environ.push_context_set ~strict:true univs env in

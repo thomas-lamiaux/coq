@@ -328,8 +328,11 @@ let pr_arc prq =
   | u, G.Alias v ->
     prq u  ++ str " = " ++ prq v ++ fnl ()
 
-
 let repr g = G.repr g.graph
+
+let is_declared q g = match G.check_declared g.graph (Quality.Set.singleton q) with
+| Result.Ok _ -> true
+| Result.Error _ -> false
 
 let pr_qualities prq g = pr_pmap Pp.mt (pr_arc prq) (repr g)
 
