@@ -485,9 +485,9 @@ let push_context ?(strict=false) ctx env =
 
 (* TODO: a bit wasteful, we typically call this before pushing the sort context *)
 let check_ucontext ctx env =
-  let env = push_context ~strict:false ctx env in
+  let qgraph = add_qualities ctx (qualities env) in
   if not (Sorts.ElimConstraints.is_empty @@ UVars.UContext.elim_constraints ctx) then
-    QGraph.check_rigid_paths (qualities env)
+    QGraph.check_rigid_paths qgraph
 
 let add_universes_set ~strict (lvl, cstr) g =
   let g = Univ.Level.Set.fold
