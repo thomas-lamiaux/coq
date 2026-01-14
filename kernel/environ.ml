@@ -483,6 +483,12 @@ let push_context ?(strict=false) ctx env =
   let env = map_qualities (add_qualities ctx) env in
   map_universes (add_universes ~strict ctx) env
 
+(* TODO: a bit wasteful, we typically call this before pushing the sort context *)
+let check_ucontext ctx env =
+  let qgraph = add_qualities ctx (qualities env) in
+  if not (Sorts.ElimConstraints.is_empty @@ UVars.UContext.elim_constraints ctx) then
+    QGraph.check_rigid_paths qgraph
+
 let add_universes_set ~strict (lvl, cstr) g =
   let g = Univ.Level.Set.fold
             (* Be lenient, module typing reintroduces universes and constraints due to includes *)
@@ -1067,11 +1073,8 @@ module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
 
 module Internal = struct
   let push_template_context uctx env =
+    let () = check_ucontext uctx env in
     let env = push_context ~strict:false uctx env in
-    let () =
-      if not (Sorts.ElimConstraints.is_empty @@ UVars.UContext.elim_constraints uctx) then
-        QGraph.check_rigid_paths env.env_qualities
-    in
     let (qvars, _), _ = UVars.UContext.to_context_set uctx in
     let env = map_universes (UGraph.Internal.add_template_qvars qvars) env in
     env

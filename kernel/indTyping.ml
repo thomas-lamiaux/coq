@@ -543,11 +543,8 @@ let typecheck_inductive env ~sec_univs (mie:mutual_inductive_entry) =
       Environ.Internal.push_template_context uctx env
     | Monomorphic_ind_entry -> env
     | Polymorphic_ind_entry ctx ->
+      let () = check_ucontext ctx env in
       let env = push_context ctx env in
-      let () =
-        if not (Sorts.ElimConstraints.is_empty @@ UVars.UContext.elim_constraints ctx) then
-          QGraph.check_rigid_paths (Environ.qualities env)
-      in
       env
   in
 
