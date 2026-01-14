@@ -352,8 +352,8 @@ let explain_quality_inconsistency prv r =
      else
        let qualities = pstart :: List.map snd p in
        let constants = List.filter Quality.is_qconst qualities in
-       str "because it would identify" ++
-         prlist_with_sep (fun() -> spc() ++ str"and" ++ spc()) (Quality.pr prv) constants ++
+       str "because it would identify " ++
+         pr_enum (Quality.pr prv) constants ++
          spc() ++ str"which is inconsistent." ++ spc() ++
          str"This is introduced by the constraints" ++ spc() ++ Quality.pr prv pstart ++
          prlist (fun (r,v) -> spc() ++ pr_cst r ++ str" " ++ Quality.pr prv v) p
