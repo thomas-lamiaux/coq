@@ -189,7 +189,8 @@ let to_graph_cstr k =
     | Equal -> AcyclicGraph.Eq
 
 type elimination_error =
-  | IllegalConstraint
+  | IllegalConstraintFromSProp of Quality.t
+  | IllegalConstantConstraint of Quality.constant * Quality.constant
   | CreatesForbiddenPath of Quality.t * Quality.t
   | MultipleDominance of Quality.t * Quality.t * Quality.t
   | QualityInconsistency of quality_inconsistency
@@ -281,10 +282,13 @@ let check_rigid_paths g =
   | Some (q1, q2) -> raise (EliminationError (CreatesForbiddenPath (q1, q2)))
 
 let add_rigid_path q1 q2 g =
-  if (Quality.is_qconst q1 && Quality.is_qconst q2) || (Quality.is_qsprop q1 && not (Quality.is_qsprop q2)) then
-    raise (EliminationError IllegalConstraint)
-  else
-    { g with rigid_paths = RigidPaths.add_elim_to q1 q2 g.rigid_paths }
+  let open Quality in
+  match q1, q2 with
+  (* Adding a constraint from SProp -> * is not allowed *)
+  | QConstant QSProp, _ -> raise (EliminationError (IllegalConstraintFromSProp q2))
+  (* Adding constraints between constants is not allowed *)
+  | QConstant qc1, QConstant qc2 -> raise (EliminationError (IllegalConstantConstraint (qc1, qc2)))
+  | _, _ -> { g with rigid_paths = RigidPaths.add_elim_to q1 q2 g.rigid_paths }
 
 let enforce_func k q1 q2 g = match k with
 | ElimConstraint.ElimTo ->
@@ -401,23 +405,23 @@ let is_empty g = QVar.Set.is_empty (qvar_domain g)
 (* Pretty printing *)
 
 let pr_pmap sep pr map =
-  let cmp (u,_) (v,_) = Quality.compare u v in
+  let cmp (q1, _) (q2, _) = Quality.compare q1 q2 in
   Pp.prlist_with_sep sep pr (List.sort cmp (Quality.Map.bindings map))
 
 let pr_arc prq =
   let open Pp in
   function
-  | u, G.Node ltle ->
+  | q1, G.Node ltle ->
     if Quality.Map.is_empty ltle then mt ()
     else
-      prq u ++ str " " ++
+      prq q1 ++ spc () ++
       v 0
-        (pr_pmap spc (fun (v, strict) ->
-              (if strict then str "< " else str "<= ") ++ prq v)
+        (pr_pmap spc (fun (q2, _) ->
+              str "-> " ++ prq q2)
             ltle) ++
       fnl ()
-  | u, G.Alias v ->
-    prq u  ++ str " = " ++ prq v ++ fnl ()
+  | q1, G.Alias q2 ->
+    prq q1  ++ str " <-> " ++ prq q2 ++ fnl ()
 
 let repr g = G.repr g.graph
 
@@ -431,8 +435,8 @@ let explain_quality_inconsistency prv r =
   let open Pp in
   let pr_cst = function
     | AcyclicGraph.Eq -> str"="
-    | AcyclicGraph.Le -> str"~>"
-    | AcyclicGraph.Lt -> str"~>" (* Yes, it's the same as above. *)
+    | AcyclicGraph.Le -> str"->"
+    | AcyclicGraph.Lt -> str"->" (* Yes, it's the same as above. *)
   in
   match r with
   | None -> mt()
@@ -446,18 +450,22 @@ let explain_quality_inconsistency prv r =
        str "because it would identify " ++
          pr_enum (Quality.pr prv) constants ++
          spc() ++ str"which is inconsistent." ++ spc() ++
-         str"This is introduced by the constraints" ++ spc() ++ Quality.pr prv pstart ++
-         prlist (fun (r,v) -> spc() ++ pr_cst r ++ str" " ++ Quality.pr prv v) p
+         str"This is introduced by the constraints " ++
+         prlist (fun (r, v) -> Quality.pr prv v ++ spc() ++ pr_cst r ++ spc()) p ++
+         Quality.pr prv pstart
 
 let explain_elimination_error defprv err =
   let open Pp in
   match err with
-  | IllegalConstraint -> str "A constraint involving two constants or SProp ~> s is illegal."
+  | IllegalConstraintFromSProp q -> str "Enforcing elimination constraints from SProp to any other sort is not allowed. " ++ brk (1, 0) ++
+    str "This expression would enforce that SProp eliminates to " ++ Quality.pr defprv q ++ str "."
+  | IllegalConstantConstraint (q1, q2) -> str "Enforcing elimination constraints between constant sorts (Type, Prop or SProp) is not allowed." ++ brk (1, 0) ++
+    str "Here: " ++ Quality.Constants.pr q1 ++ str" and " ++ Quality.Constants.pr q2 ++ str "."
   | CreatesForbiddenPath (q1,q2) ->
      str "This expression would enforce a non-declared elimination constraint between" ++
        spc() ++ Quality.pr defprv q1 ++ spc() ++ str"and" ++ spc() ++ Quality.pr defprv q2
   | MultipleDominance (q1,qv,q2) ->
-     let pr_elim q = Quality.pr defprv q ++ spc() ++ str"~>" ++ spc() ++ Quality.pr defprv qv in
+     let pr_elim q = Quality.pr defprv q ++ spc() ++ str"->" ++ spc() ++ Quality.pr defprv qv in
      str "This expression enforces" ++ spc() ++ pr_elim q1 ++ spc() ++ str"and" ++ spc() ++
        pr_elim q2 ++ spc() ++ str"which might make type-checking undecidable"
   | QualityInconsistency (prv, (k, q1, q2, r)) ->

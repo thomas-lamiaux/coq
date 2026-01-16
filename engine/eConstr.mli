@@ -331,6 +331,8 @@ val whd_evar : Evd.evar_map -> constr -> constr
 val eq_constr : Evd.evar_map -> t -> t -> bool
 val eq_constr_nounivs : Evd.evar_map -> t -> t -> bool
 val eq_constr_universes : Environ.env -> Evd.evar_map -> ?nargs:int -> t -> t -> UnivProblem.Set.t option
+(** Does not produce QLeq nor QElimTo constraints *)
+
 val leq_constr_universes : Environ.env -> Evd.evar_map -> ?nargs:int -> t -> t -> UnivProblem.Set.t option
 val eq_existential : Evd.evar_map ->  (t -> t -> bool) -> existential -> existential -> bool
 
