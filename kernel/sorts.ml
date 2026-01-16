@@ -337,18 +337,6 @@ struct
     (q, ElimConstraints.filter filter c)
 end
 
-let enforce_eq_quality a b csts =
-  if Quality.equal a b then csts
-  else ElimConstraints.add (a,ElimConstraint.Equal,b) csts
-
-let enforce_elim_to_quality a b csts =
-  if Quality.equal a b then csts
-  else ElimConstraints.add (a,ElimConstraint.ElimTo,b) csts
-
-let enforce_eq_cumul_quality a b csts =
-  if Quality.equal a b then csts
-  else ElimConstraints.add (a, ElimConstraint.Equal, b) csts
-
 type t =
   | SProp
   | Prop
