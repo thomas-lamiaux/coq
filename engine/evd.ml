@@ -1205,6 +1205,11 @@ let check_elim_constraints evd csts =
 let check_poly_constraints evd (qcsts,ucsts) =
   check_elim_constraints evd qcsts && check_univ_constraints evd ucsts
 
+let check_quality_constraints evd qcst =
+  let fold (q1, q2) accu = Sorts.ElimConstraints.add (q1, Equal, q2) accu in
+  let qcst = UVars.QPairSet.fold fold qcst Sorts.ElimConstraints.empty in
+  check_elim_constraints evd qcst
+
 let fix_undefined_variables evd =
   { evd with universes = UState.fix_undefined_variables evd.universes }
 

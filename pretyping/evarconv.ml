@@ -458,9 +458,13 @@ let is_applied o n = match o with FullyApplied -> true | NumArgs m -> Int.equal 
 
 let compare_heads pbty env evd ~nargs term term' =
   let check_strict evd u u' =
-    let cstrs = UVars.enforce_eq_instances u u' PConstraints.empty in
-    (* source does not matter because no elimination constraints *)
-    try Success (Evd.add_poly_constraints ~src:UState.Static evd cstrs)
+    let (qcst, ucst) = UVars.enforce_eq_instances u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty) in
+    try
+      let evd = Evd.add_univ_constraints evd ucst in
+      let fold (q1, q2) accu = UnivProblem.Set.add (UnivProblem.QEq (q1, q2)) accu in
+      let qcst = UVars.QPairSet.fold fold qcst UnivProblem.Set.empty in
+      let evd = Evd.add_constraints evd qcst in
+      Success evd
     with UGraph.UniverseInconsistency p -> UnifFailure (evd, UnifUnivInconsistency p)
   in
   match EConstr.kind evd term, EConstr.kind evd term' with

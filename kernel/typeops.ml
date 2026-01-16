@@ -42,13 +42,14 @@ let conv_leq_vecti env v1 v2 =
     v2
 
 let check_pconstraints (qcst, ucst) env =
-  (* TODO : use a more precise type of constraints *)
-  let elim_trivial (s1, c, s2) = match c with
-  | ElimConstraint.Equal -> Quality.equal s1 s2
-  | ElimConstraint.ElimTo -> assert false
-  in
-  if Environ.check_univ_constraints ucst env && Sorts.ElimConstraints.for_all elim_trivial qcst then ()
-  else error_unsatisfied_poly_constraints env (qcst, ucst)
+  let check_quality (s1, s2) = Quality.equal s1 s2 in
+  if not (Environ.check_univ_constraints ucst env) then
+    error_unsatisfied_univ_constraints env ucst
+  else if not (UVars.QPairSet.for_all check_quality qcst) then
+    (* XXX a bit ad-hoc, this is only used for case well-formedness, we ought to
+       have a proper generic error. *)
+    raise Type_errors.(TypeError (env, IllFormedCaseParams))
+  else ()
 
 let check_poly_constraints cst env =
   if Environ.check_constraints cst env then ()
@@ -537,8 +538,8 @@ let type_case_scrutinee env (mib, _mip) (u', largs) u pms (pctx, p) c =
   (* We use l2r:true for compat with old versions which used CONV with arguments
      flipped. It is relevant for performance eg in bedrock / Kami. *)
   let qcst, ucst = match mib.mind_variance with
-  | None -> UVars.enforce_eq_instances u u' PConstraints.empty
-  | Some variance -> UVars.enforce_leq_variance_instances variance u' u PConstraints.empty
+  | None -> UVars.enforce_eq_instances u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
+  | Some variance -> UVars.enforce_leq_variance_instances variance u' u (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
   in
   let () = check_pconstraints (qcst, ucst) env in
   let subst = Vars.subst_of_rel_context_instance_list pctx (realargs @ [c]) in

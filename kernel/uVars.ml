@@ -193,11 +193,15 @@ end
 
 let eq_sizes (a,b) (a',b') = Int.equal a a' && Int.equal b b'
 
-type 'a pconstraints_function = 'a -> 'a -> PConstraints.t -> PConstraints.t
+module QPair = OrderedType.Pair(Quality)(Quality)
+
+module QPairSet = Set.Make(QPair)
+
+type 'a pconstraints_function = 'a -> 'a -> QPairSet.t * UnivConstraints.t -> QPairSet.t * UnivConstraints.t
 
 let enforce_eq_cumul_quality a b csts =
   if Quality.equal a b then csts
-  else Sorts.ElimConstraints.add (a, Sorts.ElimConstraint.Equal, b) csts
+  else QPairSet.add (a, b) csts
 
 let enforce_eq_instances x y (qcs, ucs as orig) =
   let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
