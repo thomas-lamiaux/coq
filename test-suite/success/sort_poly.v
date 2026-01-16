@@ -69,6 +69,9 @@ Module Conversion.
   Check fun A:SProp => eq_refl : t1 A = t2 A.
   Check fun A:SProp => eq_refl : box _ (t1' A) = box _ (t2' A).
 
+  Fail Definition equi_eliminable@{s1 s2;|s1 -> s2, s2 -> s1} (A : Type@{s1;Set}) : Type@{s2;Set} := A.
+  Fail Definition equi_eliminable@{s1 s2;|s1 -> s2, s2 -> s1} (A : Type@{s2;Set}) : Type@{s1;Set} := A.
+
   Definition ignore@{s;u|} {A:Type@{s;u}} (x:A) := tt.
   Definition unfold_ignore@{s;u|} (A:Type@{s;u}) : ignore (t1 A) = ignore (t2 A) := eq_refl.
 
