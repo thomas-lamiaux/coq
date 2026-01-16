@@ -822,7 +822,8 @@ let evar_handler sigma =
     in
     { cb with const_body = drop_opaque cb.const_body; const_body_code = drop_code cb.const_body_code }
   in
-  { CClosure.evar_expand; evar_irrelevant; evar_repack; qvar_irrelevant; abstr_const }
+  let qual_equal q1 q2 = UState.check_eq_quality sigma.universes q1 q2 in
+  { CClosure.evar_expand; evar_irrelevant; evar_repack; qvar_irrelevant; qual_equal; abstr_const }
 
 let existential_type_opt d (n, args) =
   match find_undefined d n with
@@ -1185,16 +1186,14 @@ let set_elim_to evd q1 q2 =
   add_constraints evd @@ UnivProblem.Set.singleton (QElimTo (q1, q2))
 
 let check_eq evd s s' =
-  let quals = elim_graph evd in
   let ustate = evd.universes in
   let univs = UState.ugraph ustate in
-  UGraph.check_eq_sort quals univs (UState.nf_sort ustate s) (UState.nf_sort ustate s')
+  UGraph.check_eq_sort Sorts.Quality.equal univs (UState.nf_sort ustate s) (UState.nf_sort ustate s')
 
 let check_leq evd s s' =
-  let quals = elim_graph evd in
   let ustate = evd.universes in
   let univs = UState.ugraph ustate in
-  UGraph.check_leq_sort quals univs (UState.nf_sort ustate s) (UState.nf_sort ustate s')
+  UGraph.check_leq_sort Sorts.Quality.equal univs (UState.nf_sort ustate s) (UState.nf_sort ustate s')
 
 let check_univ_constraints evd csts =
   UGraph.check_constraints csts (UState.ugraph evd.universes)
@@ -1206,9 +1205,9 @@ let check_poly_constraints evd (qcsts,ucsts) =
   check_elim_constraints evd qcsts && check_univ_constraints evd ucsts
 
 let check_quality_constraints evd qcst =
-  let fold (q1, q2) accu = Sorts.ElimConstraints.add (q1, Equal, q2) accu in
-  let qcst = UVars.QPairSet.fold fold qcst Sorts.ElimConstraints.empty in
-  check_elim_constraints evd qcst
+  let fold (q1, q2) accu = UnivProblem.Set.add (UnivProblem.QEq (q1, q2)) accu in
+  let qcst = UVars.QPairSet.fold fold qcst UnivProblem.Set.empty in
+  UState.check_constraints evd.universes qcst
 
 let fix_undefined_variables evd =
   { evd with universes = UState.fix_undefined_variables evd.universes }

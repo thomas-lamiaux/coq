@@ -101,10 +101,6 @@ let enforce_leq_univ u v c =
   if Level.equal u v then c
   else add_univ (u, UnivConstraint.Le, v) c
 
-let enforce_eq_quality q1 q2 csts =
-  if Quality.equal q1 q2 then csts
-  else add_quality (q1, ElimConstraint.Equal, q2) csts
-
 let enforce_elim_to q1 q2 csts =
   if QGraph.ElimTable.eliminates_to q1 q2 then csts
   else add_quality (q1, ElimConstraint.ElimTo, q2) csts

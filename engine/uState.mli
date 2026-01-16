@@ -144,6 +144,8 @@ val check_elim_constraints : t -> ElimConstraints.t -> bool
 
 val check_constraints : t -> UnivProblem.Set.t -> bool
 
+val check_eq_quality : t -> Sorts.Quality.t -> Sorts.Quality.t -> bool
+
 (** {5 Names} *)
 
 val quality_of_name : t -> Id.t -> Sorts.QVar.t

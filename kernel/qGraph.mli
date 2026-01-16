@@ -71,10 +71,6 @@ val enforce_eliminates_to : Quality.t -> Quality.t -> t -> t
     If this constraint creates a cycle that violates the constraints,
     [QualityInconsistency] is raised. *)
 
-val enforce_eq : Quality.t -> Quality.t -> t -> t
-(** Set the first quality equal to the second one in the graph.
-    If it's impossible, raise [QualityInconsistency]. *)
-
 val initial_graph : t
 (** Graph with the constant quality elimination constraints found in
     [Quality.Constants.eliminates_to]. *)
@@ -90,9 +86,6 @@ val eliminates_to : t -> Quality.t -> Quality.t -> bool
 val eliminates_to_prop : t -> Quality.t -> bool
 
 val sort_eliminates_to : t -> Sorts.t -> Sorts.t -> bool
-
-val check_eq : t -> Quality.t -> Quality.t -> bool
-val check_eq_sort : t -> Sorts.t -> Sorts.t -> bool
 
 val domain : t -> Quality.Set.t
 val qvar_domain : t -> QVar.Set.t

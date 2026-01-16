@@ -127,7 +127,7 @@ module Quality : sig
 end
 
 module ElimConstraint : sig
-  type kind = Equal | ElimTo
+  type kind = ElimTo
 
   val pr_kind : kind -> Pp.t
 

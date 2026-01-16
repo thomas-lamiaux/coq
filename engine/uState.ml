@@ -142,6 +142,7 @@ let set q qv m =
   let q = repr q m in
   let q = match q with QVar q -> q | QConstant _ -> assert false in
   let qv = match qv with QVar qv -> repr qv m | (QConstant _ as qv) -> qv in
+  let enforce_eq q1 q2 g = QGraph.enforce_eliminates_to q1 q2 (QGraph.enforce_eliminates_to q2 q1 g) in
   match q, qv with
   | q, QVar qv ->
     if QVar.equal q qv then Some m
@@ -153,14 +154,14 @@ let set q qv m =
         then QSet.add qv (QSet.remove q m.above_prop)
         else m.above_prop in
       Some { rigid = m.rigid; qmap = QMap.add q (Some (QVar qv)) m.qmap; above_prop;
-             elims = QGraph.enforce_eq (QVar qv) (QVar q) m.elims; initial_elims = m.initial_elims }
+             elims = enforce_eq (QVar qv) (QVar q) m.elims; initial_elims = m.initial_elims }
   | q, (QConstant qc as qv) ->
     if qc == QSProp && (is_above_prop m q || eliminates_to_prop m q) then None
     else if QSet.mem q m.rigid then None
     else
       Some { m with rigid = m.rigid; qmap = QMap.add q (Some qv) m.qmap;
                     above_prop = QSet.remove q m.above_prop;
-                    elims = QGraph.enforce_eq qv (QVar q) m.elims }
+                    elims = enforce_eq qv (QVar q) m.elims }
 
 let set_above_prop q m =
   let q = repr q m in
@@ -700,7 +701,6 @@ let process_constraints uctx cstrs =
   let open UnivSubst in
   let open UnivProblem in
   let univs = uctx.universes in
-  let quals = elim_graph uctx in
   let vars = ref uctx.univ_variables in
   let normalize u = UnivFlex.normalize_univ_variable !vars u in
   let qnormalize sorts q = QState.repr q sorts in
@@ -723,7 +723,7 @@ let process_constraints uctx cstrs =
     | UProp -> prop
     | USet -> set
     in
-    if UGraph.check_eq_sort quals univs ls s then local
+    if UGraph.check_eq_sort Sorts.Quality.equal univs ls s then local
     else if is_uset l then match classify s with
     | USmall _ -> sort_inconsistency Eq set s
     | ULevel r ->
@@ -780,7 +780,7 @@ let process_constraints uctx cstrs =
     equalize_algebraic l' r local
   | (UAlgebraic _ | UMax _), (UAlgebraic _ | UMax _) ->
     (* both are algebraic *)
-    if UGraph.check_eq_sort quals univs l r then local
+    if UGraph.check_eq_sort Sorts.Quality.equal univs l r then local
     else sort_inconsistency Eq l r
   in
   let unify_universes cst local =
@@ -800,7 +800,7 @@ let process_constraints uctx cstrs =
       let r = normalize_sort local.local_sorts r in
       begin match classify r with
       | UAlgebraic _ | UMax _ ->
-        if UGraph.check_leq_sort quals univs l r then local
+        if UGraph.check_leq_sort Sorts.Quality.equal univs l r then local
         else
           sort_inconsistency Le l r
             ~explain:(Pp.str "(cannot handle algebraic on the right)")
@@ -814,7 +814,7 @@ let process_constraints uctx cstrs =
           (* l contains a +1 and r=r' small so l <= r impossible *)
           sort_inconsistency Le l r
         | USmall l' ->
-          if UGraph.check_leq_sort quals univs l r then local
+          if UGraph.check_leq_sort Sorts.Quality.equal univs l r then local
           else sort_inconsistency Le l r
         | ULevel l' ->
           if is_uset r' && is_local l' then
@@ -913,8 +913,7 @@ let problem_of_elim_constraints cstrs =
   ElimConstraints.fold (fun (l, k, r) pbs ->
       let open ElimConstraint in
       match k with
-      | ElimTo -> UnivProblem.Set.add (QElimTo (l, r)) pbs
-      | Equal -> UnivProblem.Set.add (QEq (l, r)) pbs)
+      | ElimTo -> UnivProblem.Set.add (QElimTo (l, r)) pbs)
     cstrs UnivProblem.Set.empty
 
 let add_univ_constraints uctx cstrs =
@@ -934,9 +933,11 @@ let check_elim_constraints uctx csts =
       let l = nf_quality uctx l in
       let r = nf_quality uctx r in
       match l,k,r with
-        | _, Equal, _ -> Quality.equal l r
         | _, ElimTo, _ -> Inductive.eliminates_to (QState.elims uctx.sort_variables) l r)
     csts
+
+let check_eq_quality uctx q1 q2 =
+  Sorts.Quality.equal q1 q2 || Sorts.Quality.equal (nf_quality uctx q1) (nf_quality uctx q2)
 
 let check_constraint uctx (c:UnivProblem.t) =
   match c with
@@ -958,8 +959,8 @@ let check_constraint uctx (c:UnivProblem.t) =
     let a = nf_quality uctx a in
     let b = nf_quality uctx b in
     Inductive.eliminates_to (QState.elims uctx.sort_variables) a b
-  | ULe (u,v) -> UGraph.check_leq_sort (elim_graph uctx) uctx.universes u v
-  | UEq (u,v) -> UGraph.check_eq_sort (elim_graph uctx) uctx.universes u v
+  | ULe (u,v) -> UGraph.check_leq_sort (fun q1 q2 -> check_eq_quality uctx q1 q2) uctx.universes u v
+  | UEq (u,v) -> UGraph.check_eq_sort (fun q1 q2 -> check_eq_quality uctx q1 q2) uctx.universes u v
   | ULub (u,v) -> UGraph.check_eq_level uctx.universes u v
   | UWeak _ -> true
 

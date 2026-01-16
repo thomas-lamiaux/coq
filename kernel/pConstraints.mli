@@ -62,8 +62,6 @@ val enforce_eq_univ : Level.t constraint_function
 
 val enforce_leq_univ : Level.t constraint_function
 
-val enforce_eq_quality : Quality.t constraint_function
-
 val enforce_elim_to : Quality.t constraint_function
 
 val fold : (ElimConstraint.t -> 'a -> 'a) * (UnivConstraint.t -> 'b -> 'b) -> t
