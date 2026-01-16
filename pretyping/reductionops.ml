@@ -1240,12 +1240,11 @@ end
 
 let is_fconv ?(reds=TransparentState.full) pb env sigma t1 t2 =
   let univs = Evd.universes sigma in
-  let quals = Evd.elim_graph sigma in
   let t1 = EConstr.Unsafe.to_constr t1 in
   let t2 = EConstr.Unsafe.to_constr t2 in
   let b = match pb with
-  | Conversion.CUMUL -> leq_constr_univs quals univs t1 t2
-  | Conversion.CONV -> eq_constr_univs quals univs t1 t2
+  | Conversion.CUMUL -> leq_constr_univs univs t1 t2
+  | Conversion.CONV -> eq_constr_univs univs t1 t2
   in
   if b then true
   else
@@ -1728,8 +1727,7 @@ let check_eq_qualities qcst =
   let check (q1, q2) = Quality.equal q1 q2 in
   UVars.QPairSet.for_all check qcst
 
-let infer_eq _elims (univs, cstrs as cuniv) s s' =
-  (* TODO: remove the QGraph argument *)
+let infer_eq (univs, cstrs as cuniv) s s' =
   if UGraph.check_eq_sort Sorts.Quality.equal univs s s' then Result.Ok cuniv
   else try
     let qcsts', ucstrs' as cstrs' = enforce_eq_sort s s' (UVars.QPairSet.empty, Univ.UnivConstraints.empty) in
@@ -1738,8 +1736,7 @@ let infer_eq _elims (univs, cstrs as cuniv) s s' =
     else Result.Error None
   with UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
 
-let infer_leq _elims (univs, cstrs as cuniv) s s' =
-  (* TODO: remove the QGraph argument *)
+let infer_leq (univs, cstrs as cuniv) s s' =
   if UGraph.check_leq_sort Sorts.Quality.equal univs s s' then Result.Ok cuniv
   else match enforce_leq_alg_sort s s' univs with
   | (qcsts, ucsts), ugraph ->
@@ -1748,12 +1745,12 @@ let infer_leq _elims (univs, cstrs as cuniv) s s' =
     else Result.Error None
   | exception UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
 
-let infer_cmp_universes elims pb s0 s1 cuniv =
+let infer_cmp_universes pb s0 s1 cuniv =
   match pb with
-  | CUMUL -> infer_leq elims cuniv s0 s1
-  | CONV -> infer_eq elims cuniv s0 s1
+  | CUMUL -> infer_leq cuniv s0 s1
+  | CONV -> infer_eq cuniv s0 s1
 
-let infer_convert_instances _elims ~flex u u' (univs, cstrs as cuniv) =
+let infer_convert_instances ~flex u u' (univs, cstrs as cuniv) =
   if flex then
     if UGraph.check_eq_instances Sorts.Quality.equal univs u u' then Result.Ok cuniv
     else Result.Error None
@@ -1765,7 +1762,7 @@ let infer_convert_instances _elims ~flex u u' (univs, cstrs as cuniv) =
   with UGraph.UniverseInconsistency err -> Result.Error (Some (Univ err))
 
 
-let infer_inductive_instances elims cv_pb variance u1 u2 (univs,csts) =
+let infer_inductive_instances cv_pb variance u1 u2 (univs,csts) =
   let qcsts, csts' = get_cumulativity_constraints cv_pb variance u1 u2 in
   if check_eq_qualities qcsts then
     match UGraph.merge_constraints csts' univs with
@@ -1773,14 +1770,14 @@ let infer_inductive_instances elims cv_pb variance u1 u2 (univs,csts) =
     | exception (UGraph.UniverseInconsistency err) -> Result.Error (Some (Univ err))
   else Result.Error None
 
-let inferred_universes elims =
-  { compare_sorts = infer_cmp_universes elims;
-    compare_instances = infer_convert_instances elims;
-    compare_cumul_instances = infer_inductive_instances elims; }
+let inferred_universes =
+  { compare_sorts = infer_cmp_universes;
+    compare_instances = infer_convert_instances;
+    compare_cumul_instances = infer_inductive_instances; }
 
 end
 
-let inferred_universes env = Infer.inferred_universes (Environ.qualities env)
+let inferred_universes = Infer.inferred_universes
 
 let eta_expand env sigma t ty =
   of_constr @@ Reduction.eta_expand ~evars:(Evd.evar_handler sigma) env

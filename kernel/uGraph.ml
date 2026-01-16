@@ -234,7 +234,6 @@ let check_subtype univs ctxT ctx =
 (** Instances *)
 
 let check_eq_instances qeq univs t1 t2 =
-  (* TODO: remove QGraph argument *)
   let qt1, ut1 = Instance.to_array t1 in
   let qt2, ut2 = Instance.to_array t2 in
   CArray.equal qeq qt1 qt2
