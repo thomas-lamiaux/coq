@@ -1267,9 +1267,9 @@ let merge_universe_context ?loc ~sideff rigid uctx (levels, ucst) =
   { uctx with names; local; universes;
               initial_universes = initial }
 
-let merge_sort_variables ?loc ?src ~sideff uctx (qvars, csts) =
+let merge_sort_variables ?loc ?(sort_rigid=false) ?src ~sideff uctx (qvars, csts) =
   let sort_variables =
-    QVar.Set.fold (fun qv qstate -> QState.add ~check_fresh:(not sideff) ~rigid:false qv qstate)
+    QVar.Set.fold (fun qv qstate -> QState.add ~check_fresh:(not sideff) ~rigid:sort_rigid qv qstate)
       qvars
       uctx.sort_variables
   in
@@ -1291,8 +1291,8 @@ let merge_sort_variables ?loc ?src ~sideff uctx (qvars, csts) =
   let local = (us, (Sorts.ElimConstraints.union qcst csts, ucst)) in
   { uctx with local; sort_variables; names }
 
-let merge_sort_context ?loc ?src ~sideff rigid uctx ((qvars, levels), (qcst, ucst)) =
-  let uctx = merge_sort_variables ?loc ?src ~sideff uctx (qvars, qcst) in
+let merge_sort_context ?loc ?sort_rigid ?src ~sideff rigid uctx ((qvars, levels), (qcst, ucst)) =
+  let uctx = merge_sort_variables ?loc ?sort_rigid ?src ~sideff uctx (qvars, qcst) in
   merge_universe_context ?loc ~sideff rigid uctx (levels, ucst)
 
 let demote_global_univs (lvl_set, univ_csts) uctx =
@@ -1379,10 +1379,10 @@ let add_universe ?loc name strict uctx u =
   in
   { uctx with names; local; initial_universes; universes }
 
-let new_sort_variable ?loc ?name uctx =
+let new_sort_variable ?loc ?(sort_rigid = false) ?name uctx =
   let q = UnivGen.fresh_sort_quality () in
   (* don't need to check_fresh as it's guaranteed new *)
-  let sort_variables = QState.add ~check_fresh:false ~rigid:(Option.has_some name)
+  let sort_variables = QState.add ~check_fresh:false ~rigid:(sort_rigid || Option.has_some name)
       q uctx.sort_variables
   in
   let names = match name with
