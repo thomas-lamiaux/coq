@@ -34,7 +34,7 @@ type ('a, 'err) universe_state = 'a * ('a, 'err) universe_compare
 type ('a, 'err) generic_conversion_function = ('a, 'err) universe_state -> constr -> constr -> ('a, 'err option) result
 
 val get_cumulativity_constraints : conv_pb -> UVars.Variance.t array ->
-  UVars.Instance.t -> UVars.Instance.t -> PConstraints.t
+  UVars.Instance.t -> UVars.Instance.t -> UVars.QPairSet.t * Univ.UnivConstraints.t
 
 val inductive_cumulativity_arguments : (Declarations.mutual_inductive_body * int) -> int
 val constructor_cumulativity_arguments : (Declarations.mutual_inductive_body * int * int) -> int
@@ -48,7 +48,7 @@ val convert_instances : flex:bool -> UVars.Instance.t -> UVars.Instance.t ->
   'a * ('a, 'err) universe_compare -> ('a, 'err option) result * ('a, 'err) universe_compare
 
 (** This function never returns an non-empty error. *)
-val checked_universes : (QGraph.t * UGraph.t, 'err) universe_compare
+val checked_universes : (UGraph.t, 'err) universe_compare
 
 (** These two functions can only fail with unit *)
 val conv : constr extended_conversion_function

@@ -85,7 +85,9 @@ end
 val eq_sizes : int * int -> int * int -> bool
 (** Convenient function to compare the result of Instance.length, UContext.size etc *)
 
-type 'a pconstraints_function = 'a -> 'a -> PConstraints.t -> PConstraints.t
+module QPairSet : CSig.SetS with type elt = (Quality.t * Quality.t)
+
+type 'a pconstraints_function = 'a -> 'a -> QPairSet.t * UnivConstraints.t -> QPairSet.t * UnivConstraints.t
 
 val enforce_eq_instances : Instance.t pconstraints_function
 

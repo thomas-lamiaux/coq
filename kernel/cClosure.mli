@@ -129,6 +129,7 @@ type evar_handler = {
   evar_repack : Evar.t * constr list -> constr;
   evar_irrelevant : constr pexistential -> bool;
   qvar_irrelevant : Sorts.QVar.t -> bool;
+  qual_equal : Sorts.Quality.t -> Sorts.Quality.t -> bool;
   abstr_const : Constant.t -> (unit, (unit -> Vmemitcodes.to_patch) Vmemitcodes.pbody_code) Declarations.pconstant_body;
 }
 
@@ -147,7 +148,6 @@ val create_tab : unit -> clos_tab
 val info_env : clos_infos -> env
 val info_flags: clos_infos -> reds
 val info_univs : clos_infos -> UGraph.t
-val info_elims : clos_infos -> QGraph.t
 val unfold_projection : clos_infos -> Projection.t -> Sorts.relevance -> stack_member option
 
 val push_relevance : clos_infos -> 'b binder_annot -> clos_infos
@@ -157,6 +157,7 @@ val set_info_relevances : clos_infos -> Sorts.relevance Range.t -> clos_infos
 val info_relevances : clos_infos -> Sorts.relevance Range.t
 
 val is_irrelevant : clos_infos -> Sorts.relevance -> bool
+val eq_quality : clos_infos -> Sorts.Quality.t -> Sorts.Quality.t -> bool
 
 val infos_with_reds : clos_infos -> reds -> clos_infos
 

@@ -175,9 +175,9 @@ let convert_instances_cumul pb var u u' (s, check) =
 let get_cumulativity_constraints cv_pb variance u u' =
   match cv_pb with
   | CONV ->
-    UVars.enforce_eq_variance_instances variance u u' PConstraints.empty
+    UVars.enforce_eq_variance_instances variance u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
   | CUMUL ->
-    UVars.enforce_leq_variance_instances variance u u' PConstraints.empty
+    UVars.enforce_leq_variance_instances variance u u' (UVars.QPairSet.empty, Univ.UnivConstraints.empty)
 
 let inductive_cumulativity_arguments (mind,ind) =
   mind.Declarations.mind_nparams +
@@ -951,46 +951,48 @@ let clos_gen_conv (type err) ~typed trans cv_pb l2r evars env graph univs t1 t2 
       | NotConvertibleTrace _ -> assert false
   end ()
 
-let check_eq (elims, univs as state) u u' =
-  if UGraph.check_eq_sort elims univs u u'
+let check_eq qeq state u u' =
+  if UGraph.check_eq_sort qeq state u u'
   then Result.Ok state
   else Result.Error None
 
-let check_leq (elims, univs as state) u u' =
-  if UGraph.check_leq_sort elims univs u u'
+let check_leq qeq state u u' =
+  if UGraph.check_leq_sort qeq state u u'
   then Result.Ok state
   else Result.Error None
 
-let checked_sort_cmp_universes pb s0 s1 state =
+let checked_sort_cmp_universes qeq = (); fun pb s0 s1 state ->
   match pb with
-  | CUMUL -> check_leq state s0 s1
-  | CONV -> check_eq state s0 s1
+  | CUMUL -> check_leq qeq state s0 s1
+  | CONV -> check_eq qeq state s0 s1
 
-let check_convert_instances ~flex:_ u u' (elims, univs as state) =
-  if UGraph.check_eq_instances elims univs u u' then Result.Ok state
+let check_convert_instances qeq = (); fun ~flex:_ u u' state ->
+  if UGraph.check_eq_instances qeq state u u' then Result.Ok state
   else Result.Error None
 
 (* general conversion and inference functions *)
-let check_inductive_instances cv_pb variance u1 u2 (elims, univs as state) =
+let check_inductive_instances qeq = (); fun cv_pb variance u1 u2 state ->
   let qcsts, ucsts = get_cumulativity_constraints cv_pb variance u1 u2 in
-  if QGraph.check_constraints qcsts elims && UGraph.check_constraints ucsts univs
+  let check_quality (q1, q2) = qeq q1 q2 in
+  if UVars.QPairSet.for_all check_quality qcsts && UGraph.check_constraints ucsts state
   then Result.Ok state
   else Result.Error None
 
-let checked_universes =
-  { compare_sorts = checked_sort_cmp_universes;
-    compare_instances = check_convert_instances;
-    compare_cumul_instances = check_inductive_instances; }
+let checked_universes_gen qeq =
+  { compare_sorts = checked_sort_cmp_universes qeq;
+    compare_instances = check_convert_instances qeq;
+    compare_cumul_instances = check_inductive_instances qeq; }
+
+let checked_universes = checked_universes_gen Sorts.Quality.equal
 
 let () =
   let conv infos tab a b =
     try
       let box = Empty.abort in
-      let state = info_elims infos, info_univs infos in
+      let state = info_univs infos in
+      let qual_equal q1 q2 = CClosure.eq_quality infos q1 q2 in
       let infos = { cnv_inf = infos; cnv_typ = true; lft_tab = tab; rgt_tab = tab; err_ret = box } in
-      let state', _ = ccnv CONV false infos el_id el_id a b
-          (state, checked_universes)
-      in
+      let state', _ = ccnv CONV false infos el_id el_id a b (state, checked_universes_gen qual_equal) in
       assert (state==state');
       true
     with
@@ -1001,11 +1003,10 @@ let () =
 
 let gen_conv ~typed cv_pb ?(l2r=false) ?(reds=TransparentState.full) env ?(evars=default_evar_handler env) t1 t2 =
   let univs = Environ.universes env in
-  let elims = Environ.qualities env in
-  let state = elims, univs in
+  let state = univs in
   let b =
-    if cv_pb = CUMUL then leq_constr_univs elims univs t1 t2
-    else eq_constr_univs elims univs t1 t2
+    if cv_pb = CUMUL then leq_constr_univs univs t1 t2
+    else eq_constr_univs univs t1 t2
   in
     if b then Result.Ok ()
     else match clos_gen_conv ~typed reds cv_pb l2r evars env univs (state, checked_universes) t1 t2 with

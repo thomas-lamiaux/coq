@@ -71,7 +71,6 @@ type ('constr, 'types, 'r) ptype_error =
   | IllFormedRecBody of 'constr pguard_error * (Name.t, 'r) Context.pbinder_annot array * int * env * ('constr, 'types) punsafe_judgment array
   | IllTypedRecBody of
       int * (Name.t, 'r) Context.pbinder_annot array * ('constr, 'types) punsafe_judgment array * 'types array
-  | UnsatisfiedElimConstraints of Sorts.ElimConstraints.t
   | UnsatisfiedUnivConstraints of UnivConstraints.t
   | UnsatisfiedPConstraints of PConstraints.t
   | UndeclaredQualities of Sorts.QVar.Set.t
@@ -158,9 +157,6 @@ let error_ill_formed_rec_body env why lna i fixenv vdefj =
 let error_ill_typed_rec_body env i lna vdefj vargs =
   raise (TypeError (env, IllTypedRecBody (i,lna,vdefj,vargs)))
 
-let error_unsatisfied_elim_constraints env c =
-  raise (TypeError (env, UnsatisfiedElimConstraints c))
-
 let error_unsatisfied_univ_constraints env c =
   raise (TypeError (env, UnsatisfiedUnivConstraints c))
 
@@ -223,7 +219,7 @@ let map_pguard_error f = function
 let map_ptype_error fr f = function
 | UnboundRel _ | UnboundVar _ | CaseOnPrivateInd _ | IllFormedCaseParams
 | UndeclaredQualities _ | UndeclaredUniverses _ | NotAllowedSProp
-| UnsatisfiedElimConstraints _ | UnsatisfiedUnivConstraints _
+| UnsatisfiedUnivConstraints _
 | UnsatisfiedPConstraints _
 | ReferenceVariables _ | BadInvert | BadVariance _ | UndeclaredUsedVariables _ | IllFormedConstant _ | IllFormedInductive _ as e -> e
 | NotAType j -> NotAType (on_judgment f j)

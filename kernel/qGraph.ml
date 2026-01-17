@@ -87,82 +87,9 @@ end
 module QMap = QVar.Map
 module QSet = QVar.Set
 
-module Equiv :
-sig
-  type t
-  val empty : t
-  val add : Quality.t -> t -> t
-  val is_equiv : t -> Quality.t -> Quality.t -> bool
-  val merge : Quality.t -> Quality.t -> t -> t
-end =
-struct
-
-type data =
-| Equiv of Quality.t
-| Canonical of { rank : int }
-(** The rank is the maximum length of a repr path in an equivalence class *)
-
-type t = {
-  eqv : data QMap.t;
-}
-(* A poor man's persistent union-find. We treat constant sorts specially, as we
-   preserve that they are always canonical, i.e. implicitly mapping to Canonical. *)
-
-let empty = {
-  eqv = QMap.empty;
-}
-
-let add q s = match q with
-| Quality.QVar q -> { eqv = QMap.add q (Canonical { rank = 0 }) s.eqv }
-| Quality.QConstant _ -> s
-
-type repr =
-| RVar of QVar.t * int
-| RConstant of Quality.constant
-
-let rec repr q s = match q with
-| Quality.QVar qv ->
-  begin match QMap.find qv s.eqv with
-  | Canonical { rank } -> RVar (qv, rank)
-  | Equiv q -> repr q s
-  end
-| Quality.QConstant c -> RConstant c
-
-let is_equiv s q1 q2 = match repr q1 s, repr q2 s with
-| RConstant c1, RConstant c2 ->
-  Quality.Constants.equal c1 c2
-| RVar (q1, _), RVar (q2, _) ->
-  QVar.equal q1 q2
-| (RConstant _, RVar _) | (RVar _, RConstant _) ->
-  false
-
-let merge q1 q2 s = match repr q1 s, repr q2 s with
-| RVar (q1, k1), RVar (q2, k2) ->
-  if k1 < k2 then
-    { eqv = QMap.add q1 (Equiv (Quality.QVar q2)) s.eqv }
-  else if k2 < k1 then
-    { eqv = QMap.add q2 (Equiv (Quality.QVar q1)) s.eqv }
-  else
-    (* pick one and bump the rank *)
-    let eqv = QMap.add q1 (Equiv (Quality.QVar q2)) s.eqv in
-    let eqv = QMap.add q2 (Canonical { rank = k2 + 1 }) eqv in
-    { eqv }
-| (RVar (q, _), RConstant c)
-| (RConstant c, RVar (q, _)) ->
-  { eqv = QMap.add q (Equiv (Quality.QConstant c)) s.eqv }
-| RConstant c1, RConstant c2 ->
-  (* The only caller enforces this *)
-  let () = assert (Quality.Constants.equal c1 c2) in
-  s
-
-end
-
 type t =
   { graph: G.t;
     (** Connected components of the eliminability graph *)
-    equiv: Equiv.t;
-    (** Actually equal sorts.
-        Invariant: equiv |= q1 = q2 implies graph |= q1 = q2. *)
     rigid_paths: RigidPaths.t;
     ground_and_global_sorts: Quality.Set.t;
     dominant: Quality.t QMap.t;
@@ -185,8 +112,7 @@ type quality_inconsistency =
 let to_graph_cstr k =
   let open ElimConstraint in
   match k with
-    | ElimTo -> AcyclicGraph.Le
-    | Equal -> AcyclicGraph.Eq
+  | ElimTo -> AcyclicGraph.Le
 
 type elimination_error =
   | IllegalConstraintFromSProp of Quality.t
@@ -237,7 +163,6 @@ let rec update_dominance g q qv =
 
 let update_dominance_if_valid g (q1,k,q2) =
   match k with
-  | ElimConstraint.Equal -> Some g
   | ElimConstraint.ElimTo ->
      (* if the constraint is s ~> g, dominants are not modified. *)
      if Quality.is_qconst q2 then Some g
@@ -296,14 +221,6 @@ let enforce_func k q1 q2 g = match k with
   | None -> None
   | Some graph -> Some { g with graph }
   end
-| ElimConstraint.Equal ->
-  (* This enforce_eq should really be thought of as enforce_leq both ways *)
-  begin match G.enforce_eq q1 q2 g.graph with
-  | None -> None (* this can happen due to the Lt hack for built-in sorts *)
-  | Some graph ->
-    let equiv = Equiv.merge q1 q2 g.equiv in
-    Some { g with graph; equiv }
-  end
 
 let enforce_constraint (q1, k, q2) g =
   match enforce_func k q1 q2 g with
@@ -317,7 +234,6 @@ let merge_constraints csts g = ElimConstraints.fold enforce_constraint csts g
 
 let check_constraint g (q1, k, q2) = match k with
 | ElimConstraint.ElimTo -> G.check_leq g.graph q1 q2
-| ElimConstraint.Equal -> Equiv.is_equiv g.equiv q1 q2
 
 let check_constraints csts g = ElimConstraints.for_all (check_constraint g) csts
 
@@ -334,16 +250,10 @@ let add_quality q g =
   let dominant = match q with
     | Quality.QVar qv -> QMap.add qv Quality.qtype g.dominant
     | Quality.QConstant _ -> g.dominant in
-  let equiv = Equiv.add q g.equiv in
-  { g with rigid_paths = paths; ground_and_global_sorts; dominant; equiv }
+  { g with rigid_paths = paths; ground_and_global_sorts; dominant }
 
 let enforce_eliminates_to s1 s2 g =
   enforce_constraint (s1, ElimConstraint.ElimTo, s2) g
-
-let enforce_eq s1 s2 g =
-  let g = enforce_constraint (s1, ElimConstraint.Equal, s2) g in
-  let () = check_rigid_paths g in (* ??? *)
-  g
 
 let initial_graph =
   let g = G.empty in
@@ -357,9 +267,7 @@ let initial_graph =
     else (g,p)
   in
   let (g,p) = List.fold_left fold (g,RigidPaths.empty) @@ non_refl_pairs Quality.all_constants in
-  let equiv = List.fold_left (fun accu q -> Equiv.add q accu) Equiv.empty Quality.all_constants in
   { graph = g;
-    equiv = equiv;
     rigid_paths = p;
     ground_and_global_sorts = Quality.Set.of_list Quality.all_constants;
     dominant = QMap.empty;
@@ -373,12 +281,6 @@ let update_rigids g g' =
 
 let sort_eliminates_to g s1 s2 =
   eliminates_to g (quality s1) (quality s2)
-
-let check_eq g q1 q2 =
-  Sorts.Quality.equal q1 q2 ||
-    Equiv.is_equiv g.equiv q1 q2
-
-let check_eq_sort g s s' = check_eq g (quality s) (quality s')
 
 let eliminates_to_prop g q = eliminates_to g q Quality.qprop
 

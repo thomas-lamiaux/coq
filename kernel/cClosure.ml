@@ -128,6 +128,7 @@ type evar_handler = {
   evar_repack : Evar.t * constr list -> constr;
   evar_irrelevant : constr pexistential -> bool;
   qvar_irrelevant : Sorts.QVar.t -> bool;
+  qual_equal : Sorts.Quality.t -> Sorts.Quality.t -> bool;
   abstr_const : Constant.t -> (unit, (unit -> Vmemitcodes.to_patch) Vmemitcodes.pbody_code) Declarations.pconstant_body;
 }
 
@@ -138,6 +139,7 @@ let default_evar_handler env = {
   qvar_irrelevant = (fun q ->
       assert (Sorts.QVar.Set.mem q (Environ.qvars env));
       false);
+  qual_equal = Sorts.Quality.equal;
   abstr_const = fun _ -> assert false;
 }
 
@@ -176,7 +178,6 @@ type clos_infos = {
 let info_flags info = info.i_flags
 let info_env info = info.i_cache.i_env
 let info_univs info = info.i_cache.i_univs
-let info_elims info = Environ.qualities (info_env info)
 
 let push_relevance infos x =
   { infos with i_relevances = Range.cons x.binder_relevance infos.i_relevances }
@@ -352,6 +353,9 @@ let is_irrelevant info r = match info.i_cache.i_mode with
   | Sorts.Irrelevant -> true
   | Sorts.RelevanceVar q -> info.i_cache.i_sigma.qvar_irrelevant q
   | Sorts.Relevant -> false
+
+let eq_quality info q1 q2 =
+  info.i_cache.i_sigma.qual_equal q1 q2
 
 (************************************************************************)
 

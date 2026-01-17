@@ -263,18 +263,16 @@ module Quality = struct
 end
 
 module ElimConstraint = struct
-  type kind = Equal | ElimTo
+  type kind = ElimTo
 
   let eq_kind : kind -> kind -> bool = (=)
   let compare_kind : kind -> kind -> int = compare
 
   let hash_kind = function
-    | Equal -> 0
-    | ElimTo -> 1
+  | ElimTo -> 0
 
   let pr_kind = function
-    | Equal -> Pp.str "="
-    | ElimTo -> Pp.str "->"
+  | ElimTo -> Pp.str "->"
 
   type t = Quality.t * kind * Quality.t
 
@@ -336,18 +334,6 @@ struct
     let filter (q1, _, q2) = not (Quality.is_qconst q1 && Quality.is_qconst q2) in
     (q, ElimConstraints.filter filter c)
 end
-
-let enforce_eq_quality a b csts =
-  if Quality.equal a b then csts
-  else ElimConstraints.add (a,ElimConstraint.Equal,b) csts
-
-let enforce_elim_to_quality a b csts =
-  if Quality.equal a b then csts
-  else ElimConstraints.add (a,ElimConstraint.ElimTo,b) csts
-
-let enforce_eq_cumul_quality a b csts =
-  if Quality.equal a b then csts
-  else ElimConstraints.add (a, ElimConstraint.Equal, b) csts
 
 type t =
   | SProp

@@ -127,7 +127,7 @@ module Quality : sig
 end
 
 module ElimConstraint : sig
-  type kind = Equal | ElimTo
+  type kind = ElimTo
 
   val pr_kind : kind -> Pp.t
 
@@ -155,12 +155,6 @@ sig
   val union : t -> t -> t
   val filter_constant_qualities : t -> t (* XXX: this looks very wrong *)
 end
-
-val enforce_eq_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
-
-val enforce_elim_to_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
-
-val enforce_eq_cumul_quality : Quality.t -> Quality.t -> ElimConstraints.t -> ElimConstraints.t
 
 type t = private
   | SProp

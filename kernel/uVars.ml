@@ -193,27 +193,35 @@ end
 
 let eq_sizes (a,b) (a',b') = Int.equal a a' && Int.equal b b'
 
-type 'a pconstraints_function = 'a -> 'a -> PConstraints.t -> PConstraints.t
+module QPair = OrderedType.Pair(Quality)(Quality)
+
+module QPairSet = Set.Make(QPair)
+
+type 'a pconstraints_function = 'a -> 'a -> QPairSet.t * UnivConstraints.t -> QPairSet.t * UnivConstraints.t
+
+let enforce_eq_cumul_quality a b csts =
+  if Quality.equal a b then csts
+  else QPairSet.add (a, b) csts
 
 let enforce_eq_instances x y (qcs, ucs as orig) =
   let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
   if Array.length xq != Array.length yq || Array.length xu != Array.length yu then
     CErrors.anomaly (Pp.(++) (Pp.str "Invalid argument: enforce_eq_instances called with")
                        (Pp.str " instances of different lengths."));
-  let qcs' = CArray.fold_right2 Sorts.enforce_eq_cumul_quality xq yq qcs in
+  let qcs' = CArray.fold_right2 enforce_eq_cumul_quality xq yq qcs in
   let ucs' = CArray.fold_right2 enforce_eq_level xu yu ucs in
   if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
 
 let enforce_eq_variance_instances variances x y (qcs,ucs as orig) =
   let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
-  let qcs' = CArray.fold_right2 Sorts.enforce_eq_cumul_quality xq yq qcs in
+  let qcs' = CArray.fold_right2 enforce_eq_cumul_quality xq yq qcs in
   let ucs' = Variance.eq_constraints variances xu yu ucs in
   if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
 
 let enforce_leq_variance_instances variances x y (qcs,ucs as orig) =
   let xq, xu = Instance.to_array x and yq, yu = Instance.to_array y in
   (* no variance for quality variables -> enforce_eq *)
-  let qcs' = CArray.fold_right2 Sorts.enforce_eq_cumul_quality xq yq qcs in
+  let qcs' = CArray.fold_right2 enforce_eq_cumul_quality xq yq qcs in
   let ucs' = Variance.leq_constraints variances xu yu ucs in
   if qcs' == qcs && ucs' == ucs then orig else qcs', ucs'
 
