@@ -137,8 +137,7 @@ let check_findlib_version prefs { CamlConf.findlib_version; _ } =
     70: ".ml file without .mli file" bogus warning when used generally
 *)
 
-(* Note, we list all warnings to be complete *)
-let coq_warnings = "-w -a+1..3-4+5..8-9+10..26-27+28..39-40-41-42+43-44-45+46..47-48+49..57-58+59..66-67-68+69-70"
+let coq_warnings = "-w +a-4-9-27-40..42-44-45-48-58-67-68-70"
 
 (* Flags used to compile Rocq and plugins (via coq_makefile) *)
 let caml_flags =
