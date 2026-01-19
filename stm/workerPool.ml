@@ -34,7 +34,7 @@ type worker = {
   cancel : bool ref;
   manager : Thread.t;
   process : Model.process;
-}
+} [@@warning "-unused-field"] (* manager & process unused, not sure if can be removed *)
 
 type pre_pool = {
   workers : worker list ref;

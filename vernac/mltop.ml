@@ -426,7 +426,8 @@ type ml_module_object =
   ; mnames : (bool * PluginSpec.t) list
   (* bool: if true then implicit dep
      XXX should we init_ml_object even for implicit deps? *)
-  ; mdigests : Digest.t list
+  ; _mdigests : Digest.t list
+  (* never read, it's only used to ensure the vo changes if deps change *)
   }
 
 let cache_ml_objects mnames =
@@ -468,7 +469,7 @@ let declare_ml_modules local mnames =
   then CErrors.user_err Pp.(str "Cannot Declare ML Module while sections are opened.");
   let mnames = PluginSpec.add_deps mnames in
   let mdigests = CList.concat_map (fun (_,plugin) -> PluginSpec.digest plugin) mnames in
-  Lib.add_leaf (inMLModule {mlocal=local; mnames; mdigests});
+  Lib.add_leaf (inMLModule {mlocal=local; mnames; _mdigests = mdigests});
   (* We can't put this in cache_function: it may declare other
      objects, and when the current module is required we want to run
      the ML-MODULE object before them. *)

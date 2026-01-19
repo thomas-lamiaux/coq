@@ -221,9 +221,9 @@ type rocqtop = {
   mutable status : status;
   mutable stopped_in_debugger : bool;
   (* i.e., RocqIDE has received a prompt message *)
-  mutable do_when_ready : (unit -> unit) Queue.t;
+  do_when_ready : (unit -> unit) Queue.t;
   (* for debug msgs only; functions are called when rocqtop is Ready *)
-  mutable basename : string;
+  basename : string;
   mutable set_script_editable : bool -> unit;
   mutable restore_bpts : unit -> unit
 }

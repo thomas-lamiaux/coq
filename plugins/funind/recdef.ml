@@ -276,14 +276,10 @@ let check_not_nested env sigma forbidden e =
 
 (* ['a info] contains the local information for traveling *)
 type 'a infos =
-  { nb_arg : int
-  ; (* function number of arguments *)
-    concl_tac : unit Proofview.tactic
+  { concl_tac : unit Proofview.tactic
   ; (* final tactic to finish proofs *)
     rec_arg_id : Id.t
   ; (*name of the declared recursive argument *)
-    is_mes : bool
-  ; (* type of recursion *)
     ih : Id.t
   ; (* induction hypothesis name *)
     f_id : Id.t
@@ -321,7 +317,6 @@ type ('a, 'b) journey_info_tac =
 *)
 type journey_info =
   { letiN : (Name.t * constr * types * constr, constr) journey_info_tac
-  ; lambdA : (Name.t * types * constr, constr) journey_info_tac
   ; casE :
          (   (constr infos -> unit Proofview.tactic)
           -> constr infos
@@ -857,7 +852,6 @@ let terminate_app_rec (f, args) expr_info continuation_tac _ =
 let terminate_info =
   { message = "prove_terminate with term "
   ; letiN = terminate_letin
-  ; lambdA = (fun _ _ _ _ -> assert false)
   ; casE = terminate_case
   ; otherS = terminate_others
   ; apP = terminate_app
@@ -1112,7 +1106,6 @@ let equation_app_rec (f, args) expr_info continuation_tac info =
 let equation_info =
   { message = "prove_equation with term "
   ; letiN = (fun _ -> assert false)
-  ; lambdA = (fun _ _ _ _ -> assert false)
   ; casE = equation_case
   ; otherS = equation_others
   ; apP = equation_app
@@ -1277,10 +1270,8 @@ let whole_start concl_tac nb_args is_mes func input_type relation rec_arg_num :
               is_final = true
             ; (* and on leaf (more or less) *)
               f_terminate = delayed_force rocq_O
-            ; nb_arg = nb_args
             ; concl_tac
             ; rec_arg_id
-            ; is_mes
             ; ih = hrec
             ; f_id
             ; f_constr = mkVar f_id
@@ -1577,8 +1568,7 @@ let com_eqn uctx nb_arg eq_name functional_ref f_ref terminate_ref
          (start_equation f_ref terminate_ref (fun x ->
               prove_eq
                 (fun _ -> Proofview.tclUNIT ())
-                { nb_arg
-                ; f_terminate =
+                { f_terminate =
                     EConstr.of_constr
                       (constr_of_monomorphic_global (Global.env ()) terminate_ref)
                 ; f_constr = EConstr.of_constr f_constr
@@ -1600,7 +1590,6 @@ let com_eqn uctx nb_arg eq_name functional_ref f_ref terminate_ref
                 ; args_assoc = []
                 ; f_id = Id.of_string "______"
                 ; rec_arg_id = Id.of_string "______"
-                ; is_mes = false
                 ; ih = Id.of_string "______" }))
          lemma
   in

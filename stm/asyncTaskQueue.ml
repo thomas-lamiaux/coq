@@ -230,7 +230,7 @@ module Make(T : Task) () = struct
     active : Pool.pool;
     queue : (T.task * cancel_switch) TQueue.t;
     cleaner : Thread.t option;
-  }
+  } [@@warning "-unused-field"] (* cleaner unused, not sure if can be removed *)
 
   let create ~spawn_args size priority =
     let cleaner queue =

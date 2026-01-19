@@ -40,24 +40,21 @@ type zres = (Mc.zArithProof, int * Mc.z list) res
 type qres = (Mc.q Mc.psatz, int * Mc.q list) res
 
 type 'a number_spec =
-  { bigint_to_number : Z.t -> 'a
-  ; number_to_num : 'a -> Q.t
+  { number_to_num : 'a -> Q.t
   ; zero : 'a
   ; unit : 'a
   ; mult : 'a -> 'a -> 'a
   ; eqb : 'a -> 'a -> bool }
 
 let z_spec =
-  { bigint_to_number = Ml2C.bigint
-  ; number_to_num = (fun x -> Q.of_bigint (C2Ml.z_big_int x))
+  { number_to_num = (fun x -> Q.of_bigint (C2Ml.z_big_int x))
   ; zero = Mc.Z0
   ; unit = Mc.Zpos Mc.XH
   ; mult = Mc.Z.mul
   ; eqb = Mc.Z.eqb }
 
 let q_spec =
-  { bigint_to_number = (fun x -> {Mc.qnum = Ml2C.bigint x; Mc.qden = Mc.XH})
-  ; number_to_num = C2Ml.q_to_num
+  { number_to_num = C2Ml.q_to_num
   ; zero = {Mc.qnum = Mc.Z0; Mc.qden = Mc.XH}
   ; unit = {Mc.qnum = Mc.Zpos Mc.XH; Mc.qden = Mc.XH}
   ; mult = Mc.qmult

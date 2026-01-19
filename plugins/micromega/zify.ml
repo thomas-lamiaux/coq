@@ -16,6 +16,9 @@ module NamedDecl = Context.Named.Declaration
 
 module ERelevance = EConstr.ERelevance
 
+(* many cases, TODO clean them up someday *)
+[@@@warning "-unused-field"]
+
 let debug_zify = CDebug.create ~name:"zify" ()
 
 (* The following [constr] are necessary for constructing the proof terms *)

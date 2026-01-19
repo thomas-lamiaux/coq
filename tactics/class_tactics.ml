@@ -468,7 +468,6 @@ type solver = { solver :
 module Search = struct
   type autoinfo =
     { search_depth : int list;
-      last_tac : Pp.t Lazy.t;
       search_dep : bool;
       search_only_classes : bool;
       search_cut : hints_path;
@@ -499,7 +498,7 @@ module Search = struct
   let make_autogoal env sigma mst only_classes dep cut best_effort i =
     let hints = make_autogoal_hints env sigma only_classes mst in
     { search_hints = hints;
-      search_depth = [i]; last_tac = lazy (str"none");
+      search_depth = [i];
       search_dep = dep;
       search_only_classes = only_classes;
       search_cut = cut;
@@ -765,7 +764,6 @@ module Search = struct
         let dep' = info.search_dep || Proofview.unifiable sigma' (Goal.goal gl') gls in
         let info' =
           { search_depth = succ j :: i :: info.search_depth;
-            last_tac = pp;
             search_dep = dep';
             search_only_classes = info.search_only_classes;
             search_hints = hints';
@@ -884,7 +882,7 @@ module Search = struct
       make_resolve_hyp env sigma (Hint_db.transparent_state info.search_hints)
                        info.search_only_classes decl info.search_hints in
     let info' =
-      { info with search_hints = ldb; last_tac = lazy (str"intro");
+      { info with search_hints = ldb;
         search_depth = 1 :: 1 :: info.search_depth }
     in
     kont info'

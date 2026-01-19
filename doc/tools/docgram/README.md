@@ -143,8 +143,6 @@ Other command line arguments:
 
 * `-check-cmds` causes generation of `prodnCommands`
 
-* `-no-warn` suppresses printing of some warning messages
-
 * `-no-update` puts updates to `fullGrammar` and `orderedGrammar` into new files named
   `*.new`, leaving the originals unmodified.  For use in Dune.
 

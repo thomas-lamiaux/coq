@@ -763,7 +763,6 @@ type static_fix_info =
   { idx : int
   ; name : Id.t
   ; types : types
-  ; offset : int
   ; nb_realargs : int
   ; body_with_param : constr
   ; num_in_block : int }
@@ -1082,7 +1081,6 @@ let prove_princ_for_struct (evd : Evd.evar_map ref) interactive_proof fun_num
                 { idx = idxs.(i) - fix_offset
                 ; name = Nameops.Name.get_id (fresh_id names.(i).binder_name)
                 ; types
-                ; offset = fix_offset
                 ; nb_realargs =
                     List.length (fst (decompose_lambda sigma bodies.(i)))
                     - fix_offset

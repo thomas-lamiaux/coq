@@ -666,7 +666,6 @@ let pr_let_clauses recflag pr_gen pr l =
     pr_lconstr   : Environ.env -> Evd.evar_map -> 'trm -> Pp.t;
     pr_dconstr   : Environ.env -> Evd.evar_map -> 'dtrm -> Pp.t;
     pr_red_pattern   : Environ.env -> Evd.evar_map -> 'rpat -> Pp.t;
-    pr_pattern   : Environ.env -> Evd.evar_map -> 'pat -> Pp.t;
     pr_lpattern  : Environ.env -> Evd.evar_map -> 'pat -> Pp.t;
     pr_constant  : 'cst -> Pp.t;
     pr_reference : 'ref -> Pp.t;
@@ -1104,7 +1103,6 @@ let pr_let_clauses recflag pr_gen pr l =
       pr_dconstr = pr_constr_expr;
       pr_lconstr = pr_lconstr_expr;
       pr_red_pattern = pr_constr_expr;
-      pr_pattern = pr_constr_pattern_expr;
       pr_lpattern = pr_lconstr_pattern_expr;
       pr_constant = pr_or_by_notation pr_qualid;
       pr_reference = pr_qualid;
@@ -1137,7 +1135,6 @@ let pr_let_clauses recflag pr_gen pr l =
         pr_dconstr = (fun env sigma -> pr_and_constr_expr (pr_glob_constr_env env sigma));
         pr_lconstr = (fun env sigma -> pr_and_constr_expr (pr_lglob_constr_env env sigma));
         pr_red_pattern = (fun env sigma -> pr_and_constr_expr (pr_glob_constr_env env sigma));
-        pr_pattern = (fun env sigma -> pr_pat_and_constr_expr (pr_glob_constr_env env sigma));
         pr_constant = pr_or_var (pr_and_short_name (pr_evaluable_reference_env env));
         pr_lpattern = (fun env sigma -> pr_pat_and_constr_expr (pr_lglob_constr_env env sigma));
         pr_reference = pr_ltac_or_var (pr_located pr_ltac_constant);
@@ -1175,7 +1172,6 @@ let pr_let_clauses recflag pr_gen pr l =
         pr_dconstr = (fun env sigma -> pr_and_constr_expr (pr_glob_constr_env env sigma));
         pr_lconstr = pr_leconstr_env;
         pr_red_pattern = pr_constr_pattern_env;
-        pr_pattern = pr_constr_pattern_env;
         pr_lpattern = pr_lconstr_pattern_env;
         pr_constant = pr_evaluable_reference_env env;
         pr_reference = pr_located pr_ltac_constant;
