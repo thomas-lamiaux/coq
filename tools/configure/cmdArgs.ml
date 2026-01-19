@@ -116,9 +116,9 @@ let args_options = Arg.align [
   "-bytecode-compiler", arg_bool (fun p bytecodecompiler -> { p with bytecodecompiler }),
     "(yes|no) Enable Rocq's bytecode reduction machine (VM)";
   "-native-compiler", arg_native (fun p nativecompiler -> { p with nativecompiler }),
-    "(yes|no|ondemand) Compilation to native code for conversion and normalization
-     yes: -native-compiler option of coqc will default to 'yes', stdlib will be precompiled
-     no (default): no native compilation available at all
+    "(yes|no|ondemand) Compilation to native code for conversion and normalization\n\
+     yes: -native-compiler option of coqc will default to 'yes', stdlib will be precompiled\n\
+     no (default): no native compilation available at all\n\
      ondemand: -native-compiler option of coqc will default to 'ondemand', stdlib will not be precompiled";
   "-warn-error", arg_bool (fun p _warn_error -> warn_warn_error (); p),
     " Deprecated option: warnings are now adjusted in the corresponding build tool.";
