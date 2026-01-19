@@ -125,11 +125,11 @@ let instantiate_context env u subst nas ctx =
   instantiate (Array.length nas - 1) ctx
 
 let check_constant env cst =
-  let _, _, can = Environ.lookup_constant_key cst env in
+  let can = Environ.lookup_constant_canonical cst env in
   if not (KerName.equal can (Constant.canonical cst)) then error_ill_formed_constant env cst can
 
 let check_mind env mind =
-  let _, _, can = Environ.lookup_mind_key mind env in
+  let can = Environ.lookup_mind_canonical mind env in
   if not (KerName.equal can (MutInd.canonical mind)) then error_ill_formed_inductive env mind can
 
 (************************************************)

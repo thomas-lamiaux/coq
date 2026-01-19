@@ -73,13 +73,13 @@ type prefix = string
 
 (* Linked code location utilities *)
 let get_mind_prefix env mind =
-   let _,name,_ = lookup_mind_key mind env in
+   let name = lookup_mind_key mind env in
    match !name with
    | NotLinked -> ""
    | Linked s -> s
 
 let get_const_prefix env c =
-   let _,(nameref,_),_ = lookup_constant_key c env in
+   let nameref, _ = lookup_constant_key c env in
    match !nameref with
    | NotLinked -> ""
    | Linked s -> s
@@ -2283,7 +2283,8 @@ let empty_updates = Mindmap_env.empty, Cmap_env.empty
 
 let compile_mind_deps cenv env prefix
     (comp_stack, (mind_updates, const_updates) as init) mind =
-  let mib,nameref,_ = lookup_mind_key mind env in
+  let mib = lookup_mind mind env in
+  let nameref = lookup_mind_key mind env in
   if is_code_loaded nameref
     || Mindmap_env.mem mind mind_updates
   then init
@@ -2306,7 +2307,8 @@ let compile_deps cenv env sigma prefix init t =
   | Ind ((mind,_),_u) -> compile_mind_deps cenv env prefix init mind
   | Const (c, _u) ->
     let c, _ = get_alias env sigma c in
-    let cb,(nameref,_),_ = lookup_constant_key c env in
+    let cb = lookup_constant c env in
+    let (nameref, _) = lookup_constant_key c env in
     let (_, (_, const_updates)) = init in
     if is_code_loaded nameref
     || (Cmap_env.mem c const_updates)

@@ -37,10 +37,6 @@ type link_info =
 
 type key = int CEphemeron.key option ref
 
-type constant_key = constant_body * (link_info ref * key) * KerName.t
-
-type mind_key = mutual_inductive_body * link_info ref * KerName.t
-
 type named_context_val = private {
   env_named_ctx : Constr.named_context;
   env_named_map : Constr.named_declaration Id.Map.t;
@@ -173,12 +169,13 @@ val fold_inductives : (MutInd.t -> Declarations.mutual_inductive_body -> 'a -> '
 val add_constant : Constant.t -> constant_body -> env -> env
 val add_constant_key : Constant.t -> constant_body -> link_info ->
   env -> env
-val lookup_constant_key :  Constant.t -> env -> constant_key
 
 (** Looks up in the context of global constant names
    raises an anomaly if the required path is not found *)
 val lookup_constant    : Constant.t -> env -> constant_body
 val lookup_constant_opt : Constant.t -> env -> constant_body option
+val lookup_constant_key :  Constant.t -> env -> link_info ref * key
+val lookup_constant_canonical :  Constant.t -> env -> KerName.t
 val evaluable_constant : Constant.t -> env -> bool
 val constant_relevance : Constant.t -> env -> Sorts.relevance
 
@@ -243,13 +240,16 @@ val get_projection : env -> inductive -> proj_arg:int -> Names.Projection.Repr.t
 val get_projections : env -> inductive -> (Names.Projection.Repr.t * Sorts.relevance) array option
 
 (** {5 Inductive types } *)
-val lookup_mind_key : MutInd.t -> env -> mind_key
+val lookup_mind_key : MutInd.t -> env -> link_info ref
 val add_mind_key : MutInd.t -> mutual_inductive_body -> link_info -> env -> env
 val add_mind : MutInd.t -> mutual_inductive_body -> env -> env
 
 (** Looks up in the context of global inductive names
    raises an anomaly if the required path is not found *)
 val lookup_mind : MutInd.t -> env -> mutual_inductive_body
+
+(** Returns the canonical name of the inductive *)
+val lookup_mind_canonical : MutInd.t -> env -> KerName.t
 
 val mem_mind : MutInd.t -> env -> bool
 
@@ -497,8 +497,8 @@ module Internal : sig
   module View :
   sig
     type t = {
-      env_constants : constant_key Cmap_env.t;
-      env_inductives : mind_key Mindmap_env.t;
+      env_constants : constant_body Cmap_env.t;
+      env_inductives : mutual_inductive_body Mindmap_env.t;
       env_modules : module_body ModPath.Map.t;
       env_modtypes : module_type_body ModPath.Map.t;
       env_named_context : named_context_val;
