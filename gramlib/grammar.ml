@@ -210,7 +210,7 @@ type 'a ty_entry = {
   etag : 'a DMap.onetag;
 }
 
-and ('self, 'trec, 'a) ty_symbol =
+type ('self, 'trec, 'a) ty_symbol =
 | Stoken : 'c pattern -> ('self, norec, 'c) ty_symbol
 | Stokens : ty_pattern list -> ('self, norec, unit) ty_symbol
 | Slist1 : ('self, 'trec, 'a) ty_symbol -> ('self, 'trec, 'a list) ty_symbol
@@ -225,10 +225,6 @@ and ('self, 'trec, 'a) ty_symbol =
 | Snterml : 'a ty_entry * string -> ('self, norec, 'a) ty_symbol
 | Stree : ('self, 'trec, Loc.t -> 'a) ty_tree -> ('self, 'trec, 'a) ty_symbol
 
-and ('self, _, _, 'r) ty_rule =
-| TStop : ('self, norec, 'r, 'r) ty_rule
-| TNext : ('trr, 'trs, 'tr) ty_and_rec * ('self, 'trr, 'a, 'r) ty_rule * ('self, 'trs, 'b) ty_symbol -> ('self, 'tr, 'b -> 'a, 'r) ty_rule
-
 and ('self, 'trec, 'a) ty_tree =
 | Node : ('trn, 'trs, 'trb, 'tr) ty_and_rec3 * ('self, 'trn, 'trs, 'trb, 'b, 'a) ty_node -> ('self, 'tr, 'a) ty_tree
 | LocAct : 'k -> ('self, norec, 'k) ty_tree
@@ -239,6 +235,10 @@ and ('self, 'trec, 'trecs, 'trecb, 'a, 'r) ty_node = {
   son : ('self, 'trecs, 'a -> 'r) ty_tree;
   brother : ('self, 'trecb, 'r) ty_tree;
 }
+
+type ('self, _, _, 'r) ty_rule =
+| TStop : ('self, norec, 'r, 'r) ty_rule
+| TNext : ('trr, 'trs, 'tr) ty_and_rec * ('self, 'trr, 'a, 'r) ty_rule * ('self, 'trs, 'b) ty_symbol -> ('self, 'tr, 'b -> 'a, 'r) ty_rule
 
 type ('trecs, 'trecp, 'a) ty_rec_level = {
   assoc : g_assoc;
