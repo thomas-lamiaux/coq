@@ -134,6 +134,8 @@ non-:math:`\SProp` sorts (through record η-extensionality).
    Goal forall (A : SProp) (r : rBox A), r = {| runbox := r.(runbox A) |}.
    Proof. intros A r. Fail reflexivity. Abort.
 
+.. _record-eta-restriction:
+
 In contrast, primitive records in relevant sorts with at least one relevant field
 are allowed and have η-conversion.
 
@@ -148,7 +150,10 @@ are allowed and have η-conversion.
 Sort polymorphic primitive records are allowed and η-conversion depends on
 the actual instantiation of sorts.
 
-.. rocqdoc::
+.. rocqtop:: in
+
+    Set Universe Polymorphism.
+
     Inductive eq@{s; u} (A : Type@{s;u}) (a : A) : A -> Prop :=
       eq_refl : eq A a a.
 
@@ -168,6 +173,8 @@ the actual instantiation of sorts.
    Goal forall (A:SProp) (rs : RSToS'@{SProp SProp; 0 0} A),
                   eq rs {| rsprj := rs.(rsprj A) |}.
    Proof. intros A rs. reflexivity. Qed.
+
+   Unset Universe Polymorphism.
 
 
 Encodings for strict propositions
