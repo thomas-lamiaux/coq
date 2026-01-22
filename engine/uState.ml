@@ -234,10 +234,12 @@ let union ~fail s1 s2 =
   let extra = ref [] in
   let qmap = QMap.union (fun qk q1 q2 ->
       match q1, q2 with
-      | Equiv q, (Canonical _) | (Canonical _), Equiv q -> Some (Equiv q)
+      | Equiv q, (Canonical {rigid}) | (Canonical {rigid}), Equiv q ->
+        assert (not rigid);
+        Some (Equiv q)
       | Canonical { rigid = r1 }, Canonical { rigid = r2 } ->
-        (* XXX this looks wrong, but this preserves the previous behaviour *)
-        Some (Canonical { rigid = r1 || r2 })
+        assert (Bool.equal r1 r2);
+        Some (Canonical { rigid = r1 })
       | Equiv q1, Equiv q2 ->
         let () = if not (Quality.equal q1 q2) then extra := (q1,q2) :: !extra in
         Some (Equiv q1))
