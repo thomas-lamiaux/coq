@@ -269,7 +269,7 @@ let rec slot_for_getglobal env sigma kn envcache table =
   let cb = CClosure.lookup_constant_handler env sigma.Genlambda.evars_val kn in
   let rk =
     if Environ.mem_constant kn env then
-      let (_, (_, rk),_) = lookup_constant_key kn env in
+      let (_, rk) = lookup_constant_key kn env in
       rk
     else
       ref None
