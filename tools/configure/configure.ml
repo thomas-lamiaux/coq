@@ -102,10 +102,15 @@ let resolve_caml () =
 let caml_version_nums { CamlConf.caml_version; _ } =
   generic_version_nums ~name:"the OCaml compiler" caml_version
 
+external native_available : unit -> bool = "rocq_native_available"
+
 let check_caml_version prefs caml_version caml_version_nums =
-  if caml_version_nums >= [5;0;0] && prefs.nativecompiler <> NativeNo then
+  if prefs.nativecompiler <> NativeNo && not (native_available ()) then
     let () = cprintf prefs "Your version of OCaml is %s." caml_version in
-    die "You have enabled Rocq's native compiler, however it is not compatible with OCaml >= 5.0.0"
+    if caml_version_nums >= [5;0;0] then
+      die "You have enabled Rocq's native compiler, however it is not compatible with OCaml >= 5.0.0 on this architecture"
+    else
+      die "You have enabled Rocq's native compiler, however it is not compatible with your OCaml compiler"
   else if caml_version_nums >= [4;14;0] then
     cprintf prefs "You have OCaml %s. Good!" caml_version
   else
@@ -325,15 +330,24 @@ let cflags_dflt = "-Wall -Wno-unused -g -O2"
 let cflags_sse2 = "-msse2 -mfpmath=sse"
 
 (* cflags, sse2_math = *)
-let compute_cflags () =
-  let _, slurp =
-    (* Test SSE2_MATH support <https://stackoverflow.com/a/45667927> *)
-    tryrun camlexec.find
-      ["ocamlc"; "-ccopt"; cflags_dflt ^ " -march=native -dM -E " ^ cflags_sse2;
-       "-c"; coqsrc/"dev/header.c"] in  (* any file *)
-  if List.exists (fun line -> starts_with line "#define __SSE2_MATH__ 1") slurp
-  then (cflags_dflt ^ " " ^ cflags_sse2, true)
-  else (cflags_dflt, false)
+let compute_cflags prefs =
+  let cflags = Buffer.create 17 in
+  Buffer.add_string cflags cflags_dflt;
+  let sse2_math =
+    let _, slurp =
+      (* Test SSE2_MATH support <https://stackoverflow.com/a/45667927> *)
+      tryrun camlexec.find
+        ["ocamlc"; "-ccopt"; cflags_dflt ^ " -march=native -dM -E " ^ cflags_sse2;
+         "-c"; coqsrc/"dev/header.c"] in  (* any file *)
+    List.exists (fun line -> starts_with line "#define __SSE2_MATH__ 1") slurp in
+  if sse2_math then
+    begin
+      Buffer.add_char cflags ' ';
+      Buffer.add_string cflags cflags_sse2
+    end;
+  if prefs.nativecompiler = NativeNo then
+    Buffer.add_string cflags " -DNO_NATIVE_COMPUTE";
+  (Buffer.contents cflags, sse2_math)
 
 (** Test at configure time that no harmful double rounding seems to
     be performed with an intermediate 80-bit representation (x87).
@@ -516,7 +530,7 @@ let main () =
   let install_dirs = install_dirs prefs arch in
   let install_prefix = select "COQPREFIX" install_dirs |> fst in
   let coqenv = resolve_coqenv install_dirs in
-  let cflags, sse2_math = compute_cflags () in
+  let cflags, sse2_math = compute_cflags prefs in
   check_fmath sse2_math;
   if not prefs.quiet then
     print_summary prefs arch camlenv install_dirs browser;
