@@ -1559,21 +1559,18 @@ let micromega_order_change spec cert cert_typ env ff (*: unit Proofview.tactic*)
 
 open Certificate
 
-type ('option, 'a, 'prf, 'model) prover =
-  { name : string
-  ; (* name of the prover *)
-    get_option : unit -> 'option
-  ; (* find the options of the prover *)
-    prover : 'option * 'a list -> ('prf, 'model) Certificate.res
-  ; (* the prover itself *)
-    hyps : 'prf -> ISet.t
-  ; (* extract the indexes of the hypotheses really used in the proof *)
-    compact : 'prf -> (int -> int) -> 'prf
-  ; (* remap the hyp indexes according to function *)
-    pp_prf : out_channel -> 'prf -> unit
-  ; (* pretting printing of proof *)
-    pp_f : out_channel -> 'a -> unit
-        (* pretty printing of the formulas (polynomials)*) }
+type ('option, 'a, 'prf, 'model) prover = {
+  (* find the options of the prover *)
+  get_option : unit -> 'option;
+  (* the prover itself *)
+  prover : 'option * 'a list -> ('prf, 'model) Certificate.res;
+  (* extract the indexes of the hypotheses really used in the proof *)
+  hyps : 'prf -> ISet.t;
+  (* remap the hyp indexes according to function *)
+  compact : 'prf -> (int -> int) -> 'prf;
+  (* pretting printing of proof *)
+  pp_prf : out_channel -> 'prf -> unit;
+}
 
 (**
   * Given a  prover and a disjunction of atoms, find a proof of any of
@@ -2351,80 +2348,72 @@ let memo_nra =
       lift_pexpr_prover (Certificate.nlinear_prover o) s)
 
 let linear_prover_Q =
-  { name = "linear prover"
-  ; get_option = lra_proof_depth
+  { get_option = lra_proof_depth
   ; prover =
       (fun (o, l) ->
         lift_pexpr_prover (Certificate.linear_prover_with_cert o) l)
   ; hyps = hyps_of_cone
   ; compact = compact_cone
   ; pp_prf = pp_psatz pp_q
-  ; pp_f = (fun o x -> pp_pol pp_q o (fst x)) }
+  }
 
 let linear_prover_R =
-  { name = "linear prover"
-  ; get_option = lra_proof_depth
+  { get_option = lra_proof_depth
   ; prover =
       (fun (o, l) ->
         lift_pexpr_prover (Certificate.linear_prover_with_cert o) l)
   ; hyps = hyps_of_cone
   ; compact = compact_cone
   ; pp_prf = pp_psatz pp_q
-  ; pp_f = (fun o x -> pp_pol pp_q o (fst x)) }
+  }
 
 let nlinear_prover_R =
-  { name = "nra"
-  ; get_option = lra_proof_depth
+  { get_option = lra_proof_depth
   ; prover = memo_nra
   ; hyps = hyps_of_cone
   ; compact = compact_cone
   ; pp_prf = pp_psatz pp_q
-  ; pp_f = (fun o x -> pp_pol pp_q o (fst x)) }
+  }
 
 let non_linear_prover_Q str o =
-  { name = "real nonlinear prover"
-  ; get_option = (fun () -> (str, o))
+  { get_option = (fun () -> (str, o))
   ; prover = (fun (o, l) -> call_csdpcert_q o l)
   ; hyps = hyps_of_cone
   ; compact = compact_cone
   ; pp_prf = pp_psatz pp_q
-  ; pp_f = (fun o x -> pp_pol pp_q o (fst x)) }
+  }
 
 let non_linear_prover_R str o =
-  { name = "real nonlinear prover"
-  ; get_option = (fun () -> (str, o))
+  { get_option = (fun () -> (str, o))
   ; prover = (fun (o, l) -> call_csdpcert_q o l)
   ; hyps = hyps_of_cone
   ; compact = compact_cone
   ; pp_prf = pp_psatz pp_q
-  ; pp_f = (fun o x -> pp_pol pp_q o (fst x)) }
+  }
 
 let non_linear_prover_Z str o =
-  { name = "real nonlinear prover"
-  ; get_option = (fun () -> (str, o))
+  { get_option = (fun () -> (str, o))
   ; prover = (fun (o, l) -> lift_ratproof (call_csdpcert_z o) l)
   ; hyps = hyps_of_pt
   ; compact = compact_pt
   ; pp_prf = pp_proof_term
-  ; pp_f = (fun o x -> pp_pol pp_z o (fst x)) }
+  }
 
 let linear_Z =
-  { name = "lia"
-  ; get_option = get_lia_option
+  { get_option = get_lia_option
   ; prover = memo_lia
   ; hyps = hyps_of_pt
   ; compact = compact_pt
   ; pp_prf = pp_proof_term
-  ; pp_f = (fun o x -> pp_pol pp_z o (fst x)) }
+  }
 
 let nlinear_Z =
-  { name = "nlia"
-  ; get_option = get_lia_option
+  { get_option = get_lia_option
   ; prover = memo_nlia
   ; hyps = hyps_of_pt
   ; compact = compact_pt
   ; pp_prf = pp_proof_term
-  ; pp_f = (fun o x -> pp_pol pp_z o (fst x)) }
+  }
 
 (**
   * Functions instantiating micromega_gen with the appropriate theories and

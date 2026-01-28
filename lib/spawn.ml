@@ -157,7 +157,6 @@ type process = {
   cout : out_channel;
   oob_resp : in_channel option;
   oob_req  : out_channel option;
-  gchan : ML.async_chan;
   pid : int;
   mutable watch : ML.watch_id option;
   mutable alive : bool;
@@ -192,7 +191,7 @@ let spawn ?(prefer_sock=prefer_sock) ?(env=Unix.environment ())
   Unix.set_nonblock (fst main);
   let gchan = ML.async_chan_of_file_or_socket (fst main) in
   let alive, watch = true, None in
-  let p = { cin; cout; gchan; pid; oob_resp; oob_req; alive; watch } in
+  let p = { cin; cout; pid; oob_resp; oob_req; alive; watch } in
   p.watch <- Some (
     ML.add_watch ~callback:(fun cl ->
       try

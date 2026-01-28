@@ -19,7 +19,7 @@ include List
 type 'a cell = {
   head : 'a;
   mutable tail : 'a list;
-}
+} [@@warning "-unused-field"]
 
 external cast : 'a cell -> 'a list = "%identity"
 

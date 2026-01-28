@@ -101,7 +101,6 @@ module Info : sig
      start of the proof in the interactive case. *)
   val make
    : ?poly:PolyFlags.t
-    -> ?inline : bool
     -> ?kind : Decls.logical_kind
     (** Theorem, etc... *)
     -> ?udecl : UState.universe_decl

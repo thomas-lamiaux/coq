@@ -51,7 +51,6 @@ exception File_not_found of string
 
 type t = {
   mutable check_eof : bool;
-  mutable concat_pcdata : bool;
   source : Lexing.lexbuf;
   stack : Xml_lexer.token Stack.t;
 }
@@ -92,7 +91,6 @@ let make source =
   let () = Xml_lexer.init source in
   {
     check_eof = false;
-    concat_pcdata = true;
     source = source;
     stack = Stack.create ();
   }

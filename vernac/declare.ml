@@ -89,7 +89,6 @@ module Info = struct
 
   type t =
     { poly : PolyFlags.t
-    ; inline : bool
     ; kind : Decls.logical_kind
     ; udecl : UState.universe_decl
     ; scope : Locality.definition_scope
@@ -102,10 +101,10 @@ module Info = struct
 
   (** Note that [opaque] doesn't appear here as it is not known at the
      start of the proof in the interactive case. *)
-  let make ?(poly = PolyFlags.default) ?(inline=false) ?(kind=Decls.(IsDefinition Definition))
+  let make ?(poly = PolyFlags.default) ?(kind=Decls.(IsDefinition Definition))
       ?(udecl=UState.default_univ_decl) ?(scope=Locality.default_scope)
       ?(clearbody=false) ?hook ?typing_flags ?user_warns ?(ntns=[]) () =
-    { poly; inline; kind; udecl; scope; hook; typing_flags; clearbody; user_warns; ntns }
+    { poly; kind; udecl; scope; hook; typing_flags; clearbody; user_warns; ntns }
 end
 
 module SideEff :

@@ -78,6 +78,7 @@ end
 
 module Library =
 struct
+[@@@warning "-unused-field"] (* marshalled data *)
 
 type library_objects
 

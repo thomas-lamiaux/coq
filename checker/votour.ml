@@ -10,6 +10,9 @@
 
 open Values
 
+(* several records are defined to receive marshalled data *)
+[@@@warning "-unused-field"]
+
 (** {6 Interactive visit of a vo} *)
 
 let max_string_length = 1024

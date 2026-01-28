@@ -35,7 +35,6 @@ type args = {
   check_tacs : bool;
   check_cmds : bool;
   update: bool;
-  show_warn : bool;
   verbose : bool;
   verify : bool;
 }
@@ -47,7 +46,6 @@ let default_args = {
   check_tacs = false;
   check_cmds = false;
   update = true;
-  show_warn = true;
   verbose = false;
   verify = false;
 }
@@ -1823,7 +1821,6 @@ let parse_args () =
         match arg with
         | "-check-cmds" -> { args with check_cmds = true }
         | "-check-tacs" -> { args with check_tacs = true }
-        | "-no-warn" -> show_warn := false; { args with show_warn = false }
         | "-no-update" -> { args with update = false }
         | "-short" -> { args with fullGrammar = true }
         | "-verbose" -> { args with verbose = true }

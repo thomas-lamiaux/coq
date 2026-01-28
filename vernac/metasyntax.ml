@@ -1054,16 +1054,12 @@ type notation_modifier = {
   assoc         : Gramlib.Gramext.g_assoc option;
   level         : int option;
   etyps         : (Id.t * CustomName.t simple_constr_prod_entry_key) list;
-
-  (* common to syn_data below *)
-  format        : lstring option;
 }
 
 let default = {
   assoc         = None;
   level         = None;
   etyps         = [];
-  format        = None;
 }
 
 end

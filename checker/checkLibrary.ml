@@ -12,6 +12,8 @@ open Pp
 open Util
 open Names
 
+[@@@warning "-unused-field"] (* marshalled data *)
+
 let chk_pp = Feedback.msg_notice
 
 let pr_dirpath dp = str (DirPath.to_string dp)

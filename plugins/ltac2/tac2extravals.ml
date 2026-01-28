@@ -616,7 +616,7 @@ let warn_unqualified_delimiters =
   CWarnings.create_in w
     Pp.(fun (s,delims) ->
         let delims () = prlist_with_sep pr_comma Id.print @@ List.rev delims in
-        fmt "Delimiter arguments to %s must be qualified using \"delimiters\"@
+        fmt "Delimiter arguments to %s must be qualified using \"delimiters\"@\n\
 (e.g. \"%s(delimiters(%t))\")@ unless there is a unique delimiter argument." s s delims)
 
 let delimiters_qid = Libnames.qualid_of_string "delimiters"
