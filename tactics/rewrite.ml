@@ -1873,20 +1873,20 @@ let default_morphism env sigma sign m =
 (** Bind to "rewrite" too *)
 
 (* Find a subterm which matches the pattern to rewrite for "rewrite" *)
-let unification_rewrite l2r c1 c2 sigma prf car rel but env =
+let unification_rewrite l2r c1 c2 sigma prf car rel where but env =
   let ((_, sigma), c') =
     try
       (* ~flags:(false,true) to allow to mark occurrences that must not be
          rewritten simply by replacing them with let-defined definitions
          in the context *)
-      Unification.w_unify_to_subterm
+      Unification.w_unify_to_subterm ?where
        ~flags:rewrite_unif_flags
         env sigma ((if l2r then c1 else c2),but)
     with
     | ex when Pretype_errors.precatchable_exception ex ->
         (* ~flags:(true,true) to make Ring work (since it really
            exploits conversion) *)
-      Unification.w_unify_to_subterm
+      Unification.w_unify_to_subterm ?where
         ~flags:rewrite_conv_unif_flags
         env sigma ((if l2r then c1 else c2),but)
   in
@@ -1911,7 +1911,7 @@ let get_hyp gl (c,l) clause l2r =
     | Some id -> Tacmach.pf_get_hyp_typ id gl
     | None -> Reductionops.nf_evar sigma concl
   in
-  unification_rewrite l2r hi.c1 hi.c2 sigma hi.prf hi.car hi.rel but env
+  unification_rewrite l2r hi.c1 hi.c2 sigma hi.prf hi.car hi.rel clause but env
 
 let general_rewrite_flags = { under_lambdas = false; on_morphisms = true }
 

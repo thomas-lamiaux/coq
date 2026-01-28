@@ -2416,7 +2416,7 @@ let fast_head_check sigma knd c = match EConstr.kind sigma c, knd with
 (* Tries to find an instance of term [cl] in term [op].
    Unifies [cl] to every subterm of [op] until it finds a match.
    Fails if no match is found *)
-let w_unify_to_subterm ~metas env evd ?(flags=default_unify_flags ()) (op,cl) =
+let w_unify_to_subterm ~metas env evd ?where ?(flags=default_unify_flags ()) (op,cl) =
   let bestexn = ref None in
   let kop = Keys.constr_key env (fun c -> EConstr.kind evd c) op in
   let opgnd = if occur_meta_or_undefined_evar evd op then NotGround else Ground in
@@ -2478,7 +2478,7 @@ let w_unify_to_subterm ~metas env evd ?(flags=default_unify_flags ()) (op,cl) =
   | Some ans -> ans
   | None ->
     match !bestexn with
-    | None -> raise (PretypeError (env,evd,NoOccurrenceFound (op, None)))
+    | None -> raise (PretypeError (env,evd,NoOccurrenceFound (op, where)))
     | Some e -> raise e
 
 (* Tries to find all instances of term [cl] in term [op].
@@ -2606,8 +2606,8 @@ let w_unify_to_subterm_list ~metas env evd flags hdmeta oplist t =
     oplist
     (metas,evd,[])
 
-let w_unify_to_subterm env sigma ?flags (c, t) =
-  w_unify_to_subterm env sigma ?flags (c, AConstr.make sigma t)
+let w_unify_to_subterm env sigma ?where ?flags (c, t) =
+  w_unify_to_subterm env sigma ?where ?flags (c, AConstr.make sigma t)
 
 let secondOrderAbstraction ~metas env evd flags typ (p, oplist) =
   (* Remove delta when looking for a subterm *)
@@ -2703,8 +2703,8 @@ let w_unify ~metas env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
 let w_unify ?(metas = Metamap.empty) env evd cv_pb ?(flags=default_unify_flags ()) ty1 ty2 =
   w_unify ~metas env evd cv_pb ~flags ty1 ty2
 
-let w_unify_to_subterm ?(metas = Metamap.empty) env evd ?flags arg =
-  w_unify_to_subterm ~metas env evd ?flags arg
+let w_unify_to_subterm ?(metas = Metamap.empty) env evd ?where ?flags arg =
+  w_unify_to_subterm ~metas env evd ?where ?flags arg
 
 let w_unify_to_subterm_all ?(metas = Metamap.empty) env evd ?flags arg =
   w_unify_to_subterm_all ~metas env evd ?flags arg
