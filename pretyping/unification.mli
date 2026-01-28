@@ -108,7 +108,7 @@ val w_unify :
    subterm of [t] is also returned. *)
 val w_unify_to_subterm :
   ?metas:Meta.t ->
-  env -> evar_map -> ?flags:unify_flags -> constr * constr -> (Meta.t * evar_map) * constr
+  env -> evar_map -> ?where:Id.t -> ?flags:unify_flags -> constr * constr -> (Meta.t * evar_map) * constr
 
 val w_unify_to_subterm_all :
   ?metas:Meta.t ->
