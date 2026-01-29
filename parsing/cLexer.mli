@@ -14,17 +14,17 @@
   matched whenever the keyword is followed by an identifier or a
   parenthesized text. Eg
 
-    constr:x
-    string:[....]
-    ltac:(....)
-    ltac:{....}
+    [constr:x]
+    [string:[....]]
+    [ltac:(....)]
+    [ltac:{....}]
 
   The delimiter is made of 1 or more occurrences of the same parenthesis,
   eg ((.....)) or [[[[....]]]]. The idea being that if the text happens to
   contain the closing delimiter, one can make the delimiter longer and avoid
   confusion (no escaping). Eg
 
-    string:[[ .. ']' .. ]]
+    [string:(( .. ')' .. ))]
 
 
   Nesting the delimiter is allowed, eg ((..((...))..)) is OK.
