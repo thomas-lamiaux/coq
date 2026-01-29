@@ -1821,6 +1821,7 @@ let parse_args () =
         match arg with
         | "-check-cmds" -> { args with check_cmds = true }
         | "-check-tacs" -> { args with check_tacs = true }
+        | "-no-warn" -> show_warn := false; args
         | "-no-update" -> { args with update = false }
         | "-short" -> { args with fullGrammar = true }
         | "-verbose" -> { args with verbose = true }
