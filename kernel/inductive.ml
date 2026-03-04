@@ -1060,47 +1060,6 @@ let restrict_spec cache ?evars env spec p =
     end
   | _ -> Not_subterm
 
-(* [filter_stack_domain env spec p] restricts the size information in stack to
-   what is allowed to enter under a match with predicate p in environment env. *)
-let filter_stack_domain cache stack_element_specif set_iota_specif ?evars env p stack =
-  let absctx, ar = Term.decompose_lambda_decls p in
-  let absctxlen = Context.Rel.length absctx in
-  (* Optimization: if the predicate is not dependent, no restriction is needed
-     and we avoid building the recargs tree. *)
-  if noccur_with_meta 1 absctxlen ar then stack
-  else
-    let env = push_rel_context absctx env in
-    let rec filter_stack env k ar stack = match stack with
-    | [] -> []
-    | elt :: stack' ->
-      let t = whd_all ?evars env ar in
-      match kind t with
-      | Prod (n, a, c0) ->
-        let d = LocalAssum (n, a) in
-        let ctx, a = whd_decompose_prod ?evars env a in
-        let env = push_rel_context ctx env in
-        let ty, args = decompose_app_list (whd_all ?evars env a) in
-        let elt = match kind ty with
-        | Ind ind ->
-          let spec = stack_element_specif cache ?evars elt in
-          if has_constant_parameters env absctxlen (k + List.length ctx) ind args then SArg spec
-          else
-            let sarg = lazy begin match Lazy.force spec with
-            | Not_subterm | Dead_code | Internally_bound_subterm _ as spec -> spec
-            | Subterm (l, s, tree) ->
-              let recargs = get_recargs_approx cache ?evars env tree ind args in
-              let tree = inter_wf_paths tree recargs in
-              Subterm (l, s, tree)
-            end in
-            SArg sarg
-        | _ -> SArg (set_iota_specif (lazy Not_subterm))
-        in
-        elt :: filter_stack (push_rel d env) (k + 1) c0 stack'
-      | _ ->
-        List.map (fun _ -> SArg (set_iota_specif (lazy Not_subterm))) stack
-  in
-  filter_stack env 0 ar stack
-
 (* [subterm_specif renv t] computes the recursive structure of [t] and
    compare its size with the size of the initial recursive argument of
    the fixpoint we are checking. [renv] collects such information
@@ -1115,7 +1074,6 @@ let rec subterm_specif cache ?evars renv stack t =
     | Case (ci, u, pms, p, iv, c, lbr) -> (* iv ignored: it's just a cache *)
       let (ci, (p,_), _iv, c, lbr) = expand_case renv.env (ci, u, pms, p, iv, c, lbr) in
       let stack' = push_stack_closures renv l stack in
-      let stack' = filter_stack_domain cache stack_element_specif Fun.id ?evars renv.env p stack' in
       let cases_spec =
         branches_specif renv (lazy_subterm_specif cache ?evars renv [] c) ci
       in
@@ -1336,25 +1294,6 @@ let drop_uniform_parameters nuniformparams bodies =
   in
   Array.mapi (fun i -> aux i 0) bodies
 
-let filter_fix_stack_domain cache ?evars nr decrarg stack nuniformparams =
-  let rec aux i nuniformparams stack =
-    match stack with
-    | [] -> []
-    | a :: stack ->
-      let uniform, nuniformparams = if nuniformparams = 0 then false, 0 else true, nuniformparams -1 in
-      let a =
-        if uniform then a
-        else if Int.equal i decrarg then SArg (stack_element_specif cache ?evars a)
-        (* We forget the needreduce status of the structural argument here,
-           since it's checked in [non_absorbed_stack]. *)
-        else
-          (* deactivate the status of non-uniform parameters since we
-             cannot guarantee that they are preserve in the recursive
-             calls *)
-          SArg (set_iota_specif nr (lazy Not_subterm)) in
-      a :: aux (i+1) nuniformparams stack
-  in aux 0 nuniformparams stack
-
 let pop_argument cache ?evars needreduce renv elt stack x a b =
   match needreduce, elt with
   | NoNeedReduce, SClosure (NoNeedReduce, _, n, c) ->
@@ -1430,10 +1369,9 @@ let check_one_fix cache ?evars renv recpos trees def =
             let nr = redex_level rs' in
             let case_spec =
               branches_specif renv (set_iota_specif nr (lazy_subterm_specif cache ?evars renv [] c_0)) ci in
-            let stack' = filter_stack_domain cache stack_element_specif (set_iota_specif nr) ?evars renv.env p stack in
             let rs' =
               Array.fold_left_i (fun k rs' br' ->
-                  let stack_br = push_stack_args case_spec.(k) stack' in
+                  let stack_br = push_stack_args case_spec.(k) stack in
                   check_rec_call_stack renv stack_br rs' br') rs' brs in
             let needreduce_br, rs = List.sep_first rs' in
             check_rec_call_state renv (needreduce_br ||| needreduce_c_0) stack rs (fun () ->
@@ -1471,8 +1409,7 @@ let check_one_fix cache ?evars renv recpos trees def =
             let renv' = push_fix_renv renv recdef in
             let nuniformparams = find_uniform_parameters recindxs (List.length stack) bodies in
             let bodies = drop_uniform_parameters nuniformparams bodies in
-            let fix_stack = filter_fix_stack_domain cache ?evars (redex_level rs) decrArg stack nuniformparams in
-            let fix_stack = if List.length stack > decrArg then List.firstn (decrArg+1) fix_stack else fix_stack in
+            let fix_stack = if List.length stack > decrArg then List.firstn (decrArg+1) stack else stack in
             let stack_this = lift_stack nbodies fix_stack in
             let stack_others = lift_stack nbodies (List.firstn nuniformparams fix_stack) in
             (* Check guard in the expanded fix *)
