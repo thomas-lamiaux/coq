@@ -123,11 +123,16 @@ module Make (Point:Point) = struct
     | Canonical of canonical_node
     | Equiv of Index.t
 
+  type components = Index.t Int.Map.t Int.Map.t
+  (* Map of elements ordered topologically, i.e. first k-levels and then i-levels *)
+
   type t =
     { entries : entry PMap.t;
       index : int;
       n_nodes : int; n_edges : int;
-      table : Index.table }
+      table : Index.table;
+      components : components;
+    }
 
   module CN = struct
     type t = canonical_node
@@ -147,36 +152,53 @@ module Make (Point:Point) = struct
     let fold = Internal.fold
   end
 
+  let remove_component k i comp =
+    let imap = Int.Map.get k comp in
+    let imap = Int.Map.remove i imap in
+    if Int.Map.is_empty imap then Int.Map.remove k comp
+    else Int.Map.set k imap comp
+
+  let add_component k i index comp =
+    let imap = try Int.Map.find k comp with Not_found -> Int.Map.empty in
+    let imap = Int.Map.add i index imap in
+    Int.Map.add k imap comp
+
+  let update_component ov nv comp =
+    if Int.equal ov.klvl nv.klvl && Int.equal ov.ilvl nv.ilvl then comp
+    else
+      let comp = remove_component ov.klvl ov.ilvl comp in
+      add_component nv.klvl nv.ilvl nv.canon comp
+
   (* Every Point.t has a unique canonical arc representative *)
 
   (* Low-level function : makes u an alias for v.
      Does not removes edges from n_edges, but decrements n_nodes.
      u should be entered as canonical before.  *)
   let enter_equiv g u v =
-    { entries =
-        PMap.modify u (fun _ a ->
-            match a with
-            | Canonical n ->
-              Equiv v
-            | _ -> assert false) g.entries;
+    let ucan = match PMap.find u g.entries with
+    | Canonical n -> n
+    | Equiv _ -> assert false
+    in
+    { entries = PMap.set u (Equiv v) g.entries;
       index = g.index;
       n_nodes = g.n_nodes - 1;
       n_edges = g.n_edges;
-      table = g.table }
+      table = g.table;
+      components = remove_component ucan.klvl ucan.ilvl g.components;
+    }
 
   (* Low-level function : changes data associated with a canonical node.
      Resets the mutable fields in the old record, in order to avoid breaking
      invariants for other users of this record.
      n.canon should already been inserted as a canonical node. *)
   let change_node g n =
-    { g with entries =
-               PMap.modify n.canon
-                 (fun _ a ->
-                    match a with
-                    | Canonical _ ->
-                      Canonical n
-                    | _ -> assert false)
-                 g.entries }
+    let ucan = match PMap.find n.canon g.entries with
+    | Canonical n -> n
+    | Equiv _ -> assert false
+    in
+    let entries = PMap.set n.canon (Canonical n) g.entries in
+    let components = update_component ucan n g.components in
+    { g with entries; components }
 
   (* canonical representative : we follow the Equiv links *)
   let rec repr g u =
@@ -524,7 +546,8 @@ module Make (Point:Point) = struct
       }
       in
       let entries = PMap.add v (Canonical node) g.entries in
-      { entries; index = g.index - 1; n_nodes = g.n_nodes + 1; n_edges = g.n_edges; table }
+      let components = add_component 0 g.index v g.components in
+      { entries; index = g.index - 1; n_nodes = g.n_nodes + 1; n_edges = g.n_edges; table; components }
 
   let check_declared g us =
     let check l = not (Index.mem l g.table) in
@@ -683,7 +706,7 @@ module Make (Point:Point) = struct
     with CycleDetected -> None
 
   let empty =
-    let ans = { entries = PMap.empty; index = 0; n_nodes = 0; n_edges = 0; table = Index.empty } in
+    let ans = { entries = PMap.empty; index = 0; n_nodes = 0; n_edges = 0; table = Index.empty; components = Int.Map.empty } in
     match Point.root with
     | None -> ans
     | Some root ->
