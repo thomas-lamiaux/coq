@@ -18,6 +18,7 @@ module type Point = sig
 
   val equal : t -> t -> bool
   val compare : t -> t -> int
+  val root : t option
 
   val raw_pr : t -> Pp.t
 
@@ -682,7 +683,12 @@ module Make (Point:Point) = struct
     with CycleDetected -> None
 
   let empty =
-    { entries = PMap.empty; index = 0; n_nodes = 0; n_edges = 0; table = Index.empty }
+    let ans = { entries = PMap.empty; index = 0; n_nodes = 0; n_edges = 0; table = Index.empty } in
+    match Point.root with
+    | None -> ans
+    | Some root ->
+      let big_rank = 1000000 in
+      add ~rank:big_rank root ans
 
   (* Normalization *)
 

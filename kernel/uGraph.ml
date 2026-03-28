@@ -19,6 +19,7 @@ module G = AcyclicGraph.Make(struct
 
     let equal = Level.equal
     let compare = Level.compare
+    let root = Some Level.set
 
     let raw_pr = Level.raw_pr
 
@@ -84,11 +85,7 @@ let empty_universes = {
   above_prop_qvars=Sorts.QVar.Set.empty;
 }
 
-let initial_universes =
-  let big_rank = 1000000 in
-  let g = G.empty in
-  let g = G.add ~rank:big_rank Level.set g in
-  {empty_universes with graph=g}
+let initial_universes = empty_universes
 
 let initial_universes_with g = {g with graph=initial_universes.graph}
 
