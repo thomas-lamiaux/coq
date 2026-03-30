@@ -115,13 +115,18 @@ module Make (Point:Point) = struct
       klvl: int;
       ilvl: int;
     }
+  (* When the root is set, [gtge] may contain references to indices in the root
+     equivalence class, despite having no associated (k, i)-levels. We filter
+     them in [get_gtge] below. [ltle] never contains root indices though. *)
 
   (* A Point.t is either an alias for another one, or a canonical one,
-     for which we know the points that are above *)
+     for which we know the points that are above, or the root. The root node
+     has no index. *)
 
   type entry =
     | Canonical of canonical_node
     | Equiv of Index.t
+    | Root (* Special case of Equiv to root node *)
 
   type components = Index.t Int.Map.t Int.Map.t
   (* Map of elements ordered topologically, i.e. first k-levels and then i-levels *)
@@ -132,6 +137,7 @@ module Make (Point:Point) = struct
       n_nodes : int; n_edges : int;
       table : Index.table;
       components : components;
+      rootlt : PSet.t; (* nodes strictly above the root *)
     }
 
   module CN = struct
@@ -177,14 +183,19 @@ module Make (Point:Point) = struct
   let enter_equiv g u v =
     let ucan = match PMap.find u g.entries with
     | Canonical n -> n
-    | Equiv _ -> assert false
+    | Equiv _ | Root -> assert false
     in
-    { entries = PMap.set u (Equiv v) g.entries;
+    let node = match v with
+    | None -> Root
+    | Some v -> Equiv v
+    in
+    { entries = PMap.set u node g.entries;
       index = g.index;
       n_nodes = g.n_nodes - 1;
       n_edges = g.n_edges;
       table = g.table;
       components = remove_component ucan.klvl ucan.ilvl g.components;
+      rootlt = PSet.remove u g.rootlt;
     }
 
   (* Low-level function : changes data associated with a canonical node.
@@ -194,7 +205,7 @@ module Make (Point:Point) = struct
   let change_node g n =
     let ucan = match PMap.find n.canon g.entries with
     | Canonical n -> n
-    | Equiv _ -> assert false
+    | Equiv _ | Root  -> assert false
     in
     let entries = PMap.set n.canon (Canonical n) g.entries in
     let components = update_component ucan n g.components in
@@ -205,6 +216,13 @@ module Make (Point:Point) = struct
     match PMap.find u g.entries with
     | Equiv v -> repr g v
     | Canonical arc -> arc
+    | Root -> assert false
+
+  let rec repr_or_root g u =
+    match PMap.find u g.entries with
+    | Equiv v -> repr_or_root g v
+    | Canonical arc -> Some arc
+    | Root -> None
 
   let repr_node g u =
     try repr g (Index.find u g.table)
@@ -247,7 +265,9 @@ module Make (Point:Point) = struct
                         PSet.exists (fun l -> u == repr g l) v.gtge))
             u.ltle;
           PSet.iter (fun v ->
-              let v = repr g v in
+            match repr_or_root g v with
+            | None -> ()
+            | Some v ->
               assert (v.klvl = u.klvl &&
                       (PMap.mem u.canon v.ltle ||
                        PMap.exists (fun l _ -> u == repr g l) v.ltle))
@@ -256,7 +276,8 @@ module Make (Point:Point) = struct
           assert (u.ilvl > g.index);
           assert (not (PMap.mem u.canon u.ltle));
           incr n_nodes
-        | Equiv _ -> assert (not (required_canonical l)))
+        | Equiv _ -> assert (not (required_canonical l))
+        | Root -> ())
       g.entries;
     assert (!n_edges = g.n_edges);
     assert (!n_nodes = g.n_nodes)
@@ -273,7 +294,9 @@ module Make (Point:Point) = struct
 
   let clean_gtge g gtge =
     PSet.fold (fun u acc ->
-        let uu = (repr g u).canon in
+      match repr_or_root g u with
+      | None -> PSet.remove u (fst acc), true (* stale root index *)
+      | Some { canon = uu } ->
         if Index.equal uu u then acc
         else PSet.add uu (PSet.remove u (fst acc)), true)
       gtge (gtge, false)
@@ -418,9 +441,10 @@ module Make (Point:Point) = struct
       List.fold_left (fun acc n -> PSet.union acc n.gtge)
         PSet.empty to_merge
     in
+    let isrootlt = List.exists (fun n -> PSet.mem n.canon g.rootlt) to_merge in
     let gtge, _ = clean_gtge g gtge in
     let gtge = List.fold_left (fun acc n -> PSet.remove n.canon acc) gtge to_merge in
-    (ltle, gtge)
+    (ltle, gtge, isrootlt)
 
 
   let reorder g u v =
@@ -471,7 +495,7 @@ module Make (Point:Point) = struct
               if n.rank >= best.rank then n, best.rank else acc)
             (n0, min_int) q0
         in
-        let ltle, gtge = get_new_edges g to_merge in
+        let ltle, gtge, isrootlt = get_new_edges g to_merge in
         (* Inserting the new root. *)
         let g = change_node g
             { root with ltle; gtge;
@@ -480,8 +504,16 @@ module Make (Point:Point) = struct
 
         (* Inserting shortcuts for old nodes. *)
         let g = List.fold_left (fun g n ->
-            if Index.equal n.canon root.canon then g else enter_equiv g n.canon root.canon)
+            if Index.equal n.canon root.canon then g else enter_equiv g n.canon (Some root.canon))
             g to_merge
+        in
+
+        (* Remember the constraint Set < root *)
+        let g =
+          if isrootlt then
+            let rootlt = List.fold_left (fun accu n -> PSet.remove n.canon accu) g.rootlt to_merge in
+            { g with rootlt = PSet.add root.canon rootlt }
+          else g
         in
 
         (* Updating g.n_edges *)
@@ -531,6 +563,93 @@ module Make (Point:Point) = struct
     with
     | CycleDetected as e -> raise_notrace e
 
+  (* Find all nodes <= u. We rely on topological ordering to stop early *)
+  let next_by_topological_order g ucan cur =
+    if Int.Map.is_empty cur then None
+    else
+      let (klvl, imap) = Int.Map.min_binding cur in
+      let (ilvl, v) = Int.Map.min_binding imap in
+      let vcan = repr g v in
+      if topo_compare vcan ucan > 0 then None
+      else
+        let imap = Int.Map.remove ilvl imap in
+        let cur =
+          if Int.Map.is_empty imap then Int.Map.remove klvl cur
+          else Int.Map.set klvl imap cur
+        in
+        Some (cur, vcan)
+
+  let merge_with_root ucan g =
+    let () = if PSet.mem ucan.canon g.rootlt then raise CycleDetected in
+    let status = Status.create g in
+    let rec forward accu strict vcan =
+      if ucan == vcan then
+        if strict then raise CycleDetected (* Set < u *)
+        else true, accu
+      else if topo_compare ucan vcan < 0 then false, accu
+      else if Status.mem status vcan then Status.find status vcan, accu
+      else
+        let fold w nstrict (found, accu) =
+          let wcan = repr g w in
+          let nfound, accu = forward accu (strict || nstrict) wcan in
+          (found || nfound, accu)
+        in
+        let found, accu = PMap.fold fold vcan.ltle (false, accu) in
+        let () = Status.replace status vcan found in
+        let accu = if found then vcan :: accu else accu in
+        found, accu
+    in
+    let rec find_to_merge accu cur = match next_by_topological_order g ucan cur with
+    | None -> accu
+    | Some (cur, vcan) ->
+      let above_set = PSet.mem vcan.canon g.rootlt in
+      let found, accu = forward accu above_set vcan in
+      let () = if found && above_set then raise CycleDetected in
+      find_to_merge accu cur
+    in
+    let to_merge = find_to_merge [ucan] g.components in
+    let fold g n =
+      let g = enter_equiv g n.canon None in
+      (* Record the Set < u constraints *)
+      let foldlt u strict accu = if strict then PSet.add u accu else accu in
+      let rootlt = PMap.fold foldlt n.ltle g.rootlt in
+      { g with rootlt }
+    in
+    List.fold_left fold g to_merge
+
+  (* Basically the same code as above without the accumulator... *)
+  let is_gt_set ucan g =
+    PSet.mem ucan.canon g.rootlt ||
+    let status = Status.create g in
+    let rec forward strict vcan =
+      if ucan == vcan then
+        if strict then raise CycleDetected (* Set < u *)
+        else true
+      else if topo_compare ucan vcan < 0 then false
+      else if Status.mem status vcan then Status.find status vcan
+      else
+        let fold w nstrict found =
+          let wcan = repr g w in
+          let nfound = forward (strict || nstrict) wcan in
+          (found || nfound)
+        in
+        let found = PMap.fold fold vcan.ltle false in
+        let () = Status.replace status vcan found in
+        found
+    in
+    let rec find_to_merge cur = match next_by_topological_order g ucan cur with
+    | None -> ()
+    | Some (cur, vcan) ->
+      let above_set = PSet.mem vcan.canon g.rootlt in
+      let found = forward above_set vcan in
+      let () = if found && above_set then raise CycleDetected in
+      find_to_merge cur
+    in
+    try
+      let () = find_to_merge g.components in
+      false
+    with CycleDetected -> true
+
   let add ?(rank=0) v g =
     if Index.mem v g.table then raise AlreadyDeclared
     else
@@ -547,7 +666,7 @@ module Make (Point:Point) = struct
       in
       let entries = PMap.add v (Canonical node) g.entries in
       let components = add_component 0 g.index v g.components in
-      { entries; index = g.index - 1; n_nodes = g.n_nodes + 1; n_edges = g.n_edges; table; components }
+      { entries; index = g.index - 1; n_nodes = g.n_nodes + 1; n_edges = g.n_edges; table; components; rootlt = g.rootlt; }
 
   let check_declared g us =
     let check l = not (Index.mem l g.table) in
@@ -559,8 +678,19 @@ module Make (Point:Point) = struct
 
   type explanation = Point.t * (constraint_type * Point.t) list
 
-  let get_explanation strict pu pv g =
-    let v = repr_node g pv in
+  let repr_or_root_node g u =
+    try repr_or_root g (Index.find u g.table)
+    with Not_found ->
+      CErrors.anomaly (Point.anomaly_err u)
+
+  let get_explanation strict pu pv g = match repr_or_root_node g pu, repr_or_root_node g pv with
+  | (None, None) -> [(Eq, pv)]
+  | (Some _, None) -> assert false
+  | (None, Some vcan) ->
+    (* TODO: actually compute the path *)
+    let islt = strict || is_gt_set vcan g in
+    [(if islt then Lt else Le), pv]
+  | Some u, Some v ->
     let visited_strict = ref PMap.empty in
     let rec traverse strict u =
       if u == v then
@@ -590,7 +720,6 @@ module Make (Point:Point) = struct
           with Found_explanation exp -> Some exp
         end
     in
-    let u = repr_node g pu in
     if u == v then begin assert (not strict); [(Eq, pv)] end
     else match traverse strict u with Some exp -> exp | None -> assert false
 
@@ -642,6 +771,9 @@ module Make (Point:Point) = struct
       try loop (Status.create g) [u, strict] []; false
       with Found -> true
 
+  let search_path strict u v g =
+    search_path strict u v g
+
   (** Uncomment to debug the cycle detection algorithm. *)
   (*let insert_edge strict ucan vcan g =
     let check_invariants = check_invariants ~required_canonical:(fun _ -> false) in
@@ -659,11 +791,16 @@ module Make (Point:Point) = struct
 
   let check_eq g u v =
     u == v ||
-    let arcu = repr_node g u and arcv = repr_node g v in
-    arcu == arcv
+    let arcu = repr_or_root_node g u and arcv = repr_or_root_node g v in
+    Option.equal (==) arcu arcv
 
-  let check_smaller g strict u v =
-    search_path strict (repr_node g u) (repr_node g v) g
+  let check_smaller g strict u v = match repr_or_root_node g u, repr_or_root_node g v with
+  | None, None -> not strict
+  | Some _, None -> false
+  | None, Some ucan ->
+    if strict then is_gt_set ucan g else true
+  | Some ucan, Some vcan ->
+    search_path strict ucan vcan g
 
   let check_leq g u v = check_smaller g false u v
   let check_lt g u v = check_smaller g true u v
@@ -677,7 +814,12 @@ module Make (Point:Point) = struct
 
   (* enforce_eq g u v will force u=v if possible, will fail otherwise *)
 
-  let enforce_eq u v g =
+  let enforce_eq u v g = match repr_or_root_node g u, repr_or_root_node g v with
+  | None, None -> Some g
+  | Some ucan, None | None, Some ucan ->
+    begin try Some (merge_with_root ucan g)
+    with CycleDetected -> None end
+  | Some ucan, Some vcan ->
     let ucan = repr_node g u in
     let vcan = repr_node g v in
     if ucan == vcan then Some g
@@ -692,26 +834,34 @@ module Make (Point:Point) = struct
       with CycleDetected -> None
 
   (* enforce_leq g u v will force u<=v if possible, will fail otherwise *)
-  let enforce_leq u v g =
-    let ucan = repr_node g u in
-    let vcan = repr_node g v in
+  let enforce_leq u v g = match repr_or_root_node g u, repr_or_root_node g v with
+  | None, None -> Some g
+  | Some ucan, None ->
+    begin try Some (merge_with_root ucan g)
+    with CycleDetected -> None end
+  | None, Some _ -> Some g
+  | Some ucan, Some vcan ->
     try Some (insert_edge false ucan vcan g)
     with CycleDetected -> None
 
   (* enforce_lt u v will force u<v if possible, will fail otherwise *)
-  let enforce_lt u v g =
-    let ucan = repr_node g u in
-    let vcan = repr_node g v in
+  let enforce_lt u v g = match repr_or_root_node g u, repr_or_root_node g v with
+  | None, None -> None
+  | Some _, None -> None
+  | None, Some u ->
+    Some { g with rootlt = PSet.add u.canon g.rootlt }
+  | Some ucan, Some vcan ->
     try Some (insert_edge true ucan vcan g)
     with CycleDetected -> None
 
-  let empty =
-    let ans = { entries = PMap.empty; index = 0; n_nodes = 0; n_edges = 0; table = Index.empty; components = Int.Map.empty } in
-    match Point.root with
-    | None -> ans
-    | Some root ->
-      let big_rank = 1000000 in
-      add ~rank:big_rank root ans
+  let empty = match Point.root with
+  | None ->
+    { entries = PMap.empty; index = 0; n_nodes = 0; n_edges = 0; table = Index.empty; components = Int.Map.empty; rootlt = PSet.empty }
+  | Some root ->
+    let table = Index.empty in
+    let index, table = Index.fresh root table in
+    let entries = PMap.add index Root PMap.empty in
+    { entries; index = 0; n_nodes = 1; n_edges = 0; table; components = Int.Map.empty; rootlt = PSet.empty; }
 
   (* Normalization *)
 
@@ -723,15 +873,27 @@ module Make (Point:Point) = struct
     let constraints_of u v acc =
       match v with
       | Canonical {canon=u; ltle; _} ->
-        PMap.fold (fun v strict acc->
+        let un = Index.repr u g.table in
+        let acc = PMap.fold (fun v strict acc ->
             let typ = if strict then Lt else Le in
-            let u = Index.repr u g.table in
             let v = Index.repr v g.table in
-            fold (u,typ,v) acc) ltle acc
+            fold (un, typ, v) acc) ltle acc
+        in
+        (* Add all Set <= u and Set < u constraints *)
+        begin match Point.root with
+        | None -> acc
+        | Some root ->
+          let typ = if PSet.mem u g.rootlt then Lt else Le in
+          fold (root, typ, un) acc
+        end
       | Equiv v ->
         let u = Index.repr u g.table in
         let v = Index.repr v g.table in
         UF.union u v uf; acc
+      | Root ->
+        let u = Index.repr u g.table in
+        let root = Option.get Point.root in
+        UF.union u root uf; acc
     in
     let csts = PMap.fold constraints_of g.entries accu in
     csts, UF.partition uf
@@ -744,17 +906,22 @@ module Make (Point:Point) = struct
     in
     let kept = Point.Set.fold (fun u accu -> PSet.add (Index.find u g.table) accu) kept PSet.empty in
     let rmap, csts = PSet.fold (fun u (rmap,csts) ->
-        let arcu = repr g u in
-        if PSet.mem arcu.canon kept then
-          let csts = if Index.equal u arcu.canon then csts
-            else add_cst u Eq arcu.canon csts
-          in
-          PMap.add arcu.canon arcu.canon rmap, csts
-        else
-          match PMap.find arcu.canon rmap with
-          | v -> rmap, add_cst u Eq v csts
-          | exception Not_found -> PMap.add arcu.canon u rmap, csts)
-        kept (PMap.empty, accu)
+      let canon = match repr_or_root g u with
+      | None ->
+        let root = Option.get Point.root in
+        Index.find root g.table
+      | Some arcu -> arcu.canon
+      in
+      if PSet.mem canon kept then
+        let csts = if Index.equal u canon then csts
+          else add_cst u Eq canon csts
+        in
+        PMap.add canon canon rmap, csts
+      else
+        match PMap.find canon rmap with
+        | v -> rmap, add_cst u Eq v csts
+        | exception Not_found -> PMap.add canon u rmap, csts
+      ) kept (PMap.empty, accu)
     in
     let rec add_from u csts todo = match todo with
       | [] -> csts
@@ -774,7 +941,16 @@ module Make (Point:Point) = struct
            add_from u csts todo)
     in
     PSet.fold (fun u csts ->
-        let arc = repr g u in
+      match repr_or_root g u with
+      | None ->
+        let fold v r csts = match r with
+        | Root | Equiv _ -> csts
+        | Canonical arcv ->
+          let strict = PSet.mem arcv.canon g.rootlt in
+          add_from u csts [v, strict]
+        in
+        PMap.fold fold g.entries csts
+      | Some arc ->
         PMap.fold (fun v strict csts -> add_from u csts [v,strict])
           arc.ltle csts)
       kept csts
@@ -787,7 +963,10 @@ module Make (Point:Point) = struct
 
   let choose p g u =
     let exception Found of Point.t in
-    let ru = (repr_node g u).canon in
+    let ru = match repr_or_root_node g u with
+    | None -> Index.find (Option.get Point.root) g.table
+    | Some arcu -> arcu.canon
+    in
     let ruv = Index.repr ru g.table in
     if p ruv then Some ruv
     else
@@ -800,6 +979,9 @@ module Make (Point:Point) = struct
               if p v then raise_notrace (Found v)
             (* NB: we could also try [p v'] but it will come up in the
                rest of the iteration regardless. *)
+          | Root ->
+            let root = Option.get Point.root in
+            if p root then raise_notrace (Found root)
         ) g.entries; None
       with Found v -> Some v
 
@@ -814,6 +996,21 @@ module Make (Point:Point) = struct
         let ltle = PMap.fold fold n.ltle Point.Map.empty in
         Node ltle
       | Equiv u -> Alias (Index.repr u g.table)
+      | Root ->
+        let u0 = Index.repr u g.table in
+        let root = Option.get Point.root in
+        if Point.equal u0 root then
+          (* This is the canonical root *)
+          let fold u n accu = match n with
+          | Canonical _ ->
+            let strict = PSet.mem u g.rootlt in
+            Point.Map.add (Index.repr u g.table) strict accu
+          | Equiv _ | Root -> accu
+          in
+          let ltle = PMap.fold fold g.entries Point.Map.empty in
+          Node ltle
+        else
+          Alias root
       in
       Point.Map.add (Index.repr u g.table) n accu
     in
