@@ -1762,11 +1762,11 @@ let pr_searchtable env sigma =
   in
   Hintdbmap.fold fold !searchtable (mt ())
 
-type 'a hint_ast =
-  | Res_pf     of 'a (* Hint Apply *)
-  | ERes_pf    of 'a (* Hint EApply *)
-  | Give_exact of 'a
-  | Res_pf_THEN_trivial_fail of 'a (* Hint Immediate *)
+type hint_ast =
+  | Res_pf     of hint (* Hint Apply *)
+  | ERes_pf    of hint (* Hint EApply *)
+  | Give_exact of hint
+  | Res_pf_THEN_trivial_fail of hint (* Hint Immediate *)
   | Unfold_nth of Evaluable.t (* Hint Unfold *)
   | Extern of Pattern.constr_pattern option * Gentactic.glob_generic_tactic (* Hint Extern *)
 
