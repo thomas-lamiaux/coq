@@ -263,19 +263,16 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
   let prods, concl = EConstr.decompose_prod_decls sigma concl0 in
   let nprods = List.length prods in
   let allowed_evars =
-    let all = Evarsolve.AllowedEvars.all in
     match hdc with
     | Some (hd,_) ->
       begin match Typeclasses.class_info env hd with
-      | Some cl ->
-        if cl.cl_strict then
+      | Some cl when cl.cl_strict ->
           let undefined = lazy (Evarutil.undefined_evars_of_term sigma concl) in
           let allowed evk = not (Evar.Set.mem evk (Lazy.force undefined)) in
-          Evarsolve.AllowedEvars.from_pred allowed
-        else all
-      | None -> all
+          Some (Evarsolve.AllowedEvars.from_pred allowed)
+      | _ -> None
       end
-    | _ -> all
+    | _ -> None
   in
   let tac_of_hint (flags,h) =
     let name = FullHint.name h in
@@ -328,9 +325,14 @@ and e_my_find_search db_list local_db secvars hdc complete env sigma concl0 =
     let hintl =
       CList.map
         (fun (db, m, tacs) ->
-           let allowed_evars = match m with
-             | NoMode -> allowed_evars
-             | WithMode evars -> evars
+           let all = Evarsolve.AllowedEvars.all in
+           let allowed_evars = match allowed_evars, m with
+             | _, NoMode -> Option.default all allowed_evars
+             (* [allowed_evars] from [Strict Resolution] take precedence over
+                the (necessarily less restrictive) set of allowed evars from
+                [Hint Mode =] *)
+             | Some allowed_evars, WithMode _ -> allowed_evars
+             | None, WithMode evars -> evars
            in
           let flags = auto_unif_flags ~allowed_evars (Hint_db.transparent_state db) in
           m, List.map (fun x -> tac_of_hint (flags, x)) tacs)
