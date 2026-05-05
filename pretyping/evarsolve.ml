@@ -59,9 +59,6 @@ type unify_flags = {
   with_cs : bool
 }
 
-let allow_all_but_rrpat_evars evd =
-  AllowedEvars.except (Evd.get_rewrite_rule_evars evd)
-
 let is_evar_allowed flags sigma evk =
   AllowedEvars.mem flags.allowed_evars sigma evk
 

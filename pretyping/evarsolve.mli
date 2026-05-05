@@ -62,8 +62,6 @@ val is_success : unification_result -> bool
 
 val is_evar_allowed : unify_flags -> evar_map -> Evar.t -> bool
 
-val allow_all_but_rrpat_evars : evar_map -> AllowedEvars.t
-
 (** Replace the vars and rels that are aliases to other vars and rels by
    their representative that is most ancient in the context *)
 val expand_vars_in_term : env -> evar_map -> constr -> constr

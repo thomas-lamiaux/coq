@@ -651,8 +651,6 @@ let is_obligation_evar evd evk =
 
 let get_impossible_case_evars evd = evd.evar_flags.impossible_case_evars
 
-let get_rewrite_rule_evars evd = evd.evar_flags.rewrite_rule_evars
-
 let is_rewrite_rule_evar evd evk =
   let flags = evd.evar_flags in
   Evar.Set.mem evk flags.rewrite_rule_evars
