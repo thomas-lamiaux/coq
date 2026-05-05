@@ -31,10 +31,10 @@ module AllowedEvars = struct
   | AllowAll
   | AllowFun of (Evar.t -> bool) * Evar.Set.t
 
-  let mem allowed evk =
+  let mem allowed sigma evk =
     match allowed with
-    | AllowAll -> true
-    | AllowFun (f,except) -> f evk && not (Evar.Set.mem evk except)
+    | AllowAll -> not (Evd.is_rewrite_rule_evar sigma evk)
+    | AllowFun (f,except) -> f evk && not (Evar.Set.mem evk except) && not (Evd.is_rewrite_rule_evar sigma evk)
 
   let remove evk = function
     | AllowAll -> AllowFun ((fun _ -> true), Evar.Set.singleton evk)
@@ -62,8 +62,8 @@ type unify_flags = {
 let allow_all_but_rrpat_evars evd =
   AllowedEvars.except (Evd.get_rewrite_rule_evars evd)
 
-let is_evar_allowed flags evk =
-  AllowedEvars.mem flags.allowed_evars evk
+let is_evar_allowed flags sigma evk =
+  AllowedEvars.mem flags.allowed_evars sigma evk
 
 type unification_kind =
   | TypeUnification
@@ -167,7 +167,7 @@ let refresh_universes ?(allowed_evars=AllowedEvars.all) ?(status=univ_rigid) ?(o
        let args' = Array.map (refresh_term_evars ~onevars ~top:false) args in
        if f' == f && args' == args then t
        else mkApp (f', args')
-    | Evar (ev, a) when onevars && AllowedEvars.mem allowed_evars ev ->
+    | Evar (ev, a) when onevars && AllowedEvars.mem allowed_evars !evdref ev ->
       let evi = Evd.find_undefined !evdref ev in
       let ty = Evd.evar_concl evi in
       let ty' = refresh ~onlyalg univ_flexible ~direction:true ty in
@@ -1432,8 +1432,8 @@ let preferred_orientation evd evk1 evk2 =
 
 let solve_evar_evar_aux force f unify flags env evd pbty (evk1,args1 as ev1) (evk2,args2 as ev2) =
   let aliases = make_alias_map env evd in
-  let allowed_ev1 = is_evar_allowed flags evk1 in
-  let allowed_ev2 = is_evar_allowed flags evk2 in
+  let allowed_ev1 = is_evar_allowed flags evd evk1 in
+  let allowed_ev2 = is_evar_allowed flags evd evk2 in
   if preferred_orientation evd evk1 evk2 then
     try if allowed_ev1 then
         solve_evar_evar_l2r force f unify flags env evd aliases (opp_problem pbty) ev2 ev1
@@ -1512,7 +1512,7 @@ let solve_refl ?(can_drop=false) unify flags env evd pbty evk argsv1 argsv2 =
   let candidates = filter_candidates evd evk untypedfilter NoUpdate in
   let filter = closure_of_filter ~can_drop:false evd evk untypedfilter in
   let evd',ev1 = restrict_applied_evar evd (evk, argsv1) filter candidates in
-  let allowed = is_evar_allowed flags evk in
+  let allowed = is_evar_allowed flags evd evk in
   if Evar.equal (fst ev1) evk && (not allowed || can_drop) then
     (* No refinement needed *) evd'
   else
@@ -1736,7 +1736,7 @@ let rec invert_definition unify flags choose imitate_defs
           let evd =
              (* Try now to invert args in terms of args' *)
             try
-              if not @@ is_evar_allowed flags evk' then
+              if not @@ is_evar_allowed flags evd evk' then
                 raise (CannotProject (evd, ev''));
               let evd,body = project_evar_on_evar false unify flags env' evd aliases 0 None ev'' ev' in
               let evi = Evd.find_undefined evd evk' in
@@ -1808,7 +1808,7 @@ let rec invert_definition unify flags choose imitate_defs
 
 and evar_define unify flags ?(choose=false) ?(imitate_defs=true) env evd pbty (evk,argsv as ev) rhs =
   match EConstr.kind evd rhs with
-  | Evar (evk2,argsv2 as ev2) when is_evar_allowed flags evk2 ->
+  | Evar (evk2,argsv2 as ev2) when is_evar_allowed flags evd evk2 ->
       if Evar.equal evk evk2 then
         solve_refl ~can_drop:choose
           (test_success unify) flags env evd pbty evk argsv argsv2

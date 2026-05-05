@@ -24,8 +24,8 @@ module AllowedEvars : sig
   val all : t
   (** All evars can be defined *)
 
-  val mem : t -> Evar.t -> bool
-  (** [mem allowed evk] is true iff evk can be defined *)
+  val mem : t -> evar_map -> Evar.t -> bool
+  (** [mem allowed sigma evk] is true iff evk can be defined *)
 
   val from_pred : (Evar.t -> bool) -> t
   (** [from_pred p] means evars satisfying p can be defined *)
@@ -60,7 +60,7 @@ type unification_result =
 
 val is_success : unification_result -> bool
 
-val is_evar_allowed : unify_flags -> Evar.t -> bool
+val is_evar_allowed : unify_flags -> evar_map -> Evar.t -> bool
 
 val allow_all_but_rrpat_evars : evar_map -> AllowedEvars.t
 
