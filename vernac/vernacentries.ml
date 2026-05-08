@@ -2328,8 +2328,11 @@ let vernac_print =
     Notation.pr_scope (prglob_without_notations env sigma) s
   | PrintVisibility s -> with_proof_env @@ fun env sigma ->
     Notation.pr_visibility (prglob_without_notations env sigma) s
-  | PrintAbout (ref_or_by_not,udecl,glnumopt) -> with_pstate @@
-    print_about_hyp_globs ref_or_by_not udecl glnumopt
+  | PrintAbout (items, glnumopt) -> with_pstate @@ fun ~pstate ->
+    let pp_one (ref_or_by_not, udecl) =
+      print_about_hyp_globs ~pstate ref_or_by_not udecl glnumopt
+    in
+    prlist_with_sep (fun () -> fnl () ++ fnl ()) pp_one items
   | PrintImplicit qid -> with_proof_env @@ fun env _sigma ->
     Prettyp.print_impargs env (smart_global qid)
   | PrintAssumptions (o,t,rs) -> with_proof_env_and_opaques @@ fun ~opaque_access env sigma ->
