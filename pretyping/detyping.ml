@@ -985,16 +985,16 @@ and detype_binder d flags bk avoid env sigma decl c =
       let c = detype d (nongoal flags) avoid env sigma (Option.get body) in
       (* Heuristic: we display the type if in Prop *)
       let s =
-        if !Flags.in_debugger then UnivGen.QualityOrSet.qtype
+        if !Flags.in_debugger then Sorts.Quality.qtype
         else
           (* It can fail if ty is an evar, or if run inside ocamldebug or the
              OCaml toplevel since their printers don't have access to the proper sigma/env *)
           try Retyping.get_sort_quality_of (snd env) sigma ty
-          with Retyping.RetypeError _ -> UnivGen.QualityOrSet.qtype
+          with Retyping.RetypeError _ -> Sorts.Quality.qtype
       in
       let t =
         (* XXX also sprop? *)
-        if flags.flg.nonpropositional_letin_types || UnivGen.QualityOrSet.is_prop s
+        if flags.flg.nonpropositional_letin_types || Sorts.Quality.is_qprop s
         then Some (detype d (nongoal flags) avoid env sigma ty)
         else None
       in

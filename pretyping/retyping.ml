@@ -339,7 +339,7 @@ let retype ?metas ?(polyprop=true) sigma =
 
   in type_of, sort_of, type_of_global_reference_knowing_parameters
 
-let get_sort_quality_of ?(polyprop=true) env sigma t =
+let get_sort_quality_or_set_of ?(polyprop=true) env sigma t =
   let type_of,_,type_of_global_reference_knowing_parameters = retype ~polyprop sigma in
   let rec sort_quality_of env t =
     let open UnivGen in
@@ -360,6 +360,9 @@ let get_sort_quality_of ?(polyprop=true) env sigma t =
     | _ ->
       ESorts.quality_or_set sigma (decomp_sort env sigma (type_of env t))
   in sort_quality_of env t
+
+let get_sort_quality_of ?polyprop env sigma t =
+  UnivGen.QualityOrSet.quality @@ get_sort_quality_or_set_of ?polyprop env sigma t
 
 let get_sort_of ?(polyprop=true) env sigma t =
   let _,f,_ = retype ~polyprop sigma in anomaly_on_error (f env) t

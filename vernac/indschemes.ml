@@ -495,7 +495,7 @@ let build_combined_scheme env schemes =
   *)
   let inprop =
     let inprop (_,t) =
-      UnivGen.QualityOrSet.is_prop
+      Sorts.Quality.is_qprop
         (Retyping.get_sort_quality_of env sigma (EConstr.of_constr t))
     in
     List.for_all inprop defs

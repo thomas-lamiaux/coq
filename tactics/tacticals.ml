@@ -586,13 +586,13 @@ let elimination_sort_of_goal gl =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let c = Proofview.Goal.concl gl in
-  Retyping.get_sort_quality_of env sigma c
+  Retyping.get_sort_quality_or_set_of env sigma c
 
 let elimination_sort_of_hyp id gl =
   let env = Proofview.Goal.env gl in
   let sigma = Proofview.Goal.sigma gl in
   let c = Tacmach.pf_get_hyp_typ id gl in
-  Retyping.get_sort_quality_of env sigma c
+  Retyping.get_sort_quality_or_set_of env sigma c
 
 let elimination_sort_of_clause id gl = match id with
 | None -> elimination_sort_of_goal gl
