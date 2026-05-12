@@ -1112,7 +1112,8 @@ GRAMMAR EXTEND Gram
 
       (* Printing (careful factorization of entries) *)
       | IDENT "Print"; p = printable -> { VernacSynPure (VernacPrint p) }
-      | IDENT "Print"; qid = smart_global; l = OPT univ_name_list -> { VernacSynPure (VernacPrint (PrintName (qid,l))) }
+      | IDENT "Print"; items = LIST1 [ qid = smart_global; l = OPT univ_name_list -> { (qid,l) } ] SEP "," ->
+          { VernacSynPure (VernacPrint (PrintName (items))) }
       | IDENT "Print"; IDENT "Module"; "Type"; qid = global ->
           { VernacSynPure (VernacPrint (PrintModuleType qid)) }
       | IDENT "Print"; IDENT "Module"; qid = global ->
@@ -1169,7 +1170,7 @@ GRAMMAR EXTEND Gram
       ] ]
   ;
   printable:
-    [ [ IDENT "Term"; qid = smart_global; l = OPT univ_name_list -> { PrintName (qid,l) }
+    [ [ IDENT "Term"; items = LIST1 [ qid = smart_global; l = OPT univ_name_list -> { (qid,l) } ] SEP "," -> { PrintName (items) }
       | IDENT "All" -> { PrintFullContext }
       | IDENT "Section"; s = global -> { PrintSectionContext s }
       | IDENT "Grammar"; tree = OPT [ IDENT "Tree" -> { () } ]; ent = LIST0 IDENT ->

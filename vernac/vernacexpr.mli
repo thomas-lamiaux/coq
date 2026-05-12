@@ -54,7 +54,7 @@ type printable =
   | PrintMLModules
   | PrintDebugGC
   | PrintDebugDelta of qualid option
-  | PrintName of qualid or_by_notation * UnivNames.univ_name_list option
+  | PrintName of (qualid or_by_notation * UnivNames.univ_name_list option) list
   | PrintGraph
   | PrintClasses
   | PrintTypeclasses

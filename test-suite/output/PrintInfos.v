@@ -33,6 +33,7 @@ Arguments eq_refl {A} {x}, {A} x.
 Print eq_refl.
 
 About nat_rect, nat_ind, nat_sind.
+Print nat_rect, nat_ind, nat_sind.
 
 Definition newdef := fun x:nat => x.
 

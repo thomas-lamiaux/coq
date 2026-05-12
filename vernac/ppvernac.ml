@@ -689,8 +689,9 @@ let pr_printable = function
     keyword cmd ++ pr_opt pr_subgraph g ++ pr_opt pr_with_src with_sources ++ pr_opt str fopt
   | PrintSorts ->
     keyword "Print Sorts"
-  | PrintName (qid,udecl) ->
-    keyword "Print" ++ spc()  ++ pr_smart_global qid ++ pr_full_univ_name_list udecl
+  | PrintName (items) ->
+    keyword "Print" ++ spc()  ++ prlist_with_sep pr_comma
+        ( fun (qid,udecl) -> pr_smart_global qid ++ pr_full_univ_name_list udecl) items
   | PrintModuleType qid ->
     keyword "Print Module Type" ++ spc() ++ pr_qualid qid
   | PrintModule qid ->

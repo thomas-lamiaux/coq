@@ -2291,8 +2291,10 @@ let vernac_print =
   | PrintMLModules -> no_state Mltop.print_ml_modules
   | PrintDebugGC -> no_state Mltop.print_gc
   | PrintDebugDelta qid -> no_state @@ fun () -> vernac_print_debug_delta qid
-  | PrintName (qid,udecl) -> with_proof_env_and_opaques @@ fun ~opaque_access env sigma ->
-    Prettyp.print_name opaque_access env sigma qid udecl
+  | PrintName (items) -> with_proof_env_and_opaques @@ fun ~opaque_access env sigma ->
+    let pp_one (qid,udecl) =
+      Prettyp.print_name opaque_access env sigma qid udecl
+    in prlist_with_sep (fun () -> fnl () ++ fnl ()) pp_one items
   | PrintGraph -> no_state Prettyp.print_graph
   | PrintClasses -> no_state Prettyp.print_classes
   | PrintTypeclasses -> no_state Prettyp.print_typeclasses

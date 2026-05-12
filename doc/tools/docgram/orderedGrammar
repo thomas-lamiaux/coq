@@ -795,7 +795,7 @@ command: [
 | "Print" "Strategies"
 | "Print" "Registered"
 | "Print" "Registered" "Schemes"
-| "Print" OPT "Term" reference OPT univ_name_list
+| "Print" OPT "Term" LIST1 [ reference OPT univ_name_list ] SEP ","
 | "Print" "Module" "Type" qualid
 | "Print" "Module" qualid
 | "Print" "Namespace" dirpath

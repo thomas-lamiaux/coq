@@ -126,6 +126,41 @@ Arguments nat_sind P%_function_scope O S%_function_scope n%_nat_scope
 nat_sind is transparent
 Expands to: Constant Corelib.Init.Datatypes.nat_sind
 Declared in library Corelib.Init.Datatypes, line 187, characters 0-54
+nat_rect =
+fun (P : nat -> Type) (O : P 0) (S : forall n : nat, P n -> P (S n)) =>
+fix F (n : nat) : P n :=
+  match n as n0 return P n0 with
+  | 0 => O
+  | Datatypes.S n0 => S n0 (F n0)
+  end
+     : forall P : nat -> Type,
+       P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+Arguments nat_rect P%_function_scope O S%_function_scope n%_nat_scope
+
+nat_ind =
+fun (P : nat -> Prop) (O : P 0) (S : forall n : nat, P n -> P (S n)) =>
+fix F (n : nat) : P n :=
+  match n as n0 return P n0 with
+  | 0 => O
+  | Datatypes.S n0 => S n0 (F n0)
+  end
+     : forall P : nat -> Prop,
+       P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+Arguments nat_ind P%_function_scope O S%_function_scope n%_nat_scope
+
+nat_sind =
+fun (P : nat -> SProp) (O : P 0) (S : forall n : nat, P n -> P (S n)) =>
+fix F (n : nat) : P n :=
+  match n as n0 return P n0 with
+  | 0 => O
+  | Datatypes.S n0 => S n0 (F n0)
+  end
+     : forall P : nat -> SProp,
+       P 0 -> (forall n : nat, P n -> P (S n)) -> forall n : nat, P n
+
+Arguments nat_sind P%_function_scope O S%_function_scope n%_nat_scope
 n:nat
 
 Hypothesis of the goal context.
@@ -169,7 +204,7 @@ fst is a projection of prod
 Arguments fst (A B)%_type_scope p
 fst is transparent
 Expands to: Constant PrintInfos.AboutProj.fst
-Declared in library PrintInfos, line 60, characters 21-24
+Declared in library PrintInfos, line 61, characters 21-24
 fst : forall A B : Type, prod A B -> A
 
 fst is not universe polymorphic
@@ -177,4 +212,4 @@ fst is a primitive projection of prod
 Arguments fst (A B)%_type_scope p
 fst is transparent
 Expands to: Constant PrintInfos.AboutPrimProj.fst
-Declared in library PrintInfos, line 66, characters 21-24
+Declared in library PrintInfos, line 67, characters 21-24
