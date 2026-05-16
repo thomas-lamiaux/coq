@@ -721,13 +721,12 @@ let allow_new_evars sigma =
 (* allow_K) because only closed terms are involved in *)
 (* induction/destruct/case/elim and w_unify_to_subterm_list does not *)
 (* call w_unify for induction/destruct/case/elim  (13/6/2011) *)
-let elim_core_flags sigma = { (default_core_unify_flags ()) with
+let elim_core_flags = { (default_core_unify_flags ()) with
   modulo_betaiota = false;
-  allowed_evars = allow_new_evars sigma;
 }
 
-let elim_flags_evars sigma =
-  let flags = elim_core_flags sigma in {
+let elim_flags () =
+  let flags = elim_core_flags in {
   core_unify_flags = flags;
   merge_unify_flags = flags;
   subterm_unify_flags = { flags with modulo_delta = TransparentState.empty };
@@ -735,9 +734,7 @@ let elim_flags_evars sigma =
   resolve_evars = false
 }
 
-let elim_flags () = elim_flags_evars Evd.empty
-
-let elim_no_delta_core_flags () = { (elim_core_flags Evd.empty) with
+let elim_no_delta_core_flags () = { elim_core_flags with
   modulo_delta = TransparentState.empty;
   check_applied_meta_types = false;
   use_pattern_unification = false;
