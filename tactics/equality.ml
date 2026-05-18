@@ -902,8 +902,8 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
       if keep_head_inductive sigma ty1 then true
       else
         let s = get_sort_quality_of env sigma ty1 in
-        (keep_proofs || not (UnivGen.QualityOrSet.equal s UnivGen.QualityOrSet.prop)) &&
-        not (UnivGen.QualityOrSet.equal s UnivGen.QualityOrSet.sprop) &&
+        (keep_proofs || not (Sorts.Quality.equal s Sorts.Quality.qprop)) &&
+        not (Sorts.Quality.equal s Sorts.Quality.qsprop) &&
         allowed_elim
     in
     if keep then [(List.rev posn,t1,t2)] else []
@@ -916,7 +916,7 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
     let hd1,args1 = whd_all_stack env sigma t1 in
     let hd2,args2 = whd_all_stack env sigma t2 in
     let ty1 = get_type_of env sigma t1 in
-    let s1 = UnivGen.QualityOrSet.quality @@ get_sort_quality_of env sigma ty1 in
+    let s1 = get_sort_quality_of env sigma ty1 in
     let g = Environ.qualities env in
     let allowed_elim_on_sort = eliminates_to g s s1 in
     match (EConstr.kind sigma hd1, EConstr.kind sigma hd2) with
@@ -964,7 +964,7 @@ let find_positions env sigma ~keep_proofs ~no_discr ~eqsort ~goalsort t1 t2 =
   in
   try
     let ty1 = get_type_of env sigma t1 in
-    let s = UnivGen.QualityOrSet.quality @@ get_sort_quality_of env sigma ty1 in
+    let s = get_sort_quality_of env sigma ty1 in
     Inr (findrec [] s t1 t2)
   with DiscrFound (path, d) ->
     Inl (path, d)

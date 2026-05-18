@@ -38,8 +38,11 @@ val get_type_of_constr : ?polyprop:bool -> ?lax:bool
 val get_sort_of :
   ?polyprop:bool -> env -> evar_map -> types -> ESorts.t
 
-val get_sort_quality_of :
+val get_sort_quality_or_set_of :
   ?polyprop:bool -> env -> evar_map -> types -> UnivGen.QualityOrSet.t
+
+val get_sort_quality_of :
+  ?polyprop:bool -> env -> evar_map -> types -> Sorts.Quality.t
 
 (** Makes an unsafe judgment from a constr *)
 val get_judgment_of : env -> evar_map -> constr -> unsafe_judgment

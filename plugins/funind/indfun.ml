@@ -60,7 +60,7 @@ let functional_induction with_clean c princl pat =
                   ( str "Cannot find induction information on "
                   ++ Termops.pr_global_env env (ConstRef c') )
             in
-            match Retyping.get_sort_quality_of env sigma concl with
+            match Retyping.get_sort_quality_or_set_of env sigma concl with
             | Qual (QConstant QSProp) -> finfo.sprop_lemma
             | Qual (QConstant QProp) -> finfo.prop_lemma
             | Set -> finfo.rec_lemma
@@ -79,7 +79,7 @@ let functional_induction with_clean c princl pat =
               let princ_name =
                 Elimschemes.make_elimination_ident
                   (Constant.label c')
-                  (Retyping.get_sort_quality_of env sigma concl)
+                  (Retyping.get_sort_quality_or_set_of env sigma concl)
               in
               let princ_ref =
                 match

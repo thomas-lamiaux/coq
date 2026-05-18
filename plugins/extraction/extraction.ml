@@ -70,11 +70,11 @@ type flag = info * scheme
 (*s [flag_of_type] transforms a type [t] into a [flag].
   Really important function. *)
 
-let info_of_quality = let open UnivGen.QualityOrSet in function
-  | Qual (QConstant QSProp | QConstant QProp) -> Logic
-  | Set | Qual (QConstant QType | QVar _ | QGlobal _) -> Info
+let info_of_quality = let open Sorts.Quality in function
+  | QConstant QSProp | QConstant QProp -> Logic
+  | QConstant QType | QVar _ | QGlobal _ -> Info
 
-let info_of_sort s = info_of_quality (UnivGen.QualityOrSet.of_sort s)
+let info_of_sort s = info_of_quality (Sorts.quality s)
 
 let rec flag_of_type env sg t : flag =
   let t = whd_all env sg t in
