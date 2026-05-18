@@ -190,12 +190,6 @@ if [ ! -w "$working_dir" ]; then
     exit 1
 fi
 
-coq_opam_packages_on_separate_lines=$(echo "$coq_opam_packages" | sed 's/ /\n/g')
-if [ $(echo "$coq_opam_packages_on_separate_lines" | wc -l) != $(echo "$coq_opam_packages_on_separate_lines" | sort | uniq | wc -l) ]; then
-    echo "ERROR: The provided set of OPAM packages contains duplicates."
-    exit 1
-fi
-
 # --------------------------------------------------------------------------------
 
 # Tell coqbot to update the initial comment, if we know which one to update
