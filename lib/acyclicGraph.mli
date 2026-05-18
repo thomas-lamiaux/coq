@@ -20,6 +20,7 @@ module type Point = sig
 
   val equal : t -> t -> bool
   val compare : t -> t -> int
+  val root : t option
 
   val raw_pr : t -> Pp.t
 

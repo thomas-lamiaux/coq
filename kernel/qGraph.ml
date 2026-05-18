@@ -35,6 +35,7 @@ module G = AcyclicGraph.Make(struct
 
     let equal = Quality.equal
     let compare = Quality.compare
+    let root = None
 
     let raw_pr = Quality.raw_pr
 
