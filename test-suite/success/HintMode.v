@@ -88,6 +88,20 @@ Module Plus.
   Defined.
 End Plus.
 
+Module StrictFrozen.
+  #[local] Set Typeclasses Strict Resolution.
+  Class C (a : True) (b : True) := {}.
+  Hint Mode C - = : typeclass_instances.
+
+  Instance c : C I I := {}.
+
+  Goal exists a, C a I.
+  Proof.
+    eexists ?[a].
+    Fail apply _.
+  Abort.
+End StrictFrozen.
+
 Module Frozen.
   Record bi := {
       car :> Type;
