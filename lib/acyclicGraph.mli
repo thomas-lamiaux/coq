@@ -83,8 +83,6 @@ module Make (Point:Point) : sig
 
   val domain : t -> Point.Set.t
 
-  val choose : (Point.t -> bool) -> t -> Point.t -> Point.t option
-
   (** {5 High-level representation} *)
 
   type node =
