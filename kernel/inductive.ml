@@ -1704,9 +1704,9 @@ let check_one_fix ?evars renv recpos trees def =
       match kind (whd_all ?evars renv.env body) with
         | Lambda (x,a,body) ->
           begin
+            let rs = check_inert_subterm_rec_call renv rs a in
             match stack with
             | elt :: stack ->
-              let rs = check_inert_subterm_rec_call renv rs a in
               let renv', stack', body' = pop_argument NoNeedReduce renv elt stack x a body in
               check_nested_fix_body illformed renv' (decr-1) stack' rs body'
             | [] ->
