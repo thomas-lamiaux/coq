@@ -89,10 +89,6 @@ val empty_universes : t
    of the universes into equivalence classes. *)
 val constraints_of_universes : t -> UnivConstraints.t * Level.Set.t list
 
-val choose : (Level.t -> bool) -> t -> Level.t -> Level.t option
-(** [choose p g u] picks a universe verifying [p] and equal
-   to [u] in [g]. *)
-
 (** [constraints_for ~kept g] returns the constraints about the
    universes [kept] in [g] up to transitivity.
 

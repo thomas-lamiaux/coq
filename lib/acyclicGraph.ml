@@ -961,30 +961,6 @@ module Make (Point:Point) = struct
     let fold u _ accu = Point.Set.add (Index.repr u g.table) accu in
     PMap.fold fold g.entries Point.Set.empty
 
-  let choose p g u =
-    let exception Found of Point.t in
-    let ru = match repr_or_root_node g u with
-    | None -> Index.find (Option.get Point.root) g.table
-    | Some arcu -> arcu.canon
-    in
-    let ruv = Index.repr ru g.table in
-    if p ruv then Some ruv
-    else
-      try PMap.iter (fun v -> function
-          | Canonical _ -> () (* we already tried [p ru] *)
-          | Equiv v' ->
-            let rv = (repr g v').canon in
-            if rv == ru then
-              let v = Index.repr v g.table in
-              if p v then raise_notrace (Found v)
-            (* NB: we could also try [p v'] but it will come up in the
-               rest of the iteration regardless. *)
-          | Root ->
-            let root = Option.get Point.root in
-            if p root then raise_notrace (Found root)
-        ) g.entries; None
-      with Found v -> Some v
-
   type node = Alias of Point.t | Node of bool Point.Map.t
   type repr = node Point.Map.t
 
