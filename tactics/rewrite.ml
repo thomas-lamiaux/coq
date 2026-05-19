@@ -753,7 +753,7 @@ let unify_eqn { car; rel; prf; c1; c2; holes; sort } l2r flags env (sigma, cstrs
   with
   | e when noncritical e -> None
 
-let unify_abs (car, rel, prf, c1, c2) l2r sort env (sigma, cstrs) t =
+let unify_abs (car, rel, c1, c2) l2r sort env (sigma, cstrs) t =
   try
     let left = if l2r then c1 else c2 in
     (* The pattern is already instantiated, so the next w_unify is
@@ -762,7 +762,7 @@ let unify_abs (car, rel, prf, c1, c2) l2r sort env (sigma, cstrs) t =
        solved this evars *)
     let _, sigma = Unification.w_unify ~flags:rewrite_unif_flags env sigma CONV left t in
     let rew_evars = sigma, cstrs in
-    let rew_prf = RewPrf (rel, prf) in
+    let rew_prf = RewPrf (rel, mkRel 1) in
     let rew = { rew_car = car; rew_from = c1; rew_to = c2; rew_prf; rew_evars; } in
     let rew = if l2r then rew else symmetry env sort rew in
     Some rew
@@ -1636,7 +1636,7 @@ let () = CErrors.register_handler begin function
 | _ -> None
 end
 
-let cl_rewrite_clause_aux ?(abs=None) strat env avoid sigma concl is_hyp : result =
+let cl_rewrite_clause_aux abs strat env sigma concl is_hyp : result =
   let sigma, sort = Typing.sort_of env sigma concl in
   let evdref = ref sigma in
   let evars = (!evdref, Evar.Set.empty) in
@@ -1651,7 +1651,7 @@ let cl_rewrite_clause_aux ?(abs=None) strat env avoid sigma concl is_hyp : resul
       evars, (prop, t)
     | Some _ -> evars, (prop, arrow)
   in
-  let eq = apply_strategy strat env avoid concl cstr evars in
+  let eq = apply_strategy strat env Id.Set.empty concl cstr evars in
   match eq with
   | Fail -> None
   | Identity -> Some None
@@ -1664,6 +1664,7 @@ let cl_rewrite_clause_aux ?(abs=None) strat env avoid sigma concl is_hyp : resul
     let res = match res.rew_prf with
       | RewCast c -> None
       | RewPrf (rel, p) ->
+        (* if abs is Some (_, T), [p] lives in an extended rel context Γ, x : T *)
         let term =
           match abs with
           | None -> p
@@ -1686,7 +1687,7 @@ let newfail n s =
   let info = Exninfo.reify () in
   Proofview.tclZERO ~info (Tacticals.FailError (n, lazy s))
 
-let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
+let cl_rewrite_clause_newtac ?origsigma ~progress abs strat clause =
   let open Proofview.Notations in
   (* For compatibility *)
   let beta = Tactics.reduct_in_concl ~cast:false ~check:false
@@ -1750,9 +1751,7 @@ let cl_rewrite_clause_newtac ?abs ?origsigma ~progress strat clause =
       Environ.reset_with_named_context (val_of_named_context nctx) env
     in
     try
-      let res =
-        cl_rewrite_clause_aux ?abs strat env Id.Set.empty sigma ty clause
-      in
+      let res = cl_rewrite_clause_aux abs strat env sigma ty clause in
       let sigma = match origsigma with None -> sigma | Some sigma -> sigma in
       treat sigma res state <*>
       (* For compatibility *)
@@ -1777,7 +1776,7 @@ let cl_rewrite_clause_strat progress strat clause =
   tactic_init_rewrite () <*>
   (if progress then Proofview.tclPROGRESS else fun x -> x)
    (Proofview.tclOR
-      (cl_rewrite_clause_newtac ~progress strat clause)
+      (cl_rewrite_clause_newtac ~progress None strat clause)
       (fun (e, info) -> match e with
        | Tacticals.FailError (n, pp) ->
          tclFAILn ~info n (str"setoid rewrite failed: " ++ Lazy.force pp)
@@ -1869,8 +1868,7 @@ let unification_rewrite l2r c1 c2 sigma prf car rel where but env =
   let prfty = nf (Retyping.get_type_of env sigma prf) in
   let sort = sort_of_rel env sigma but in
   let abs = prf, prfty in
-  let prf = mkRel 1 in
-  let res = (car, rel, prf, c1, c2) in
+  let res = (car, rel, c1, c2) in
   abs, sigma, res, Sorts.is_prop sort
 
 let get_hyp gl (c,l) clause l2r =
@@ -1906,7 +1904,7 @@ let general_s_rewrite cl l2r occs (c,l) ~new_goals =
       (tclPROGRESS
         (tclTHEN
            (Proofview.Unsafe.tclEVARS evd)
-            (cl_rewrite_clause_newtac ~progress:true ~abs:(Some abs) ~origsigma strat cl)))
+            (cl_rewrite_clause_newtac ~progress:true (Some abs) ~origsigma strat cl)))
     (fun (e, info) -> match e with
     | e -> Proofview.tclZERO ~info e)
   end
