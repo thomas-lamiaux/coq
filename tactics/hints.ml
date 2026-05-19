@@ -95,6 +95,9 @@ let empty_hint_info =
 (*           The Type of Constructions Autotactic Hints                 *)
 (************************************************************************)
 
+module Internal =
+struct
+
 type 'a hint_ast =
   | Res_pf     of 'a (* Hint Apply *)
   | ERes_pf    of 'a (* Hint EApply *)
@@ -103,6 +106,9 @@ type 'a hint_ast =
   | Unfold_nth of Evaluable.t (* Hint Unfold *)
   | Extern of Pattern.constr_pattern option * Gentactic.glob_generic_tactic (* Hint Extern *)
 
+end
+
+open Internal
 
 type 'a hints_path_atom_gen =
   | PathHints of 'a list
@@ -1756,6 +1762,22 @@ let pr_searchtable env sigma =
   in
   Hintdbmap.fold fold !searchtable (mt ())
 
+type hint_ast =
+  | Res_pf     of hint (* Hint Apply *)
+  | ERes_pf    of hint (* Hint EApply *)
+  | Give_exact of hint
+  | Res_pf_THEN_trivial_fail of hint (* Hint Immediate *)
+  | Unfold_nth of Evaluable.t (* Hint Unfold *)
+  | Extern of Pattern.constr_pattern option * Gentactic.glob_generic_tactic (* Hint Extern *)
+
+let to_user_ast = function
+| Internal.Res_pf h -> Res_pf h
+| Internal.ERes_pf h -> ERes_pf h
+| Internal.Give_exact h -> Give_exact h
+| Internal.Res_pf_THEN_trivial_fail h -> Res_pf_THEN_trivial_fail h
+| Internal.Unfold_nth h -> Unfold_nth h
+| Internal.Extern (pat, tac) -> Extern (pat, tac)
+
 module FullHint =
 struct
   type t = full_hint
@@ -1765,7 +1787,7 @@ struct
   | None -> None
   | Some (ConstrPattern p | SyntacticPattern p) -> Some p
   | Some DefaultPattern -> None
-  let run (h : t) k = k h.code.obj
+  let run (h : t) k = k (to_user_ast h.code.obj)
   let print env sigma (h : t) = pr_hint env sigma h.code
   let name (h : t) = h.name
 
@@ -1774,7 +1796,7 @@ struct
   | Unfold_nth _ -> Some 1
   | Extern _ -> None
 
-  let repr (h : t) = h.code.obj
+  let repr (h : t) = to_user_ast h.code.obj
 end
 
 let connect_hint_clenv h gl =

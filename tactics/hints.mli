@@ -31,15 +31,15 @@ val hint_cat : Libobject.category
 
 (** Pre-created hint databases *)
 
-type 'a hint_ast =
-  | Res_pf     of 'a (* Hint Apply *)
-  | ERes_pf    of 'a (* Hint EApply *)
-  | Give_exact of 'a
-  | Res_pf_THEN_trivial_fail of 'a (* Hint Immediate *)
+type hint
+
+type hint_ast =
+  | Res_pf     of hint (* Hint Apply *)
+  | ERes_pf    of hint (* Hint EApply *)
+  | Give_exact of hint
+  | Res_pf_THEN_trivial_fail of hint (* Hint Immediate *)
   | Unfold_nth of Evaluable.t (* Hint Unfold *)
   | Extern of Pattern.constr_pattern option * Gentactic.glob_generic_tactic (* Hint Extern *)
-
-type hint
 
 val hint_as_term : hint -> UnivGen.sort_context_set option * constr
 
@@ -57,14 +57,14 @@ sig
   val priority : t -> int
   val pattern : t -> Pattern.constr_pattern option
   val database : t -> string option
-  val run : t -> (hint hint_ast -> 'r Proofview.tactic) -> 'r Proofview.tactic
+  val run : t -> (hint_ast -> 'r Proofview.tactic) -> 'r Proofview.tactic
   val name : t -> GlobRef.t option
   val print : env -> evar_map -> t -> Pp.t
   val subgoals : t -> int option
 
   (** This function is for backward compatibility only, not to use in newly
     written code. *)
-  val repr : t -> hint hint_ast
+  val repr : t -> hint_ast
 end
 
 (** The head may not be bound. *)
