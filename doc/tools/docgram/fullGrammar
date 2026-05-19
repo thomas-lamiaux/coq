@@ -552,7 +552,7 @@ command: [
 | "Locate" locatable
 | "Type" lconstr
 | "Print" printable
-| "Print" smart_global OPT univ_name_list
+| "Print" LIST1 [ smart_global OPT univ_name_list ] SEP ","
 | "Print" "Module" "Type" global
 | "Print" "Module" global
 | "Print" "Namespace" dirpath
@@ -1411,7 +1411,7 @@ query_command: [
 ]
 
 printable: [
-| "Term" smart_global OPT univ_name_list
+| "Term" LIST1 [ smart_global OPT univ_name_list ] SEP ","
 | "All"
 | "Section" global
 | "Grammar" OPT "Tree" LIST0 IDENT

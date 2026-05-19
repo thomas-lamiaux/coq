@@ -1220,7 +1220,7 @@ printable: [
 | WITH "Visibility" OPT scope_name
 | REPLACE [ "Sorted" | ] "Universes" OPT printunivs_subgraph OPT [ [ "With" | "Without" ] "Constraint" "Sources" ] OPT ne_string
 | WITH OPT "Sorted" "Universes" OPT printunivs_subgraph OPT [ [ "With" | "Without" ] "Constraint" "Sources" ] OPT ne_string
-| DELETE "Term" smart_global OPT univ_name_list  (* readded in commands *)
+| DELETE "Term" LIST1 [ smart_global OPT univ_name_list ] SEP ","  (* readded in commands *)
 | REPLACE "Hint"
 | WITH "Hint" OPT [ "*" | smart_global ]
 | DELETE "Hint" smart_global
@@ -1361,8 +1361,8 @@ command: [
 (* show the locate options as separate commands *)
 | DELETE "Locate" locatable
 | locatable
-| REPLACE "Print" smart_global OPT univ_name_list
-| WITH "Print" OPT "Term" smart_global OPT univ_name_list
+| REPLACE "Print" LIST1 [ smart_global OPT univ_name_list ] SEP ","
+| WITH "Print" OPT "Term" LIST1 [ smart_global OPT univ_name_list ] SEP ","
 
 | REPLACE "Declare" "Scope" IDENT
 | WITH "Declare" "Scope" scope_name
