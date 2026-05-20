@@ -2048,21 +2048,29 @@ and klt info tab e t = match kind t with
   | Inr (k, Some p) -> kl info tab @@ lift_fconstr (k-p) {mark=Red;term=FFlex(RelKey p)}
   end
 | App (hd, args) ->
-  begin match kind hd with
-  | Ind _ | Construct _ ->
+  let is_stuck = match kind hd with
+  | Ind _ | Construct _ -> true
+  | CoFix _ | Lambda _ | Fix _ | Prod _ | Evar _ | Case _
+  | Cast _ | LetIn _ | Proj _ | Array _ | Rel _ | Meta _ | Sort _ | Int _
+  | Float _ | String _ -> false
+  | Const (cst, _) ->
+    let ts = RedFlags.red_transparent info.i_flags in
+    not @@ TransparentState.is_transparent_constant ts cst
+  | Var id ->
+    let ts = RedFlags.red_transparent info.i_flags in
+    not @@ TransparentState.is_transparent_variable ts id
+  | App _ -> assert false
+  in
+  if is_stuck then
     let args' = Array.Smart.map (fun c -> klt info tab e c) args in
     let hd' = subst_instance_constr (snd e) hd in
     if hd' == hd && args' == args then t
     else mkApp (hd', args')
-  | Var _ | Const _ | CoFix _ | Lambda _ | Fix _ | Prod _ | Evar _ | Case _
-  | Cast _ | LetIn _ | Proj _ | Array _ | Rel _ | Meta _ | Sort _ | Int _
-  | Float _ | String _ ->
+  else
     let share = info.i_cache.i_share in
     let (nm,s) = knit info tab e t [] in
     let () = if share then ignore (fapp_stack (nm, s)) in (* to unlock Zupdates! *)
     zip_term info tab (norm_head info tab nm) s
-  | App _ -> assert false
-  end
 | Lambda (na, u, c) ->
   let na' = usubst_binder e na in
   let u' = klt info tab e u in
