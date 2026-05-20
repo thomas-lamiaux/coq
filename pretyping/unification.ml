@@ -963,11 +963,11 @@ let do_reduce ~metas ts (env, nb) sigma c =
   Stack.zip sigma (whd_betaiota_deltazeta_for_iota_state ~metas
                   ts env sigma (c, Stack.empty))
 
-let is_evar_allowed flags evk =
-  AllowedEvars.mem flags.allowed_evars evk
+let is_evar_allowed sigma flags evk =
+  AllowedEvars.mem flags.allowed_evars sigma evk
 
 let isAllowedEvar sigma flags c = match EConstr.kind sigma c with
-  | Evar (evk,_) -> is_evar_allowed flags evk
+  | Evar (evk,_) -> is_evar_allowed sigma flags evk
   | _ -> false
 
 
@@ -1175,7 +1175,7 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
               push_metas sigma (k, lift (-nb) cM, fst (extract_instance_status pb)) substn
             else error_cannot_unify_local curenv sigma (m,n,cM)
         | Evar (evk,_ as ev), Evar (evk',_)
-            when is_evar_allowed flags evk
+            when is_evar_allowed sigma flags evk
               && Evar.equal evk evk' ->
             begin match constr_cmp pb env sigma flags cM cN with
             | Some sigma ->
@@ -1184,14 +1184,14 @@ let rec unify_0_with_initial_metas (subst : subst0) conv_at_top env pb flags m n
               push_evars sigma (curenvnb, ev, cN) substn
             end
         | Evar (evk,_ as ev), _
-            when is_evar_allowed flags evk
+            when is_evar_allowed sigma flags evk
               && not (occur_evar sigma evk cN) ->
             let cmvars = free_rels sigma cM and cnvars = free_rels sigma cN in
               if Int.Set.subset cnvars cmvars then
                 push_evars sigma (curenvnb, ev, cN) substn
               else error_cannot_unify_local curenv sigma (m,n,cN)
         | _, Evar (evk,_ as ev)
-            when is_evar_allowed flags evk
+            when is_evar_allowed sigma flags evk
               && not (occur_evar sigma evk cM) ->
             let cmvars = free_rels sigma cM and cnvars = free_rels sigma cN in
               if Int.Set.subset cmvars cnvars then

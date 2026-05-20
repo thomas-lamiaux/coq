@@ -752,11 +752,8 @@ let rec inh_conv_coerce_to_fail ?loc ?use_coercions env sigma ?(flags=default_fl
       | _ ->
         Exninfo.iraise (NoCoercionNoUnifier (best_failed_sigma,e), info)
 
-let default_flags_of env sigma =
-  { (default_flags_of env) with allowed_evars = Evarsolve.allow_all_but_rrpat_evars sigma }
-
 (* Look for cj' obtained from cj by inserting coercions, s.t. cj'.typ = t *)
-let inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions rigidonly env sigma ?(flags=default_flags_of env sigma) cj t =
+let inh_conv_coerce_to_gen ?loc ~program_mode ~resolve_tc ?use_coercions rigidonly env sigma ?(flags=default_flags_of env) cj t =
   let (sigma, val', otrace) =
     try
       let (sigma, val', trace) = inh_conv_coerce_to_fail ?loc ?use_coercions env sigma ~flags rigidonly cj.uj_val cj.uj_type t in

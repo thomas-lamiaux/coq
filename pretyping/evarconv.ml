@@ -179,7 +179,7 @@ let flex_kind_of_term flags env evd c sk =
        if flags.modulo_betaiota then MaybeFlexible (c, sk)
        else Rigid
     | Evar ev ->
-       if is_evar_allowed flags (fst ev) then Flexible ev else Rigid
+       if is_evar_allowed flags evd (fst ev) then Flexible ev else Rigid
     | Lambda _ | Prod _ | Sort _ | Ind _ | Int _ | Float _ | String _ | Array _ -> Rigid
     | Construct _ | CoFix _ (* Incorrect: should check only app in sk *) -> Rigid
     | Meta _ -> Rigid
@@ -247,7 +247,7 @@ let occur_rigidly flags env evd (evk,_) t =
           | Reducible -> Reducible)
     | Evar (evk',l) ->
       if Evar.equal evk evk' then Rigid true
-      else if is_evar_allowed flags evk' then
+      else if is_evar_allowed flags evd evk' then
         Reducible
         else Rigid (SList.Skip.exists (fun x -> rigid_normal_occ (aux x)) l)
     | Cast (p, _, _) -> aux p
@@ -750,7 +750,7 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
         | Success _ as x -> x
         in
           begin match EConstr.kind evd term1, EConstr.kind evd term2 with
-          | Evar ev, _ when Evd.is_undefined evd (fst ev) && is_evar_allowed flags (fst ev) ->
+          | Evar ev, _ when Evd.is_undefined evd (fst ev) && is_evar_allowed flags evd (fst ev) ->
             (match solve_simple_eqn (conv_fun evar_conv_x) flags env evd
               (position_problem true pbty,ev,term2) with
               | UnifFailure (_,(OccurCheck _ | NotClean _)) ->
@@ -761,7 +761,7 @@ let rec evar_conv_x flags env evd pbty term1 term2 =
                      Miller patterns *)
                 default ()
               | x -> x)
-          | _, Evar ev when Evd.is_undefined evd (fst ev) && is_evar_allowed flags (fst ev) ->
+          | _, Evar ev when Evd.is_undefined evd (fst ev) && is_evar_allowed flags evd (fst ev) ->
             (match solve_simple_eqn (conv_fun evar_conv_x) flags env evd
               (position_problem false pbty,ev,term1) with
               | UnifFailure (_, (OccurCheck _ | NotClean _)) ->
@@ -1972,7 +1972,7 @@ let apply_conversion_problem_heuristic flags env evd with_ho pbty t1 t2 =
   let app_empty = Array.is_empty l1 && Array.is_empty l2 in
   match EConstr.kind evd term1, EConstr.kind evd term2 with
   | Evar (evk1,args1), (Rel _|Var _) when app_empty
-      && is_evar_allowed flags evk1
+      && is_evar_allowed flags evd evk1
       && is_constant_instance evd (evk1, args1) term2 ->
       (* The typical kind of constraint coming from pattern-matching return
          type inference *)
@@ -1982,7 +1982,7 @@ let apply_conversion_problem_heuristic flags env evd with_ho pbty t1 t2 =
          let reason = ProblemBeyondCapabilities in
          UnifFailure (evd, CannotSolveConstraint ((pbty,env,t1,t2),reason)))
   | (Rel _|Var _), Evar (evk2,args2) when app_empty
-    && is_evar_allowed flags evk2
+    && is_evar_allowed flags evd evk2
     && is_constant_instance evd (evk2, args2) term1 ->
       (* The typical kind of constraint coming from pattern-matching return
          type inference *)
@@ -2010,24 +2010,24 @@ let apply_conversion_problem_heuristic flags env evd with_ho pbty t1 t2 =
                  (position_problem true pbty) ev1 ev2)
       with IllTypedInstance (env,evd,t,u) ->
             UnifFailure (evd,InstanceNotSameType (evk1,env,t,u)))
-  | Evar ev1,_ when is_evar_allowed flags (fst ev1) && Array.length l1 <= Array.length l2 ->
+  | Evar ev1,_ when Array.length l1 <= Array.length l2 && is_evar_allowed flags evd (fst ev1) ->
       (* On "?n t1 .. tn = u u1 .. u(n+p)", try first-order unification *)
       (* and otherwise second-order matching *)
       ise_try evd
         [(fun evd -> first_order_unification flags env evd (ev1,l1) appr2);
          (fun evd ->
            second_order_matching_with_args flags env evd with_ho pbty ev1 l1 t2)]
-  | _,Evar ev2 when is_evar_allowed flags (fst ev2) && Array.length l2 <= Array.length l1 ->
+  | _,Evar ev2 when Array.length l2 <= Array.length l1 && is_evar_allowed flags evd (fst ev2) ->
       (* On "u u1 .. u(n+p) = ?n t1 .. tn", try first-order unification *)
       (* and otherwise second-order matching *)
       ise_try evd
         [(fun evd -> first_order_unification flags env evd (ev2,l2) appr1);
          (fun evd ->
            second_order_matching_with_args flags env evd with_ho pbty ev2 l2 t1)]
-  | Evar ev1,_ when is_evar_allowed flags (fst ev1) ->
+  | Evar ev1,_ when is_evar_allowed flags evd (fst ev1) ->
       (* Try second-order pattern-matching *)
       second_order_matching_with_args flags env evd with_ho pbty ev1 l1 t2
-  | _,Evar ev2 when is_evar_allowed flags (fst ev2) ->
+  | _,Evar ev2 when is_evar_allowed flags evd (fst ev2) ->
       (* Try second-order pattern-matching *)
       second_order_matching_with_args flags env evd with_ho pbty ev2 l2 t1
   | _ ->
