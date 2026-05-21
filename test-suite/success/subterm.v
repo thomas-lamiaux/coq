@@ -8,7 +8,7 @@ Inductive T (A : unit) := node (x : T A) with U (A : unit) := .
 Axiom e : tt = tt.
 
 (** Commutative cut returning a non-trivial mutual. *)
-Fixpoint F (x : T tt) : False :=
+Fail Fixpoint F (x : T tt) : False :=
   match x with
   | node _ x =>
     F match e in _ = t return T t with eq_refl => x end
