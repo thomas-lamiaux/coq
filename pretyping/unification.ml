@@ -2267,14 +2267,20 @@ type 'aconstr akind =
   | ACast of 'aconstr (* only the main term *)
   | AOther of 'aconstr array
 
+type atyp =
+| ATySort
+| ATyProd
+| ATyOther
+
 module AConstr :
 sig
   type t
   val proj : t -> EConstr.t
   val make : evar_map -> EConstr.t -> t
   val kind : t -> t akind
-  val mkApp : t * t array -> t
+  val mkApp : atyp -> t * t array -> t
   val closed0 : t -> bool
+  val atyp : t -> atyp
 end =
 struct
 
@@ -2282,6 +2288,8 @@ type t = {
   proj : EConstr.t;
   self : t akind;
   data : int;
+  atyp : atyp;
+  (** Shape of the type of [proj], assuming its well-typedness *)
 }
 
 let proj c = c.proj
@@ -2297,13 +2305,13 @@ let data v = v.data
 
 let kind v = v.self
 
-let mkApp (c, al) =
+let mkApp atyp (c, al) =
   if Array.is_empty al then c
   else match kind c with
   | AApp (c0, al0) ->
-    { proj = mkApp (c.proj, Array.map proj al); self = AApp (c0, Array.append al0 al); data = max c.data (max_array data al) }
+    { proj = mkApp (c.proj, Array.map proj al); self = AApp (c0, Array.append al0 al); data = max c.data (max_array data al); atyp }
   | _ ->
-    { proj = mkApp (c.proj, Array.map proj al); self = AApp (c, al); data = max c.data (max_array data al) }
+    { proj = mkApp (c.proj, Array.map proj al); self = AApp (c, al); data = max c.data (max_array data al); atyp }
 
 let get_max_rel sigma c =
   let rec aux n accu c = match EConstr.kind sigma c with
@@ -2316,37 +2324,41 @@ let get_max_rel_array sigma v = Array.fold_left (fun accu c -> max accu (get_max
 
 let anorec = AOther [||]
 
-let rec make sigma c0 = match EConstr.kind sigma c0 with
+let rec make0 atyp sigma c0 = match EConstr.kind sigma c0 with
 | (Meta _ | Var _ | Sort _ | Const _ | Ind _ | Construct _ | Int _ | Float _ | String _) ->
-  { proj = c0; self = anorec; data = 0 }
+  { proj = c0; self = anorec; data = 0; atyp }
 | Rel n ->
-  { proj = c0; self = anorec; data = n }
+  { proj = c0; self = anorec; data = n; atyp }
 | Cast (c, k, t) ->
   let c = make sigma c in
   (* unification doesn't recurse in the type *)
   let td = get_max_rel sigma t in
-  { proj = c0; self = ACast c; data = max c.data td }
-| Lambda (na, t, c) | Prod (na, t, c) ->
-  let t = make sigma t in
+  { proj = c0; self = ACast c; data = max c.data td; atyp }
+| Lambda (na, t, c) ->
+  let t = make0 ATySort sigma t in
   let c = make sigma c in
-  { proj = c0; self = AOther [|t; c|]; data = max t.data (lift c.data) }
+  { proj = c0; self = AOther [|t; c|]; data = max t.data (lift c.data); atyp }
+| Prod (na, t, c) ->
+  let t = make0 ATySort sigma t in
+  let c = make0 ATySort sigma c in
+  { proj = c0; self = AOther [|t; c|]; data = max t.data (lift c.data); atyp }
 | LetIn (na, b, t, c) ->
   let b = make sigma b in
   (* unification doesn't recurse in the type *)
   let td = get_max_rel sigma t in
   let c = make sigma c in
-  { proj = c0; self = AOther [|b; c|]; data = max b.data (max td (lift c.data)) }
+  { proj = c0; self = AOther [|b; c|]; data = max b.data (max td (lift c.data)); atyp }
 | App (c, al) ->
-  let c = make sigma c in
+  let c = make0 ATyProd sigma c in
   let ald, al = make_array sigma al in
-  { proj = c0; self = AApp (c, al); data = max c.data ald }
+  { proj = c0; self = AApp (c, al); data = max c.data ald; atyp }
 | Proj (p, _, t) ->
   let t = make sigma t in
-  { proj = c0; self = AOther [|t|]; data = t.data }
+  { proj = c0; self = AOther [|t|]; data = t.data; atyp }
 | Evar (e, al) ->
   (* Unification doesn't recurse on the subterms in evar instances *)
   let data = SList.Skip.fold (fun accu v -> max accu (get_max_rel sigma v)) 0 al in
-  { proj = c0; self = AOther [||]; data }
+  { proj = c0; self = AOther [||]; data; atyp }
 | Case (ci, u, pms, (p,_), iv, c, bl) ->
   let pmsd = get_max_rel_array sigma pms in
   let pd =
@@ -2366,18 +2378,18 @@ let rec make sigma c0 = match EConstr.kind sigma c0 with
   let bld, bl = Array.fold_left_map fold 0 bl in
   let data = max pmsd @@ max pd @@ max ivd @@ max c.data bld in
   (* Unification only recurses on the discriminee and the branches *)
-  { proj = c0; self = AOther (Array.append [|c|] bl); data }
+  { proj = c0; self = AOther (Array.append [|c|] bl); data; atyp }
 | Fix (_, (_, tl, bl)) | CoFix(_,(_,tl,bl)) ->
   let tld, tl = make_array sigma tl in
   let bld, bl = make_array sigma bl in
   let data = max tld (liftn (Array.length tl) bld) in
-  { proj = c0; self = AOther (Array.append tl bl); data }
+  { proj = c0; self = AOther (Array.append tl bl); data; atyp }
 | Array(u,t,def,ty) ->
   let td, t = make_array sigma t in
   let def = make sigma def in
   let ty = make sigma ty in
   let data = max td (max def.data ty.data) in
-  { proj = c0; self = AOther (Array.append [|def;ty|] t); data }
+  { proj = c0; self = AOther (Array.append [|def;ty|] t); data; atyp }
 
 and make_array sigma v =
   let fold accu c =
@@ -2385,6 +2397,11 @@ and make_array sigma v =
     max accu c.data, c
   in
   Array.fold_left_map fold 0 v
+
+and make sigma c =
+  make0 ATyOther sigma c
+
+let atyp c = c.atyp
 
 end
 
@@ -2428,6 +2445,12 @@ let fast_head_check sigma knd c = match EConstr.kind sigma c, knd with
   end
 | _ -> true
 
+let fast_atyp_check knd atyp = match knd, atyp with
+| HeadInd, (ATyProd | ATySort)
+| HeadSort, ATyProd
+| HeadProd, ATySort -> false
+| _ -> true
+
 (* Tries to find an instance of term [cl] in term [op].
    Unifies [cl] to every subterm of [op] until it finds a match.
    Fails if no match is found *)
@@ -2444,8 +2467,9 @@ let w_unify_to_subterm ~metas env evd ?where ?(flags=default_unify_flags ()) (op
     let cl = strip_outer_cast cl in
     let ans =
       let is_closed = AConstr.closed0 cl in
+      let atyp = AConstr.atyp cl in
       let cl = AConstr.proj cl in
-      if is_closed && not (isEvar evd cl) && keyed_unify env evd kop cl && fast_head_check evd knd cl then
+      if is_closed && not (isEvar evd cl) && keyed_unify env evd kop cl && fast_head_check evd knd cl && fast_atyp_check knd atyp then
         try
           if is_keyed_unification () then
             let f1, l1 = decompose_app evd op in
@@ -2475,7 +2499,8 @@ let w_unify_to_subterm ~metas env evd ?where ?(flags=default_unify_flags ()) (op
         | HeadProd | HeadOther ->
           let n = Array.length args in
           let () = assert (n > 0) in
-          let c1 = AConstr.mkApp (f,Array.sub args 0 (n-1)) in
+          (* [c1] has necessarily a product type here because it is applied to [c2] *)
+          let c1 = AConstr.mkApp ATyProd (f,Array.sub args 0 (n-1)) in
           let c2 = args.(n-1) in
           begin match matchrec c1 with
           | Some _ as ans -> ans
