@@ -1512,18 +1512,29 @@ let rec continue_parser_of_levels entry clevn =
               let () = Option.iter (warn_recover_continuation entry.ename bp ep strm__) tolerance in
               c
 
+(* Don't use Lazy because if it gets interrupted it is unrecoverable *)
+let lazy_fun f =
+  let r = ref None in
+  fun () ->
+    match !r with
+    | Some f -> f
+    | None ->
+      let f = f () in
+      r := Some f;
+      f
+
 let make_continue_parser_of_entry entry = function
   | [] -> (fun _ _ _ _ _ (_ : _ LStream.t) -> Error ())
   | elev ->
-    let p = lazy (continue_parser_of_levels entry 0 elev) in
+    let p = lazy_fun (fun () -> continue_parser_of_levels entry 0 elev) in
     (fun gstate levfrom levn bp a (strm__ : _ LStream.t) ->
-       Lazy.force p gstate levfrom levn bp a strm__ <+> fun () -> Ok a)
+       p () gstate levfrom levn bp a strm__ <+> fun () -> Ok a)
 
 let make_start_parser_of_entry entry = function
   | [] -> empty_entry entry.ename
   | elev ->
-    let p = lazy (start_parser_of_levels entry 0 elev) in
-    (fun gstate levn (strm:_ LStream.t) -> Lazy.force p gstate levn strm)
+    let p = lazy_fun (fun () -> start_parser_of_levels entry 0 elev) in
+    (fun gstate levn (strm:_ LStream.t) -> p () gstate levn strm)
 
 let make_entry_data entry elev = {
   eentry = entry;
