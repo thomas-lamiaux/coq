@@ -530,11 +530,11 @@ let match_eqdec env sigma t =
   | _ -> anomaly (Pp.str "Unexpected pattern.")
 
 (* Patterns "~ ?" and "? -> False" *)
-let rocq_not_pattern = lazy (mkPAppRef "core.not.type" [mkPHole])
-let rocq_imp_False_pattern = lazy (mkPArrow mkPHole (mkPRef "core.False.type"))
+let rocq_not_pattern () = mkPAppRef "core.not.type" [mkPHole]
+let rocq_imp_False_pattern () = mkPArrow mkPHole (mkPRef "core.False.type")
 
-let is_matching_not env sigma t = is_matching env sigma (Lazy.force rocq_not_pattern) t
-let is_matching_imp_False env sigma t = is_matching env sigma (Lazy.force rocq_imp_False_pattern) t
+let is_matching_not env sigma t = is_matching env sigma (rocq_not_pattern()) t
+let is_matching_imp_False env sigma t = is_matching env sigma (rocq_imp_False_pattern()) t
 
 (* Remark: patterns that have references to the standard library must
    be evaluated lazily (i.e. at the time they are used, not a the time

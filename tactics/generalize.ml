@@ -251,8 +251,7 @@ let quantify lconstr =
 let rocq_eq env sigma       = Evd.fresh_global env sigma Rocqlib.(lib_ref "core.eq.type")
 let rocq_eq_refl env sigma  = Evd.fresh_global env sigma Rocqlib.(lib_ref "core.eq.refl")
 
-let rocq_heq_ref        = lazy (Rocqlib.lib_ref "core.JMeq.type")
-let rocq_heq env sigma      = Evd.fresh_global env sigma (Lazy.force rocq_heq_ref)
+let rocq_heq env sigma      = Evd.fresh_global env sigma (Rocqlib.lib_ref "core.JMeq.type")
 let rocq_heq_refl env sigma = Evd.fresh_global env sigma (Rocqlib.lib_ref "core.JMeq.refl")
 (* let rocq_heq_refl = lazy (glob (lib_ref "core.JMeq.refl")) *)
 
