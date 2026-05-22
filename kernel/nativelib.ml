@@ -34,12 +34,24 @@ let ( / ) = Filename.concat
 
 (* Directory for temporary files for the conversion and normalisation
    (as opposed to compiling the library itself, which uses [output_dir]). *)
-let my_temp_dir = lazy (CUnix.mktemp_dir "Coq_native" "")
+let temp_dir = ref None
+
+let force_temp_dir () =
+  match !temp_dir with
+  | None ->
+    let tmp = CUnix.mktemp_dir "Coq_native" "" in
+    temp_dir := Some tmp;
+    tmp
+  | Some tmp -> tmp
+
+let temp_dir () = !temp_dir
 
 let () = at_exit (fun () ->
-    if not (keep_debug_files ()) && Lazy.is_val my_temp_dir then
+    let tmp = if not (keep_debug_files ()) then None else temp_dir() in
+    match tmp with
+    | None -> ()
+    | Some d ->
       try
-        let d = Lazy.force my_temp_dir in
         Array.iter (fun f -> Sys.remove (Filename.concat d f)) (Sys.readdir d);
         Unix.rmdir d
       with (Unix.Unix_error _ | Sys_error _) as e ->
@@ -67,9 +79,9 @@ let get_include_dirs () =
         Pp.(str "Native compute with -boot: you must also give -nI pointing to the kernel.")
   | _::_ as l -> l
   in
-  if Lazy.is_val my_temp_dir
-  then (Lazy.force my_temp_dir) :: base
-  else base
+  match temp_dir() with
+  | Some tmp -> tmp :: base
+  | None -> base
 
 (* Pointer to the function linking an ML object into Rocq's toplevel *)
 let load_obj = ref (fun _x -> () : string -> unit)
@@ -81,7 +93,7 @@ let rt2 = ref None
 let get_symbols () = !rsymbols
 
 let get_ml_filename () =
-  let temp_dir = Lazy.force my_temp_dir in
+  let temp_dir = force_temp_dir() in
   let filename = Filename.temp_file ~temp_dir "Coq_native" source_ext in
   let prefix = Filename.chop_extension (Filename.basename filename) ^ "." in
   filename, prefix
