@@ -131,7 +131,7 @@ let le_n = function () -> rocq_init_constant "num.nat.le_n"
 let rocq_sig_ref = function
   | () -> find_reference ["Corelib"; "Init"; "Specif"] "sig"
 
-let rocq_proj1_sig = lazy (Rocqlib.build_sigma ()).proj1
+let rocq_proj1_sig () = (Rocqlib.build_sigma ()).proj1
 
 let rocq_O = function () -> rocq_init_constant "num.nat.O"
 let rocq_S = function () -> rocq_init_constant "num.nat.S"
@@ -170,7 +170,7 @@ let (value_f : Constr.rel_context -> GlobRef.t -> Constr.t) =
   let env = Global.env () in
   let sigma = Evd.from_env env in
   let env = Environ.push_rel_context context env in
-  let proj = Globnames.destConstRef (Lazy.force rocq_proj1_sig) in
+  let proj = Globnames.destConstRef (rocq_proj1_sig()) in
   let proj_body = constant_value_in env (proj, UVars.Instance.empty) in (* Why not to keep it named? *)
   let arg = mkApp (mkRef (fterm, EInstance.empty), Context.Rel.instance mkRel 0 context) in
   let t, p = Hipattern.match_sigma env sigma (Retyping.get_type_of env sigma arg) in
@@ -704,7 +704,7 @@ let mkDestructEq not_on_hyp env sigma expr =
   let to_revert_constr = List.rev_map mkVar to_revert in
   let sigma, type_of_expr = Typing.type_of env sigma expr in
   let new_hyps =
-    mkApp (Lazy.force refl_equal, [|type_of_expr; expr|]) :: to_revert_constr
+    mkApp (refl_equal(), [|type_of_expr; expr|]) :: to_revert_constr
   in
   let tac =
     pf_typel new_hyps (fun _ ->
@@ -1444,7 +1444,7 @@ let open_new_goal ~lemma build_proof sigma using_lemmas ref_ goal_name
                         (mkVar (List.nth !lid !h_num), NoBindings))
                      e_assumption
                  ; Eauto.eauto_with_bases ~depth:5
-                     [(fun _ sigma -> (sigma, Lazy.force refl_equal))]
+                     [(fun _ sigma -> (sigma, refl_equal()))]
                      [Hints.Hint_db.empty TransparentState.empty false] ]))
     in
     let lemma = build_proof env (Evd.from_env env) start_tac end_tac in

@@ -78,8 +78,8 @@ let find_reference sl s =
   let dp = Names.DirPath.make (List.rev_map Id.of_string sl) in
   Nametab.locate (make_qualid dp (Id.of_string s))
 
-let eq = lazy (EConstr.of_constr (rocq_constant "core.eq.type"))
-let refl_equal = lazy (EConstr.of_constr (rocq_constant "core.eq.refl"))
+let eq () = EConstr.of_constr (rocq_constant "core.eq.type")
+let refl_equal () = EConstr.of_constr (rocq_constant "core.eq.refl")
 
 let without_implicit_declarations f () =
   let old_implicit_args = Impargs.is_implicit_args ()
