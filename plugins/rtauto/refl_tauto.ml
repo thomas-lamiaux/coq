@@ -52,17 +52,17 @@ module Search = struct
 
 end
 
-let force count lazc = incr count;Lazy.force lazc
+let force count lazc () = incr count;lazc()
 
 let step_count = ref 0
 
 let node_count = ref 0
 
-let li_False = lazy (destInd (constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref "core.False.type"))
-let li_and   = lazy (destInd (constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref "core.and.type"))
-let li_or    = lazy (destInd (constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref "core.or.type"))
+let li_False () = destInd (constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref "core.False.type")
+let li_and   () = destInd (constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref "core.and.type")
+let li_or    () = destInd (constr_of_monomorphic_global (Global.env ()) @@ Rocqlib.lib_ref "core.or.type")
 
-let gen_constant n = lazy (constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref n))
+let gen_constant n () = constr_of_monomorphic_global (Global.env ()) (Rocqlib.lib_ref n)
 
 let l_xI = gen_constant "num.pos.xI"
 let l_xO = gen_constant "num.pos.xO"
@@ -132,18 +132,18 @@ let rec make_form env sigma atom_env term =
   | Cast(a,_,_) ->
      make_form env sigma atom_env a
   | Ind (ind, _) ->
-     if Environ.QInd.equal env ind (fst (Lazy.force li_False))
+     if Environ.QInd.equal env ind (fst (li_False()))
      then Bot
      else make_atom atom_env (normalize term)
   | App(hd,argv) when Int.equal (Array.length argv) 2 ->
      begin
        try
          let ind, _ = destInd sigma hd in
-         if Environ.QInd.equal env ind (fst (Lazy.force li_and)) then
+         if Environ.QInd.equal env ind (fst (li_and())) then
            let fa = make_form env sigma atom_env argv.(0) in
            let fb = make_form env sigma atom_env argv.(1) in
            Conjunct (fa,fb)
-         else if Environ.QInd.equal env ind (fst (Lazy.force li_or)) then
+         else if Environ.QInd.equal env ind (fst (li_or())) then
            let fa = make_form env sigma atom_env argv.(0) in
            let fb = make_form env sigma atom_env argv.(1) in
            Disjunct (fa,fb)
@@ -167,21 +167,21 @@ let rec make_hyps env sigma atom_env lenv = function
        (id,make_form env sigma atom_env typ)::hrec
 
 let rec build_pos n =
-  if n<=1 then force node_count l_xH
+  if n<=1 then force node_count l_xH ()
   else if Int.equal (n land 1) 0 then
-    mkApp (force node_count l_xO,[|build_pos (n asr 1)|])
+    mkApp (force node_count l_xO (),[|build_pos (n asr 1)|])
   else
-    mkApp (force node_count l_xI,[|build_pos (n asr 1)|])
+    mkApp (force node_count l_xI (),[|build_pos (n asr 1)|])
 
 let rec build_form = function
-    Atom n -> mkApp (force node_count l_Atom,[|build_pos n|])
+    Atom n -> mkApp (force node_count l_Atom (),[|build_pos n|])
   | Arrow (f1,f2) ->
-      mkApp (force node_count l_Arrow,[|build_form f1;build_form f2|])
-  | Bot -> force node_count l_Bot
+      mkApp (force node_count l_Arrow (),[|build_form f1;build_form f2|])
+  | Bot -> force node_count l_Bot ()
   | Conjunct (f1,f2) ->
-      mkApp (force node_count l_Conjunct,[|build_form f1;build_form f2|])
+      mkApp (force node_count l_Conjunct (),[|build_form f1;build_form f2|])
   | Disjunct (f1,f2) ->
-      mkApp (force node_count l_Disjunct,[|build_form f1;build_form f2|])
+      mkApp (force node_count l_Disjunct (),[|build_form f1;build_form f2|])
 
 let rec decal k = function
     [] -> k
@@ -199,49 +199,49 @@ let add_pop size d pops=
 let rec build_proof pops size =
   function
       Ax i ->
-        mkApp (force step_count l_Ax,
+        mkApp (force step_count l_Ax (),
                [|build_pos (decal i pops)|])
       | I_Arrow p ->
-          mkApp (force step_count l_I_Arrow,
+          mkApp (force step_count l_I_Arrow (),
                  [|build_proof pops (size + 1) p|])
       | E_Arrow(i,j,p) ->
-          mkApp (force step_count l_E_Arrow,
+          mkApp (force step_count l_E_Arrow (),
                  [|build_pos (decal i pops);
                    build_pos (decal j pops);
                    build_proof pops (size + 1) p|])
       | D_Arrow(i,p1,p2) ->
-          mkApp (force step_count l_D_Arrow,
+          mkApp (force step_count l_D_Arrow (),
                  [|build_pos (decal i pops);
                    build_proof pops (size + 2) p1;
                    build_proof pops (size + 1) p2|])
       | E_False i ->
-          mkApp (force step_count l_E_False,
+          mkApp (force step_count l_E_False (),
                  [|build_pos (decal i pops)|])
       | I_And(p1,p2) ->
-          mkApp (force step_count l_I_And,
+          mkApp (force step_count l_I_And (),
                  [|build_proof pops size p1;
                    build_proof pops size p2|])
       | E_And(i,p) ->
-          mkApp (force step_count l_E_And,
+          mkApp (force step_count l_E_And (),
                  [|build_pos (decal i pops);
                    build_proof pops (size + 2) p|])
       | D_And(i,p) ->
-          mkApp (force step_count l_D_And,
+          mkApp (force step_count l_D_And (),
                  [|build_pos (decal i pops);
                    build_proof pops (size + 1) p|])
       | I_Or_l(p) ->
-          mkApp (force step_count l_I_Or_l,
+          mkApp (force step_count l_I_Or_l (),
                  [|build_proof pops size p|])
       | I_Or_r(p) ->
-          mkApp (force step_count l_I_Or_r,
+          mkApp (force step_count l_I_Or_r (),
                  [|build_proof pops size p|])
       | E_Or(i,p1,p2) ->
-          mkApp (force step_count l_E_Or,
+          mkApp (force step_count l_E_Or (),
                  [|build_pos (decal i pops);
                    build_proof pops (size + 1) p1;
                    build_proof pops (size + 1) p2|])
       | D_Or(i,p) ->
-          mkApp (force step_count l_D_Or,
+          mkApp (force step_count l_D_Or (),
                  [|build_pos (decal i pops);
                    build_proof pops (size + 2) p|])
       | Pop(d,p) ->
@@ -249,8 +249,8 @@ let rec build_proof pops size =
 
 let build_env gamma=
   List.fold_right (fun (p,_) e ->
-                     mkApp(force node_count l_push,[|mkProp;p;e|]))
-    gamma.env (mkApp (force node_count l_empty,[|mkProp|]))
+                     mkApp(force node_count l_push (),[|mkProp;p;e|]))
+    gamma.env (mkApp (force node_count l_empty (),[|mkProp|]))
 
 let { Goptions.get = verbose } =
   Goptions.declare_bool_option_and_ref
@@ -307,7 +307,7 @@ let rtauto_tac =
         end in
     let build_start_time=System.get_time () in
     let () = step_count := 0; node_count := 0 in
-    let main = mkApp (force node_count l_Reflect,
+    let main = mkApp (force node_count l_Reflect (),
                       [|build_env gamma;
                         build_form formula;
                         build_proof [] 0 prf|]) in
