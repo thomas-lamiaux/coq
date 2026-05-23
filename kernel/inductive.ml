@@ -1177,19 +1177,22 @@ let has_constant_parameters env nvars k ((mind, _), _) args =
   let (lpar, _) = List.chop auxnpar args in
   List.for_all (fun c -> noccur_with_meta (1 + k) (nvars + k) c) lpar
 
-let has_constant_uniform_parameters env kn nvars k t =
+let has_constant_uniform_parameters ?evars env kn nvars k t =
   let mib = Environ.lookup_mind kn env in
   let auxnpar = mib.mind_nparams_rec in
-  let rec aux k acc t =
+  let init_nb_rel = Environ.nb_rel env in
+  let rec aux env acc t =
     acc &&
-      let hd, args = decompose_app_list t in
+      let hd, args = decompose_app_list @@ whd_all ?evars env t in
       match kind hd with
       | Ind ((kni, _),_) when QMutInd.equal env kn kni ->
           let uparams = fst @@ List.chop auxnpar args in
+          let k = k + Environ.nb_rel env - init_nb_rel in
           List.for_all (fun c -> noccur_with_meta (1 + k) nvars c) uparams
-      | _ -> fold_constr_with_binders succ aux k acc t
+      | _ ->
+          Environ.fold_constr_with_binders_env aux env acc t
   in
-  aux k true t
+  aux env true t
 
 let restrict_spec ?evars env kn spec p =
   match spec with
@@ -1205,7 +1208,7 @@ let restrict_spec ?evars env kn spec p =
     let env = push_rel_context absctx env in
     let arctx, s = whd_decompose_prod ?evars env ar in
     let env = push_rel_context arctx env in
-    if has_constant_uniform_parameters env kn absctxlen (List.length arctx) s then
+    if has_constant_uniform_parameters ?evars env kn absctxlen (List.length arctx) s then
       let i,args = decompose_app_list (whd_all ?evars env s) in
       match kind i with
       | Ind i ->
@@ -1238,7 +1241,7 @@ let filter_stack_domain stack_element_specif not_subterm ?evars env kn p stack =
         let ctx, a = whd_decompose_prod ?evars env a in
         let env = push_rel_context ctx env in
         let elt =
-          if has_constant_uniform_parameters env kn absctxlen (List.length ctx) a then
+          if has_constant_uniform_parameters ?evars env kn absctxlen (List.length ctx) a then
             let ty, args = decompose_app_list (whd_all ?evars env a) in
             match kind ty with
             | Ind ind ->

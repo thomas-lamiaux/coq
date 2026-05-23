@@ -2,10 +2,16 @@
     due to an insufficient restriction of PropExt fix
 *)
 
-Inductive Box {A} := box (x : A) | wrap (y : Box).
-Arguments Box : clear implicits.
+Inductive Box A :=
+| box : A -> Box A
+| wrap : Box A -> Box A.
 
-Inductive Boxed := bbox (x : Box Boxed) | nobox.
+Arguments box {_}.
+Arguments wrap {_}.
+
+Inductive Boxed :=
+| nobox : Boxed
+| boxed : Box Boxed -> Boxed.
 
 Fail Fixpoint weird_subterm (e : Boxed = Boxed :> Type) (x : Box Boxed) :=
   match x with
@@ -22,6 +28,23 @@ Fail Fixpoint weird_beta (e : Boxed = Boxed :> Type) (x : Box Boxed) :=
               end y
   end.
 
+
+Inductive BoolBox A :=
+| boolbox : A -> BoolBox A
+| boolwrap : bool * BoolBox A -> BoolBox A.
+
+Arguments boolbox {_}.
+Arguments boolwrap {_}.
+
+Definition BoolBox' := BoolBox.
+
+Fail Fixpoint weird_beta_alias (e : Boxed = Boxed :> Type) (x : BoolBox Boxed) :=
+  match x with
+  | boolbox x => x
+  | boolwrap y => match e in _ = Y return bool * BoolBox' Y -> Boxed with
+                eq_refl => fun z => weird_beta_alias e (snd z)
+              end y
+  end.
 
 (** Transport a uniform parameter is forbidden even if it is not an arity
     due to the dynamic encoding of nesting that could transport a true to
