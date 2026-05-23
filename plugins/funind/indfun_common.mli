@@ -30,8 +30,8 @@ val chop_rprod_n :
   -> Glob_term.glob_constr
   -> (Name.t * Glob_term.glob_constr) list * Glob_term.glob_constr
 
-val eq : EConstr.constr Lazy.t
-val refl_equal : EConstr.constr Lazy.t
+val eq : unit -> EConstr.constr
+val refl_equal : unit -> EConstr.constr
 val jmeq : unit -> EConstr.constr
 val jmeq_refl : unit -> EConstr.constr
 val make_eq : unit -> EConstr.constr

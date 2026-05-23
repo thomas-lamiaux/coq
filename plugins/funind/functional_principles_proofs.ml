@@ -36,7 +36,7 @@ let list_chop ?(msg = "") n l =
 let pop t = Vars.lift (-1) t
 
 let make_refl_eq constructor type_of_t t =
-  (*   let refl_equal_term = Lazy.force refl_equal in *)
+  (*   let refl_equal_term = refl_equal() in *)
   mkApp (constructor, [|type_of_t; t|])
 
 type pte_info =
@@ -60,7 +60,7 @@ let is_trivial_eq sigma t =
   let res =
     try
       match EConstr.kind sigma t with
-      | App (f, [|_; t1; t2|]) when eq_constr sigma f (Lazy.force eq) ->
+      | App (f, [|_; t1; t2|]) when eq_constr sigma f (eq()) ->
         eq_constr sigma t1 t2
       | App (f, [|t1; a1; t2; a2|]) when eq_constr sigma f (jmeq ()) ->
         eq_constr sigma t1 t2 && eq_constr sigma a1 a2
@@ -81,7 +81,7 @@ let is_incompatible_eq env sigma t =
   let res =
     try
       match EConstr.kind sigma t with
-      | App (f, [|_; t1; t2|]) when eq_constr sigma f (Lazy.force eq) ->
+      | App (f, [|_; t1; t2|]) when eq_constr sigma f (eq()) ->
         incompatible_constructor_terms sigma t1 t2
       | App (f, [|u1; t1; u2; t2|]) when eq_constr sigma f (jmeq ()) ->
         eq_constr sigma u1 u2 && incompatible_constructor_terms sigma t1 t2
@@ -172,11 +172,11 @@ let change_eq env sigma hyp_id (context : rel_context) x t end_of_type =
   let f_eq, args = destApp sigma t in
   let constructor, t1, t2, t1_typ =
     try
-      if eq_constr f_eq (Lazy.force eq) then
+      if eq_constr f_eq (eq()) then
         let t1 = (args.(1), args.(0))
         and t2 = (args.(2), args.(0))
         and t1_typ = args.(0) in
-        (Lazy.force refl_equal, t1, t2, t1_typ)
+        (refl_equal(), t1, t2, t1_typ)
       else if eq_constr f_eq (jmeq ()) then
         (jmeq_refl (), (args.(1), args.(0)), (args.(3), args.(2)), args.(0))
       else nochange "not an equality"
@@ -444,8 +444,8 @@ let clean_hyp_with_heq ptes_infos eq_hyps hyp_id env sigma =
         let real_type_of_hyp = it_mkProd_or_LetIn popped_t' context in
         let hd, args = destApp sigma t_x in
         let get_args hd args =
-          if eq_constr sigma hd (Lazy.force eq) then
-            (Lazy.force refl_equal, args.(0), args.(1))
+          if eq_constr sigma hd (eq()) then
+            (refl_equal(), args.(0), args.(1))
           else (jmeq_refl (), args.(0), args.(1))
         in
         tclTHENLIST
@@ -615,7 +615,7 @@ let build_proof (interactive_proof : bool) (fnames : Constant.t list) ptes_infos
                 in
                 tclTYPEOFTHEN t (fun _ type_of_term ->
                     let term_eq =
-                      make_refl_eq (Lazy.force refl_equal) type_of_term t
+                      make_refl_eq (refl_equal()) type_of_term t
                     in
                     tclTHENLIST
                       [ Generalize.generalize (term_eq :: List.map mkVar dyn_infos.rec_hyps)
@@ -864,7 +864,7 @@ let generate_equation_lemma env evd fnames f fun_num nb_params nb_args rec_args_
     let evd, t = Typing.type_of ~refresh:true env evd f in
     (decompose_prod_n_decls evd (nb_params + nb_args) t, evd)
   in
-  let eqn = mkApp (Lazy.force eq, [|type_of_f; eq_lhs; eq_rhs|]) in
+  let eqn = mkApp (eq(), [|type_of_f; eq_lhs; eq_rhs|]) in
   let lemma_type = it_mkProd_or_LetIn eqn type_ctxt in
   (* Pp.msgnl (str "lemma type " ++ Printer.pr_lconstr lemma_type ++ fnl () ++ str "f_body " ++ Printer.pr_lconstr f_body); *)
   let f_id = Constant.label (fst (destConst evd f)) in
@@ -1391,7 +1391,7 @@ let new_prove_with_tcc is_mes acc_inv hrec tcc_hyps eqs : unit Proofview.tactic
                    ; observe_tac "finishing using"
                        (tclCOMPLETE
                           (Eauto.eauto_with_bases ~depth:5
-                             [(fun _ sigma -> (sigma, Lazy.force refl_equal))]
+                             [(fun _ sigma -> (sigma, refl_equal()))]
                              [Hints.Hint_db.empty TransparentState.empty false]))
                    ]) ] ] ]
 
