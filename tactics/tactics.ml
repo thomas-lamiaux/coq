@@ -2844,7 +2844,8 @@ let unfold_body x =
 let dest_intro_patterns with_evars avoid thin dest pat tac =
   intro_patterns_core with_evars avoid [] thin dest None 0 tac pat
 
-let rocq_heq_ref        = lazy (Rocqlib.lib_ref "core.JMeq.type")
+(* XXX share with generalize.ml? *)
+let rocq_heq_ref () = Rocqlib.lib_ref "core.JMeq.type"
 
 let compare_upto_variables sigma x y =
   let rec compare x y =
@@ -2877,7 +2878,7 @@ let specialize_eqs id =
               if unif (push_rel_context ctx env) evars pt t then
                 aux true ctx (mkApp (acc, [| p |])) (subst1 p b)
               else acc, in_eqs, ctx, ty
-        | App (heq, [| eqty; x; eqty'; y |]) when isRefX env !evars (Lazy.force rocq_heq_ref) heq ->
+        | App (heq, [| eqty; x; eqty'; y |]) when isRefX env !evars (rocq_heq_ref()) heq ->
             let eqt, c = if noccur_between !evars 1 (List.length ctx) x then eqty', y else eqty, x in
             let pt = mkApp (heq, [| eqt; c; eqt; c |]) in
             let ind = destInd !evars heq in
