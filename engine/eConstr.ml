@@ -423,6 +423,21 @@ let decompose_lambda_n_decls sigma n =
   in
   lamdec_rec Context.Rel.empty n
 
+let decompose_lambda_n_decls_opt sigma n c =
+  let open Rel.Declaration in
+  if n < 0 then
+    anomaly Pp.(str "decompose_lambda_n_decls_opt: integer parameter must be positive.");
+  let rec lamdec_rec l n c =
+    if Int.equal n 0 then Some (l, c)
+    else
+      match kind sigma c with
+      | Lambda (x,t,c)  -> lamdec_rec (Context.Rel.add (LocalAssum (x,t)) l) (n-1) c
+      | LetIn (x,b,t,c) -> lamdec_rec (Context.Rel.add (LocalDef (x,b,t)) l) (n-1) c
+      | Cast (c,_,_)    -> lamdec_rec l n c
+      | _ -> None
+  in
+  lamdec_rec Context.Rel.empty n c
+
 let rec to_lambda sigma n prod =
   if Int.equal n 0 then
     prod
@@ -594,6 +609,12 @@ let iter sigma f c =
     List.iter (fun c -> f c) args
   | _ -> Constr.iter f c
 
+(* Note: these case-related functions are evar-aware wrappers of
+   Inductive.expand_case / contract_case / etc. They live here rather
+   than in a separate EInductive module because iter_with_full_binders
+   (below) calls annotate_case, which would create a circular
+   dependency: EInductive -> EConstr (for EConstr.kind etc.) and
+   EConstr -> EInductive (for annotate_case). *)
 let expand_case env _sigma (ci, u, pms, p, iv, c, bl) =
   let u = EInstance.unsafe_to_instance u in
   let pms = unsafe_to_constr_array pms in
@@ -644,20 +665,42 @@ let expand_branch env _sigma u pms (ind, i) (nas, _br) =
   in
   ans
 
-let contract_case env _sigma (ci, (p,r), iv, c, bl) =
-  let p = unsafe_to_constr p in
-  let r = ERelevance.unsafe_to_relevance r in
-  let iv = unsafe_to_case_invert iv in
-  let c = unsafe_to_constr c in
-  let bl = unsafe_to_constr_array bl in
-  let (ci, u, pms, p, iv, c, bl) = Inductive.contract_case env (ci, (p,r), iv, c, bl) in
-  let u = EInstance.make u in
-  let pms = of_constr_array pms in
-  let p = of_return p in
-  let iv = of_case_invert iv in
-  let c = of_constr c in
-  let bl = of_branches bl in
-  (ci, u, pms, p, iv, c, bl)
+let contract_case env sigma (ci, (p,rp), iv, c, br) =
+  let open Context.Rel.Declaration in
+  let open Declarations in
+  let (mib, mip) = Inductive.lookup_mind_specif env ci.ci_ind in
+  let (arity, p) =
+    match decompose_lambda_n_decls_opt sigma (mip.mind_nrealdecls + 1) p with
+    | Some v -> v
+    | None ->
+      anomaly Pp.(str "contract_case: not enough abstractions in return predicate.")
+  in
+  let (u, pms) = match arity with
+  | LocalAssum (_, ty) :: _ ->
+    let (ind, args) = decompose_app sigma ty in
+    let (ind, u) = destInd sigma ind in
+    let () = assert (Environ.QInd.equal env ind ci.ci_ind) in
+    let pms = Array.sub args 0 mib.mind_nparams in
+    let dummy = List.make mip.mind_nrealdecls Constr.mkProp in
+    let pms = Array.map (fun c -> of_constr (CVars.substl dummy (unsafe_to_constr c))) pms in
+    (u, pms)
+  | _ -> assert false
+  in
+  let p =
+    let nas = Array.of_list (List.rev_map get_annot arity) in
+    ((nas, p), rp)
+  in
+  let map i br =
+    let (ctx, br) =
+      match decompose_lambda_n_decls_opt sigma mip.mind_consnrealdecls.(i) br with
+      | Some v -> v
+      | None ->
+        anomaly Pp.(fmt "contract_case: not enough abstractions in branch %d." i)
+    in
+    let nas = Array.of_list (List.rev_map get_annot ctx) in
+    (nas, br)
+  in
+  (ci, u, pms, p, iv, c, Array.mapi map br)
 
 let iter_with_full_binders env sigma g f n c =
   let open Context.Rel.Declaration in
