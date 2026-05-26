@@ -313,6 +313,11 @@ val decompose_lambda_n_assum : Evd.evar_map -> int -> t -> rel_context * t
      @raise UserError if the term doesn't have enough lambdas/letins. *)
 val decompose_lambda_n_decls : Evd.evar_map -> int -> t -> rel_context * t
 
+(** Like [decompose_lambda_n_decls] but returns [None] instead of raising
+    an anomaly when there are not enough abstractions. *)
+val decompose_lambda_n_decls_opt : Evd.evar_map -> int -> t ->
+  (rel_context * t) option
+
 val prod_decls : Evd.evar_map -> t -> rel_context
 
 val to_lambda : Evd.evar_map -> int -> t -> t
