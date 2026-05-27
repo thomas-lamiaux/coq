@@ -63,6 +63,12 @@ function subproject {
 }
 
 ########################################################################
+# Micromega
+########################################################################
+project micromega "https://github.com/rocq-community/micromega-plugin" "master"
+# Contact @proux01 on github
+
+########################################################################
 # MathComp
 ########################################################################
 project mathcomp "https://github.com/math-comp/math-comp" "master"

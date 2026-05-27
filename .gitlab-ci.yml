@@ -717,6 +717,7 @@ library:ci-coquelicot:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
 
@@ -752,6 +753,7 @@ library:ci-fcsl_pcm:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-2
 
@@ -825,6 +827,7 @@ library:ci-oddorder:
   needs:
   - build:edge+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
 
@@ -833,6 +836,7 @@ library:ci-fourcolor:
   needs:
   - build:edge+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
 
@@ -870,6 +874,7 @@ library:ci-mathcomp:
   needs:
   - build:edge+flambda
   - plugin:ci-elpi_hb  # for Hierarchy Builder
+  - plugin:ci-micromega
   stage: build-2
   variables:
     SAVE_BUILD_CI: "1" # for mathcomp_test
@@ -879,6 +884,7 @@ library:ci-mathcomp_test:
   needs:
   - build:edge+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
 
@@ -888,6 +894,7 @@ library:ci-mczify:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
 
@@ -897,6 +904,7 @@ library:ci-algebra_tactics:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   - library:ci-mczify
   stage: build-3+
@@ -906,6 +914,7 @@ library:ci-finmap:
   needs:
   - build:edge+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
 
@@ -914,6 +923,7 @@ library:ci-bigenough:
   needs:
   - build:edge+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
 
@@ -925,6 +935,7 @@ library:ci-analysis:
   - library:ci-finmap
   - library:ci-bigenough
   - plugin:ci-elpi_hb  # for Hierarchy Builder
+  - plugin:ci-micromega
   stage: build-3+
   variables:
     SAVE_BUILD_CI: "1" # for analysis_stdlib
@@ -938,6 +949,7 @@ library:ci-analysis_stdlib:
   - library:ci-bigenough
   - library:ci-analysis
   - plugin:ci-elpi_hb  # for Hierarchy Builder
+  - plugin:ci-micromega
   - library:ci-stdlib+flambda
   stage: build-3+
 
@@ -1048,6 +1060,7 @@ library:ci-deriving:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
 
@@ -1057,6 +1070,7 @@ library:ci-mathcomp_word:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-2
 
@@ -1066,6 +1080,7 @@ library:ci-jasmin:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   - library:ci-mathcomp_word
   - library:ci-mczify
@@ -1081,6 +1096,7 @@ library:ci-http:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   - library:ci-menhir
   - library:ci-ext_lib
@@ -1206,6 +1222,11 @@ plugin:ci-metarocq:
   stage: build-2
   timeout: 1h 30min
 
+plugin:ci-micromega:
+  extends: .ci-template-flambda
+  needs:
+  - build:edge+flambda
+
 plugin:ci-mtac2:
   extends: .ci-template-flambda
   needs:
@@ -1242,6 +1263,7 @@ plugin:ci-quickchick:
   - library:ci-ext_lib
   - library:ci-simple_io
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   stage: build-3+
   variables:
@@ -1255,6 +1277,7 @@ plugin:ci-quickchick_test:
   - library:ci-ext_lib
   - library:ci-simple_io
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   - plugin:ci-quickchick
   stage: build-3+
@@ -1268,6 +1291,7 @@ plugin:ci-relation_algebra:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   - plugin:ci-aac_tactics
   stage: build-3+
@@ -1333,6 +1357,7 @@ doc:ci-refman:
   - build:edge+flambda
   - library:ci-stdlib+flambda
   - plugin:ci-elpi_hb
+  - plugin:ci-micromega
   - library:ci-mathcomp
   - library:ci-mczify
   stage: build-3+

@@ -138,7 +138,7 @@ ci-color: ci-bignums
 
 ci-lean_importer: ci-stdlib
 
-ci-mathcomp: ci-elpi_hb
+ci-mathcomp: ci-elpi_hb ci-micromega
 
 ci-coqprime: ci-bignums
 ci-coquelicot: ci-mathcomp ci-stdlib
