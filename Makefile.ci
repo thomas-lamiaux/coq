@@ -28,7 +28,6 @@ CI_PLATFORM_FULL= \
     ci-mathcomp \
     ci-mathcomp_word \
     ci-mczify \
-    ci-algebra_tactics \
     ci-finmap \
     ci-bigenough \
     ci-analysis \
