@@ -1610,15 +1610,15 @@ let check_one_fix ?evars renv recpos trees def =
                 if evaluable_constant kn renv.env then Some (constant_value_in renv.env cu, [])
                 else None)
 
-        | Lambda (x,a,b) ->
+        | Lambda (na,ty,body) ->
             begin
-              let needreduce, rs = check_rec_call renv rs a in
+              let needreduce_ty, rs = check_rec_call renv rs ty in
               match stack with
               | elt :: stack ->
-                let renv, stack, b = pop_argument ?evars needreduce renv elt stack x a b in
+                let renv, stack, b = pop_argument ?evars needreduce_ty renv elt stack na ty body in
                 check_rec_call_stack renv stack rs b
               | [] ->
-                check_rec_call_stack (push_var_renv renv (redex_level rs) (x,a)) [] rs b
+                check_rec_call_stack (push_var_renv renv (redex_level rs) (na,ty)) [] rs body
             end
 
         | Prod (x,a,u) ->
@@ -1662,17 +1662,17 @@ let check_one_fix ?evars renv recpos trees def =
               | LocalAssum _ -> None
               | LocalDef (_,c,_) -> Some (c, []))
 
-        | LetIn (x,c,t,b) ->
-            let needreduce_c, rs = check_rec_call renv rs c in
-            let needreduce_t, rs = check_rec_call renv rs t in
+        | LetIn (na,def,ty,body) ->
+            let needreduce_def, rs = check_rec_call renv rs def in
+            let needreduce_ty, rs = check_rec_call renv rs ty in
             begin
-              match needreduce_of_stack stack ||| needreduce_c ||| needreduce_t with
+              match needreduce_of_stack stack ||| needreduce_def ||| needreduce_ty with
               | NoNeedReduce ->
                   (* Stack do not require to beta-reduce; let's look if the body of the let needs *)
-                  let spec = lazy_subterm_specif ?evars renv [] c in
+                  let spec = lazy_subterm_specif ?evars renv [] def in
                   let stack = lift1_stack stack in
-                  check_rec_call_stack (push_let renv (x,c,t,spec)) stack rs b
-              | NeedReduce _ -> check_rec_call_stack renv stack rs (subst1 c b)
+                  check_rec_call_stack (push_let renv (na,def,ty,spec)) stack rs body
+              | NeedReduce _ -> check_rec_call_stack renv stack rs (subst1 def body)
             end
 
         | Cast (c,_,t) ->
