@@ -1731,7 +1731,9 @@ let check_one_fix ?evars renv recpos trees def =
        immediate context and which can be possibly erased at higher
        level of the redex stack *)
     let need_reduce, rs = check_rec_call renv rs c in
-    check_rec_call_state renv need_reduce [] rs (fun () -> None)
+    match need_reduce with
+    | NoNeedReduce -> rs
+    | NeedReduce _ -> need_reduce :: List.tl rs
 
   and check_rec_call renv rs c =
     (* either fails if a non guarded call occurs or tells if there is
