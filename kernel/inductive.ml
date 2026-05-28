@@ -1612,10 +1612,10 @@ let check_one_fix ?evars renv recpos trees def =
 
         | Lambda (na,ty,body) ->
             begin
-              let needreduce_ty, rs = check_rec_call renv rs ty in
+              let rs = check_inert_subterm_rec_call renv rs ty in
               match stack with
               | elt :: stack ->
-                let renv, stack, b = pop_argument ?evars needreduce_ty renv elt stack na ty body in
+                let renv, stack, b = pop_argument ?evars NoNeedReduce renv elt stack na ty body in
                 check_rec_call_stack renv stack rs b
               | [] ->
                 check_rec_call_stack (push_var_renv renv (redex_level rs) (na,ty)) [] rs body
@@ -1664,9 +1664,9 @@ let check_one_fix ?evars renv recpos trees def =
 
         | LetIn (na,def,ty,body) ->
             let needreduce_def, rs = check_rec_call renv rs def in
-            let needreduce_ty, rs = check_rec_call renv rs ty in
+            let rs = check_inert_subterm_rec_call renv rs ty in
             begin
-              match needreduce_of_stack stack ||| needreduce_def ||| needreduce_ty with
+              match needreduce_of_stack stack ||| needreduce_def with
               | NoNeedReduce ->
                   (* Stack do not require to beta-reduce; let's look if the body of the let needs *)
                   let spec = lazy_subterm_specif ?evars renv [] def in
