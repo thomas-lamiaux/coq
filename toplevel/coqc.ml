@@ -34,11 +34,33 @@ rocq compile specific options:\
 \n"
 }
 
+(* Short keys for the guard-feature numbering, matching the columns of
+   the bench_guard_checker toolkit (guard_feature_stats.py). *)
+let feature_key =
+  [|"total"; "minimal"; "deep-subterms"; "nested-fixpoints"; "beta"; "let-in";
+    "constants"; "match"; "fix"; "cofix"; "hoisting"; "restricted-beta-iota";
+    "beta-iota"; "whd-rel"; "non-var-subterms"|]
+
+(* One machine-oriented line per checked fixpoint:
+   "In file F, fixpoint NAME needs: key, key." *)
+let fixpoint_records copts =
+  let file = Pp.(pr_opt_no_spc_default (fun () -> str "-")
+                   (fun (file,_) -> str file) copts.Coqcargs.compile_file) in
+  List.rev_map (fun (name, needed) ->
+    Pp.(h (str "In file " ++ file ++ str ", fixpoint " ++ str name ++ str " needs: "
+           ++ prlist_with_sep (fun () -> str ", ") (fun i -> str feature_key.(i)) needed
+           ++ str ".")))
+    !Inductive.fix_records
+
 let coqc_main ((copts,_),stm_opts) injections ~opts =
   Topfmt.(in_phase ~phase:CompilationPhase)
     Ccompile.compile_file opts stm_opts copts injections;
 
   flush_all();
+
+  (match !Inductive.fix_records with
+   | [] -> ()
+   | _ -> List.iter Feedback.msg_notice (fixpoint_records copts));
 
   if copts.Coqcargs.output_context then begin
     let sigma, env = let e = Global.env () in Evd.from_env e, e in

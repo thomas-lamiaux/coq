@@ -164,3 +164,20 @@ val check_fix : ?evars:evar_handler -> env -> fixpoint -> unit
 val check_cofix : ?evars:evar_handler -> env -> cofixpoint -> unit
 
 val abstract_mind_lc : int -> int -> MutInd.t -> (rel_context * constr) array -> constr array
+
+(** Instrumentation of the guard condition for testing purposes (cf PR
+    #22049): when [do_tests] is set, each checked fixpoint is re-checked with
+    individual guard features deactivated to determine which ones it needs
+    (1: minimal = the guard checker with every extension disabled,
+    2: deep subterms, 3: nested fixpoints, 4: beta reduction,
+    5: let-in reduction, 6: unfolding of constants, 7: match reduction,
+    8: fixpoint reduction, 9: cofixpoint reduction,
+    10: hoisting of uniform arguments, 11: restricted beta-iota cuts,
+    12: full beta-iota cuts, 13: weak-head reduction of subterms,
+    14: rec calls on non-variable subterms). *)
+val do_tests : bool ref
+
+(** Per-fixpoint record of the needed features: (fixpoint name, indices in
+    the numbering above); [[1]] = minimal, or a non-empty subset of 2..14.
+    Most recent first; printed per file by coqc. *)
+val fix_records : (string * int list) list ref

@@ -168,13 +168,13 @@ end = struct
 (* Assumes that dependencies are already defined *)
 let rec define_individual_scheme_base ?loc kind suff f ~internal idopt (mind,i as ind) eff =
   (* FIXME: do not rely on the imperative modification of the global environment *)
-  let (c, ctx) = f (Global.env ()) eff ind in
+  let (c, ctx) = Flags.without_option Inductive.do_tests (f (Global.env ()) eff) ind in
   let mib = Global.lookup_mind mind in
   let id = match idopt with
     | Some id -> id
     | None -> add_suffix mib.mind_packets.(i).mind_typename ("_"^suff) in
   let role = Evd.Schema (ind, kind) in
-  let const, neff = define ?loc internal role id c (Declareops.inductive_is_polymorphic mib) ctx in
+  let const, neff = Flags.without_option Inductive.do_tests (define ?loc internal role id c (Declareops.inductive_is_polymorphic mib)) ctx in
   let eff = Evd.concat_side_effects neff eff in
   const, eff
 
@@ -189,7 +189,7 @@ and define_individual_scheme ?loc kind ~internal names (mind,i as ind) eff =
 (* Assumes that dependencies are already defined *)
 and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~internal names mind eff =
   (* FIXME: do not rely on the imperative modification of the global environment *)
-  let (cl, ctx) = f (Global.env ()) eff mind in
+  let (cl, ctx) = Flags.without_option Inductive.do_tests (f (Global.env ()) eff) mind in
   let mib = Global.lookup_mind mind in
   let ids = Array.init (Array.length mib.mind_packets) (fun i ->
       try Int.List.assoc i names
@@ -200,7 +200,7 @@ and define_mutual_scheme_base ?(locmap=Locmap.default None) kind suff f ~interna
     let cst, neff = define ?loc internal role id cl (Declareops.inductive_is_polymorphic mib) ctx in
     (Evd.concat_side_effects neff effs, cst)
   in
-  let (eff, consts) = Array.fold_left2_map_i fold eff ids cl in
+  let (eff, consts) = Flags.without_option Inductive.do_tests (Array.fold_left2_map_i fold eff ids) cl in
   consts, eff
 
 and define_mutual_scheme ?locmap kind ~internal names mind eff =
