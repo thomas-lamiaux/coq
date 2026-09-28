@@ -27,6 +27,11 @@ val classic_proof_mode : Pvernac.proof_mode
 
 val hint : Vernacexpr.hints_expr Procq.Entry.t
 
+val mk_tacthen :
+  loc:Loc.t -> Tacexpr.raw_tactic_expr -> bool
+  -> Tacexpr.raw_tactic_expr list * (Tacexpr.raw_tactic_expr * Tacexpr.raw_tactic_expr array) option
+  -> Tacexpr.raw_tactic_expr
+
 val wit_ltac_selector : Goal_select.t Genarg.vernac_genarg_type
 
 val ltac_selector : Goal_select.t Procq.Entry.t
