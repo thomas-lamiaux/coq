@@ -92,10 +92,6 @@ let begins_with_CoqXX s =
   done; true
   with Not_found -> false
 
-let unquote s =
-  if lang () != Scheme then s
-  else String.map (fun c -> if c == '\'' then '~' else c) s
-
 let rec qualify delim = function
   | [] -> assert false
   | [s] -> s
@@ -132,14 +128,6 @@ struct
 end
 
 module KMap = CMap.Make(KOrd)
-
-let upperkind = function
-  | Type -> lang () == Haskell
-  | Term -> false
-  | Cons | Mod -> true
-
-let kindcase_id k id =
-  if upperkind k then uppercase_id id else lowercase_id id
 
 (*s de Bruijn environments for programs *)
 
@@ -393,6 +381,39 @@ let reset s =
   s.state := state
 
 end
+
+(*S Target languages. *)
+
+(* The built-in languages are registered by [Extract_env], other plugins may
+   add their own languages. *)
+
+let languages : (lang * State.t language_descr) list ref = ref []
+
+let register_language l d =
+  if List.mem_assoc l !languages then
+    CErrors.anomaly
+      Pp.(str "Extraction language " ++ str (lang_name l) ++ str " already registered.");
+  languages := (l, d) :: !languages
+
+let is_registered_language l = List.mem_assoc l !languages
+
+let descr () =
+  let l = lang () in
+  try List.assoc l !languages
+  with Not_found ->
+    CErrors.user_err
+      Pp.(str "Extraction language " ++ str (lang_name l) ++
+          str " is not available (is the plugin providing it loaded?).")
+
+let unquote s = (descr ()).unquote s
+
+let upperkind = function
+  | Type -> (descr ()).upper_types
+  | Term -> false
+  | Cons | Mod -> true
+
+let kindcase_id k id =
+  if upperkind k then uppercase_id id else lowercase_id id
 
 (*S Renamings of global objects. *)
 
@@ -693,6 +714,9 @@ let pp_global_with_key table k key r =
       | JSON -> dottify (List.map unquote rls)
       | Haskell -> if State.get_modular table then pp_haskell_gen table k mp rls else s
       | Ocaml -> pp_ocaml_gen table k mp rls (Some l)
+      (* Modular extraction to external languages is qualified as in Haskell *)
+      | External _ ->
+        if State.get_modular table then pp_haskell_gen table k mp rls else unquote s
 
 let pp_global table k r =
   pp_global_with_key table k (repr_of_r r) r
@@ -734,12 +758,9 @@ let ascii_type_ref () =
 
 let check_extract_ascii () =
   try
-    let char_type = match lang () with
-      | Ocaml -> "char"
-      | Haskell -> "Prelude.Char"
-      | _ -> raise Not_found
-    in
-    String.equal (find_custom @@ ascii_type_ref ()) (char_type)
+    match (descr ()).char_type with
+    | None -> false
+    | Some char_type -> String.equal (find_custom @@ ascii_type_ref ()) char_type
   with Not_found -> false
 
 let is_constructor r = match r.glob with GlobRef.ConstructRef _ -> true | _ -> false
@@ -789,12 +810,9 @@ let string_type_ref () =
 
 let check_extract_string () =
   try
-    let string_type = match lang () with
-      | Ocaml -> "string"
-      | Haskell -> "Prelude.String"
-      | _ -> raise Not_found
-    in
-    String.equal (find_custom @@ string_type_ref ()) string_type
+    match (descr ()).string_type with
+    | None -> false
+    | Some string_type -> String.equal (find_custom @@ string_type_ref ()) string_type
   with Not_found -> false
 
 (* The argument is known to be of type Strings.String.string.
