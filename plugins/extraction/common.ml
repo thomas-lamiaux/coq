@@ -387,19 +387,20 @@ end
 (* The built-in languages are registered by [Extract_env], other plugins may
    add their own languages. *)
 
-let languages : (lang * State.t language_descr) list ref = ref []
+let languages : State.t language_descr CString.Map.t ref = ref CString.Map.empty
 
 let register_language l d =
-  if List.mem_assoc l !languages then
+  let name = lang_name l in
+  if CString.Map.mem name !languages then
     CErrors.anomaly
-      Pp.(str "Extraction language " ++ str (lang_name l) ++ str " already registered.");
-  languages := (l, d) :: !languages
+      Pp.(str "Extraction language " ++ str name ++ str " already registered.");
+  languages := CString.Map.add name d !languages
 
-let is_registered_language l = List.mem_assoc l !languages
+let is_registered_language l = CString.Map.mem (lang_name l) !languages
 
 let descr () =
   let l = lang () in
-  try List.assoc l !languages
+  try CString.Map.find (lang_name l) !languages
   with Not_found ->
     CErrors.user_err
       Pp.(str "Extraction language " ++ str (lang_name l) ++
