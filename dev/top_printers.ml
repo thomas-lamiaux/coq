@@ -150,12 +150,12 @@ let ppdpmapgen l =
 let ppconmapenvgen l =
   pp (prmapgen
         (fun mp -> str (Constant.debug_to_string mp))
-        (Cset_env.elements (Cmap_env.domain l)))
+        (Cset.elements (Cmap.domain l)))
 
 let ppmindmapenvgen l =
   pp (prmapgen
         (fun mp -> str (MutInd.debug_to_string mp))
-        (Mindset.elements (Mindmap_env.domain l)))
+        (Mindset.elements (Mindmap.domain l)))
 
 let ppevarsubst = ppidmap (fun id0 -> prset (fun (c,copt,id) ->
   hov 0

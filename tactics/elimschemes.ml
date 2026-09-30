@@ -22,14 +22,14 @@ open Ind_tables
 open UnivGen
 
 let prop_but_default_dependent_elim =
-  Summary.ref ~name:"PROP-BUT-DEFAULT-DEPENDENT-ELIM" Indset_env.empty
+  Summary.ref ~name:"PROP-BUT-DEFAULT-DEPENDENT-ELIM" Indset.empty
 
 let inPropButDefaultDepElim : inductive -> Libobject.obj =
   let open Summary.Ref in
   Libobject.declare_object @@
   Libobject.superglobal_object "prop_but_default_dependent_elim"
     ~cache:(fun i ->
-        prop_but_default_dependent_elim := Indset_env.add i !prop_but_default_dependent_elim)
+        prop_but_default_dependent_elim := Indset.add i !prop_but_default_dependent_elim)
     ~subst:(Some (fun (subst,i) -> Mod_subst.subst_ind subst i))
     ~discharge:(fun i -> Some i)
 
@@ -38,7 +38,7 @@ let declare_prop_but_default_dependent_elim i =
 
 let is_prop_but_default_dependent_elim i =
   let open Summary.Ref in
-  Indset_env.mem i !prop_but_default_dependent_elim
+  Indset.mem i !prop_but_default_dependent_elim
 
 let pseudo_sort_quality_for_elim ind mip =
   let s = mip.mind_sort in

@@ -60,7 +60,7 @@ type cl_info_typ = {
 
 type coe_typ = GlobRef.t
 
-module CoeTypMap = GlobRef.Map_env
+module CoeTypMap = GlobRef.Map
 
 type coe_info_typ = {
   coe_value : GlobRef.t;
@@ -508,7 +508,7 @@ let coercion_of_reference env r =
 module CoercionPrinting =
   struct
     type t = coe_typ
-    module Set = GlobRef.Set_env
+    module Set = GlobRef.Set
     let encode = coercion_of_reference
     let subst = subst_coe_typ
 

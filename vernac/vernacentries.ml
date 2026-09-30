@@ -384,7 +384,7 @@ let print_registered_schemes () =
   let pr_schemes_of_ref (key, schemes) =
     prlist_with_sep fnl (pr_one_scheme key) (CString.Map.bindings schemes)
   in
-  hov 0 (prlist_with_sep fnl pr_schemes_of_ref (GlobRef.Map_env.bindings schemes))
+  hov 0 (prlist_with_sep fnl pr_schemes_of_ref (GlobRef.Map.bindings schemes))
 
 let dump_universes output g =
   let open Univ in

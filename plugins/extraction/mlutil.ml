@@ -1543,7 +1543,7 @@ let con_of_string s =
   Constant.make2 (ModPath.MPfile d) id
 
 let manual_inline_set =
-  List.fold_right (fun x -> Cset_env.add (con_of_string x))
+  List.fold_right (fun x -> Cset.add (con_of_string x))
     [ "Corelib.Init.Wf.well_founded_induction_type";
       "Corelib.Init.Wf.well_founded_induction";
       "Corelib.Init.Wf.Acc_iter";
@@ -1555,10 +1555,10 @@ let manual_inline_set =
       "Corelib.Init.Logic.eq_rect_r";
       "Corelib.Init.Specif.proj1_sig";
     ]
-    Cset_env.empty
+    Cset.empty
 
 let manual_inline g = match g.glob with
-  | GlobRef.ConstRef c -> Cset_env.mem c manual_inline_set
+  | GlobRef.ConstRef c -> Cset.mem c manual_inline_set
   | _ -> false
 
 (* If the user doesn't say he wants to keep [t], we inline in two cases:

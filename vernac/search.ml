@@ -53,25 +53,25 @@ module Set =
 struct
 
 type elt = t
-type t = GlobRef.Set_env.t * String.Set.t
-let empty = (GlobRef.Set_env.empty, String.Set.empty)
-let is_empty (gset, sset) = GlobRef.Set_env.is_empty gset && String.Set.is_empty sset
+type t = GlobRef.Set.t * String.Set.t
+let empty = (GlobRef.Set.empty, String.Set.empty)
+let is_empty (gset, sset) = GlobRef.Set.is_empty gset && String.Set.is_empty sset
 
 let add v (gset, sset) = match v with
 | Pattern s -> (gset, String.Set.add s sset)
-| Reference r -> (GlobRef.Set_env.add r gset, sset)
+| Reference r -> (GlobRef.Set.add r gset, sset)
 
 let remove v (gset, sset) = match v with
 | Pattern s -> (gset, String.Set.remove s sset)
-| Reference r -> (GlobRef.Set_env.remove r gset, sset)
+| Reference r -> (GlobRef.Set.remove r gset, sset)
 
 let mem v (gset, sset) = match v with
 | Pattern s -> String.Set.mem s sset
-| Reference r -> GlobRef.Set_env.mem r gset
+| Reference r -> GlobRef.Set.mem r gset
 
 let elements (gset, sset) =
   let sset = List.map (fun s -> Pattern s) (String.Set.elements sset) in
-  let gset = List.map (fun r -> Reference r) (GlobRef.Set_env.elements gset) in
+  let gset = List.map (fun r -> Reference r) (GlobRef.Set.elements gset) in
   sset @ gset
 
 end
@@ -211,13 +211,13 @@ module ConstrPriority = struct
   let rec symbols acc t =
     let open Constr in
     match kind t with
-    | Const _ | Ind _ | Construct _ -> GlobRef.Set_env.add (fst @@ destRef t) acc
+    | Const _ | Ind _ | Construct _ -> GlobRef.Set.add (fst @@ destRef t) acc
     | _ -> Constr.fold symbols acc t
 
   (** The number of distinct "symbols" (see {!symbols}) which appear
       in a term. *)
   let num_symbols t =
-    GlobRef.Set_env.(cardinal (symbols empty t))
+    GlobRef.Set.(cardinal (symbols empty t))
 
   let priority gref t : priority =
     -(3*(num_symbols t) + size t)
@@ -275,7 +275,7 @@ let blacklist_filter : filter_function = fun ref kind env sigma typ ->
     let name = full_name_of_reference ref in
     let is_not_bl str = not (String.string_contains ~where:name ~what:str) in
     let (gref_blacklist, str_blacklist) = SearchBlacklist.v () in
-    not (GlobRef.Set_env.mem ref gref_blacklist) && String.Set.for_all is_not_bl str_blacklist
+    not (GlobRef.Set.mem ref gref_blacklist) && String.Set.for_all is_not_bl str_blacklist
 
 let module_filter : _ -> filter_function = fun mods ref kind env sigma typ ->
   let sp = Nametab.path_of_global ref in

@@ -483,19 +483,19 @@ module PrimitiveProjections = struct
 type data = Names.Projection.Repr.t
 
 let prim_table =
-  Summary.ref (Cmap_env.empty : data Cmap_env.t) ~name:"record-prim-projs"
+  Summary.ref (Cmap.empty : data Cmap.t) ~name:"record-prim-projs"
 
 let register p c =
   let open Summary.Ref in
-  prim_table := Cmap_env.add c p !prim_table
+  prim_table := Cmap.add c p !prim_table
 
 let mem c =
   let open Summary.Ref in
-  Cmap_env.mem c !prim_table
+  Cmap.mem c !prim_table
 
 let find_opt c =
   let open Summary.Ref in
-  try Some (Cmap_env.find c !prim_table) with Not_found -> None
+  try Some (Cmap.find c !prim_table) with Not_found -> None
 
 let find_opt_with_relevance (c,u) =
   find_opt c |>

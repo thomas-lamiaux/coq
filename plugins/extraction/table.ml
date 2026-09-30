@@ -123,18 +123,18 @@ let labels_of_ref r =
 module InfvMap = Map.Make(InfvInst)
 
 type table = {
-  typedefs : (constant_body * ml_type) InfvMap.t Cmap_env.t;
-  cst_types : (constant_body * ml_schema) InfvMap.t Cmap_env.t;
-  inductives : (mutual_inductive_body * ml_ind) InfvMap.t Mindmap_env.t;
-  inductive_kinds : inductive_kind InfvMap.t Mindmap_env.t;
+  typedefs : (constant_body * ml_type) InfvMap.t Cmap.t;
+  cst_types : (constant_body * ml_schema) InfvMap.t Cmap.t;
+  inductives : (mutual_inductive_body * ml_ind) InfvMap.t Mindmap.t;
+  inductive_kinds : inductive_kind InfvMap.t Mindmap.t;
   recursors : KerName.Set.t;
   (* recursors: we can use the equivalence between canonical and user constant names. *)
-  projs : GlobRef.Set_env.t;
+  projs : GlobRef.Set.t;
   (* projs: working modulo name equivalence is ok *)
-  info_axioms : GlobRef.Set_env.t;
-  log_axioms : GlobRef.Set_env.t;
-  symbols : Id.t list GlobRef.Map_env.t;
-  opaques:  GlobRef.Set_env.t;
+  info_axioms : GlobRef.Set.t;
+  log_axioms : GlobRef.Set.t;
+  symbols : Id.t list GlobRef.Map.t;
+  opaques:  GlobRef.Set.t;
   modfile_ids : Id.Set.t;
   modfile_mps : string DirPath.Map.t;
 }
@@ -142,16 +142,16 @@ type table = {
 type t = table ref
 
 let empty_table = {
-  typedefs = Cmap_env.empty;
-  cst_types = Cmap_env.empty;
-  inductives = Mindmap_env.empty;
-  inductive_kinds = Mindmap_env.empty;
+  typedefs = Cmap.empty;
+  cst_types = Cmap.empty;
+  inductives = Mindmap.empty;
+  inductive_kinds = Mindmap.empty;
   recursors = KerName.Set.empty;
-  projs = GlobRef.Set_env.empty;
-  info_axioms = GlobRef.Set_env.empty;
-  log_axioms = GlobRef.Set_env.empty;
-  symbols = GlobRef.Map_env.empty;
-  opaques = GlobRef.Set_env.empty;
+  projs = GlobRef.Set.empty;
+  info_axioms = GlobRef.Set.empty;
+  log_axioms = GlobRef.Set.empty;
+  symbols = GlobRef.Map.empty;
+  opaques = GlobRef.Set.empty;
   modfile_ids = Id.Set.empty;
   modfile_mps = DirPath.Map.empty;
 }
@@ -163,11 +163,11 @@ let add_typedef table kn inst cb t =
   | None -> Some (InfvMap.singleton inst (cb, t))
   | Some map -> Some (InfvMap.add inst (cb, t) map)
   in
-  table := { !table with typedefs = Cmap_env.update kn upd !table.typedefs }
+  table := { !table with typedefs = Cmap.update kn upd !table.typedefs }
 
 let lookup_typedef table kn inst cb =
   try
-    let (cb0, t) = InfvMap.find inst (Cmap_env.find kn !table.typedefs) in
+    let (cb0, t) = InfvMap.find inst (Cmap.find kn !table.typedefs) in
     if cb0 == cb then Some t else None
   with Not_found -> None
 
@@ -176,11 +176,11 @@ let add_cst_type table kn inst cb s =
   | None -> Some (InfvMap.singleton inst (cb, s))
   | Some map -> Some (InfvMap.add inst (cb, s) map)
   in
-  table := { !table with cst_types = Cmap_env.update kn upd !table.cst_types }
+  table := { !table with cst_types = Cmap.update kn upd !table.cst_types }
 
 let lookup_cst_type table kn inst cb =
   try
-    let (cb0, s) = InfvMap.find inst (Cmap_env.find kn !table.cst_types) in
+    let (cb0, s) = InfvMap.find inst (Cmap.find kn !table.cst_types) in
     if cb0 == cb then Some s else None
   with Not_found -> None
 
@@ -189,11 +189,11 @@ let add_ind table kn inst mib ml_ind =
   | None -> Some (InfvMap.singleton inst (mib, ml_ind))
   | Some map -> Some (InfvMap.add inst (mib, ml_ind) map)
   in
-  table := { !table with inductives = Mindmap_env.update kn upd !table.inductives }
+  table := { !table with inductives = Mindmap.update kn upd !table.inductives }
 
 let lookup_ind table kn inst mib =
   try
-    let (mib0, ml_ind) = InfvMap.find inst (Mindmap_env.find kn !table.inductives) in
+    let (mib0, ml_ind) = InfvMap.find inst (Mindmap.find kn !table.inductives) in
     if mib == mib0 then Some ml_ind
     else None
   with Not_found -> None
@@ -203,7 +203,7 @@ let add_inductive_kind table kn inst k =
   | None -> Some (InfvMap.singleton inst k)
   | Some map -> Some (InfvMap.add inst k map)
   in
-  table := { !table with inductive_kinds = Mindmap_env.update kn upd !table.inductive_kinds }
+  table := { !table with inductive_kinds = Mindmap.update kn upd !table.inductive_kinds }
 
 let is_coinductive table r =
   let kn = let open GlobRef in match r.glob with
@@ -211,7 +211,7 @@ let is_coinductive table r =
     | IndRef (kn,_) -> kn
     | _ -> assert false
   in
-  try InfvMap.find r.inst (Mindmap_env.find kn !table.inductive_kinds) == Coinductive
+  try InfvMap.find r.inst (Mindmap.find kn !table.inductive_kinds) == Coinductive
   with Not_found -> false
 
 let is_coinductive_type table = function
@@ -224,7 +224,7 @@ let get_record_fields table r =
     | IndRef (kn,_) -> kn
     | _ -> assert false
   in
-  try match InfvMap.find r.inst (Mindmap_env.find kn !table.inductive_kinds) with
+  try match InfvMap.find r.inst (Mindmap.find kn !table.inductive_kinds) with
     | Record f -> f
     | _ -> []
   with Not_found -> []
@@ -251,19 +251,19 @@ let is_recursor table r = match r.glob with
   | GlobRef.ConstRef c -> KerName.Set.mem (Constant.canonical c) !table.recursors
   | _ -> false
 
-let add_projection table n kn ip = table := { !table with projs = GlobRef.Set_env.add (GlobRef.ConstRef kn) !table.projs }
-let is_projection table r = GlobRef.Set_env.mem r.glob !table.projs
+let add_projection table n kn ip = table := { !table with projs = GlobRef.Set.add (GlobRef.ConstRef kn) !table.projs }
+let is_projection table r = GlobRef.Set.mem r.glob !table.projs
 
 (*s Table of used axioms *)
 
-let add_info_axiom table r = table := { !table with info_axioms = GlobRef.Set_env.add r !table.info_axioms }
-let remove_info_axiom table r = table := { !table with info_axioms = GlobRef.Set_env.remove r !table.info_axioms }
-let add_log_axiom table r = table := { !table with log_axioms = GlobRef.Set_env.add r !table.log_axioms }
-let add_symbol table r = table := { !table with symbols = GlobRef.Map_env.update r (function Some l -> Some l | _ -> Some []) !table.symbols }
-let add_symbol_rule table r l = table := { !table with symbols = GlobRef.Map_env.update r (function Some lst -> Some (l :: lst) | _ -> Some [l]) !table.symbols }
+let add_info_axiom table r = table := { !table with info_axioms = GlobRef.Set.add r !table.info_axioms }
+let remove_info_axiom table r = table := { !table with info_axioms = GlobRef.Set.remove r !table.info_axioms }
+let add_log_axiom table r = table := { !table with log_axioms = GlobRef.Set.add r !table.log_axioms }
+let add_symbol table r = table := { !table with symbols = GlobRef.Map.update r (function Some l -> Some l | _ -> Some []) !table.symbols }
+let add_symbol_rule table r l = table := { !table with symbols = GlobRef.Map.update r (function Some lst -> Some (l :: lst) | _ -> Some [l]) !table.symbols }
 
-let add_opaque table r = table := { !table with opaques = GlobRef.Set_env.add r !table.opaques }
-let remove_opaque table r = table := { !table with opaques = GlobRef.Set_env.remove r !table.opaques }
+let add_opaque table r = table := { !table with opaques = GlobRef.Set.add r !table.opaques }
+let remove_opaque table r = table := { !table with opaques = GlobRef.Set.remove r !table.opaques }
 
 (*s Extraction modes: modular or monolithic, library or minimal ?
 
@@ -287,7 +287,7 @@ let safe_basename_of_globref_gen table r =
       let id = Id.to_string (MutInd.label kn) in
       Id.of_string (id ^ "_" ^ String.concat "_" (List.map string_of_int pos))
   in
-  let unsafe_lookup_ind table kn = snd @@ snd (InfvMap.choose (Mindmap_env.find kn !table.inductives)) in
+  let unsafe_lookup_ind table kn = snd @@ snd (InfvMap.choose (Mindmap.find kn !table.inductives)) in
   let open GlobRef in
   match r with
     | ConstRef kn -> Constant.label kn
@@ -373,13 +373,13 @@ let warn_extraction_symbols =
       fnl ())
 
 let warning_axioms table =
-  let info_axioms = GlobRef.Set_env.elements !table.info_axioms in
+  let info_axioms = GlobRef.Set.elements !table.info_axioms in
   if not (List.is_empty info_axioms) then
     warn_extraction_axiom_to_realize info_axioms;
-  let log_axioms = GlobRef.Set_env.elements !table.log_axioms in
+  let log_axioms = GlobRef.Set.elements !table.log_axioms in
   if not (List.is_empty log_axioms) then
     warn_extraction_logical_axiom log_axioms;
-  let symbols = GlobRef.Map_env.bindings !table.symbols in
+  let symbols = GlobRef.Map.bindings !table.symbols in
   if not (List.is_empty symbols) then
     warn_extraction_symbols symbols
 
@@ -398,7 +398,7 @@ let warn_extraction_opaque_as_axiom =
          ++ fnl ())
 
 let warning_opaques table accessed =
-  let opaques = GlobRef.Set_env.elements !table.opaques in
+  let opaques = GlobRef.Set.elements !table.opaques in
   if not (List.is_empty opaques) then
     let lst = hov 1 (spc () ++ prlist_with_sep spc safe_pr_globref opaques) in
     if accessed then warn_extraction_opaque_accessed lst

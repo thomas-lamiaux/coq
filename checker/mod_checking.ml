@@ -9,30 +9,30 @@ open Environ
 (** {6 Checking constants } *)
 
 type cset = { cset : KerName.Set.t }
-type opaques = Cset_env.t Names.Cmap_env.t
+type opaques = Cset.t Names.Cmap.t
 
 let empty_cset = { cset = KerName.Set.empty }
-let empty_opaques = Cmap_env.empty
+let empty_opaques = Cmap.empty
 
 let add_opaque_cb kn cb opac accu =
   if Declareops.constant_has_body cb then accu
-  else match Cmap_env.find_opt kn opac with
-  | None -> Cset_env.add kn accu
-  | Some s -> Cset_env.union s accu
+  else match Cmap.find_opt kn opac with
+  | None -> Cset.add kn accu
+  | Some s -> Cset.union s accu
 
 let constants_of_opaques env opac =
   let add c cb acc = add_opaque_cb c cb opac acc in
-  let csts = fold_constants add env Cset_env.empty in
-  Cset_env.fold (fun c acc -> c :: acc) csts []
+  let csts = fold_constants add env Cset.empty in
+  Cset.fold (fun c acc -> c :: acc) csts []
 
 type check_state = {
   st_opaques : opaques;
-  st_retro : (int * CPrimitives.prim_ind_ex) Mindmap_env.t * CPrimitives.prim_type_ex Cmap_env.t;
+  st_retro : (int * CPrimitives.prim_ind_ex) Mindmap.t * CPrimitives.prim_type_ex Cmap.t;
 }
 
 let empty_state = {
   st_opaques = empty_opaques;
-  st_retro = (Mindmap_env.empty, Cmap_env.empty);
+  st_retro = (Mindmap.empty, Cmap.empty);
 }
 
 let indirect_accessor : (Opaqueproof.opaque -> Opaqueproof.opaque_proofterm) ref =
@@ -44,12 +44,12 @@ let register_opacified_constant env chkst kn cb =
   let opac = chkst.st_opaques in
   let rec gather_consts s c =
     match Constr.kind c with
-    | Constr.Const (c, _) -> Cset_env.add c s
+    | Constr.Const (c, _) -> Cset.add c s
     | _ -> Constr.fold gather_consts s c
   in
   let fold c accu = add_opaque_cb c (lookup_constant c env) opac accu in
-  let wo_body = Cset_env.fold fold (gather_consts Cset_env.empty cb) Cset_env.empty in
-  { chkst with st_opaques = Cmap_env.add kn wo_body opac }
+  let wo_body = Cset.fold fold (gather_consts Cset.empty cb) Cset.empty in
+  { chkst with st_opaques = Cmap.add kn wo_body opac }
 
 exception BadConstant of Constant.t * Pp.t
 
@@ -96,11 +96,11 @@ let check_constant_declaration env opac kn cb opacify =
       end
     | None -> ()
   in
-  let retro, opac = match Cmap_env.find_opt kn (snd opac.st_retro) with
+  let retro, opac = match Cmap.find_opt kn (snd opac.st_retro) with
   | None -> None, opac
   | Some retro ->
     let (ind_retro, cst_retro) = opac.st_retro in
-    let opac = { opac with st_retro = (ind_retro, Cmap_env.remove kn cst_retro) } in
+    let opac = { opac with st_retro = (ind_retro, Cmap.remove kn cst_retro) } in
     Some retro, opac
   in
   match body with
@@ -334,12 +334,12 @@ and check_structure_field : type a. _ -> _ -> _ -> _ -> a Mod_subst.delta_resolv
   | SFBmind mib ->
       let kn = KerName.make mp lab in
       let kn = Mod_subst.mind_of_delta_kn res kn in
-      let retro = Mindmap_env.find_opt kn (fst opac.st_retro) in
+      let retro = Mindmap.find_opt kn (fst opac.st_retro) in
       let opac = match retro with
       | None -> opac
       | Some _ ->
         let (ind_retro, cst_retro) = opac.st_retro in
-        let opac = { opac with st_retro = (Mindmap_env.remove kn ind_retro, cst_retro) } in
+        let opac = { opac with st_retro = (Mindmap.remove kn ind_retro, cst_retro) } in
         opac
       in
       CheckInductive.check_inductive env kn mib retro, opac
@@ -375,7 +375,7 @@ let get_retroknowlege env retro =
   let fold (imap, cmap, extind) = function
   | Retroknowledge.Register_ind (prm, (ind, i)) ->
     (* Tolerate redeclarations because the kernel allows it somehow *)
-    let check_prm map = match Mindmap_env.find_opt ind map with
+    let check_prm map = match Mindmap.find_opt ind map with
     | None -> ()
     | Some (_, CPrimitives.PIE prm') ->
       if not (eq_prim_ind prm prm') then
@@ -388,22 +388,22 @@ let get_retroknowlege env retro =
     if Environ.mem_mind ind env then
       let spec = Inductive.lookup_mind_specif env (ind, i) in
       let () = Safe_typing.check_register_ind (ind, i) prm spec in
-      (imap, cmap, Mindmap_env.add ind (i, CPrimitives.PIE prm) extind)
+      (imap, cmap, Mindmap.add ind (i, CPrimitives.PIE prm) extind)
     else
-      (Mindmap_env.add ind (i, CPrimitives.PIE prm) imap, cmap, extind)
+      (Mindmap.add ind (i, CPrimitives.PIE prm) imap, cmap, extind)
   | Retroknowledge.Register_type (prm, cst) ->
-    let () = assert (not (Cmap_env.mem cst cmap)) in
+    let () = assert (not (Cmap.mem cst cmap)) in
     let () = assert (not (Environ.mem_constant cst env)) in
-    (imap, Cmap_env.add cst (CPrimitives.PTE prm) cmap, extind)
+    (imap, Cmap.add cst (CPrimitives.PTE prm) cmap, extind)
   in
-  let (imap, cmap, _) = List.fold_left fold (Mindmap_env.empty, Cmap_env.empty, Mindmap_env.empty) retro in
+  let (imap, cmap, _) = List.fold_left fold (Mindmap.empty, Cmap.empty, Mindmap.empty) retro in
   (imap, cmap)
 
 let check_module env opac retro mp mb =
   let retro = get_retroknowlege env retro in
   let st = { st_opaques = opac; st_retro = retro } in
   let { st_opaques = opac; st_retro = (imap, cmap) } = check_module env st mp mb empty_cset in
-  let () = match Mindmap_env.choose_opt imap, Cmap_env.choose_opt cmap with
+  let () = match Mindmap.choose_opt imap, Cmap.choose_opt cmap with
   | None, None -> ()
   | Some (ind, _), (None | Some _) ->
     CErrors.user_err Pp.(str "Retroknowledge registration for unknown inductive " ++ MutInd.print ind ++ str ".")

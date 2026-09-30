@@ -117,33 +117,33 @@ sig
   val make : Evd.side_effects -> t
   val concat : t -> t -> t
   val get : t -> Safe_typing.private_constants
-  val obj : t -> (Evd.side_effect_role option * UState.named_universes_entry option) Cmap_env.t
+  val obj : t -> (Evd.side_effect_role option * UState.named_universes_entry option) Cmap.t
 end =
 struct
 
 type t = {
   priv : Safe_typing.private_constants;
-  data : (Evd.side_effect_role option * UState.named_universes_entry option) Cmap_env.t;
+  data : (Evd.side_effect_role option * UState.named_universes_entry option) Cmap.t;
 }
 
 let empty = {
   priv = Safe_typing.empty_private_constants;
-  data = Cmap_env.empty;
+  data = Cmap.empty;
 }
 
 let make eff =
   let fold accu c =
-    let role = try Some (Cmap_env.find c (Evd.seff_roles eff)) with Not_found -> None in
-    let univs = try Some (Cmap_env.find c (Evd.seff_univs eff)) with Not_found -> None in
-    Cmap_env.add c (role, univs) accu
+    let role = try Some (Cmap.find c (Evd.seff_roles eff)) with Not_found -> None in
+    let univs = try Some (Cmap.find c (Evd.seff_univs eff)) with Not_found -> None in
+    Cmap.add c (role, univs) accu
   in
   let priv = Evd.seff_private eff in
-  let data = List.fold_left fold Cmap_env.empty (Safe_typing.constants_of_private priv) in
+  let data = List.fold_left fold Cmap.empty (Safe_typing.constants_of_private priv) in
   { priv; data }
 
 let concat e1 e2 = {
   priv = Safe_typing.concat_private e1.priv e2.priv;
-  data = Cmap_env.union (fun _ x y -> Some x) e1.data e2.data;
+  data = Cmap.union (fun _ x y -> Some x) e1.data e2.data;
 }
 
 let get e = e.priv
@@ -402,11 +402,11 @@ module ProofEntry = struct
 
 end
 
-let local_csts = Summary.ref ~name:"local-csts" Cset_env.empty
+let local_csts = Summary.ref ~name:"local-csts" Cset.empty
 
 let is_local_constant c =
   let open Summary.Ref in
-  Cset_env.mem c !local_csts
+  Cset.mem c !local_csts
 
 type constant_obj = {
   cst_kind : Decls.logical_kind;
@@ -425,7 +425,7 @@ let load_constant i ((sp,kn), obj) =
   Dumpglob.add_constant_kind (Global.env ()) con obj.cst_kind;
   obj.cst_loc |> Option.iter (fun loc -> Nametab.set_cci_src_loc (TrueGlobal gr) loc);
   begin match obj.cst_locl with
-    | Locality.ImportNeedQualified -> local_csts := Cset_env.add con !local_csts
+    | Locality.ImportNeedQualified -> local_csts := Cset.add con !local_csts
     | Locality.ImportDefaultBehavior -> ()
   end
 
@@ -498,7 +498,7 @@ let register_side_effect (c, body, role, univs) =
 let get_roles export eff =
   let eff = SideEff.obj eff in
   let map (c, body) =
-    let role, univs = try (Cmap_env.find c eff) with Not_found -> None, None in
+    let role, univs = try (Cmap.find c eff) with Not_found -> None, None in
     (c, body, role, univs)
   in
   List.map map export

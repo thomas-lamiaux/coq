@@ -577,7 +577,7 @@ let collect_elim_cstrs elim_cstrs_map proj_type =
   let rec aux_fold elim_cstrs c =
     match Constr.kind c with
     | Const (c, _) -> (
-        match Cmap_env.find_opt c elim_cstrs_map with
+        match Cmap.find_opt c elim_cstrs_map with
         | None -> elim_cstrs
         | Some c_elim_cstrs -> ElimConstraints.union elim_cstrs c_elim_cstrs)
     | _ -> Constr.fold aux_fold elim_cstrs c
@@ -663,7 +663,7 @@ let build_named_proj ~primitive ~flags ~univs ~uinstance ~kind env paramdecls
   in
   let elim_cstrs_map = match new_field_elim_cstrs with
     | None -> elim_cstrs_map
-    | Some elim_cstrs -> Cmap_env.add kn elim_cstrs elim_cstrs_map
+    | Some elim_cstrs -> Cmap.add kn elim_cstrs elim_cstrs_map
   in
   Declare.definition_message fid;
   let term = match p_opt with
@@ -724,7 +724,7 @@ let declare_projections indsp ~kind ~inhabitant_id flags ?fieldlocs fieldimpls =
     | Polymorphic auctx -> UState.Polymorphic_entry (UVars.AbstractContext.repr auctx)
   in
   let univs = univs, UnivNames.empty_binders in
-  let elim_cstrs_map = Cmap_env.empty in
+  let elim_cstrs_map = Cmap.empty in
   let record_quality = Sorts.quality mip.mind_sort in
   let fields, _ = mip.mind_nf_lc.(0) in
   let fields = List.firstn mip.mind_consnrealdecls.(0) fields in

@@ -13,4 +13,4 @@ open Names
 val declare_scheme : Libobject.locality -> string -> (GlobRef.t * GlobRef.t) -> unit
 val lookup_scheme : string -> GlobRef.t -> GlobRef.t
 val lookup_scheme_opt : string -> GlobRef.t -> GlobRef.t option
-val all_schemes : unit -> GlobRef.t CString.Map.t GlobRef.Map_env.t
+val all_schemes : unit -> GlobRef.t CString.Map.t GlobRef.Map.t

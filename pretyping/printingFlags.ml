@@ -176,7 +176,7 @@ module PrintingInductiveMake (Test : sig
   end) =
 struct
   type t = Names.inductive
-  module Set = Names.Indset_env
+  module Set = Names.Indset
   let encode env ind = Environ.QInd.canonize env (Test.encode env ind)
   let subst subst obj = Mod_subst.subst_ind subst obj
   let check_local _ _ = ()
@@ -305,8 +305,8 @@ module Extern = struct
 
     type t = {
       default : bool;
-      force_record : Indset_env.t;
-      force_constructor : Indset_env.t;
+      force_record : Indset.t;
+      force_constructor : Indset.t;
     }
 
     let current_ignore_raw () = {
@@ -317,8 +317,8 @@ module Extern = struct
 
     let make_raw _flags = {
       default = false;
-      force_record = Indset_env.empty;
-      force_constructor = Indset_env.empty;
+      force_record = Indset.empty;
+      force_constructor = Indset.empty;
     }
 
     let current () =
@@ -326,8 +326,8 @@ module Extern = struct
       if !raw_print then make_raw flags else flags
 
     let use_record_syntax flags r =
-      (flags.default && not (Indset_env.mem r flags.force_constructor)) ||
-      Indset_env.mem r flags.force_record
+      (flags.default && not (Indset.mem r flags.force_constructor)) ||
+      Indset.mem r flags.force_record
 
   end
 

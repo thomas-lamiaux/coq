@@ -2307,18 +2307,18 @@ type code_location_update = {
 }
 
 type code_location_updates =
-  code_location_update Mindmap_env.t * code_location_update Cmap_env.t
+  code_location_update Mindmap.t * code_location_update Cmap.t
 
 type linkable_code = global list * symbols * code_location_updates
 
-let empty_updates = Mindmap_env.empty, Cmap_env.empty
+let empty_updates = Mindmap.empty, Cmap.empty
 
 let compile_mind_deps cenv env prefix
     (comp_stack, (mind_updates, const_updates) as init) mind =
   let mib = lookup_mind mind env in
   let nameref = lookup_mind_key mind env in
   if is_code_loaded nameref
-    || Mindmap_env.mem mind mind_updates
+    || Mindmap.mem mind mind_updates
   then init
   else
     let comp_stack =
@@ -2328,7 +2328,7 @@ let compile_mind_deps cenv env prefix
       upd_info = nameref;
       upd_prefix = prefix;
     } in
-    let mind_updates = Mindmap_env.add mind upd mind_updates in
+    let mind_updates = Mindmap.add mind upd mind_updates in
     (comp_stack, (mind_updates, const_updates))
 
 (* This function compiles all necessary dependencies of t, and generates code in
@@ -2343,7 +2343,7 @@ let compile_deps cenv env sigma prefix init t =
     let (nameref, _) = lookup_constant_key c env in
     let (_, (_, const_updates)) = init in
     if is_code_loaded nameref
-    || (Cmap_env.mem c const_updates)
+    || (Cmap.mem c const_updates)
     then init
     else
       let comp_stack, (mind_updates, const_updates) =
@@ -2358,7 +2358,7 @@ let compile_deps cenv env sigma prefix init t =
         upd_prefix = prefix;
       } in
       let comp_stack = code@comp_stack in
-      let const_updates = Cmap_env.add c upd const_updates in
+      let const_updates = Cmap.add c upd const_updates in
       comp_stack, (mind_updates, const_updates)
   | Construct (((mind,_),_),_u) -> compile_mind_deps cenv env prefix init mind
   | Proj (p,_,c) ->
@@ -2464,8 +2464,8 @@ let update_location r =
   r.upd_info := Linked r.upd_prefix
 
 let update_locations (ind_updates,const_updates) =
-  Mindmap_env.iter (fun _ -> update_location) ind_updates;
-  Cmap_env.iter (fun _ -> update_location) const_updates
+  Mindmap.iter (fun _ -> update_location) ind_updates;
+  Cmap.iter (fun _ -> update_location) const_updates
 
 let add_header_comment mlcode s =
   Gcomment s :: mlcode
