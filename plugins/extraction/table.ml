@@ -44,7 +44,7 @@ module Refset' = Set.Make(GlobOrd)
 
 let occur_kn_in_ref kn r = let open GlobRef in match r.glob with
   | IndRef (kn',_)
-  | ConstructRef ((kn',_),_) -> MutInd.CanOrd.equal kn kn'
+  | ConstructRef ((kn',_),_) -> MutInd.UserOrd.equal kn kn'
   | ConstRef _ | VarRef _ -> false
 
 (* Return the "canonical" name used for declaring a name *)
