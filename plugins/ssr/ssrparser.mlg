@@ -1680,6 +1680,11 @@ GRAMMAR EXTEND Gram
   ltac_expr: LEVEL "1l" [
     [ tac = ltac_expr; intros = ssrintros_ne -> { tclintros_expr ~loc tac intros }
     ] ];
+  ltac_expr: LEVEL "4" [
+    [ ta0 = ltac_expr; ";"; l = tactic_then_locality; tg = for_each_goal; "]";
+      intros = ssrintros_ne -> {
+        tclintros_expr ~loc (G_ltac.mk_tacthen ~loc ta0 l tg) intros }
+    ] ];
 END
 
 

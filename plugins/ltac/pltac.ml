@@ -32,6 +32,10 @@ let intropattern =
   Entry.make "intropattern"
 let simple_intropattern =
   Entry.make "simple_intropattern"
+let for_each_goal =
+  Entry.make "for_each_goal"
+let tactic_then_locality =
+  Entry.make "tactic_then_locality"
 let in_clause = Entry.make "in_clause"
 let clause_dft_concl =
   Entry.make "clause"

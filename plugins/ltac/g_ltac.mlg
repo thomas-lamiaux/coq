@@ -67,12 +67,22 @@ let toplevel_selector = G_vernac.toplevel_selector
 let subprf = G_vernac.subprf
 let subprf_with_selector = G_vernac.subprf_with_selector
 
+let mk_tacthen ~loc ta0 l tg =
+  let (first,tail) = tg in
+  match l , tail with
+  | false , Some (t,last) -> CAst.make ~loc (TacThen (ta0,
+      CAst.make ~loc (TacExtendTac (Array.of_list first, t, last))))
+  | true  , Some (t,last) -> CAst.make ~loc (TacThens3parts (ta0, Array.of_list first, t, last))
+  | false , None -> CAst.make ~loc (TacThen (ta0, CAst.make ~loc (TacDispatch first)))
+  | true  , None -> CAst.make ~loc (TacThens (ta0,first))
+
 }
 
 GRAMMAR EXTEND Gram
   GLOBAL: tactic tacdef_body ltac_expr tactic_value command hint
           tactic_mode constr_may_eval constr_eval
-          term subprf subprf_with_selector;
+          term subprf subprf_with_selector
+          tactic_then_locality for_each_goal;
 
   tactic_then_last:
     [ [ "|"; lta = LIST0 (OPT ltac_expr) SEP "|" ->
@@ -99,13 +109,7 @@ GRAMMAR EXTEND Gram
     | "4" LEFTA
       [ ta0 = ltac_expr; ";"; ta1 = ltac_expr -> { CAst.make ~loc (TacThen (ta0,ta1)) }
       | ta0 = ltac_expr; ";"; l = tactic_then_locality; tg = for_each_goal; "]" -> {
-          let (first,tail) = tg in
-          match l , tail with
-          | false , Some (t,last) -> CAst.make ~loc (TacThen (ta0,
-              CAst.make ~loc (TacExtendTac (Array.of_list first, t, last))))
-          | true  , Some (t,last) -> CAst.make ~loc (TacThens3parts (ta0, Array.of_list first, t, last))
-          | false , None -> CAst.make ~loc (TacThen (ta0, CAst.make ~loc (TacDispatch first)))
-          | true  , None -> CAst.make ~loc (TacThens (ta0,first)) } ]
+          mk_tacthen ~loc ta0 l tg } ]
     | "3" RIGHTA
       [ IDENT "try"; ta = ltac_expr -> { CAst.make ~loc (TacTry ta) }
       | IDENT "do"; n = nat_or_var; ta = ltac_expr -> { CAst.make ~loc (TacDo (n,ta)) }
