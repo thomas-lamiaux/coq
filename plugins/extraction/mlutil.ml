@@ -23,7 +23,7 @@ exception Impossible
 
 (*S Names operations. *)
 
-let eq_global g1 g2 = GlobRef.CanOrd.equal g1.glob g2.glob (* FIXME *)
+let eq_global g1 g2 = GlobRef.UserOrd.equal g1.glob g2.glob
 
 let anonymous_name = Id.of_string "x"
 let dummy_name = Id.of_string "_"
