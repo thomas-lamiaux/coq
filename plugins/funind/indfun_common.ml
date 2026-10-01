@@ -132,8 +132,8 @@ type function_info =
 
 (* let function_table = ref ([] : function_db) *)
 
-let from_function = Summary.ref Cmap_env.empty ~name:"functions_db_fn"
-let from_graph = Summary.ref Indmap_env.empty ~name:"functions_db_gr"
+let from_function = Summary.ref Cmap.empty ~name:"functions_db_fn"
+let from_graph = Summary.ref Indmap.empty ~name:"functions_db_gr"
 
 (*
 let rec do_cache_info finfo = function
@@ -158,8 +158,8 @@ let cache_Function (_,(finfos)) =
 
 let cache_Function finfos =
   let open Summary.Ref in
-  from_function := Cmap_env.add finfos.function_constant finfos !from_function;
-  from_graph := Indmap_env.add finfos.graph_ind finfos !from_graph
+  from_function := Cmap.add finfos.function_constant finfos !from_function;
+  from_graph := Indmap.add finfos.graph_ind finfos !from_graph
 
 let subst_Function (subst, finfos) =
   let do_subst_con c = Mod_subst.subst_constant subst c
@@ -237,7 +237,7 @@ let pr_info env sigma f_info =
   ++ fnl ()
 
 let pr_table env sigma tb =
-  let l = Cmap_env.fold (fun k v acc -> v :: acc) tb [] in
+  let l = Cmap.fold (fun k v acc -> v :: acc) tb [] in
   Pp.prlist_with_sep fnl (pr_info env sigma) l
 
 let in_Function : function_info -> Libobject.obj =
@@ -256,10 +256,10 @@ let find_or_none id =
 
 let find_Function_infos f =
   let open Summary.Ref in
-  Cmap_env.find_opt f !from_function
+  Cmap.find_opt f !from_function
 let find_Function_of_graph ind =
   let open Summary.Ref in
-  Indmap_env.find_opt ind !from_graph
+  Indmap.find_opt ind !from_graph
 
 let update_Function finfo =
   (* Pp.msgnl (pr_info finfo); *)

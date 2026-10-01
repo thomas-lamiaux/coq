@@ -399,9 +399,10 @@ module Cmap : Map.UExtS with type key = Constant.t and module Set := Cset
 module Cpred : Predicate.S with type elt = Constant.t
 (* CAVEAT: uses CanOrd to index keys. *)
 
-(* Legacy APIs, don't use. TODO deprecate *)
 module Cset_env = Cset
+[@@ocaml.deprecated "(9.4) Use Cset"]
 module Cmap_env = Cmap
+[@@ocaml.deprecated "(9.4) Use Cmap"]
 
 (** {6 Inductive names} *)
 
@@ -454,8 +455,8 @@ end
 module Mindset : CSig.USetS with type elt = MutInd.t
 module Mindmap : Map.UExtS with type key = MutInd.t and module Set := Mindset
 
-(* Legacy APIs, don't use. TODO deprecate *)
 module Mindmap_env = Mindmap
+[@@ocaml.deprecated "(9.4) Use Mindmap"]
 
 module Ind :
 sig
@@ -493,11 +494,14 @@ module Constrset : CSet.ExtS with type elt = constructor
 module Indmap : CMap.ExtS with type key = inductive and module Set := Indset
 module Constrmap : CMap.ExtS with type key = constructor and module Set := Constrset
 
-(* Legacy APIs, don't use. TODO deprecate *)
 module Indset_env = Indset
+[@@ocaml.deprecated "(9.4) Use Indset"]
 module Constrset_env = Constrset
+[@@ocaml.deprecated "(9.4) Use Constrset"]
 module Indmap_env = Indmap
+[@@ocaml.deprecated "(9.4) Use Indmap"]
 module Constrmap_env = Constrmap
+[@@ocaml.deprecated "(9.4) Use Constrmap"]
 
 val ith_mutual_inductive : inductive -> int -> inductive
 val ith_constructor_of_inductive : inductive -> int -> constructor
@@ -594,9 +598,10 @@ end
 module PRset : CSig.USetS with type elt = Projection.Repr.t
 module PRmap : Map.UExtS with type key = Projection.Repr.t and module Set := PRset
 
-(* Legacy APIs, don't use. TODO deprecate *)
 module PRset_env = PRset
+[@@ocaml.deprecated "(9.4) Use PRset"]
 module PRmap_env = PRmap
+[@@ocaml.deprecated "(9.4) Use PRmap"]
 
 (* CAVEAT: uses CanOrd to index keys. *)
 module PRpred : Predicate.S with type elt = Projection.Repr.t
@@ -619,9 +624,10 @@ module GlobRef : sig
   module Map : Map.UExtS
     with type key = t and module Set := Set
 
-  (* Legacy APIs, don't use. TODO deprecate *)
   module Set_env = Set
+  [@@ocaml.deprecated "(9.4) Use GlobRef.Set"]
   module Map_env = Map
+  [@@ocaml.deprecated "(9.4) Use GlobRef.Map"]
 
   val print : t -> Pp.t
   (** Print internal representation (not to be used for user-facing messages). *)

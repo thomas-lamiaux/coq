@@ -259,7 +259,7 @@ let check_renaming ~src ~dst env sigma concl =
         | ProofVar -> false)
       src
   in
-  let checked = ref GlobRef.Set_env.empty in
+  let checked = ref GlobRef.Set.empty in
   let check_constr where c =
     let rec aux c =
       match EConstr.destRef sigma c with
@@ -267,7 +267,7 @@ let check_renaming ~src ~dst env sigma concl =
         (* we only refuse implicit dependencies, because they can't be substituted *)
         ()
       | gr, _ ->
-        if GlobRef.Set_env.mem gr !checked then ()
+        if GlobRef.Set.mem gr !checked then ()
         else begin
           let deps = Evarutil.vars_of_global env sigma gr in
           let bad = Id.Set.inter deps secvars in
@@ -275,7 +275,7 @@ let check_renaming ~src ~dst env sigma concl =
             if not @@ Id.Set.is_empty bad then
               error_renaming_implicit_dependency env where bad gr
           in
-          checked := GlobRef.Set_env.add gr !checked
+          checked := GlobRef.Set.add gr !checked
         end
       | exception DestKO -> EConstr.iter sigma aux c
     in

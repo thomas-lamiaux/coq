@@ -529,15 +529,15 @@ module Internal : sig
   module View :
   sig
     type t = {
-      env_constants : constant_body Cmap_env.t;
-      env_inductives : mutual_inductive_body Mindmap_env.t;
+      env_constants : constant_body Cmap.t;
+      env_inductives : mutual_inductive_body Mindmap.t;
       env_modules : module_body ModPath.Map.t;
       env_modtypes : module_type_body ModPath.Map.t;
       env_named_context : named_context;
       env_rel_context   : rel_context;
       env_universes : UGraph.t;
       env_qualities : Sorts.Quality.Set.t;
-      env_symb_pats : machine_rewrite_rule list Cmap_env.t;
+      env_symb_pats : machine_rewrite_rule list Cmap.t;
       env_typing_flags  : typing_flags;
     }
 

@@ -1654,24 +1654,24 @@ let string_map_tag : _ map_tag = register_map ~tag_name:"fmap_string_tag" (modul
   end)
 
 let inductive_map_tag : _ map_tag = register_map ~tag_name:"fmap_inductive_tag" (module struct
-    module S = Indset_env
-    module M = Indmap_env
+    module S = Indset
+    module M = Indmap
     let repr = inductive
     type valmap = valexpr M.t
     let valmap_eq = Refl
   end)
 
 let constructor_map_tag : _ map_tag = register_map ~tag_name:"fmap_constructor_tag" (module struct
-    module S = Constrset_env
-    module M = Constrmap_env
+    module S = Constrset
+    module M = Constrmap
     let repr = Tac2ffi.constructor
     type valmap = valexpr M.t
     let valmap_eq = Refl
   end)
 
 let constant_map_tag : _ map_tag = register_map ~tag_name:"fmap_constant_tag" (module struct
-    module S = Cset_env
-    module M = Cmap_env
+    module S = Cset
+    module M = Cmap
     let repr = Tac2ffi.constant
     type valmap = valexpr M.t
     let valmap_eq = Refl

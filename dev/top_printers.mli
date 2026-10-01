@@ -81,8 +81,8 @@ val ppintmapgen : 'a Int.Map.t -> unit
 
 val ppmpmapgen : 'a Names.ModPath.Map.t -> unit
 val ppdpmapgen : 'a Names.DirPath.Map.t -> unit
-val ppconmapenvgen : 'a Names.Cmap_env.t -> unit
-val ppmindmapenvgen : 'a Names.Mindmap_env.t -> unit
+val ppconmapenvgen : 'a Names.Cmap.t -> unit
+val ppmindmapenvgen : 'a Names.Mindmap.t -> unit
 
 val prididmap : Names.Id.t Names.Id.Map.t -> Pp.t
 val ppididmap : Names.Id.t Names.Id.Map.t -> unit

@@ -313,13 +313,13 @@ let next_name_away gen na avoid =
 end
 
 let visible_ids sigma (nenv, c) =
-  let accu = ref (GlobRef.Set_env.empty, Int.Set.empty, Id.Set.empty) in
+  let accu = ref (GlobRef.Set.empty, Int.Set.empty, Id.Set.empty) in
   let rec visible_ids n c = match EConstr.kind sigma c with
   | Const _ | Ind _ | Construct _ | Var _ as c ->
     let (gseen, vseen, ids) = !accu in
     let g = global_of_constr c in
-    if not (GlobRef.Set_env.mem g gseen) then
-      let gseen = GlobRef.Set_env.add g gseen in
+    if not (GlobRef.Set.mem g gseen) then
+      let gseen = GlobRef.Set.add g gseen in
       let ids = match Nametab.shortest_qualid_of_global ~force_short:true Id.Set.empty g with
       | short ->
         let dir, id = repr_qualid short in

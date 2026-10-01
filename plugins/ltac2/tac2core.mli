@@ -63,6 +63,6 @@ val get_map : ('a,'set,'map) map_tag ->
 val ident_map_tag : (Id.t, Id.Set.t, Tac2val.valexpr Id.Map.t) map_tag
 val int_map_tag : (int, Int.Set.t, Tac2val.valexpr Int.Map.t) map_tag
 val string_map_tag : (string, CString.Set.t, Tac2val.valexpr CString.Map.t) map_tag
-val inductive_map_tag : (inductive, Indset_env.t, Tac2val.valexpr Indmap_env.t) map_tag
-val constructor_map_tag : (constructor, Constrset_env.t, Tac2val.valexpr Constrmap_env.t) map_tag
-val constant_map_tag : (Constant.t, Cset_env.t, Tac2val.valexpr Cmap_env.t) map_tag
+val inductive_map_tag : (inductive, Indset.t, Tac2val.valexpr Indmap.t) map_tag
+val constructor_map_tag : (constructor, Constrset.t, Tac2val.valexpr Constrmap.t) map_tag
+val constant_map_tag : (Constant.t, Cset.t, Tac2val.valexpr Cmap.t) map_tag

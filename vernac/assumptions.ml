@@ -240,13 +240,13 @@ let rec traverse access (current:GlobRef.t) ctx accu t =
     | Const (kn, _) when not (Declareops.constant_has_body (lookup_constant kn)) ->
       let (curr, data, ax2ty) = accu in
       let obj = ConstRef kn in
-      let already_in = GlobRef.Map_env.mem obj data in
-      let data = if not already_in then GlobRef.Map_env.add obj None data else data in
+      let already_in = GlobRef.Map.mem obj data in
+      let data = if not already_in then GlobRef.Map.add obj None data else data in
       let ty = (current, ctx, Vars.subst1 mkProp oty) in
       let ax2ty =
-        try let l = GlobRef.Map_env.find obj ax2ty in GlobRef.Map_env.add obj (ty::l) ax2ty
-        with Not_found -> GlobRef.Map_env.add obj [ty] ax2ty in
-      (GlobRef.Set_env.add obj curr, data, ax2ty)
+        try let l = GlobRef.Map.find obj ax2ty in GlobRef.Map.add obj (ty::l) ax2ty
+        with Not_found -> GlobRef.Map.add obj [ty] ax2ty in
+      (GlobRef.Set.add obj curr, data, ax2ty)
     | _ ->
         fold_with_full_binders
           Context.Rel.add (traverse access current) ctx accu t
@@ -256,19 +256,19 @@ let rec traverse access (current:GlobRef.t) ctx accu t =
 
 and traverse_object access (curr, data, ax2ty) body obj =
   let data, ax2ty =
-    let already_in = GlobRef.Map_env.mem obj data in
+    let already_in = GlobRef.Map.mem obj data in
     if already_in then data, ax2ty
     else match body () (* Beware: this can be very costly *) with
     | None ->
       (* This is an axiom. Always traverse its type to find dependencies *)
-      let data = GlobRef.Map_env.add obj None data in
+      let data = GlobRef.Map.add obj None data in
       begin match obj with
       | GlobRef.ConstRef kn ->
         let cb = lookup_constant kn in
         let typ = cb.Declarations.const_type in
         let _, data, ax2ty =
           traverse access obj Context.Rel.empty
-                   (GlobRef.Set_env.empty, data, ax2ty) typ in
+                   (GlobRef.Set.empty, data, ax2ty) typ in
         data, ax2ty
       (* VarRef, IndRef and ConstructRef don't need recursive type traversal.
          For VarRef (section variables), the dependencies are already tracked.
@@ -277,7 +277,7 @@ and traverse_object access (curr, data, ax2ty) body obj =
     | Some body ->
       let contents,data,ax2ty =
         traverse access obj Context.Rel.empty
-                 (GlobRef.Set_env.empty,data,ax2ty) body in
+                 (GlobRef.Set.empty,data,ax2ty) body in
       (* Also traverse the type of globals, which may mention unrelated
          references depending on axioms even if they convert to something else. *)
       let contents,data,ax2ty = match obj with
@@ -288,9 +288,9 @@ and traverse_object access (curr, data, ax2ty) body obj =
                    (contents,data,ax2ty) typ
         | _ -> (contents,data,ax2ty)
       in
-      GlobRef.Map_env.add obj (Some contents) data, ax2ty
+      GlobRef.Map.add obj (Some contents) data, ax2ty
   in
-  (GlobRef.Set_env.add obj curr, data, ax2ty)
+  (GlobRef.Set.add obj curr, data, ax2ty)
 
 (** Collects the references occurring in the declaration of mutual inductive
     definitions. All the constructors and names of a mutual inductive
@@ -303,12 +303,12 @@ and traverse_inductive access (curr, data, ax2ty) mind obj =
       where I_0, I_1, ... are in the same mutual definition and c_ij
       are all their constructors. *)
    if
-     (* recursive call: *) GlobRef.Set_env.mem firstind_ref curr ||
-     (* already in: *) GlobRef.Map_env.mem firstind_ref data
+     (* recursive call: *) GlobRef.Set.mem firstind_ref curr ||
+     (* already in: *) GlobRef.Map.mem firstind_ref data
    then data, ax2ty
    else
      (* Take into account potential recursivity of ind in itself *)
-     let curr = GlobRef.Set_env.add firstind_ref GlobRef.Set_env.empty in
+     let curr = GlobRef.Set.add firstind_ref GlobRef.Set.empty in
      let accu = (curr, data, ax2ty) in
      let mib = lookup_mind mind in
      (* Collects references of parameters *)
@@ -333,17 +333,17 @@ and traverse_inductive access (curr, data, ax2ty) mind obj =
      in
      (* Maps all these dependencies to inductives and constructors*)
      let data =
-       let contents = GlobRef.Set_env.remove firstind_ref contents in
+       let contents = GlobRef.Set.remove firstind_ref contents in
        Array.fold_left_i (fun n data oib ->
        let ind = (mind, n) in
-       let data = GlobRef.Map_env.add (GlobRef.IndRef ind) (Some contents) data in
+       let data = GlobRef.Map.add (GlobRef.IndRef ind) (Some contents) data in
        Array.fold_left_i (fun k data _ ->
-         GlobRef.Map_env.add (GlobRef.ConstructRef (ind, k+1)) (Some contents) data
+         GlobRef.Map.add (GlobRef.ConstructRef (ind, k+1)) (Some contents) data
        ) data oib.mind_consnames) data mib.mind_packets
      in
      (data, ax2ty)
   in
-  (GlobRef.Set_env.add obj curr, data, ax2ty)
+  (GlobRef.Set.add obj curr, data, ax2ty)
 
 (** Collects references in a rel_context. *)
 and traverse_context access current ctx accu ctxt =
@@ -364,7 +364,7 @@ let traverse access grs =
   List.fold_left (fun accu gr ->
     let t, _ = UnivGen.fresh_global_instance env gr in
     traverse access gr Context.Rel.empty accu t
-  ) (GlobRef.Set_env.empty, GlobRef.Map_env.empty, GlobRef.Map_env.empty) grs
+  ) (GlobRef.Set.empty, GlobRef.Map.empty, GlobRef.Map.empty) grs
 
 (** Hopefully bullet-proof function to recover the type of a constant. It just
     ignores all the universe stuff. There are many issues that can arise when
@@ -408,19 +408,19 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
       let accu =
         if cb.const_typing_flags.check_guarded then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (Guarded obj, l)) Constr.mkProp accu
       in
       let accu =
         if cb.const_typing_flags.check_universes then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (TypeInType obj, l)) Constr.mkProp accu
       in
       let accu =
         if not cb.const_typing_flags.impredicative_set then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (ImpredicativeSet obj, l)) Constr.mkProp accu
       in
     if not (Option.has_some contents) then
@@ -430,7 +430,7 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
       if Declareops.is_opaque cb then
         ContextObjectMap.add (UnreachableOpaque kn) t accu
       else
-        let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+        let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
         ContextObjectMap.add (Axiom (Constant kn,l)) t accu
     else if add_opaque && (Declareops.is_opaque cb || not (Structures.PrimitiveProjections.is_transparent_constant st kn)) then
       let t = type_of_constant cb in
@@ -446,42 +446,42 @@ let assumptions ?(add_opaque=false) ?(add_transparent=false) access st grs =
       let accu =
         if mind.mind_typing_flags.check_positive then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (Positive m, l)) Constr.mkProp accu
       in
       let accu =
         if mind.mind_typing_flags.check_guarded then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (Guarded obj, l)) Constr.mkProp accu
       in
       let accu =
         if mind.mind_typing_flags.check_universes then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (TypeInType obj, l)) Constr.mkProp accu
       in
       let accu =
         if not (uses_uip mind) then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (UIP m, l)) Constr.mkProp accu
       in
       let accu =
         if not (Array.exists (fun mip -> mip.mind_relies_on_indices_not_mattering) mind.mind_packets) then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (IndicesNotMattering m, l)) Constr.mkProp accu
       in
       let accu =
         if not mind.mind_typing_flags.impredicative_set then accu
         else
-          let l = try GlobRef.Map_env.find obj ax2ty with Not_found -> [] in
+          let l = try GlobRef.Map.find obj ax2ty with Not_found -> [] in
           ContextObjectMap.add (Axiom (ImpredicativeSet obj, l)) Constr.mkProp accu
       in
       accu
   in
-  let map = GlobRef.Map_env.fold fold graph ContextObjectMap.empty in
+  let map = GlobRef.Map.fold fold graph ContextObjectMap.empty in
   let theory = {
     has_impredicative_set = !has_impredicative_set;
     has_rewrite_rules = !has_rewrite_rules;

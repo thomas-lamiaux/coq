@@ -123,6 +123,6 @@ module PrintingInductiveMake (_ : sig
   end)
   : Goptions.RefConvertArg
     with type t = Names.inductive
-     and module Set = Names.Indset_env
+     and module Set = Names.Indset
 
 val set_extern_depth : int option -> unit

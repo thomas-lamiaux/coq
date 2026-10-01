@@ -689,9 +689,9 @@ sig
   val clear : bool -> t -> unit
 end =
 struct
-  type t = (Names.GlobRef.t Queue.t * state Names.GlobRef.Map_env.t) * (Names.GlobRef.t Queue.t * state Names.GlobRef.Map_env.t)
+  type t = (Names.GlobRef.t Queue.t * state Names.GlobRef.Map.t) * (Names.GlobRef.t Queue.t * state Names.GlobRef.Map.t)
 
-  let empty () : t = ((Queue.create (), Names.GlobRef.Map_env.empty), (Queue.create (), Names.GlobRef.Map_env.empty))
+  let empty () : t = ((Queue.create (), Names.GlobRef.Map.empty), (Queue.create (), Names.GlobRef.Map.empty))
 
   let flip (c1, c2) = (c2, c1)
 
@@ -699,16 +699,16 @@ struct
     match fst @@ EConstr.destRef sigma (fst appr) with
     | k ->
       let k = QGlobRef.canonize env k in
-      if not (Names.GlobRef.Map_env.mem k m1) then
+      if not (Names.GlobRef.Map.mem k m1) then
         let () = Queue.push k c1 in
-        ((c1, Names.GlobRef.Map_env.add k appr m1), c2)
+        ((c1, Names.GlobRef.Map.add k appr m1), c2)
       else c
     | exception DestKO -> c
 
   let add env sigma l2r appr c =
     if l2r then add_left env sigma appr c else flip (add_left env sigma appr (flip c))
 
-  let fold_left f acc ((c, m), _) = Queue.fold (fun acc k -> f acc (Names.GlobRef.Map_env.find k m)) acc c
+  let fold_left f acc ((c, m), _) = Queue.fold (fun acc k -> f acc (Names.GlobRef.Map.find k m)) acc c
   let fold l2r f acc c = fold_left f acc (if l2r then c else flip c)
 
   let clear_left ((c, _), _) = Queue.clear c

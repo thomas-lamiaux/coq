@@ -875,7 +875,7 @@ let keep_proof_equalities = function
 module KeepEqualities =
 struct
   type t = inductive
-  module Set = Indset_env
+  module Set = Indset
   let encode _env r = Nametab.global_inductive r
   let subst subst obj = Mod_subst.subst_ind subst obj
   let check_local _ _ = ()

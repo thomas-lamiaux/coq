@@ -52,24 +52,24 @@ module DepCache :
 sig
   type t
   val empty : t
-  val get : Constant.t -> t -> (Cset_env.t, Cset_env.t -> unit) union
+  val get : Constant.t -> t -> (Cset.t, Cset.t -> unit) union
   val fresh : t -> t
 end =
 struct
 
-type t = Cset_env.t Cmap_env.t ref option
+type t = Cset.t Cmap.t ref option
 
 let empty = None
 
 let get kn cache = match cache with
 | None -> Inr ignore
 | Some cache ->
-  match Cmap_env.find_opt kn !cache with
-  | None -> Inr (fun s -> cache := Cmap_env.add kn s !cache)
+  match Cmap.find_opt kn !cache with
+  | None -> Inr (fun s -> cache := Cmap.add kn s !cache)
   | Some s -> Inl s
 
 let fresh = function
-| None -> Some (ref Cmap_env.empty)
+| None -> Some (ref Cmap.empty)
 | Some cache -> Some (ref !cache)
 
 end
@@ -89,15 +89,15 @@ type rel_context_val = {
 }
 
 type env = {
-  env_constants : constant_key Cmap_env.t;
-  env_inductives : mind_key Mindmap_env.t;
+  env_constants : constant_key Cmap.t;
+  env_inductives : mind_key Mindmap.t;
   env_modules : module_body ModPath.Map.t;
   env_modtypes : module_type_body ModPath.Map.t;
   env_named_context : named_context_val; (* section variables *)
   env_rel_context   : rel_context_val;
   env_universes : UGraph.t;
   env_qualities : QGraph.t;
-  symb_pats : machine_rewrite_rule list Cmap_env.t;
+  symb_pats : machine_rewrite_rule list Cmap.t;
   env_typing_flags  : typing_flags;
   vm_library : Vmlibrary.t;
   retroknowledge : Retroknowledge.retroknowledge;
@@ -105,10 +105,10 @@ type env = {
 
   (* caches *)
   env_nb_rel        : int;
-  irr_constants : Sorts.relevance Cmap_env.t;
-  irr_inds : Sorts.relevance Indmap_env.t;
-  constant_hyps : Id.Set.t Cmap_env.t;
-  inductive_hyps : Id.Set.t Mindmap_env.t;
+  irr_constants : Sorts.relevance Cmap.t;
+  irr_inds : Sorts.relevance Indmap.t;
+  constant_hyps : Id.Set.t Cmap.t;
+  inductive_hyps : Id.Set.t Mindmap.t;
   constant_deps : DepCache.t CEphemeron.key;
 }
 
@@ -128,20 +128,20 @@ let empty_rel_context_val = {
 }
 
 let empty_env = {
-  env_constants = Cmap_env.empty;
-  env_inductives = Mindmap_env.empty;
+  env_constants = Cmap.empty;
+  env_inductives = Mindmap.empty;
   env_modules = ModPath.Map.empty;
   env_modtypes = ModPath.Map.empty;
-  constant_hyps = Cmap_env.empty;
-  inductive_hyps = Mindmap_env.empty;
+  constant_hyps = Cmap.empty;
+  inductive_hyps = Mindmap.empty;
   env_named_context = empty_named_context_val;
   env_rel_context = empty_rel_context_val;
   env_nb_rel = 0;
   env_universes = UGraph.initial_universes;
   env_qualities = QGraph.initial_graph;
-  irr_constants = Cmap_env.empty;
-  irr_inds = Indmap_env.empty;
-  symb_pats = Cmap_env.empty;
+  irr_constants = Cmap.empty;
+  irr_inds = Indmap.empty;
+  symb_pats = Cmap.empty;
   env_typing_flags = Declareops.safe_flags Conv_oracle.empty;
   vm_library = Vmlibrary.empty;
   retroknowledge = Retroknowledge.empty;
@@ -293,34 +293,34 @@ let record_global_hyps add kn hyps acc =
   else add kn (Context.Named.to_vars hyps) acc
 
 let fold_constants f env acc =
-  Cmap_env.fold (fun c (body,_,_) acc -> f c body acc) env.env_constants acc
+  Cmap.fold (fun c (body,_,_) acc -> f c body acc) env.env_constants acc
 
 let fold_inductives f env acc =
-  Mindmap_env.fold (fun c (body,_,_) acc -> f c body acc) env.env_inductives acc
+  Mindmap.fold (fun c (body,_,_) acc -> f c body acc) env.env_inductives acc
 
 (* Global constants *)
 
 let lookup_constant_opt kn env =
-  match Cmap_env.find_opt kn env.env_constants with
+  match Cmap.find_opt kn env.env_constants with
   | None -> None
   | Some (cb, _, _) -> Some cb
 
 let missing_constant kn =
   anomaly Pp.(str "Constant " ++ Constant.print kn ++ str" does not appear in the environment.")
 
-let lookup_constant_key kn env = match Cmap_env.find_opt kn env.env_constants with
+let lookup_constant_key kn env = match Cmap.find_opt kn env.env_constants with
 | None -> missing_constant kn
 | Some (_, key, _) -> key
 
-let lookup_constant kn env = match Cmap_env.find_opt kn env.env_constants with
+let lookup_constant kn env = match Cmap.find_opt kn env.env_constants with
 | None -> missing_constant kn
 | Some (cb, _, _) -> cb
 
-let lookup_constant_canonical kn env = match Cmap_env.find_opt kn env.env_constants with
+let lookup_constant_canonical kn env = match Cmap.find_opt kn env.env_constants with
 | None -> missing_constant kn
 | Some (_, _, can) -> can
 
-let mem_constant kn env = Cmap_env.mem kn env.env_constants
+let mem_constant kn env = Cmap.mem kn env.env_constants
 
 let add_rewrite_rules l env =
   if not env.rewrite_rules_allowed then raise (RewriteRulesNotAllowed Rule);
@@ -329,30 +329,30 @@ let add_rewrite_rules l env =
     | Some rs -> Some (r::rs)
   in
   { env with
-    symb_pats = List.fold_left (fun symb_pats (c, r) -> Cmap_env.update c (add c r) symb_pats) env.symb_pats l
+    symb_pats = List.fold_left (fun symb_pats (c, r) -> Cmap.update c (add c r) symb_pats) env.symb_pats l
   }
 
 let lookup_rewrite_rules cst env =
-  Cmap_env.find cst env.symb_pats
+  Cmap.find cst env.symb_pats
 
 (* Mutual Inductives *)
 
 let missing_ind kn =
   anomaly Pp.(str "Inductive " ++ MutInd.print kn ++ str" does not appear in the environment.")
 
-let lookup_mind kn env = match Mindmap_env.find_opt kn env.env_inductives with
+let lookup_mind kn env = match Mindmap.find_opt kn env.env_inductives with
 | None -> missing_ind kn
 | Some (mib, _, _) -> mib
 
-let lookup_mind_key kn env = match Mindmap_env.find_opt kn env.env_inductives with
+let lookup_mind_key kn env = match Mindmap.find_opt kn env.env_inductives with
 | None -> missing_ind kn
 | Some (_, key, _) -> key
 
-let lookup_mind_canonical kn env = match Mindmap_env.find_opt kn env.env_inductives with
+let lookup_mind_canonical kn env = match Mindmap.find_opt kn env.env_inductives with
 | None -> missing_ind kn
 | Some (_, _, can) -> can
 
-let ind_relevance kn env = match Indmap_env.find_opt kn env.irr_inds with
+let ind_relevance kn env = match Indmap.find_opt kn env.irr_inds with
 | None -> Sorts.Relevant
 | Some r -> r
 
@@ -425,7 +425,7 @@ let expand_branch_contexts (mib, mip) u params br =
   Array.map2_i build_one_branch br mip.mind_nf_lc
 
 
-let mem_mind kn env = Mindmap_env.mem kn env.env_inductives
+let mem_mind kn env = Mindmap.mem kn env.env_inductives
 
 let mind_context env mind =
   let mib = lookup_mind mind env in
@@ -773,22 +773,22 @@ let add_constant_key kn cb linkinfo env =
       assert (KerName.equal knc kn0)
   in
   let new_constants =
-    Cmap_env.add kn (cb,(ref linkinfo, ref None), Constant.canonical kn) env.env_constants in
+    Cmap.add kn (cb,(ref linkinfo, ref None), Constant.canonical kn) env.env_constants in
   let irr_constants = if cb.const_relevance != Sorts.Relevant
-    then Cmap_env.add kn cb.const_relevance env.irr_constants
+    then Cmap.add kn cb.const_relevance env.irr_constants
     else env.irr_constants
   in
-  let constant_hyps = record_global_hyps Cmap_env.add kn cb.const_hyps env.constant_hyps in
+  let constant_hyps = record_global_hyps Cmap.add kn cb.const_hyps env.constant_hyps in
   let symb_pats =
     match cb.const_body with
     | Symbol _ ->
       if not env.rewrite_rules_allowed then raise (RewriteRulesNotAllowed Symb);
-      Cmap_env.add kn [] env.symb_pats
+      Cmap.add kn [] env.symb_pats
     | _ -> env.symb_pats
   in
   let constant_deps =
     (* when replacing a previous constant, invalidate the cache *)
-    if Cmap_env.mem kn env.env_constants then DepCache.empty
+    if Cmap.mem kn env.env_constants then DepCache.empty
     else match CEphemeron.get env.constant_deps with
     | cache -> cache
     | exception CEphemeron.InvalidKey -> DepCache.empty
@@ -843,7 +843,7 @@ let constant_value_in env (kn,u) =
     | Undef _ -> raise (NotEvaluableConst NoBody)
     | Primitive p -> raise (NotEvaluableConst (IsPrimitive (u,p)))
     | Symbol b ->
-        match Cmap_env.find_opt kn env.symb_pats with
+        match Cmap.find_opt kn env.symb_pats with
         | Some r -> raise (NotEvaluableConst (HasRules (u, b, r)))
         | None -> assert false
 
@@ -859,7 +859,7 @@ let evaluable_constant kn env =
     | OpaqueDef _ -> false
     | Undef _ | Primitive _ | Symbol _ -> false
 
-let constant_relevance kn env = match Cmap_env.find_opt kn env.irr_constants with
+let constant_relevance kn env = match Cmap.find_opt kn env.irr_constants with
 | None -> Sorts.Relevant
 | Some r -> r
 
@@ -986,13 +986,13 @@ let add_mind_key kn mind link env =
       assert (KerName.equal knc kn0)
   in
   let mind_key = (mind, ref link, MutInd.canonical kn) in
-  let new_inds = Mindmap_env.add kn mind_key env.env_inductives in
+  let new_inds = Mindmap.add kn mind_key env.env_inductives in
   let irr_inds = Array.fold_left_i (fun i irr_inds mip ->
       if mip.mind_relevance != Sorts.Relevant
-      then Indmap_env.add (kn, i) mip.mind_relevance irr_inds
+      then Indmap.add (kn, i) mip.mind_relevance irr_inds
       else irr_inds) env.irr_inds mind.mind_packets
   in
-  let inductive_hyps = record_global_hyps Mindmap_env.add kn mind.mind_hyps env.inductive_hyps in
+  let inductive_hyps = record_global_hyps Mindmap.add kn mind.mind_hyps env.inductive_hyps in
   { env with inductive_hyps; irr_inds; env_inductives = new_inds }
 
 let add_mind kn mib env =
@@ -1001,10 +1001,10 @@ let add_mind kn mib env =
 (* Lookup of section variables *)
 
 let lookup_constant_variables c env =
-  Option.default Id.Set.empty (Cmap_env.find_opt c env.constant_hyps)
+  Option.default Id.Set.empty (Cmap.find_opt c env.constant_hyps)
 
 let lookup_inductive_variables (kn,_i) env =
-  Option.default Id.Set.empty (Mindmap_env.find_opt kn env.inductive_hyps)
+  Option.default Id.Set.empty (Mindmap.find_opt kn env.inductive_hyps)
 
 let lookup_constructor_variables (ind,_) env =
   lookup_inductive_variables ind env
@@ -1268,13 +1268,13 @@ module HackQ (X:HackQS) (UserMap:CSig.UMapS with type key = X.t) = struct
   module Map = QMap(UserMap)(Self)
 end
 
-module QConstant = HackQ(Constant)(Cmap_env)
+module QConstant = HackQ(Constant)(Cmap)
 
-module QMutInd = HackQ(MutInd)(Mindmap_env)
+module QMutInd = HackQ(MutInd)(Mindmap)
 
-module QInd = HackQ(Ind)(Indmap_env)
+module QInd = HackQ(Ind)(Indmap)
 
-module QConstruct = HackQ(Construct)(Constrmap_env)
+module QConstruct = HackQ(Construct)(Constrmap)
 
 module QProjection =
 struct
@@ -1282,24 +1282,24 @@ struct
   module Repr = HackQ(Projection.Repr)(HMap.Make(Projection.Repr.UserOrd))
 end
 
-module QGlobRef = HackQ(GlobRef)(GlobRef.Map_env)
+module QGlobRef = HackQ(GlobRef)(GlobRef.Map)
 
 let rec constant_dependencies_with_cache env cache kn =
   match DepCache.get kn cache with
   | Inl deps -> deps
   | Inr set ->
-    match Cmap_env.find_opt kn env.env_constants with
-    | None -> Cset_env.empty
+    match Cmap.find_opt kn env.env_constants with
+    | None -> Cset.empty
     | Some (body, _, _) ->
       let deps = match body.const_body with
       | Def c ->
         let rec compute_dependencies accu c = match kind c with
         | Const (kn, _) ->
-          Cset_env.fold Cset_env.add (constant_dependencies_with_cache env cache kn) (Cset_env.add kn accu)
+          Cset.fold Cset.add (constant_dependencies_with_cache env cache kn) (Cset.add kn accu)
         | _ -> Constr.fold compute_dependencies accu c
         in
-        compute_dependencies Cset_env.empty c
-      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> Cset_env.empty
+        compute_dependencies Cset.empty c
+      | Undef _ | OpaqueDef _ | Primitive _ | Symbol _ -> Cset.empty
       in
       let () = set deps in
       deps
@@ -1312,7 +1312,7 @@ let constant_dependencies env kn =
   constant_dependencies_with_cache env cache kn
 
 let constant_depends_on env cst1 cst2 =
-  Cset_env.mem cst2 (constant_dependencies env cst1)
+  Cset.mem cst2 (constant_dependencies env cst1)
 
 module Internal = struct
   let push_template_context uctx env =
@@ -1327,21 +1327,21 @@ module Internal = struct
   module View =
   struct
     type t = {
-      env_constants : constant_body Cmap_env.t;
-      env_inductives : mutual_inductive_body Mindmap_env.t;
+      env_constants : constant_body Cmap.t;
+      env_inductives : mutual_inductive_body Mindmap.t;
       env_modules : module_body ModPath.Map.t;
       env_modtypes : module_type_body ModPath.Map.t;
       env_named_context : named_context;
       env_rel_context   : rel_context;
       env_universes : UGraph.t;
       env_qualities : Sorts.Quality.Set.t;
-      env_symb_pats : machine_rewrite_rule list Cmap_env.t;
+      env_symb_pats : machine_rewrite_rule list Cmap.t;
       env_typing_flags  : typing_flags;
     }
 
     let view (env : env) = {
-      env_constants = Cmap_env.map (fun (cb, _, _) -> cb) env.env_constants;
-      env_inductives = Mindmap_env.map (fun (mib, _, _) -> mib) env.env_inductives;
+      env_constants = Cmap.map (fun (cb, _, _) -> cb) env.env_constants;
+      env_inductives = Mindmap.map (fun (mib, _, _) -> mib) env.env_inductives;
       env_modtypes = env.env_modtypes;
       env_modules = env.env_modules;
       env_named_context = env.env_named_context.env_named_ctx;

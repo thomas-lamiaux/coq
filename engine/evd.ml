@@ -364,8 +364,8 @@ type side_effects = {
   (* If seff_safeenv = Some senv, then senv = Global.safe_env + seff_private *)
   seff_labels : Id.Set.t;
   seff_private : Safe_typing.private_constants;
-  seff_roles : side_effect_role Cmap_env.t;
-  seff_univs : UState.named_universes_entry Cmap_env.t;
+  seff_roles : side_effect_role Cmap.t;
+  seff_univs : UState.named_universes_entry Cmap.t;
 }
 
 module FutureGoals : sig
@@ -876,8 +876,8 @@ let empty_side_effects = {
   seff_safeenv = None;
   seff_labels = Id.Set.empty;
   seff_private = Safe_typing.empty_private_constants;
-  seff_roles = Cmap_env.empty;
-  seff_univs = Cmap_env.empty;
+  seff_roles = Cmap.empty;
+  seff_univs = Cmap.empty;
 }
 
 let empty = {
@@ -1263,8 +1263,8 @@ let concat_side_effects eff1 eff2 = {
   seff_safeenv = None;
   seff_labels = Id.Set.fold Id.Set.add eff1.seff_labels eff2.seff_labels;
   seff_private = Safe_typing.concat_private eff1.seff_private eff2.seff_private;
-  seff_roles = Cmap_env.fold Cmap_env.add eff1.seff_roles eff2.seff_roles;
-  seff_univs = Cmap_env.fold Cmap_env.add eff1.seff_univs eff2.seff_univs;
+  seff_roles = Cmap.fold Cmap.add eff1.seff_roles eff2.seff_roles;
+  seff_univs = Cmap.fold Cmap.add eff1.seff_univs eff2.seff_univs;
 }
 
 let emit_side_effects eff evd =
@@ -1289,11 +1289,11 @@ let push_side_effects ?role ?ts name de ctx effs =
   let seff_univs =
     if Univ.Level.Set.is_empty (fst ctx) then effs.seff_univs
     else
-      Cmap_env.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.seff_univs
+      Cmap.add kn (UState.Monomorphic_entry ctx, UnivNames.empty_binders) effs.seff_univs
   in
   let seff_roles = match role with
   | None -> effs.seff_roles
-  | Some r -> Cmap_env.add kn r effs.seff_roles
+  | Some r -> Cmap.add kn r effs.seff_roles
   in
   let effs = {
     seff_private = Safe_typing.concat_private prv effs.seff_private;

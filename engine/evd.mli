@@ -425,8 +425,8 @@ val avoid_side_effect_label : Id.t -> evar_map -> evar_map
 
 val seff_mem_label : Id.t -> side_effects -> bool
 val seff_private : side_effects -> Safe_typing.private_constants
-val seff_roles : side_effects -> side_effect_role Cmap_env.t
-val seff_univs : side_effects -> UState.named_universes_entry Names.Cmap_env.t
+val seff_roles : side_effects -> side_effect_role Cmap.t
+val seff_univs : side_effects -> UState.named_universes_entry Names.Cmap.t
 
 (** {5 Future goals} *)
 

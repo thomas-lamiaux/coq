@@ -951,20 +951,20 @@ let inline_side_effects env body side_eff =
       | Monomorphic ->
         (** Abstract over the term at the top of the proof *)
         let ty = cb.const_type in
-        let subst = Cmap_env.add c (Inr var) subst in
+        let subst = Cmap.add c (Inr var) subst in
         let ctx = Univ.ContextSet.union ctx univs in
         (subst, var + 1, ctx, (cname c cb.const_relevance, b, ty, opaque) :: args)
       | Polymorphic _ ->
         let () = assert (Univ.ContextSet.is_empty univs) in
         (** Inline the term to emulate universe polymorphism *)
-        let subst = Cmap_env.add c (Inl b) subst in
+        let subst = Cmap.add c (Inl b) subst in
         (subst, var, ctx, args)
     in
-    let (subst, len, ctx, args) = List.fold_left fold (Cmap_env.empty, 1, Univ.ContextSet.empty, []) side_eff in
+    let (subst, len, ctx, args) = List.fold_left fold (Cmap.empty, 1, Univ.ContextSet.empty, []) side_eff in
     (** Third step: inline the definitions *)
     let rec subst_const i k t = match Constr.kind t with
     | Const (c, u) ->
-      let data = try Some (Cmap_env.find c subst) with Not_found -> None in
+      let data = try Some (Cmap.find c subst) with Not_found -> None in
       begin match data with
       | None -> t
       | Some (Inl b) ->

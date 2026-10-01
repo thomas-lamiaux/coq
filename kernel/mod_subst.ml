@@ -569,9 +569,9 @@ let subst_mps_aux subst = function
 let subst_mps_list substs c =
   if List.is_empty substs || List.for_all is_empty_subst substs then c
   else
-    let cache_const = ref Cmap_env.empty in
-    let cache_ind = ref Mindmap_env.empty in
-    let subst_const (con, u as pcon) = match Cmap_env.find_opt con !cache_const with
+    let cache_const = ref Cmap.empty in
+    let cache_ind = ref Mindmap.empty in
+    let subst_const (con, u as pcon) = match Cmap.find_opt con !cache_const with
     | Some ans ->
       if ans == con then raise No_subst else mkConstU (ans, u)
     | None ->
@@ -579,15 +579,15 @@ let subst_mps_list substs c =
       (* Do not cache arbitrary inline terms *)
       match ans with
       | Inl (con', _ as ans) ->
-        let () = cache_const := Cmap_env.add con con' !cache_const in
+        let () = cache_const := Cmap.add con con' !cache_const in
         if con' == con then raise No_subst else mkConstU ans
       | Inr ans -> ans
     in
-    let subst_mind ind = match Mindmap_env.find_opt ind !cache_ind with
+    let subst_mind ind = match Mindmap.find_opt ind !cache_ind with
     | Some ans -> ans
     | None ->
       let ans = List.fold_right subst_mind substs ind in
-      let () = cache_ind := Mindmap_env.add ind ans !cache_ind in
+      let () = cache_ind := Mindmap.add ind ans !cache_ind in
       ans
     in
     map_kn subst_mind subst_const c

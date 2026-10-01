@@ -23,8 +23,8 @@ open Printer
 *)
 val traverse :
   Global.indirect_accessor -> GlobRef.t list ->
-    (GlobRef.Set_env.t * GlobRef.Set_env.t option GlobRef.Map_env.t *
-     (GlobRef.t * Constr.rel_context * types) list GlobRef.Map_env.t)
+    (GlobRef.Set.t * GlobRef.Set.t option GlobRef.Map.t *
+     (GlobRef.t * Constr.rel_context * types) list GlobRef.Map.t)
 
 (** Collects all the assumptions (optionally including opaque definitions)
    on which terms rely (together with their type). The above warning of

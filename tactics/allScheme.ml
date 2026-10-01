@@ -87,9 +87,9 @@ let get_inductive_sort (mib, mip) u = match mib.mind_template with
 module Cache =
 struct
 
-type t = { mutable uniform : bool list Mindmap_env.t }
+type t = { mutable uniform : bool list Mindmap.t }
 
-let empty () = { uniform = Mindmap_env.empty }
+let empty () = { uniform = Mindmap.empty }
 
 end
 
@@ -198,7 +198,7 @@ and compute_params_rec_strpos_aux cache env kn uparams nuparams nparams_rec npar
   res
 
 and compute_params_rec_strpos cache env kn mib =
-  match Mindmap_env.find_opt kn cache.Cache.uniform with
+  match Mindmap.find_opt kn cache.Cache.uniform with
 | None ->
   (* reset the context *)
   let env = set_rel_context_val empty_rel_context_val env in
@@ -216,7 +216,7 @@ and compute_params_rec_strpos cache env kn mib =
   let (uparams, nuparams) = map_pair List.rev @@ Context.Rel.chop_nhyps mib.mind_nparams_rec @@
                             List.rev mib.mind_params_ctxt in
   let ans = compute_params_rec_strpos_aux cache env kn uparams nuparams mib.mind_nparams_rec mib.mind_nparams inds in
-  let () = cache.Cache.uniform <- Mindmap_env.add kn ans cache.Cache.uniform in
+  let () = cache.Cache.uniform <- Mindmap.add kn ans cache.Cache.uniform in
   ans
 | Some unf -> unf
 
@@ -286,10 +286,10 @@ let compute_positive_uparams_and_suffix env kn mib user_id =
       (user_strpos, fst partial_suffix, snd partial_suffix)
 
 module Warning_scheme_all = struct
-  type cache = GlobRef.Set_env.t ref
+  type cache = GlobRef.Set.t ref
   type t = string * inductive * GlobRef.t
 
-  let empty_cache () = ref GlobRef.Set_env.empty
+  let empty_cache () = ref GlobRef.Set.empty
 
 (** Warning for looking up the [all] predicate and its theorem  *)
   let warn_lookup_not_found =
@@ -318,9 +318,9 @@ module Warning_scheme_all = struct
       warn and add it to the cache *)
   let warn warn cache =
     let (_,_,container) = warn in
-    let () = if not (GlobRef.Set_env.mem container !cache) then
+    let () = if not (GlobRef.Set.mem container !cache) then
       let () = warn_lookup_not_found warn in
-      cache := GlobRef.Set_env.add container !cache
+      cache := GlobRef.Set.add container !cache
     in ()
 
 end
