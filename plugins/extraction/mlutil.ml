@@ -23,7 +23,7 @@ exception Impossible
 
 (*S Names operations. *)
 
-let eq_global g1 g2 = GlobRef.CanOrd.equal g1.glob g2.glob (* FIXME *)
+let eq_global g1 g2 = GlobRef.UserOrd.equal g1.glob g2.glob
 
 let anonymous_name = Id.of_string "x"
 let dummy_name = Id.of_string "_"
@@ -695,7 +695,7 @@ let is_regular_match br =
         | _ -> raise Impossible
       in
       let is_ref i tr = match get_r tr with
-      | { glob = GlobRef.ConstructRef (ind', j) } -> Ind.CanOrd.equal ind ind' && Int.equal j (i + 1)
+      | { glob = GlobRef.ConstructRef (ind', j) } -> Ind.UserOrd.equal ind ind' && Int.equal j (i + 1)
       | _ -> false
       in
       Array.for_all_i is_ref 0 br
