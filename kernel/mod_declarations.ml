@@ -273,7 +273,7 @@ let functorize_module params mb =
 
 (** Substitutions of modular structures *)
 
-type subst_kind = Codom | Both | Neither
+type subst_kind = Codom | Both
 
 let subst_codom = Codom
 let subst_dom_codom = Both
@@ -281,7 +281,6 @@ let subst_dom_codom = Both
 let apply_subst skind subst delta = match skind with
 | Codom -> subst_codom_delta_resolver subst delta
 | Both -> subst_dom_codom_delta_resolver subst delta
-| Neither -> delta
 
 let is_functor = function
   | NoFunctor _ -> false
@@ -344,7 +343,7 @@ and subst_module skind subst mp mb =
 and subst_impl : type a. _ -> _ -> _ -> (a, _) when_mod_body -> (a, _) when_mod_body =
   fun skind subst mp me ->
   implem_smart_map
-    (fun (reso, sign) -> apply_subst skind subst reso, subst_structure Neither subst mp sign) (subst_expression subst) me
+    (fun (reso, sign) -> apply_subst skind subst reso, subst_structure skind subst mp sign) (subst_expression subst) me
 
 and subst_modtype skind subst mp mtb = subst_module_body false skind subst mp mtb
 
