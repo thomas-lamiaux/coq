@@ -374,7 +374,7 @@ let v_cst_def =
     [|[|v_opt v_int|]; [|v_constr|]; [|v_opaque|]; [|v_primitive|]; [|v_bool|]|]
 
 let v_guard_options =
-  v_tuple "guard_options" [|v_bool|]
+  v_tuple "guard_options" [|v_bool; v_bool|]
 
 let v_typing_flags =
   v_tuple "typing_flags"

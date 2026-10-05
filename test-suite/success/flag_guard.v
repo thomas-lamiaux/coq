@@ -63,3 +63,63 @@ Module Subterm.
     end.
 
 End Subterm.
+
+(* Reduction used to instantiate delayed recursive calls. *)
+Module Reduction.
+
+  Fixpoint beta (n : nat) : nat :=
+    match n with
+    | 0 => 0
+    | S p => (fun q => beta q) p
+    end.
+
+  Fixpoint alias (n : nat) : nat :=
+    let g := alias in
+    match n with
+    | 0 => 0
+    | S p => g p
+    end.
+
+  (* Reject the recursive call exposed by beta reduction. *)
+  Fail Fixpoint beta_same (n : nat) : nat :=
+    match n with
+    | 0 => 0
+    | S _ => (fun q => beta_same q) n
+    end.
+
+  (* Reject an invalid call even when an enclosing let would erase it. *)
+  Fail Fixpoint invalid (n : nat) : nat :=
+    let _ := invalid (S n) in 0.
+
+  (* An outer let can erase a blocked match containing a delayed call. *)
+  Fixpoint blocked (b : bool) (n : nat) : nat :=
+    let _ :=
+      match b with
+      | true => fun _ : nat => 0
+      | false => blocked b
+      end
+    in 0.
+
+  Unset Guard Checking Option Reduction.
+
+  Fail Fixpoint beta_off (n : nat) : nat :=
+    match n with
+    | 0 => 0
+    | S p => (fun q => beta_off q) p
+    end.
+
+  Fail Fixpoint alias_off (n : nat) : nat :=
+    let g := alias_off in
+    match n with
+    | 0 => 0
+    | S p => g p
+    end.
+
+  (* Ordinary recursion and weak-head subterm reduction remain available. *)
+  Fixpoint direct (n : nat) : nat :=
+    match n with
+    | 0 => 0
+    | S p => direct ((fun q => q) p)
+    end.
+
+End Reduction.

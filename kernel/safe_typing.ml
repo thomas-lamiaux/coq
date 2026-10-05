@@ -329,9 +329,14 @@ let set_check_guarded b senv =
   let flags = Environ.typing_flags senv.env in
   set_typing_flags { flags with check_guarded = b } senv
 
+let set_guard_checking_option_reduction b senv =
+  let flags = Environ.typing_flags senv.env in
+  let new_options = { flags.guard_checking_options with reduction = b } in
+  set_typing_flags { flags with guard_checking_options = new_options } senv
+
 let set_guard_checking_option_subterm b senv =
   let flags = Environ.typing_flags senv.env in
-  let new_options = { traversing_subterm_analysis = b} in
+  let new_options = { flags.guard_checking_options with traversing_subterm_analysis = b } in
   set_typing_flags { flags with guard_checking_options = new_options } senv
 
 let set_check_positive b senv =
@@ -378,8 +383,9 @@ let with_typing_flags ?typing_flags senv ~f =
 
 let stricter_guard_options f1 f2 =
   let impl b1 b2 = if b1 then b2 else true in
-  let { traversing_subterm_analysis = traversing_subterm_analysis1 } = f1 in
-  let { traversing_subterm_analysis = traversing_subterm_analysis2 } = f2 in
+  let { reduction = reduction1; traversing_subterm_analysis = traversing_subterm_analysis1 } = f1 in
+  let { reduction = reduction2; traversing_subterm_analysis = traversing_subterm_analysis2 } = f2 in
+  impl reduction1 reduction2 &&
   impl traversing_subterm_analysis1 traversing_subterm_analysis2
 
 (* f1 is stricter than f2 if terms typed with f1 also type with f2 *)

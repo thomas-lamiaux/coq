@@ -1494,20 +1494,26 @@ let filter_fix_stack_domain ?evars nr decrarg stack nuniformparams =
       a :: aux (i+1) nuniformparams stack
   in aux 0 nuniformparams stack
 
-let pop_argument ?evars needreduce renv elt stack x a b =
+let pop_argument ?evars needreduce renv elt stack rs x a b =
+  let reduction = (Environ.typing_flags renv.env).guard_checking_options.reduction in
   match needreduce, elt with
-  | NoNeedReduce, SClosure (NoNeedReduce, _, n, c) ->
+  | NoNeedReduce, SClosure (NoNeedReduce, _, n, c) when reduction ->
     (* Neither function nor args have rec calls on internally bound variables *)
     let spec = stack_element_specif ?evars elt in
     (* Thus, args do not a priori require to be rechecked, so we push a let *)
     (* maybe the body of the let will have to be locally expanded though, see Rel case *)
-    push_let renv (x,lift n c,a,spec), lift1_stack stack, b
-  | _, SClosure (_, _, n, c) ->
+    push_let renv (x,lift n c,a,spec), rs, lift1_stack stack, b
+  | _, SClosure (_, _, n, c) when reduction ->
     (* Either function or args have rec call on internally bound variables *)
-    renv, stack, subst1 (lift n c) b
+    renv, rs, stack, subst1 (lift n c) b
   | _, SArg spec ->
-    (* Going down a case branch *)
-    push_var renv (x,a,spec), lift1_stack stack, b
+    (* Binding a pattern variable is independent of reduction. *)
+    push_var renv (x,a,spec), rs, lift1_stack stack, b
+  | _, SClosure (r, _, _, _) ->
+    (* Without substitution, preserve pending checks from the argument and
+       check the body without transferring its subterm information. *)
+    let rs = (r ||| List.hd rs) :: List.tl rs in
+    push_var renv (x,a,lazy Subterm.not_subterm), rs, lift1_stack stack, b
 
 let judgment_of_fixpoint (_, types, bodies) =
   Array.map2 (fun typ body -> { uj_val = body ; uj_type = typ }) types bodies
@@ -1656,7 +1662,7 @@ let check_one_fix ?evars renv recpos trees def =
               let needreduce, rs = check_rec_call renv rs a in
               match stack with
               | elt :: stack ->
-                let renv, stack, b = pop_argument ?evars needreduce renv elt stack x a b in
+                let renv, rs, stack, b = pop_argument ?evars needreduce renv elt stack rs x a b in
                 check_rec_call_stack renv stack rs b
               | [] ->
                 check_rec_call_stack (push_var_renv renv (redex_level rs) (x,a)) [] rs b
@@ -1707,13 +1713,18 @@ let check_one_fix ?evars renv recpos trees def =
             let needreduce_c, rs = check_rec_call renv rs c in
             let needreduce_t, rs = check_rec_call renv rs t in
             begin
+              let reduction = (Environ.typing_flags renv.env).guard_checking_options.reduction in
               match needreduce_of_stack stack ||| needreduce_c ||| needreduce_t with
-              | NoNeedReduce ->
+              | NoNeedReduce when reduction ->
                   (* Stack do not require to beta-reduce; let's look if the body of the let needs *)
                   let spec = lazy_subterm_specif ?evars renv [] c in
                   let stack = lift1_stack stack in
                   check_rec_call_stack (push_let renv (x,c,t,spec)) stack rs b
-              | NeedReduce _ -> check_rec_call_stack renv stack rs (subst1 c b)
+              | NeedReduce _ when reduction -> check_rec_call_stack renv stack rs (subst1 c b)
+              | r ->
+                  let spec = lazy_subterm_specif ?evars renv [] c in
+                  let rs = (r ||| List.hd rs) :: List.tl rs in
+                  check_rec_call_stack (push_var renv (x,t,spec)) (lift1_stack stack) rs b
             end
 
         | Cast (c,_,t) ->
@@ -1747,7 +1758,7 @@ let check_one_fix ?evars renv recpos trees def =
             let rs = check_inert_subterm_rec_call renv rs a in
             match stack with
             | elt :: stack ->
-              let renv', stack', body' = pop_argument NoNeedReduce renv elt stack x a body in
+              let renv', rs, stack', body' = pop_argument NoNeedReduce renv elt stack rs x a body in
               check_nested_fix_body renv' (decr-1) stack' rs body'
             | [] ->
               let renv' = push_var_renv renv (redex_level rs) (x,a) in
@@ -1762,6 +1773,9 @@ let check_one_fix ?evars renv recpos trees def =
     match needreduce_of_head ||| needreduce_of_stack stack with
     | NoNeedReduce -> rs
     | NeedReduce _ as e ->
+        if not (Environ.typing_flags renv.env).guard_checking_options.reduction then
+          e :: List.tl rs
+        else
         (* Expand if possible, otherwise, last chance, propagate need
            for expansion, in the hope to be eventually erased *)
         match expand_head () with

@@ -62,6 +62,10 @@ type universes =
   | Polymorphic of UVars.AbstractContext.t
 
 type guard_options = {
+  reduction : bool;
+  (** Allow reduction to instantiate or erase delayed recursive calls.
+      Weak-head reduction during subterm analysis is independent of this option.
+  *)
   traversing_subterm_analysis : bool;
   (** If [false], recursion is only accepted on term which weak-head is a variable.
       If [true], the subterm analysis goes through fixpoint and pattern-matching.
