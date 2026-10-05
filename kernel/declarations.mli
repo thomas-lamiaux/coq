@@ -62,6 +62,10 @@ type universes =
   | Polymorphic of UVars.AbstractContext.t
 
 type guard_options = {
+  beta_iota_cut : bool;
+  (** If [false], subterm information is not propagated through matches
+      applied to arguments.
+      Beta and iota reduction remain enabled. *)
   traversing_subterm_analysis : bool;
   (** If [false], recursion is only accepted on term which weak-head is a variable.
       If [true], the subterm analysis goes through fixpoint and pattern-matching.

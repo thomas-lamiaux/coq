@@ -1225,6 +1225,11 @@ let restrict_spec ?evars env spec p =
 (* [filter_stack_domain env spec p] restricts the size information in stack to
    what is allowed to enter under a match with predicate p in environment env. *)
 let filter_stack_domain stack_element_specif not_subterm ?evars env p stack =
+  (* Forget incoming subterm information while retaining the caller's
+     deferred-reduction status: reducing the match may still validate a call. *)
+  if not (Environ.typing_flags env).guard_checking_options.beta_iota_cut then
+    List.map (fun _ -> SArg not_subterm) stack
+  else
   let absctx, ar = Term.decompose_lambda_decls p in
   let absctxlen = Context.Rel.length absctx in
   (* Optimization: if the predicate is not dependent, no restriction is needed

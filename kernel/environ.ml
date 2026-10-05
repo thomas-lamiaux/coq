@@ -686,8 +686,10 @@ let push_subgraph (levels, univ_csts) env =
 let push_subgraph us env = NewProfile.profile "push_subgraph" (fun () -> push_subgraph us env) ()
 
 let same_guard_options {
+  beta_iota_cut;
   traversing_subterm_analysis
 } alt =
+  beta_iota_cut == alt.beta_iota_cut &&
   traversing_subterm_analysis == alt.traversing_subterm_analysis
 
 (* It's convenient to use [{flags with foo = bar}] so we're smart wrt to it. *)

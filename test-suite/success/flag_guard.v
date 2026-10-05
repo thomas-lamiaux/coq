@@ -63,3 +63,46 @@ Module Subterm.
     end.
 
 End Subterm.
+
+
+(* Propagation through beta-iota cuts, independently of subterm traversal. *)
+Module BetaIotaCut.
+
+  (* Exercise recursive-call checking with an argument passed into a match. *)
+  Fixpoint cut (b : bool) (n : nat) {struct n} : nat :=
+    match n with
+    | 0 => 0
+    | S p => (match b with
+              | true => fun q => cut b q
+              | false => fun _ => 0
+              end) p
+    end.
+
+  (* Exercise subterm analysis with a computed recursive argument. *)
+  Definition select (b : bool) (p : nat) :=
+    (match b with true => fun q => q | false => fun q => q end) p.
+
+  Fixpoint computed_cut (b : bool) (n : nat) {struct n} : nat :=
+    match n with
+    | 0 => 0
+    | S p => computed_cut b (select b p)
+    end.
+
+  Unset Guard Checking Option Beta Iota Cut.
+
+  Fail Fixpoint cut_off (b : bool) (n : nat) {struct n} : nat :=
+    match n with
+    | 0 => 0
+    | S p => (match b with
+              | true => fun q => cut_off b q
+              | false => fun _ => 0
+              end) p
+    end.
+
+  Fail Fixpoint computed_cut_off (b : bool) (n : nat) {struct n} : nat :=
+    match n with
+    | 0 => 0
+    | S p => computed_cut_off b (select b p)
+    end.
+
+End BetaIotaCut.

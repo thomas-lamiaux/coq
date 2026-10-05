@@ -24,6 +24,7 @@ let configure_enabled_native = match Coq_config.native_compiler with
   | NativeOn _ -> true
 
 let default_guard_optons = {
+  beta_iota_cut = true;
   traversing_subterm_analysis = true;
 }
 
