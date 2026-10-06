@@ -454,13 +454,17 @@ over inductive types.
    The :attr:`bypass_check(guard)` attribute disables termination checking for
    this definition.
 
-   With the :attr:`program` attribute, :cmd:`Fixpoint` also supports
-   well-founded recursion: :n:`wf` specifies a well-founded relation on an
-   argument, while :n:`measure` specifies a measure that must decrease at
-   recursive calls. Program generates obligations to prove the decrease and
-   well-foundedness of the relation. These annotations are not supported
-   without :attr:`program`. See :ref:`program_fixpoint` for their syntax,
-   defaults, and examples.
+   Both the :n:`wf` and :n:`measure` annotations require the :attr:`program`
+   attribute on :cmd:`Fixpoint`. The :n:`wf` annotation specifies a
+   well-founded relation on an argument, while :n:`measure` specifies a
+   measure that must decrease at recursive calls. Program converts the
+   measure into a relation on the arguments and handles both annotations
+   using the same well-founded recursion infrastructure. It generates
+   obligations to prove the decrease and well-foundedness of the relation.
+   See :ref:`program_fixpoint` for annotation syntax, defaults, and examples.
+
+   The :cmd:`Function` command provides separate support for well-founded and
+   measure-based recursion without using Program.
 
    The :n:`{struct @ident}` annotation (see :n:`@fixannot`) selects the
    *structural argument*, also called the decreasing argument. Definitions
@@ -1139,6 +1143,16 @@ breaking strong normalization.
    primitive projections, as described in the
    :ref:`minimal guard condition <minimal-guard-condition>`.
 
+   This flag also changes the elaboration of :cmd:`Fixpoint` with the
+   :attr:`program` attribute and either a :n:`wf` or :n:`measure` annotation.
+   Program uses :g:`Fix_sub` when the flag is enabled and :g:`Fix_sub_struct`
+   when it is disabled. The latter matches the accessibility proof before
+   making recursive calls, so its recursive arguments satisfy the guard
+   condition without traversing subterm analysis. The choice is made when
+   the definition is elaborated; changing the flag later does not change
+   existing definitions or pending obligations. See :ref:`program_fixpoint`
+   for the definitions of these combinators and their reduction behavior.
+
    .. example:: Disabling traversing subterm analysis
 
       With this flag disabled, the subtraction in :g:`z - y` cannot be analyzed
@@ -1190,13 +1204,15 @@ breaking strong normalization.
 
       The following definition of :g:`f` is accepted, but unfolding it
       with :tacn:`cbv` in the proof of :g:`fid` produces a proof term that
-      is rejected when checked by :cmd:`Qed`.
+      is rejected when checked by :cmd:`Qed` after disabling traversing
+      subterm analysis. The definition is elaborated with the flag enabled
+      and therefore uses the original Program recursion combinator.
 
       .. rocqtop:: in reset
 
          Require Import Program.Wf.
 
-         Unset Guard Checking Option Traversing Subterm Analysis.
+         Set Guard Checking Option Traversing Subterm Analysis.
 
          Program Fixpoint f x {wf lt x} :=
            match x with 0 => 0 | S n => S (f n) end.
@@ -1207,6 +1223,8 @@ breaking strong normalization.
            all: inversion H; eauto.
            now constructor.
          Defined.
+
+         Unset Guard Checking Option Traversing Subterm Analysis.
 
          Definition fid n : f n = n.
          Proof.
@@ -1224,7 +1242,9 @@ breaking strong normalization.
 
       Although this failure can be avoided in this simple case, unfolding
       definitions that rely on traversing subterm analysis can require
-      re-enabling the flag.
+      re-enabling the flag. Program definitions elaborated with the flag
+      disabled use an alternative combinator compatible with this setting;
+      see :ref:`program_fixpoint`.
 
 .. _inductive-definitions:
 

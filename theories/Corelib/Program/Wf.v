@@ -69,6 +69,69 @@ Section Well_founded.
     exact Fix_eq.
   Qed.
 
+  (* Alternative to Fix_F_sub and Fix_sub for use when traversing subterm
+     analysis is disabled. Matching the accessibility proof before the
+     recursive call exposes its recursive constructor argument directly.
+     The compatibility and equation lemmas below relate this implementation
+     to the original one under the same F_ext hypothesis. *)
+  Fixpoint Fix_F_sub_struct (x : A) (r : Acc R x) {struct r} : P x :=
+    match r with
+    | Acc_intro _ k =>
+      F_sub x (fun y : { y : A | R y x } =>
+        Fix_F_sub_struct (proj1_sig y) (k (proj1_sig y) (proj2_sig y)))
+    end.
+
+  Definition Fix_sub_struct (x : A) := Fix_F_sub_struct x (Rwf x).
+
+  Register Fix_sub_struct as program.wf.fix_sub_struct.
+
+  Lemma Fix_F_struct_eq : forall (x : A) (r : Acc R x),
+    F_sub x (fun y : { y : A | R y x } =>
+      Fix_F_sub_struct (proj1_sig y) (Acc_inv r (proj2_sig y))) =
+    Fix_F_sub_struct x r.
+  Proof.
+    intros x r; destruct r using Acc_inv_dep; reflexivity.
+  Qed.
+
+  Lemma Fix_F_sub_struct_compat : forall x (r : Acc R x),
+    Fix_F_sub_struct x r = Fix_F_sub x r.
+  Proof.
+    intros x r; induction r using Acc_inv_dep.
+    cbn [Fix_F_sub_struct].
+    rewrite <- Fix_F_eq.
+    apply F_ext.
+    intros [y h]; cbn.
+    apply H.
+  Qed.
+
+  Lemma Fix_F_struct_inv : forall (x : A) (r s : Acc R x),
+    Fix_F_sub_struct x r = Fix_F_sub_struct x s.
+  Proof.
+    intros x r s; rewrite !Fix_F_sub_struct_compat.
+    apply Fix_F_inv.
+  Qed.
+
+  Lemma Fix_struct_eq : forall x : A,
+    Fix_sub_struct x =
+    F_sub x (fun y : { y : A | R y x } => Fix_sub_struct (proj1_sig y)).
+  Proof.
+    intro x; unfold Fix_sub_struct.
+    rewrite (Fix_F_sub_struct_compat x (Rwf x)).
+    change (Fix_sub x =
+      F_sub x (fun y : { y : A | R y x } => Fix_F_sub_struct (proj1_sig y) (Rwf (proj1_sig y)))).
+    rewrite Fix_eq.
+    apply F_ext; intro y.
+    symmetry; apply Fix_F_sub_struct_compat.
+  Qed.
+
+  Lemma fix_sub_struct_eq : forall x : A,
+    Fix_sub_struct x =
+    let f_sub := F_sub in
+      f_sub x (fun y : { y : A | R y x } => Fix_sub_struct (proj1_sig y)).
+  Proof.
+    exact Fix_struct_eq.
+  Qed.
+
 End Well_founded.
 
 Set Implicit Arguments.
@@ -206,6 +269,59 @@ Section Fix_rects.
     apply eq_Fix_F_sub.
   Qed.
 
+  Lemma F_unfold_struct x r :
+    Fix_F_sub_struct A R P f x r =
+    f (fun y => Fix_F_sub_struct A R P f (proj1_sig y) (Acc_inv r (proj2_sig y))).
+  Proof. destruct r; reflexivity. Qed.
+
+  Lemma Fix_F_sub_struct_rect
+    (Q : forall x, P x -> Type)
+    (inv : forall x : A,
+      (forall (y : A) (H : R y x) (a : Acc R y),
+        Q y (Fix_F_sub_struct A R P f y a)) ->
+      forall a : Acc R x,
+        Q x (f (fun y : { y : A | R y x } =>
+          Fix_F_sub_struct A R P f (proj1_sig y) (Acc_inv a (proj2_sig y)))))
+    : forall x a, Q x (Fix_F_sub_struct A R P f x a).
+  Proof.
+    set (R' := fun x : A => forall a, Q x (Fix_F_sub_struct A R P f x a)).
+    cut (forall x, R' x); auto.
+    apply (well_founded_induction_type Rwf).
+    subst R'; simpl; intros.
+    rewrite F_unfold_struct; auto.
+  Qed.
+
+  Lemma eq_Fix_F_sub_struct x (a a' : Acc R x) :
+    Fix_F_sub_struct A R P f x a = Fix_F_sub_struct A R P f x a'.
+  Proof.
+    revert a'.
+    pattern x, (Fix_F_sub_struct A R P f x a).
+    apply Fix_F_sub_struct_rect.
+    intros ? H **.
+    rewrite F_unfold_struct.
+    apply equiv_lowers; intros; apply H; assumption.
+  Qed.
+
+  Lemma Fix_sub_struct_rect
+    (Q : forall x, P x -> Type)
+    (inv : forall
+      (x : A)
+      (H : forall y : A, R y x -> Q y (Fix_sub_struct A R Rwf P f y))
+      (a : Acc R x),
+        Q x (f (fun y : { y : A | R y x } => Fix_sub_struct A R Rwf P f (proj1_sig y))))
+    : forall x, Q x (Fix_sub_struct A R Rwf P f x).
+  Proof.
+    unfold Fix_sub_struct; intro x.
+    apply Fix_F_sub_struct_rect.
+    intros x0 H a.
+    assert (forall y : A, R y x0 -> Q y (Fix_F_sub_struct A R P f y (Rwf y))) as X0; auto.
+    set (q := inv x0 X0 a); clearbody q.
+    rewrite <- (equiv_lowers
+      (fun y : { y : A | R y x0 } => Fix_F_sub_struct A R P f (proj1_sig y) (Rwf (proj1_sig y)))
+      (fun y : { y : A | R y x0 } => Fix_F_sub_struct A R P f (proj1_sig y) (Acc_inv a (proj2_sig y)))); auto.
+    intros; apply eq_Fix_F_sub_struct.
+  Qed.
+
 End Fix_rects.
 
 (** Tactic to fold a definition based on [Fix_measure_sub]. *)
@@ -215,6 +331,9 @@ Ltac fold_sub f :=
     | [ |- ?T ] =>
       match T with
         context C [ @Fix_sub _ _ _ _ _ ?arg ] =>
+        let app := context C [ f arg ] in
+          change app
+      | context C [ @Fix_sub_struct _ _ _ _ _ ?arg ] =>
         let app := context C [ f arg ] in
           change app
       end
