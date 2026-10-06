@@ -240,6 +240,64 @@ using the syntax:
 
    No such problems arise when using measures or well-founded recursion.
 
+.. rubric:: Well-founded recursion combinators
+
+Both :g:`wf` and :g:`measure` use the same well-founded recursion
+infrastructure. For a measure :g:`m` and a relation :g:`R` on its values,
+Program uses the relation :g:`MR R m x y := R (m x) (m y)` on the function's
+arguments. The default relation for a natural-number measure is :g:`lt`.
+
+The following definitions from :g:`Corelib.Program.Wf` implement this
+recursion. Here, :g:`A : Type` is the argument type, :g:`R : A -> A -> Prop`
+is the relation, :g:`Rwf : well_founded R` proves its well-foundedness, and
+:g:`P : A -> Type` gives the result type. The function body :g:`F_sub` has type
+:g:`forall x : A, (forall y : {y : A | R y x}, P (proj1_sig y)) -> P x`;
+its second argument supplies recursive results for predecessors of :g:`x`.
+
+With :flag:`Guard Checking Option Traversing Subterm Analysis` enabled,
+Program uses :g:`Fix_sub`, which supplies the initial accessibility proof to
+:g:`Fix_F_sub`:
+
+.. rocqdoc::
+
+   Fixpoint Fix_F_sub (x : A) (r : Acc R x) : P x :=
+     F_sub x (fun y : {y : A | R y x} =>
+       Fix_F_sub (proj1_sig y) (Acc_inv r (proj2_sig y))).
+
+   Definition Fix_sub (x : A) := Fix_F_sub x (Rwf x).
+
+The structural argument of :g:`Fix_F_sub` is the accessibility proof :g:`r`.
+The recursive call obtains a predecessor's accessibility proof through
+:g:`Acc_inv`, whose definition matches :g:`r`. Recognizing its result as a
+strict subterm of :g:`r` requires traversing subterm analysis.
+
+With the flag disabled, Program uses :g:`Fix_sub_struct` instead:
+
+.. rocqdoc::
+
+   Fixpoint Fix_F_sub_struct (x : A) (r : Acc R x) {struct r} : P x :=
+     match r with
+     | Acc_intro _ k =>
+       F_sub x (fun y : {y : A | R y x} =>
+         Fix_F_sub_struct (proj1_sig y) (k (proj1_sig y) (proj2_sig y)))
+     end.
+
+   Definition Fix_sub_struct (x : A) := Fix_F_sub_struct x (Rwf x).
+
+This variant matches :g:`r` before making recursive calls. The match exposes
+:g:`k : forall y, R y x -> Acc R y` as a recursive constructor argument of
+:g:`r`, so the recursive argument :g:`k (proj1_sig y) (proj2_sig y)` is
+accepted without traversing subterm analysis.
+
+Program selects the combinator when the definition is elaborated. Changing
+the flag later does not change this choice for existing definitions or their
+pending obligations.
+
+The alternative combinator may remain blocked during reduction if the
+accessibility proof is opaque. Opaque obligations are still accepted;
+:g:`fix_sub_struct_eq` and :g:`Fix_sub_struct_rect` support reasoning about
+the resulting functions without unfolding the accessibility proof.
+
 .. _program_lemma:
 
 Program Lemma

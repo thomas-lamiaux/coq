@@ -135,7 +135,12 @@ let check_true_recursivity env evd ~kind fixl =
 
 open Rocqlib
 let init_constant sigma rf = Evd.fresh_global sigma rf
-let fix_sub_ref () = lib_ref "program.wf.fix_sub"
+let fix_sub_ref env =
+  let flags = Environ.typing_flags env in
+  if flags.Declarations.guard_checking_options.traversing_subterm_analysis then
+    lib_ref "program.wf.fix_sub"
+  else
+    lib_ref "program.wf.fix_sub_struct"
 let measure_on_R_ref () = lib_ref "program.wf.mr"
 let well_founded sigma = init_constant (Global.env ()) sigma (lib_ref "core.wf.well_founded")
 let mkSubset sigma name typ prop =
@@ -143,8 +148,8 @@ let mkSubset sigma name typ prop =
   let sigma, app_h = Evd.fresh_global (Global.env ()) sigma (delayed_force build_sigma).typ in
   sigma, mkApp (app_h, [| typ; mkLambda (make_annot name ERelevance.relevant, typ, prop) |])
 
-let ensure_program () =
-  try fix_sub_ref (), measure_on_R_ref ()
+let ensure_program env =
+  try fix_sub_ref env, measure_on_R_ref ()
   with NotFoundRef r ->
     CErrors.user_err
       Pp.(str r ++ spc() ++ str "not registered," ++ spc() ++
@@ -155,7 +160,7 @@ let argname = Id.of_string "recarg"
 
 let encapsulate_Fix_sub env sigma recname ctx body ccl (extradecl, rel, relargty, measure_body) =
   let len = Context.Rel.length ctx in
-  let fix_sub_ref, measure_on_R_ref = ensure_program () in
+  let fix_sub_ref, measure_on_R_ref = ensure_program env in
   (* We curry the binders [x1:A1;...;xn:An] into [x:{x1&...&xn};x1:=x.1;...;xn:=x.2...2] *)
   (* argtyp is [{x1&...&xn}], letbinders is [x1:=x.1;...;xn:=x.2...2], argvalue is [(x.1,...,x.2...2)] *)
   let open Combinators in
