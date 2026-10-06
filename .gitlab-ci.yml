@@ -1236,6 +1236,9 @@ library:ci-rupicola:
   - library:ci-bedrock2
   stage: build-3+
 
+plugin:ci-rocq_extraction_scala:
+  extends: .ci-template-flambda
+
 plugin:ci-rocq_lsp:
   extends: .ci-template-flambda
   needs:
