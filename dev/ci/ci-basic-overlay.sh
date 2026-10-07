@@ -254,6 +254,12 @@ project coinduction "https://github.com/damien-pous/coinduction" "master"
 # Contact @damien-pous on github
 
 ########################################################################
+# rocq-extraction-scala
+########################################################################
+project rocq_extraction_scala "https://github.com/vbergeron/rocq-extraction-scala" "main"
+# Contact @vbergeron on github
+
+########################################################################
 # rocq-lsp
 ########################################################################
 project rocq_lsp "https://github.com/rocq-community/rocq-lsp" "main"
