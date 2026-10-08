@@ -68,11 +68,10 @@ let rec lookup_module_in_impl mp =
     | MPfile _ -> Global.lookup_module mp
     | MPbound _ -> Global.lookup_module mp
     | MPdot (mp',lab') ->
-       if ModPath.equal mp' (Global.current_modpath ()) then
-         Global.lookup_module mp
-       else
-         let fields = memoize_fields_of_mp mp' in
-         search_mod_label lab' fields
+      match memoize_fields_of_mp mp' with
+      | fields ->
+        search_mod_label lab' fields
+      | exception Not_found -> Global.lookup_module mp
 
 and memoize_fields_of_mp mp =
   try ModPath.Map.find mp !modcache
