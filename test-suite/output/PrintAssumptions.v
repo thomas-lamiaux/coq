@@ -113,6 +113,11 @@ Module E: C.
 End E.
 Print Assumptions E.D.f.
 
+Module X.
+  (* #22533 being in a module prevents piercing module type *)
+  Print Assumptions E.D.f.
+End X.
+
 (* Idem in the scope of a functor *)
 
 Module Type T. End T.
