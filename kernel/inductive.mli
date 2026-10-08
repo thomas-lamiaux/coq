@@ -17,6 +17,17 @@ open Declarations
 open Environ
 open CClosure
 
+(** Successful per-body fixpoint guard checks collected while the
+    [guard-check] debug component is enabled. Repeated checks are retained;
+    rejected checks, cofixpoints and disabled guard checking are excluded. *)
+module GuardChecks : sig
+  (** Start collection for a compilation, discarding previous records.
+      Other entry points do not collect records, even with debug enabled. *)
+  val start_collection : unit -> unit
+  (** Return collected binder names in check order and stop collection. *)
+  val take : unit -> Name.t list
+end
+
 (** {6 Extracting an inductive type from a construction } *)
 
 (** [find_m*type env sigma c] coerce [c] to an recursive type (I args).

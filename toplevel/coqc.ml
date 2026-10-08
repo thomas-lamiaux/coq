@@ -10,6 +10,7 @@
 
 let coqc_init ((_,color_mode),_) injections ~opts =
   Flags.quiet := true;
+  Inductive.GuardChecks.start_collection ();
   System.trust_file_cache := true;
   Colors.init_color color_mode;
   DebugHook.Intf.(set
@@ -34,6 +35,32 @@ rocq compile specific options:\
 \n"
 }
 
+(* JSON strings without adding a dependency to the compiler or kernel. *)
+let guard_json_string value =
+  let result = Buffer.create (String.length value + 2) in
+  Buffer.add_char result '"';
+  String.iter (function
+      | '"' -> Buffer.add_string result "\\\""
+      | '\\' -> Buffer.add_string result "\\\\"
+      | c when Char.code c < 0x20 ->
+        Buffer.add_string result (Printf.sprintf "\\u%04x" (Char.code c))
+      | c -> Buffer.add_char result c) value;
+  Buffer.add_char result '"';
+  Buffer.contents result
+
+let report_guard_checks copts =
+  let records = Inductive.GuardChecks.take () in
+  let file = match copts.Coqcargs.compile_file with
+    | None -> "-"
+    | Some file ->
+      if Filename.is_relative file then Filename.concat (Sys.getcwd ()) file
+      else file
+  in
+  List.iter (fun name ->
+      let name = Pp.string_of_ppcmds (Names.Name.print name) in
+      Feedback.msg_debug Pp.(str ("ROCQ_GUARD_CHECK {\"file\":"
+        ^ guard_json_string file ^ ",\"name\":" ^ guard_json_string name ^ "}"))) records
+
 let coqc_main ((copts,_),stm_opts) injections ~opts =
   Topfmt.(in_phase ~phase:CompilationPhase)
     Ccompile.compile_file opts stm_opts copts injections;
@@ -52,8 +79,11 @@ let coqc_run copts ~opts injections =
   let _feeder = Feedback.add_feeder Coqloop.coqloop_feed in
   try
     coqc_main ~opts copts injections;
+    report_guard_checks (fst (fst copts));
+    flush_all();
     exit 0
   with exn ->
+    report_guard_checks (fst (fst copts));
     flush_all();
     Topfmt.print_err_exn exn;
     flush_all();

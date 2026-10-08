@@ -1863,6 +1863,27 @@ let sorts_of_mutfix env minds names =
       ) [] minds)
 
 
+module GuardChecks = struct
+  let enabled, _ = CDebug.create_full ~name:"guard-check" ()
+  let records = ref None
+
+  let start_collection () = records := Some []
+
+  let record name =
+    if CDebug.get_flag enabled then
+      match !records with
+      | None -> ()
+      | Some names -> records := Some (name :: names)
+
+  let take () =
+    let result = match !records with
+      | None -> []
+      | Some names -> List.rev names
+    in
+    records := None;
+    result
+end
+
 let check_fix_pre_sorts ?evars env ((nvect, _), (names, _, bodies as recdef) as fix) =
 (* For elaboration of elimination constraints, we need to update the evar_map with
    the possibly new constraints (see e.g. [esearch_guard] (Pretyping)). We expose this
@@ -1879,7 +1900,9 @@ let check_fix_pre_sorts ?evars env ((nvect, _), (names, _, bodies as recdef) as 
       for i = 0 to Array.length bodies - 1 do
         let (fenv, body) = rdef.(i) in
         let renv = make_renv fenv nvect.(i) trees.(i) in
-        try check_one_fix ?evars renv nvect trees body
+        try
+          check_one_fix ?evars renv nvect trees body;
+          GuardChecks.record names.(i).Context.binder_name
         with FixGuardError (err_env, err) -> raise_err err_env i err
       done
   in
