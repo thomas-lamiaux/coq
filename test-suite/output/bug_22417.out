@@ -1,0 +1,9 @@
+File "./output/bug_22417.v", line 2, characters 0-102:
+The command has indeed failed with message:
+Recursive definition of annotation_loop is ill-formed.
+In environment
+annotation_loop : nat -> nat
+Disallowed recursive occurrence in the abstractions before the principal
+argument.
+Recursive definition is:
+"fun n : let unused := annotation_loop 0 in nat => n".
