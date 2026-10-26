@@ -538,6 +538,8 @@ let explain_ill_formed_fix_body env sigma names i = function
   (* Fixpoint guard errors *)
   | NotEnoughAbstractionInFixBody k ->
       fmt "Not enough abstractions in the definition:@ expected at least %d according to the \"struct\" annotation" (k+1)
+  | RecCallInFixBinderType ->
+      strbrk "Disallowed recursive occurrence in the abstractions before the principal argument"
   | RecursionNotOnInductiveType c ->
       str "Recursive definition on" ++ spc () ++ pr_leconstr_env env sigma c ++
       spc () ++ str "which should be a recursive inductive type"
